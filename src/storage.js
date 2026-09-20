@@ -5,6 +5,9 @@ function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYP
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function tx(mode,fn){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,mode),s=t.objectStore(STORE);let value;try{value=fn(s)}catch(e){reject(e);return}t.oncomplete=()=>resolve(value);t.onerror=()=>reject(t.error)})}
 export function migrateSave(input){
+ if(!input||typeof input!=="object")throw new Error("SAVE_STATE_INVALID");
+ const declared=Number(input.formatVersion||1);
+ if(Number.isFinite(declared)&&declared>FORMAT_VERSION)throw new Error("SAVE_VERSION_TOO_NEW");
  const s=structuredClone(input);let v=Number(s.formatVersion||1);
  if(v<2){s.world.registry??={locations:[],npcs:[],factions:[],sideQuests:[]};s.world.graph??={nodes:[],edges:[],expansions:[]};s.world.state.crisis??={stage:"DORMANT",pressure:0,lastStageDay:s.world.state.day,history:[]};s.world.state.simulation??={tension:10,lastEventMinute:0,flags:{}};s.player.level??=1;s.player.xp??=0;s.player.status??="ALIVE";for(const q of s.world.registry.sideQuests||[]){q.progress??=0;q.target??=3;q.evidence??=[]}v=2}
  if(v<3){s.player.name??="無名者";s.player.nameSource??="LEGACY";s.player.worldNameKnown??=true;s.suggestions??=[];v=3}
@@ -27,8 +30,8 @@ export function migrateSave(input){
  s.formatVersion=FORMAT_VERSION;return s
 }
 export async function saveWorld(state){const clean=migrateSave(state);assertSaveState(clean);Object.assign(state,clean);const record={...structuredClone(clean),id:"autosave",savedAt:new Date().toISOString(),formatVersion:FORMAT_VERSION};await tx("readwrite",s=>s.put(record));return record}
-export async function loadWorld(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).get("autosave");r.onsuccess=()=>resolve(r.result?migrateSave(r.result):null);r.onerror=()=>reject(r.error)})}
+export async function loadWorld(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).get("autosave");r.onsuccess=()=>{try{if(!r.result){resolve(null);return}const migrated=migrateSave(r.result);assertSaveState(migrated);resolve(migrated)}catch(e){reject(e)}};r.onerror=()=>reject(r.error)})}
 export async function hasWorld(){return !!(await loadWorld())}
 export async function deleteWorld(){await tx("readwrite",s=>s.delete("autosave"))}
 export function exportWorld(state){const payload={format:"elyndra-save",formatVersion:FORMAT_VERSION,exportedAt:new Date().toISOString(),state:migrateSave(state)};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${state.world?.name||"world"}.elyndra`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-export async function importWorld(file){const payload=JSON.parse(await file.text());if(payload.format!=="elyndra-save"||![1,2,3,4,5,6,7,8,9,10].includes(Number(payload.formatVersion))||!payload.state?.world)throw new Error("不是有效的 Elyndra 存檔");const state=migrateSave(payload.state);assertSaveState(state);await saveWorld(state);return state}
+export async function importWorld(file){const payload=JSON.parse(await file.text()),version=Number(payload.formatVersion);if(payload.format!=="elyndra-save"||!Number.isInteger(version)||version<1||version>FORMAT_VERSION||!payload.state?.world)throw new Error(version>FORMAT_VERSION?"SAVE_VERSION_TOO_NEW":"不是有效的 Elyndra 存檔");if(Number(payload.state.formatVersion||version)>FORMAT_VERSION)throw new Error("SAVE_VERSION_TOO_NEW");const state=migrateSave(payload.state);assertSaveState(state);await saveWorld(state);return state}
