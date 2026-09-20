@@ -1,6 +1,7 @@
 import {revealStoredLore} from "./lore-engine.js?v=231";
 import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=231";
 import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=231";
+import {normalizeCalendar} from "./world-locality.js?v=232";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -21,7 +22,7 @@ function normalizeEconomy(input){
  return {currencyExists,currencyName:currencyExists?clean(input.currencyName,40):"",currencySymbol:currencyExists?clean(input.currencySymbol,12):"",startingAmount:currencyExists?clamp(Math.round(Number(input.startingAmount)||0),0,20):0,questReward:currencyExists?clamp(Math.round(Number(input.questReward)||0),0,20):0,combatReward:currencyExists?clamp(Math.round(Number(input.combatReward)||0),0,20):0}
 }
 export function compileWorld(seed){
- const now=Date.now(),seedContract=createWorldSeedContract(seed),timelinePacing=createTimelinePacing(seedContract.targetPlayHours),economy=normalizeEconomy(null),world={id:uuid(),name:localWorldName(seed),seed,seedContract,seedCompliance:localSeedCompliance(seed),timelinePacing,timeline:[],economy,createdAt:now,version:1,constitution:WORLD_CONSTITUTION,
+ const now=Date.now(),seedContract=createWorldSeedContract(seed),timelinePacing=createTimelinePacing(seedContract.targetPlayHours),economy=normalizeEconomy(null),world={id:uuid(),name:localWorldName(seed),seed,seedContract,seedCompliance:localSeedCompliance(seed),timelinePacing,timeline:[],calendar:normalizeCalendar(null),economy,createdAt:now,version:1,constitution:WORLD_CONSTITUTION,
   canon:{facts:[
    {id:"F-origin",type:"premise",visibility:"hidden",text:premise(seed),canonical:true},
    {id:"F-magic",type:"rule",visibility:"hidden",text:`World Seed 規定魔法普及度為 ${seedContract.magic}/5；具體魔法制度由符合 Seed Contract 的世界 Canon 決定。`,canonical:true},
@@ -41,7 +42,7 @@ export function validateWorld(world){
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
  return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},integrity:report,
-  player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,hp:100,maxHp:100,gold:0,knowledgeScore:0,location:"未知地點"},
+  player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點"},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
   discoveries:0,suggestions:[],
@@ -53,15 +54,15 @@ export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
  const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));const pacing=createTimelinePacing(compliance.expected.targetPlayHours);const timelineReport=validateWorldTimeline(candidate.worldTimeline,pacing);if(!timelineReport.valid)throw new Error("WORLD_TIMELINE_FAILED:"+timelineReport.errors.join(","));
- state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;state.world.timelinePacing=timelineReport.pacing;state.world.timeline=timelineReport.timeline;
+ state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;state.world.timelinePacing=timelineReport.pacing;state.world.timeline=timelineReport.timeline;state.world.calendar=normalizeCalendar(candidate.worldCalendar);
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;
  const aiName=clean(candidate.playerName,40);if(state.player?.nameSource==="AI_PENDING"&&aiName){state.player.name=aiName;state.player.nameSource="AI"}
  const bible=candidate.worldBible;
  if(bible!=null){
   if(typeof bible!=="object"||Array.isArray(bible))throw new Error("INVALID_WORLD_BIBLE");
-  const economy=normalizeEconomy(bible.economy);
-  state.world.economy=economy;state.player.gold=economy.startingAmount;
-  state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),startingLocation:clean(bible.startingLocation,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200),economy}
+  const economy=normalizeEconomy(null);
+  state.world.economy=economy;state.player.gold=0;
+  state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),startingLocation:clean(bible.startingLocation,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200)}
  }
  const existing=new Set(state.world.canon.facts.map(f=>f.text));let n=0;
  for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]])for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
