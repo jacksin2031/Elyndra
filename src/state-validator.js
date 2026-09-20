@@ -12,14 +12,16 @@ const LOCATION_FIELDS=new Set(["safety","prosperity","supply","infrastructure","
 const FACTION_FIELDS=new Set(["resources","influence","stability"]);
 const NPC_FIELDS=new Set(["trust"]);
 const WORLD_FIELDS=new Set(["tension","crisisPressure"]);
+const STRUCTURE_STATES=new Set(["ACTIVE","OPEN","RESTORED","STABILIZED","DAMAGED","DESTROYED","CLOSED","FLOODED","ABANDONED","CORRUPTED","TRANSFORMED"]);
 function validMutation(kind,m){
  if(!obj(m))return false;const op=String(m.op||"").toUpperCase(),field=String(m.field||"");
+ if(op==="STRUCTURE"){const x=m.value;return ["location","faction","world"].includes(kind)&&field==="structure"&&obj(x)&&typeof x.id==="string"&&Boolean(x.id)&&typeof x.label==="string"&&Boolean(x.label)&&STRUCTURE_STATES.has(String(x.state||"").toUpperCase())}
  if(["ADD_TAG","REMOVE_TAG"].includes(op))return field==="statusTag"&&typeof m.value==="string"&&Boolean(m.value.trim());
  const fields=kind==="location"?LOCATION_FIELDS:kind==="faction"?FACTION_FIELDS:kind==="npc"?NPC_FIELDS:kind==="world"?WORLD_FIELDS:null;
  return op==="DELTA"&&Boolean(fields?.has(field))&&finite(Number(m.value))&&Number(m.value)!==0
 }
 function validWorldState(x,kind){
- if(!obj(x)||!arr(x.statusTags||[])||(x.statusTags||[]).some(t=>typeof t!=="string"))return false;
+ if(!obj(x)||!arr(x.statusTags||[])||(x.statusTags||[]).some(t=>typeof t!=="string")||!arr(x.structures||[])||(x.structures||[]).some(s=>!obj(s)||typeof s.id!=="string"||typeof s.label!=="string"||!STRUCTURE_STATES.has(String(s.state||"").toUpperCase())))return false;
  if(kind==="location"&&[...LOCATION_FIELDS].some(k=>!bounded(Number(x[k]))))return false;
  if(kind==="faction"&&!bounded(Number(x.stability)))return false;
  return true
