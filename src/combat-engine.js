@@ -30,7 +30,7 @@ export function canStartEncounter(state,enemy,context={}){
  return false
 }
 export function startCombat(state,enemy,context={}){
- ensureCharacter(state);if(!context.force&&!canStartEncounter(state,enemy,context))return null;
+ ensureCharacter(state);const enforce=context.enforceCausality===true;if(enforce&&!context.force&&!canStartEncounter(state,enemy,context))return null;
  state.combat={active:true,enemy:normalizeEnemy(enemy,state),round:1,log:[],startedAtLocationId:(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location)?.id||null};
  return state.combat
 }
