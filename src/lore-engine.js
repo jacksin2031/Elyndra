@@ -18,7 +18,9 @@ function entries(state){
  ]
 }
 export function revealStoredLore(state){
- const corpus=(state.knowledge||[]).flatMap(k=>[k.title,k.text]).filter(Boolean).join("\n").toLowerCase();
+ const trustedKnowledge=(state.knowledge||[]).filter(k=>k?.status==="VERIFIED"&&(k.factId||k.historyId));
+ const physicalEvidence=(state.inventory||[]).filter(x=>x?.identified!==false).flatMap(x=>[x.name,x.description]);
+ const corpus=[...trustedKnowledge.flatMap(k=>[k.title,k.text]),...physicalEvidence].filter(Boolean).join("\n").toLowerCase();
  const revealed=[];
  for(const {kind,entity} of entries(state)){
   const lore=normalizeLore(entity.lore);if(!lore||lore.known)continue;
@@ -27,8 +29,7 @@ export function revealStoredLore(state){
   lore.known=true;lore.revealedDay=state.world?.state?.day??1;entity.lore=lore;if(kind!=="item")entity.known=true;
   const name=clean(entity.name,100)||"未知事物",kid=`LORE-${entity.id||name}`;
   if(!(state.knowledge||[]).some(k=>k.id===kid)){
-   state.knowledge.push({id:kid,title:`${name}的故事`,status:"KNOWN",text:lore.story,sources:[entity.id||kind]});
-   if(state.player)state.player.knowledgeScore=Math.min(100,(state.player.knowledgeScore||0)+1)
+   state.knowledge.push({id:kid,title:`${name}的故事`,status:"LORE",text:lore.story,sources:[entity.id||kind],score:0});
   }
   state.events??=[];state.events.push({id:uid(),type:"LORE_REVEALED",visibility:"PLAYER_KNOWN",entityId:entity.id,entityType:kind,summary:`理解了「${name}」背後的故事。`,day:state.world?.state?.day??1,at:Date.now()});
   revealed.push({kind,entityId:entity.id,name,story:lore.story})
