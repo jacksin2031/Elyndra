@@ -1,4 +1,5 @@
 import {getWorldStylePreset,applyWorldStyleBase} from "./world-style-presets.js?v=231";
+import {createTimelinePacing} from "./world-timeline.js?v=231";
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const level=v=>Math.max(1,Math.min(5,Math.round(Number(v)||1)));
 const scaleValue=v=>["小型","中型","大型"].includes(v)?v:"中型";
@@ -15,6 +16,7 @@ export function createWorldSeedContract(seed={}){
   magic:random?null:level(styled.magic),
   politics:random?null:level(styled.politics),
   prompt:text(seed.prompt,800),
+  targetPlayHours:createTimelinePacing(seed.playHours).targetPlayHours,
   styleFoundation:random?"由 AI 自行建立完整世界觀基礎":text(preset?.foundation,500)
  }
 }
@@ -33,7 +35,7 @@ export function validateSeedCompliance(seed,candidate){
   const chosen=chosenValue(c,key,base[key]);
   if(key==="theme"){
    if(!chosen)errors.push("SEED_THEME_MISSING");else resolved.theme=chosen
-  }else if(base.worldviewMode==="random"){
+  }else if(base.worldviewMode==="ai"){
    if((key==="danger"||key==="magic"||key==="politics")&&chosen==null)errors.push(`SEED_${key.toUpperCase()}_INVALID`);
    else if(key==="scale"&&!["小型","中型","大型"].includes(chosen))errors.push("SEED_SCALE_INVALID");
    else if(!chosen)errors.push(`SEED_${key.toUpperCase()}_INVALID`);
@@ -75,8 +77,10 @@ export function localSeedCompliance(seed){
 }
 export function seedDirective(seed){
  const s=createWorldSeedContract(seed),random=s.worldviewMode==="ai";
+ const timelinePacing=createTimelinePacing(s.targetPlayHours);
  return {
   contract:s,
+  timelinePacing,
   styleFoundation:random?null:getWorldStylePreset(s.genre),
   randomEntropy:text(seed.worldviewEntropy,120),
   rules:[
@@ -84,6 +88,7 @@ export function seedDirective(seed){
     ?"AI 必須自行隨機決定 genre、theme、scale、danger、magic、politics，六項要互相形成有因果的世界觀；不要固定回到王道奇幻或常見模板"
     :`genre=${s.genre} 是世界基礎風格；必須遵守 styleFoundation，並在此基礎上創造獨特世界`,
    "theme 必須由 AI 自行創造，不可從 UI 固定清單選擇；theme 要成為 centralConflict、歷史、危機或世界真相的核心因果",
+   `希望遊玩時間約 ${s.targetPlayHours} 小時；世界大事件必須依 timelinePacing 分布，短篇更密集、長篇保留更長伏筆與中後期轉折`,
    ...(random?[]:[
     `danger=${s.danger}/5 必須影響生存壓力、敵對環境與風險密度`,
     `magic=${s.magic}/5 必須影響魔法可見度、取得難度、社會用途與代價`,
