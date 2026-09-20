@@ -1,4 +1,5 @@
 import {hasDirectAI,directChat} from "./ai-settings.js";
+import {seedDirective} from "./seed-contract.js";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -6,7 +7,47 @@ function parseJSON(raw){const s=String(raw??"").trim().replace(/^```(?:json)?\s*
 export async function aiHealth(){if(hasDirectAI())return {ok:true,aiConfigured:true,mode:"direct"};try{const r=await fetch(apiPath("/api/health"));return r.ok?await r.json():{ok:false,aiConfigured:false}}catch{return {ok:false,aiConfigured:false}}}
 export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text)}
 export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){return directChat({system:"你是 Elyndra 的繁體中文敘事者。玩家只知道 payload 中 visibleFacts、playerLocation 與這次行動能直接感知到的結果。world/Canon 可能存在更多真相，但不可提前說出任何未學會的世界名稱、地名、國家、勢力、歷史或規則。只能描述已由遊戲引擎決定的結果，不可改骰子、Canon、HP、物品。回答80-180字。",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},visibleFacts:visibleFacts(state)})})}return (await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},visibleFacts:visibleFacts(state)})).text}
-export async function generateWorldCandidate(seed,constitution){if(hasDirectAI()){const raw=await directChat({system:'你是 Elyndra World Architect。建立「開局可遊玩的最小 World Bible」，不要一次生成整個世界，以節省 token 並保留後續 lazy generation 空間。玩家剛轉生，對這個世界的知識必須是 0：不知道世界名、國家、區域、聚落、勢力、歷史、魔法規則，也不知道自己所在位置的名稱。openingHook 只能寫玩家能直接感知的環境，不得使用任何玩家尚未學會的專有名詞。若 seed.playerName 有值，playerName 必須原樣保留；若為空，請替玩家決定一個適合世界觀的名字。只輸出 JSON：{"worldName":"世界真正名稱","playerName":"玩家名稱","summary":"120-300字世界概要","worldBible":{"era":"時代","centralConflict":"目前最重要且有因果的衝突","magicCost":"魔法硬規則與代價","startingRegion":"真實開局區域","startingSettlement":"附近第一個文明聚落","startingLocation":"玩家真實出生位置名稱（只供引擎，不可在 openingHook 洩漏）","ancientTruth":"玩家未知的深層真相","currentCrisis":"正在發展中的危機","tone":"敘事氣氛"},"publicFacts":["2-5項世界中普通居民可能知道、但玩家尚未知道的事實"],"hiddenFacts":["2-5項真正秘密"],"openingHook":"80-220字、零世界知識的感官開場","suggestions":["3-4個只依據眼前可感知資訊而提出的下一步行動"],"generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","known":false,"lore":{"story":"此地真正背景故事，只生成一次","unlockKeywords":["玩家日後可能獲得的線索詞"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","personality":"...","goal":"...","locationName":"同批 locations 的名稱或空字串","factionName":"同批 factions 的名稱或空字串","knowledgeScope":[],"known":false,"lore":{"story":"角色真正背景，只生成一次","unlockKeywords":["相關線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","known":false,"lore":{"story":"勢力背景，只生成一次","unlockKeywords":["相關線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","known":false}]}}。generation 僅建立開局需要內容：最多2地點、2 NPC、1勢力、1支線。世界設定必須有因果關係，秘密不得在 openingHook 或 suggestions 洩漏，內容必須服從 constitution。',user:JSON.stringify({seed,constitution})});return parseJSON(raw)}return (await post("/api/world",{seed,constitution})).candidate}
+export async function generateWorldCandidate(seed,constitution){
+ const directive=seedDirective(seed);
+ if(hasDirectAI()){
+  const raw=await directChat({
+   system:'你是 Elyndra World Architect。玩家的 World Seed 是硬性合約，不是參考。你必須逐項遵守 genre/theme/scale/danger/magic/politics/custom prompt，並在 seedCompliance 中原樣回傳每個設定值與至少一句具體 evidence，說明該設定如何實際影響世界。任何設定不可忽略、弱化或自行改寫。建立開局可遊玩的最小 World Bible，保留 lazy generation 空間。玩家剛轉生且世界知識為 0：openingHook / suggestions 不得洩漏世界名、地名、國家、勢力、歷史、魔法規則等未學會專有資訊。若 seed.playerName 有值必須原樣保留，否則由你決定玩家名稱。只輸出 JSON，不要 Markdown。',
+   user:JSON.stringify({
+    seed,
+    seedDirective:directive,
+    constitution,
+    required:{
+     worldName:"string",
+     playerName:"string",
+     summary:"120-300字世界概要",
+     seedCompliance:{
+      genre:{value:directive.contract.genre,evidence:"具體如何影響 tone/文化/事件"},
+      theme:{value:directive.contract.theme,evidence:"具體如何成為核心因果"},
+      scale:{value:directive.contract.scale,evidence:"如何影響世界範圍與 lazy generation"},
+      danger:{value:directive.contract.danger,evidence:"如何影響生存壓力與風險"},
+      magic:{value:directive.contract.magic,evidence:"如何影響魔法普及、用途與代價"},
+      politics:{value:directive.contract.politics,evidence:"如何影響勢力與政治關係"},
+      ...(directive.contract.prompt?{prompt:{value:directive.contract.prompt,evidence:"如何落實玩家自訂要求"}}:{})
+     },
+     worldBible:{era:"時代",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛"},
+     publicFacts:["2-5項居民可能知道但玩家尚未知的事實"],
+     hiddenFacts:["2-5項真正秘密"],
+     openingHook:"80-220字零世界知識感官開場",
+     suggestions:["3-4個只根據眼前可感知資訊的下一步行動"],
+     generation:{
+      locations:[{name:"...",type:"...",region:"...",description:"...",known:false,lore:{story:"此地真正背景，只生成一次",unlockKeywords:["線索詞"],minMatches:1}}],
+      npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"...",factionName:"...",knowledgeScope:[],known:false,lore:{story:"角色真正背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+      factions:[{name:"...",goal:"...",description:"...",known:false,lore:{story:"勢力背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+      sideQuests:[{title:"...",objective:"...",known:false}]
+     }
+    },
+    generationLimits:{locations:2,npcs:2,factions:1,sideQuests:1}
+   })
+  });
+  return parseJSON(raw)
+ }
+ return (await post("/api/world",{seed,constitution,seedDirective:directive})).candidate
+}
 export async function talkToNpc(state,key,message){const npc=state.npcs[key],knownFacts=state.world.canon.facts.filter(f=>npc.knowledgeScope.includes(f.id)).map(f=>f.text),payload={message,npc,knownFacts,memories:npc.memories,scene:{day:state.world.state.day,location:state.player.location}};if(hasDirectAI())return directChat({system:`你扮演 Elyndra NPC「${npc.name}」。只能使用提供的 knownFacts 與 memories，不知道就表現不知道。繁體中文1-4句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
 export async function talkToDynamicNpc(state,npc,message){const knownFacts=state.world.canon.facts.filter(f=>f.visibility==="public"||npc.knowledgeScope?.includes(f.id)).map(f=>f.text);const payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,trust:npc.trust},knownFacts,memories:(npc.memories||[]).slice(-12),scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location}};if(hasDirectAI())return directChat({system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal 與既有 memories 一致。只能使用 knownFacts，不知道的事不可捏造。繁體中文1-5句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
 export async function generateTurn(action,roll,snapshot){if(hasDirectAI()){const raw=await directChat({system:'你是 Elyndra Adventure Director。骰子結果不可修改。snapshot.directorRegistry 是 Director 專用的既有 Canon 索引，玩家看不到；它只用來避免重複生成已存在實體。玩家只可知道 snapshot.knownFacts、snapshot.knowledge、snapshot.registry、可見物品、已知 location，以及本回合行動合理揭露的新資訊。若玩家尚未知道當前位置名稱，location 必須保持 null；只有本回合確實取得可靠地名時才填入。每回合 suggestions 必須由你根據當前場景、剛發生的結果與玩家已知資訊重新決定，不能依賴預設固定選項，也不能洩漏未發現的地點、NPC、勢力或任務。只輸出 JSON：{"narrative":"...","location":null,"worldNameKnown":false,"discoveries":[],"items":[{"name":"...","description":"玩家現在能觀察到的表面描述","lore":{"story":"物品真正來歷，只在首次建立時生成一次","unlockKeywords":["解鎖此故事所需的知識線索"],"minMatches":1}}],"npcChanges":[],"factionChanges":[{"factionId":"existing-id","reputationDelta":0}],"quest":{"title":null,"objective":null},"entityReveals":[{"kind":"npc","id":"directorRegistry 中既有實體 id"}],"generation":{"locations":[{"name":"...","type":"...","description":"...","known":true,"lore":{"story":"首次建立時生成一次的地點背景","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","known":true,"lore":{"story":"首次建立時生成一次的角色背景","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","known":true或false,"lore":{"story":"首次建立時生成一次的勢力背景","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[]},"suggestions":["3-4個下一步行動"]}。先檢查 directorRegistry：若玩家本回合遇到的是其中已存在實體，只把它放進 entityReveals，不得放進 generation。只有 directorRegistry 中不存在、且本回合真的首次出現的新實體才放進 generation；已存在實體不得重建，也不得再次生成它的 lore。直接被玩家看見或交談到的新實體設 known=true。不得洩漏未知秘密。',user:JSON.stringify({action,roll,snapshot})});return parseJSON(raw)}return (await post("/api/turn",{action,roll,snapshot})).candidate}
