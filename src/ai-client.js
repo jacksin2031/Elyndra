@@ -5,6 +5,7 @@ import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=267";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=267";
 import {sanitizePlayerText} from "./runtime-guard.js?v=267";
 import {helperSnapshot} from "./helper-context.js?v=267";
+import {directorHistorySnapshot} from "./world-history.js?v=267";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -27,7 +28,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const core=normalizeWorldCoreCandidate(await worldStage("CORE",{
    timeoutMs:65000,
    maxOutputTokens:1600,
-   system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。每個世界必須有符合自身科技／魔法／文化的遠距聯絡方式，可讓已真正接觸並建立聯絡的人物進行即時或近即時通訊；不得無理由直接套用現實互聯網。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
+   system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。你必須先定義 civilization.level 1-5，再設計符合「文明程度 + 魔法普及度 + 世界文化」的聯絡方式；低文明低魔法只可有信使／驛站等延遲通訊，只有文明或魔法足以支持時才可有即時或近即時遠距對話，不得無理由直接套用現實互聯網。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
    user:JSON.stringify({seed,seedDirective:{contract:directive.contract,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy},required:{
     worldName:"string",worldTheme:"具體核心主題",playerName:"string",summary:"80-160字世界概要",
     seedCompliance:{
@@ -39,7 +40,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
      politics:{value:auto?"1-5整數":expected.politics,evidence:"12-40字具體 evidence"},
      ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"如何落實玩家自訂要求"}}:{})
     },
-    worldBible:{era:"世界自己的時代稱呼",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛",communication:{name:"符合世界觀的遠距聯絡方式名稱",medium:"例如網絡終端、魔法傳訊、共鳴器等世界內媒介",description:"如何運作且為何符合本世界",latency:"INSTANT|NEAR_INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}},
+    worldBible:{era:"世界自己的時代稱呼",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛",civilization:{level:"1-5整數，1=分散聚落，5=高度網絡化",stage:"世界內文明階段名稱",infrastructure:"基建程度",literacy:"教育／識字狀況",mobility:"人口與交通流動方式"},communication:{name:"符合文明與魔法程度的遠距聯絡方式",medium:"世界內媒介",description:"如何運作且為何符合文明程度",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}},
     publicFacts:["2-3項簡潔公開事實"],
     hiddenFacts:["2-3項簡潔真正秘密"]
    }})
@@ -49,13 +50,14 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   report(58,"平行編譯世界","時間線與開局地區將同時生成，減少等待時間");
   const chronologyPromise=worldStage("CHRONOLOGY",{
    timeoutMs:60000,
-   maxOutputTokens:2200,
-   system:`你是 Elyndra Chronology Compiler。根據固定世界核心，只生成該世界自己的曆法與完整大事件 Timeline。不得改寫 core，不得洩漏 directorTruth 給玩家。Timeline 必須符合 timelinePacing、按 earliestDay 排序並涵蓋 early/middle/late。欄位內容保持精簡。只輸出 JSON，不要 Markdown。`,
+   maxOutputTokens:3000,
+   system:`你是 Elyndra Chronology Compiler。根據固定世界核心，同時生成「不可改寫的過去歷史 World History」與「會在遊戲中向未來發展的 Timeline」。World History 必須解釋文明、制度、衝突、魔法／技術與現代世界為何變成現在這樣；它是已發生 Canon，之後不可被玩家或 AI 改寫。Timeline 則是未來事件，可被玩家影響其實際結果。不得洩漏 directorTruth 給玩家。Timeline 必須符合 timelinePacing、按 earliestDay 排序並涵蓋 early/middle/late。欄位內容保持精簡。只輸出 JSON，不要 Markdown。`,
    user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:core.worldBible},timelinePacing:directive.timelinePacing,required:{
+    worldHistory:Array.from({length:5},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內歷史時代名稱",title:`重大歷史事件${i+1}`,category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革等",summary:"已經發生且不可改寫的歷史",causes:["1-3項原因"],legacies:["1-4項直到現在仍存在的影響"],regions:["受影響區域，可空"],factions:["相關勢力，可空"],discoverKeywords:["日後可從遺跡／文獻／NPC發現的線索詞"]})),
     worldCalendar:{name:"曆法名",epochName:"紀元名",dayTerm:"日序稱呼",cycleTerm:"短週期稱呼",longCycleTerm:"長週期稱呼",daysPerCycle:"3-60整數",cyclesPerLongCycle:"3-30整數",cycles:["週期名"],periods:[{name:"時段名",fromMinute:0,toMinute:359}]},
     worldTimeline:Array.from({length:directive.timelinePacing.majorEventCount},(_,i)=>({title:`大事件${i+1}`,category:"事件類型",earliestDay:"2-horizonDays",latestDay:"earliestDay-horizonDays",directorTruth:"簡潔隱藏因果",observableEffect:"簡潔可觀察影響",pressure:"0-15整數"}))
    }})
-  }).then(chronology=>{if(!chronology?.worldCalendar||!Array.isArray(chronology?.worldTimeline)||chronology.worldTimeline.length!==directive.timelinePacing.majorEventCount)throw new Error("WORLD_CHRONOLOGY_INVALID");report(64,"時間線完成","開局內容仍在同步編譯");return chronology});
+  }).then(chronology=>{if(!chronology?.worldCalendar||!Array.isArray(chronology?.worldHistory)||chronology.worldHistory.length<3||!Array.isArray(chronology?.worldTimeline)||chronology.worldTimeline.length!==directive.timelinePacing.majorEventCount)throw new Error("WORLD_CHRONOLOGY_INVALID");report(64,"時間線完成","開局內容仍在同步編譯");return chronology});
 
   const openingPromise=(async()=>{
    const region=await worldStage("REGION",{
@@ -129,6 +131,6 @@ export async function generateTurn(action,roll,snapshot){
  }
  return (await post("/api/turn",{action,roll,snapshot})).candidate
 }
-export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",communication:b.communication||null}}
-export function regionExpansionPayload(state,reason="player_exploration"){return {reason,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
-export async function generateRegionExpansion(state,reason="player_exploration"){const payload=regionExpansionPayload(state,reason);if(hasDirectAI()){const raw=await directChat({timeoutMs:90000,system:'你是 Elyndra Progressive World Architect。world.seedContract 是不可違反的玩家世界設定；新區域必須維持同一 genre/theme/scale/danger/magic/politics/custom prompt，不可自行漂移。每個新地點／勢力首次生成時都要有符合當地歷史的 culture 與 trade；不得假設全世界通用貨幣或同一文化。任何新 NPC 都要有 companionProfile，但不代表一定會成為夥伴。只輸出 JSON：{"region":"新區域名稱","reason":"與既有世界的因果連接","generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","known":true或false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","knowledgeScope":["既有 public fact 完整文字或 fact id"],"known":true或false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","known":false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","known":true或false,"evidenceKeywords":["2-5個可驗證線索詞"],"target":3}]}}。最多2地點、2 NPC、1勢力、1支線。不得重建 existing、不得再次生成既有 lore、不得改寫 World Bible、不得洩漏 hidden secrets。',user:JSON.stringify(payload)});return parseJSON(raw)}return null}
+export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",civilization:b.civilization||null,communication:b.communication||null}}
+export function regionExpansionPayload(state,reason="player_exploration"){return {reason,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},directorHistory:directorHistorySnapshot(state,8),existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
+export async function generateRegionExpansion(state,reason="player_exploration"){const payload=regionExpansionPayload(state,reason);if(hasDirectAI()){const raw=await directChat({timeoutMs:90000,system:'你是 Elyndra Progressive World Architect。world.seedContract 是不可違反的玩家世界設定；新區域必須維持同一 genre/theme/scale/danger/magic/politics/custom prompt，不可自行漂移。每個新地點／勢力首次生成時都要符合 directorHistory 中已 Canonize 的過去歷史，並有符合當地歷史的 culture 與 trade；不得假設全世界通用貨幣或同一文化。任何新 NPC 都要有 companionProfile，但不代表一定會成為夥伴。只輸出 JSON：{"region":"新區域名稱","reason":"與既有世界的因果連接","generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","known":true或false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","knowledgeScope":["既有 public fact 完整文字或 fact id"],"known":true或false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","known":false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","known":true或false,"evidenceKeywords":["2-5個可驗證線索詞"],"target":3}]}}。最多2地點、2 NPC、1勢力、1支線。不得重建 existing、不得再次生成既有 lore、不得改寫 World Bible、不得洩漏 hidden secrets。',user:JSON.stringify(payload)});return parseJSON(raw)}return null}
