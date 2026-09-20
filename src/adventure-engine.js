@@ -1,24 +1,25 @@
-import {normalizeLore,revealStoredLore} from "./lore-engine.js?v=267";
-import {crisisSnapshot} from "./crisis-engine.js?v=267";
-import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=267";
-import {factionSnapshot,changeReputation} from "./faction-engine.js?v=267";
-import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration,resolvePlayerLocation,canInteractWithNpc} from "./world-registry.js?v=267";
-import {tokenBudgetSnapshot} from "./context-manager.js?v=267";
-import {startCombat} from "./combat-engine.js?v=267";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=267";
-import {playerVisibleEvents} from "./event-visibility.js?v=267";
-import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=267";
-import {directorTimelineSnapshot} from "./world-timeline.js?v=267";
-import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=267";
-import {recognitionSnapshot} from "./recognition-engine.js?v=267";
-import {checkProfileSnapshot,normalizeCheckBonuses} from "./check-engine.js?v=267";
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative,fallbackSuggestions,sanitizeLocationName,sanitizeSceneTitle} from "./runtime-guard.js?v=267";
-import {directorHistorySnapshot} from "./world-history.js?v=267";
+import {normalizeLore,revealStoredLore} from "./lore-engine.js?v=268";
+import {crisisSnapshot} from "./crisis-engine.js?v=268";
+import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=268";
+import {factionSnapshot,changeReputation} from "./faction-engine.js?v=268";
+import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration,resolvePlayerLocation,canInteractWithNpc} from "./world-registry.js?v=268";
+import {tokenBudgetSnapshot} from "./context-manager.js?v=268";
+import {startCombat} from "./combat-engine.js?v=268";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=268";
+import {playerVisibleEvents} from "./event-visibility.js?v=268";
+import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=268";
+import {directorTimelineSnapshot} from "./world-timeline.js?v=268";
+import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=268";
+import {recognitionSnapshot} from "./recognition-engine.js?v=268";
+import {checkProfileSnapshot,normalizeCheckBonuses} from "./check-engine.js?v=268";
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative,fallbackSuggestions,sanitizeLocationName,sanitizeSceneTitle} from "./runtime-guard.js?v=268";
+import {directorHistorySnapshot} from "./world-history.js?v=268";
+import {playerWeatherSnapshot,directorWeatherSnapshot} from "./weather-engine.js?v=268";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function buildSnapshot(state){
  const recentEvents=playerVisibleEvents(state,12).map(e=>({day:e.day,action:e.customText||e.action,type:e.type,summary:text(e.summary,220)}));
- return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},directorHistory:directorHistorySnapshot(state,8),player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true,checks:checkProfileSnapshot(state)},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),recognition:recognitionSnapshot(state,{director:true}),priorSuggestions:(state.suggestions||[]).slice(0,4),hiddenFacts:[]})
+ return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},weather:playerWeatherSnapshot(state),directorWeather:directorWeatherSnapshot(state),directorHistory:directorHistorySnapshot(state,8),player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true,checks:checkProfileSnapshot(state)},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),recognition:recognitionSnapshot(state,{director:true}),priorSuggestions:(state.suggestions||[]).slice(0,4),hiddenFacts:[]})
 }
 export function validateTurnCandidate(c){
  const errors=[];if(!c||typeof c!=="object"||Array.isArray(c))return {valid:false,errors:["CANDIDATE_INVALID"]};
