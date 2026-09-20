@@ -75,3 +75,17 @@ test("AI turn can start a world-specific combat encounter",()=>{
 test("Adventure Director can propose companion offer and calendar discovery without forcing join",()=>{
  const s=newGame(seed);s.world.registry.npcs.push({id:"NPC-comp",name:"薇塔",role:"採集者",description:"熟悉附近地形",known:true,alive:true,trust:45,memories:[],knowledgeScope:[],companionProfile:{joinThreshold:35,leaveThreshold:8,motives:["共同探索"],boundaries:[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""}});applyTurnCandidate(s,{narrative:"她表示願意同行，並向你解釋了當地如何記錄時序。",calendarKnown:true,companionChanges:[{npcId:"NPC-comp",action:"OFFER",reason:"共同探索符合她目前的目標"}],suggestions:["回應她的提議"]});assert.equal(s.player.calendarKnown,true);assert.equal(s.world.registry.npcs[0].companion.status,"OFFERED");const snap=buildSnapshot(s);assert.ok(snap.companions.some(x=>x.id==="NPC-comp"&&x.status==="OFFERED"));
 });
+
+test("Adventure Director world impact candidate mutates durable current world state through Engine",()=>{
+ const s=newGame(seed);
+ s.world.registry.locations.push({id:"LOC-bridge",name:"石橋村",type:"聚落",description:"橋邊村落",known:true,worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]}});
+ s.player.location="石橋村";s.world.state.location="石橋村";
+ applyTurnCandidate(s,{
+  narrative:"你和居民一起把倒塌的橋面重新固定。",
+  worldImpacts:[{scope:"LOCAL",targetKind:"location",targetId:"LOC-bridge",title:"修復石橋",summary:"主要通路重新可以安全使用，居民不再需要涉水過河。",mutations:[{field:"infrastructure",op:"DELTA",value:9},{field:"statusTag",op:"ADD_TAG",value:"橋樑已修復"}]}],
+  suggestions:["向居民詢問河對岸的情況"]
+ },{roll:{success:true}});
+ assert.equal(s.world.registry.locations[0].worldState.infrastructure,59);
+ assert.ok(s.world.registry.locations[0].worldState.statusTags.includes("橋樑已修復"));
+ assert.ok(s.world.impact.records.some(x=>x.type==="PLAYER_IMPACT"&&x.title==="修復石橋"));
+});
