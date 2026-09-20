@@ -193,3 +193,19 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - **Save Format v6**：舊存檔自動補 wallet、calendar knowledge、timeline 與 companion runtime，不會把舊版固定 suggestions 帶回新世界。
 
 > No Earth defaults. Every culture must belong to the world that created it.
+
+
+## V0.25.0 — World Impact & Consequence Engine
+
+這一版讓玩家不只探索世界，而是能夠在冒險期間留下可持續、可傳播的改變：
+
+- **World Impact Ledger**：玩家造成的持久改變以 append-only impact records 保存；過去 Canon 不會被覆寫，Current State 可以被之後行動改變。
+- **五級影響範圍**：PERSONAL → LOCAL → REGIONAL → FACTION → WORLD。高層級影響需要實際累積世界知識、過去影響與危機進度；失敗行動不能直接跳成世界級改變。
+- **Mutable World State**：地點可改變 safety / prosperity / supply / infrastructure / stability；勢力可改 resources / influence / stability；NPC 關係與狀態標記亦可留下持久結果。
+- **Delayed Consequences**：玩家行動可以安排有因果的延遲後果；由 Engine 按世界分鐘觸發，不依賴再次呼叫 AI。
+- **Timeline Impact**：REGIONAL 以上行動可以延遲／提前／削弱／加強尚未觸發的大事件；原本 base timeline 仍保留，玩家只改變實際發生時間與強度。
+- **Director Boundary**：Adventure Director 只提出 worldImpacts 候選；Engine 驗證 scope、target、mutation 上限、Timeline 狀態與可見性後才真正落地。
+- **World Impact UI**：側欄顯示目前影響層級，新增「我的影響」記錄；即時改變顯示為「世界改變」，延遲後果日後以世界動向重新出現。
+- **Save Format v7**：舊世界自動補 impact ledger、entity mutable state 與 Timeline impact metadata。
+
+> The player becomes the protagonist by changing the world, not because the world says they are one.
