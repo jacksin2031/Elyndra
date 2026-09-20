@@ -16,8 +16,8 @@ import {ensureCharacter,startCombat,combatAction,recoverFromDefeat,xpNeeded} fro
 import {ensureQuestProgress} from "./src/quest-engine.js?v=221";
 import {ensureCrisis} from "./src/crisis-engine.js?v=221";
 import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=221";
-const $=s=>document.querySelector(s),$=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false;
-function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}$("[data-action],#freeActionForm button,.suggestion").forEach(b=>b.disabled=on);const input=$("#freeAction");if(input)input.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false;
+function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}$$("[data-action],#freeActionForm button,.suggestion").forEach(b=>b.disabled=on);const input=$("#freeAction");if(input)input.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 function show(id){$$(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active")}
 function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureQuestProgress(s);ensureCrisis(s);s.quests??={main:{id:"Q-main",title:"找到前往文明聚落的方法",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","找到安全的聚落","查明陌生銅幣的來源"]}};s.discoveries??=0;return s}
