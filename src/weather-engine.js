@@ -94,10 +94,17 @@ export function retargetWeather(state){initializeWeather(state);if(state.world.w
 export function weatherActionModifier(state,kind){
  const p=currentWeather(state),n=Number(p?.actionModifiers?.[kind])||0;return clamp(Math.round(n),-2,2)
 }
+function readWeather(state){
+ const sys=normalizeWeatherSystem(state.world?.bible?.weatherSystem,state.world?.seedContract||state.world?.seed||{}),runtime=state.world?.weather||{},p=sys.phenomena.find(x=>x.id===runtime.currentId)||sys.phenomena[0];
+ return {sys,p,runtime,loc:currentLocation(state)}
+}
 export function playerWeatherSnapshot(state){
- const p=currentWeather(state),sys=state.world.bible.weatherSystem;
- return {observableName:p.observableName,sensoryCue:p.sensoryCue,danger:p.danger,forecastability:sys.forecastability,zone:normalizeWeatherProfile(currentLocation(state)?.weatherProfile,sys.phenomena.map(x=>x.id)).zone}
+ const {p}=readWeather(state);return {observableName:p.observableName,sensoryCue:p.sensoryCue}
+}
+export function weatherUiSnapshot(state){
+ const {sys,p,loc}=readWeather(state),playerLoc=String(state.player?.location||""),known=Boolean(loc?.known===true&&loc?.name===playerLoc);
+ return {observableName:p.observableName,sensoryCue:p.sensoryCue,danger:p.danger,zone:known?normalizeWeatherProfile(loc?.weatherProfile,sys.phenomena.map(x=>x.id)).zone:""}
 }
 export function directorWeatherSnapshot(state){
- initializeWeather(state);return {current:playerWeatherSnapshot(state),runtime:{...state.world.weather,history:(state.world.weather.history||[]).slice(-8)},system:state.world.bible.weatherSystem,locationProfile:normalizeWeatherProfile(currentLocation(state)?.weatherProfile,state.world.bible.weatherSystem.phenomena.map(x=>x.id))}
+ const {sys,p,runtime,loc}=readWeather(state);return {current:{id:p.id,name:p.name,observableName:p.observableName,sensoryCue:p.sensoryCue,danger:p.danger,actionModifiers:p.actionModifiers},runtime:{...runtime,history:(runtime.history||[]).slice(-8)},system:sys,locationProfile:normalizeWeatherProfile(loc?.weatherProfile,sys.phenomena.map(x=>x.id))}
 }
