@@ -1,8 +1,8 @@
-import {ensureCrisis,addCrisisPressure} from "./crisis-engine.js";
-import {recordCausalEvent} from "./knowledge-graph.js";
-import {tickFactions} from "./faction-engine.js";
-import {tickNpcs} from "./npc-engine.js";
-import {ensureClock} from "./world-clock.js";
+import {ensureCrisis,addCrisisPressure} from "./crisis-engine.js?v=231";
+import {recordCausalEvent} from "./knowledge-graph.js?v=231";
+import {tickFactions} from "./faction-engine.js?v=231";
+import {tickNpcs} from "./npc-engine.js?v=231";
+import {ensureClock} from "./world-clock.js?v=231";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){
  const clock=ensureClock(state);
