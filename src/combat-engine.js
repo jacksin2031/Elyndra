@@ -28,6 +28,6 @@ export function combatAction(state,action="attack"){
   const ev={id:id(),type:"COMBAT_WON",visibility:"PLAYER_KNOWN",enemy:e.name,summary:parts.join("，")+"。",day:state.world.state.day,at:Date.now()};state.events.push(ev);tickWorld(state);return {roll,damage,won:true,loot,reward,enemyDamage:0,summary:ev.summary}
  }
  const reduction=action==="defend"?(roll.grade==="CRITICAL_SUCCESS"?6:roll.success?4:roll.grade==="CRITICAL_FAILURE"?0:2):0,enemyDamage=Math.max(1,e.damage-Math.floor(Math.random()*3)-reduction);state.player.hp=Math.max(0,state.player.hp-enemyDamage);state.combat.round++;
- if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;tickWorld(state)}
+ if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;tickWorld(state)}else tickWorld(state);
  return {roll,damage,won:false,enemyDamage,defeated:state.player.hp===0,summary:action==="defend"?"你採取防禦姿態，減輕了傷害。":"戰鬥仍在持續。"}
 }
