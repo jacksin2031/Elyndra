@@ -112,6 +112,7 @@ function mutationSchemaValid(kind,mutation){
 }
 function mutationAllowedForRoll(mutation,roll,outcome){
  if(!roll||roll.success!==false)return true;
+ if(!["COST","MIXED"].includes(String(outcome||"").toUpperCase()))return false;
  const op=String(mutation?.op||"").toUpperCase();
  if(op==="STRUCTURE")return NEGATIVE_STRUCTURE_STATES.has(String(mutation?.value?.state||"").toUpperCase());
  if(op==="DELTA")return Number(mutation?.value)<0;
