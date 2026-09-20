@@ -1,5 +1,5 @@
-import {revealStoredLore} from "./lore-engine.js";
-import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=230";
+import {revealStoredLore} from "./lore-engine.js?v=231";
+import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=231";
 const FALLBACK_ACTIONS=["環顧四周，確認眼前能直接觀察到的事物","檢查自己的身體、衣物與隨身狀態","保持安靜，仔細聆聽附近的聲音"];
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
