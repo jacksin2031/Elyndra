@@ -73,7 +73,7 @@ export function applyTurnCandidate(state,c,context={}){
  canonizeGeneration(state,generation);
  if(rollSucceeded)for(const spell of (c.magicLearning||[]).slice(0,1))learnSpell(state,spell);
  const requestedLocation=sanitizeLocationName(c.location);if(requestedLocation&&!resolvePlayerLocation(state,requestedLocation,{...context,actionKind:context.roll?.profile?.kind||""})){state.events.push({id:id(),type:"LOCATION_CANDIDATE_REJECTED",visibility:"INTERNAL",day:state.world.state.day,summary:requestedLocation,at:Date.now()})}
- if(rollSucceeded)revealRegistryEntities(state,c.entityReveals);
+ if(rollSucceeded)revealRegistryEntities(state,c.entityReveals,{...context,enforceCausality:true,actionKind:context.roll?.profile?.kind||"",verifiedEvidenceCount:verifiedDiscoveries.length});
  for(const d of verifiedDiscoveries)evaluateQuestEvidence(state,d.title+" "+d.text,{factId:d.factId,source:"CANON_EVIDENCE"});for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,1))evaluateQuestEvidence(state,sanitizePlayerText(item.name,100,"")+" "+sanitizePlayerText(item.description,300,""),{itemName:sanitizePlayerText(item.name,100,""),source:"ITEM"});
  const registry=ensureWorldRegistry(state);
  for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId),delta=Math.round(Number(n.trustDelta)||0);if(canInteractWithNpc(state,npc)&&(rollSucceeded||delta<0))npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+delta))}
