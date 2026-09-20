@@ -26,6 +26,7 @@ test("local player impact mutates current state and appends immutable impact his
 test("impact engine refuses unknown targets and excessive early-game scope",()=>{
  const s=localWorld();
  assert.equal(applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"faction",targetId:"FAC-NOT-KNOWN",title:"不存在",summary:"這個改變不應該被接受進世界狀態。",mutations:[{field:"influence",op:"DELTA",value:-10}]}],{roll:{success:true}}).length,0);
+ assert.equal(applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"world",targetId:"WORLD",title:"地方行動越權",summary:"地方級影響不能直接修改整個世界的全局狀態。",mutations:[{field:"tension",op:"DELTA",value:-5}]}],{roll:{success:true}}).length,0);
  assert.equal(applyWorldImpacts(s,[{scope:"WORLD",targetKind:"world",targetId:"WORLD",title:"改變全世界",summary:"開局不能因一句話就直接改變整個世界。",mutations:[{field:"tension",op:"DELTA",value:-30}]}],{roll:{success:true}}).length,0);
  assert.equal(impactCapability(s).maxScope,"LOCAL");
 });
