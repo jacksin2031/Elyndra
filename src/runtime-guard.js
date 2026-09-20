@@ -54,3 +54,21 @@ export function sanitizeLocationName(value){
  if(!s||!isPlayerFacingLanguageSafe(s,{allowShortName:true}))return "";
  return s
 }
+
+export function deriveSceneTitle(state={},action=""){
+ if(state.combat?.active&&state.combat.enemy?.name)return sanitizePlayerText(`與${state.combat.enemy.name}的交鋒`,60,"戰鬥之中");
+ const loc=sanitizeLocationName(state.player?.location||state.world?.state?.location)||"陌生之地";
+ const crisis=state.world?.state?.crisis?.stage;
+ if(crisis==="ENDGAME")return `${loc} · 最後關頭`;
+ if(crisis==="CRISIS")return `${loc} · 危機逼近`;
+ const q=state.quests?.main,title=sanitizePlayerText(q?.title,60,"");
+ if(title&&title!=="在陌生世界活下來")return `${loc} · ${title}`.slice(0,60);
+ const a=sanitizeSuggestion(action,40);
+ if(a)return `${loc} · ${a}`.slice(0,60);
+ const day=Math.max(1,Number(state.world?.state?.day)||1);
+ return day<=1?`${loc} · 初來乍到`:`${loc} · 第 ${day} 日`
+}
+export function sanitizeSceneTitle(value,state={},action=""){
+ const s=sanitizePlayerText(value,60,"").replace(/[。！？!?]+$/,"").trim();
+ return s||deriveSceneTitle(state,action)
+}
