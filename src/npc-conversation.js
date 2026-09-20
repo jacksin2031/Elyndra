@@ -1,9 +1,9 @@
-import {advanceTime} from "./world-clock.js?v=267";
-import {tickWorld} from "./world-simulation.js?v=267";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=267";
-import {npcInteractionMode} from "./world-registry.js?v=267";
-import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=267";
-import {deriveSceneTitle} from "./runtime-guard.js?v=267";
+import {advanceTime} from "./world-clock.js?v=268";
+import {tickWorld} from "./world-simulation.js?v=268";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=268";
+import {npcInteractionMode} from "./world-registry.js?v=268";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=268";
+import {deriveSceneTitle} from "./runtime-guard.js?v=268";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
