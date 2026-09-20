@@ -15,7 +15,9 @@ test("world creation uses four bounded direct-AI compiler stages",async()=>{
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  assert.match(client,/Promise\.all\(\[chronologyPromise,openingPromise\]\)/);
  assert.match(client,/normalizeWorldCoreCandidate\(await worldStage\("CORE"/);
- assert.match(client,/return \{\.\.\.core,\.\.\.chronology,\.\.\.opening\}/);\n assert.match(client,/worldHistory/);\n assert.match(client,/civilization/);
+ assert.match(client,/return \{\.\.\.core,\.\.\.chronology,\.\.\.opening\}/);
+ assert.match(client,/worldHistory/);
+ assert.match(client,/civilization/);
 });
 
 test("world creation progress represents real compiler boundaries instead of a fake 72 percent pulse",async()=>{
