@@ -74,8 +74,8 @@ test("recognition candidate rejects invalid tone, spread and mark",()=>{
  assert.equal(r.valid,false);assert.ok(r.errors.includes("RECOGNITION_TONE_INVALID"));assert.ok(r.errors.includes("RECOGNITION_SPREAD_INVALID"));assert.ok(r.errors.includes("RECOGNITION_MARK_INVALID"));
 });
 
-test("save format v9 migrates recognition state without breaking existing impact history",()=>{
+test("save format v10 migrates recognition state without breaking existing impact history",()=>{
  const s=world();applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,title:"舊版影響",summary:"這是一項已經存在的世界影響。",mutations:[{field:"safety",op:"DELTA",value:2}]}],{roll:{success:true}});
  s.formatVersion=7;delete s.world.recognition;
- const m=migrateSave(s);assert.equal(m.formatVersion,9);assert.ok(m.world.recognition);assert.equal(validateSaveState(m).valid,true);assert.equal(m.world.impact.records.length,1);assert.equal(m.world.recognition.renown,4);assert.equal(m.world.recognition.rumors.length,1);assert.equal(m.world.recognition.rumors[0].status,"ACTIVE");
+ const m=migrateSave(s);assert.equal(m.formatVersion,10);assert.ok(m.world.recognition);assert.equal(validateSaveState(m).valid,true);assert.equal(m.world.impact.records.length,1);assert.equal(m.world.recognition.renown,4);assert.equal(m.world.recognition.rumors.length,1);assert.equal(m.world.recognition.rumors[0].status,"ACTIVE");
 });

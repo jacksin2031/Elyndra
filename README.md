@@ -382,3 +382,57 @@ Attack、Defend、Retreat 亦統一使用 RPG Check Engine，不再使用獨立�
 - Helper 唔擲骰、唔消耗世界時間、唔寫入 event、唔改 HP／物品／任務／關係／戰鬥／Canon。
 - Helper 對話只存在當前頁面記憶，唔寫入世界存檔。
 - 主回合 AI 運行時 Helper 會被鎖住，因此單一時刻仍維持最多兩個 AI request。
+
+
+## V0.26.8 — World Weather System
+
+天氣成為正式世界 Canon 與 Runtime，而唔係 Scene AI 每回合即興加入的背景文字。
+
+### World Weather Canon
+- World Architect 在創世 **CORE** 階段建立 `worldBible.weatherSystem`。
+- 天氣不需要遵循現實地球：可以由魔力潮汐、異常天體、浮游物質、世界物理法則或其他異世界機制形成。
+- 新世界至少會要求多種天氣現象，並鼓勵包含真正具有該世界辨識度的異世界天象，而唔係只把晴／雨／雪改名。
+- 每個 phenomenon 保存 Canon 名稱、玩家可直接感知的 `observableName`／`sensoryCue`、出現權重、持續時間、危險度、轉換傾向與 D20 modifiers。
+- 天氣 Canon 一經接受後由 Engine 管理；普通 Scene／State AI 不可以臨時創造或改寫天氣法則。
+
+### Deterministic Weather Runtime
+- `state.world.weather` 保存目前天氣、開始時間、下一次變化時間、地區 key、sequence 與有限歷史。
+- Weather Engine 以 **世界時間 + 所在地 + Canon 權重 + transition** 決定下一個天氣，而唔係每回合亂抽。
+- 同一個天氣不會被當成「天氣改變」再次觸發。
+- 天氣改變會產生 `WEATHER_CHANGED / OBSERVABLE` event，加入玩家旅程紀錄。
+- 移動到新地點時會重新套用當地 Weather Zone。
+
+### Regional Weather Zones
+每個新地點可有：
+```js
+weatherProfile: {
+  zone: "當地天候區域",
+  affinities: ["WTH-..."],
+  suppressions: ["WTH-..."]
+}
+```
+- `affinities` 提高該地區某些 Canon 天氣的出現機率。
+- `suppressions` 禁止不適合該地區的天氣。
+- profile 只能引用 World Weather Canon 已存在的 phenomenon id；無效 id 會由 Engine 移除。
+- Lazy Region Generation 同樣必須沿用既有 Weather Canon，不能探索到新地區時突然發明另一套世界天氣規則。
+
+### Gameplay Effects
+- 天氣可以對 `OBSERVE / SOCIAL / TRAVEL / RISKY / GENERAL` 提供 -2 至 +2 的 bounded modifier。
+- D20 詳細結果會獨立顯示「天氣 +N / -N」，唔會混入其他情境 bonus。
+- 極端天氣目前影響判定與世界敘事，但唔會無提示直接扣 HP；真正傷害仍要經已成立的 encounter／consequence 規則。
+- Combat、自由行動、NPC 對話推進世界時間時都會令 Weather Runtime 一同前進。
+
+### Player Knowledge Boundary
+- 玩家、Scene Narrator、NPC 與旅途助手只收到目前可直接感知的天氣描述。
+- Weather Canon 正式名稱、形成原理、完整 phenomenon 列表、內部 danger rating、transition 與未出現天氣只提供給 Director／Engine。
+- 因此玩家可以看見「發光微粒逆著重力升上天空」，但唔會因為 UI 或 AI 偷漏而自動知道它的正式名稱與世界原理。
+
+### UI & Travel Helper
+- 主場景位置旁新增即時 Weather Chip。
+- 「已發現世界」顯示目前可感知天氣；已知地點可顯示其 weather zone 描述。
+- 旅途助手新增「現在天氣如何？」快捷問題，只整理目前感官情報，仍然保持完全唯讀。
+- Scene Narrator 會自然把目前天氣融入場景，但無權改變天氣。
+
+### Save Format v10
+- 新世界完整保存 Weather Canon、runtime 與 location weather profiles。
+- v0.26.7 或更舊存檔升級時不會憑空補造異世界 Weather Canon；舊世界維持中性固定天候，避免升級等同改寫既有世界設定。

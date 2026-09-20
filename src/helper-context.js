@@ -1,5 +1,6 @@
-import {playerVisibleEvents} from "./event-visibility.js?v=267";
-import {sanitizePlayerText} from "./runtime-guard.js?v=267";
+import {playerVisibleEvents} from "./event-visibility.js?v=268";
+import {sanitizePlayerText} from "./runtime-guard.js?v=268";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=268";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
@@ -31,7 +32,8 @@ export function helperSnapshot(state){
    time:state.player?.calendarKnown?state.world?.state?.clock:null,
    currentLocation:loc?{name:loc.name,type:loc.type,region:loc.region,description:safe(loc.description,220)}:{name:state.player?.location||"未知地點"},
    currentNarrative:safe(state.narrative,500),
-   sceneTitle:safe(state.sceneTitle,80)
+   sceneTitle:safe(state.sceneTitle,80),
+   weather:playerWeatherSnapshot(state)
   },
   objective:{
    mainTitle:safe(state.quests?.main?.title,120),

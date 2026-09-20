@@ -1,8 +1,8 @@
-import {d20} from "./world-engine.js?v=266";
-import {advanceTime} from "./world-clock.js?v=266";
-import {tickWorld} from "./world-simulation.js?v=266";
-import {localCurrencyReward} from "./world-locality.js?v=266";
-import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=266";
+import {d20} from "./world-engine.js?v=268";
+import {advanceTime} from "./world-clock.js?v=268";
+import {tickWorld} from "./world-simulation.js?v=268";
+import {localCurrencyReward} from "./world-locality.js?v=268";
+import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=268";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2,presence:2,instinct:2};p.stats.presence??=2;p.stats.instinct??=2;p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};return p}
@@ -28,6 +28,6 @@ export function combatAction(state,action="attack"){
   const ev={id:id(),type:"COMBAT_WON",visibility:"PLAYER_KNOWN",enemy:e.name,summary:parts.join("，")+"。",day:state.world.state.day,at:Date.now()};state.events.push(ev);tickWorld(state);return {roll,damage,won:true,loot,reward,enemyDamage:0,summary:ev.summary}
  }
  const reduction=action==="defend"?(roll.grade==="CRITICAL_SUCCESS"?6:roll.success?4:roll.grade==="CRITICAL_FAILURE"?0:2):0,enemyDamage=Math.max(1,e.damage-Math.floor(Math.random()*3)-reduction);state.player.hp=Math.max(0,state.player.hp-enemyDamage);state.combat.round++;
- if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;tickWorld(state)}
+ if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;tickWorld(state)}else tickWorld(state);
  return {roll,damage,won:false,enemyDamage,defeated:state.player.hp===0,summary:action==="defend"?"你採取防禦姿態，減輕了傷害。":"戰鬥仍在持續。"}
 }

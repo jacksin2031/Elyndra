@@ -44,3 +44,5 @@ body[data-world-genre="末日異世界"] .scene-art{background:linear-gradient(1
 
 .version-badge{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:30;padding:4px 7px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:rgba(7,10,18,.62);backdrop-filter:blur(8px);color:var(--muted);font-size:10px;line-height:1;letter-spacing:.08em;font-variant-numeric:tabular-nums;opacity:.72;pointer-events:none;user-select:none}
 @media(max-width:620px){.version-badge{right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));font-size:9px;opacity:.62}}
+
+.scene-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.weather-chip{font-size:11px;color:#d8dde6;border:1px solid var(--line);background:rgba(9,13,22,.66);backdrop-filter:blur(8px);padding:5px 9px;border-radius:999px;letter-spacing:.04em}.weather-chip:empty{display:none}.weather-chip[data-danger="3"],.weather-chip[data-danger="4"]{border-color:rgba(215,179,106,.62);color:var(--gold)}.weather-chip[data-danger="5"]{border-color:rgba(255,130,130,.72);color:#ffb0b0}
