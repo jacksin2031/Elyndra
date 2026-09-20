@@ -59,19 +59,17 @@ export function directorRegistrySnapshot(state){
 }
 function revealAuthorized(state,kind,entity,context={}){
  if(context.enforceCausality!==true)return true;
- const actionKind=String(context.actionKind||context.roll?.profile?.kind||"").toUpperCase(),action=String(context.action||""),hasEvidence=Number(context.verifiedEvidenceCount)||0;
+ const actionKind=String(context.actionKind||context.roll?.profile?.kind||"").toUpperCase(),hasEvidence=Number(context.verifiedEvidenceCount)||0,socialSource=actionKind==="SOCIAL"&&ensureWorldRegistry(state).npcs.some(n=>canInteractWithNpc(state,n));
  if(kind==="npc")return isNpcPresent(state,entity);
  if(kind==="location"){
   if(entity.name===state.player?.location)return true;
-  return actionKind==="OBSERVE"&&hasEvidence>0
+  return socialSource||(actionKind==="OBSERVE"&&hasEvidence>0)
  }
  if(kind==="faction"){
   const local=ensureWorldRegistry(state).npcs.some(n=>n.factionId===entity.id&&isNpcPresent(state,n)&&n.encountered===true);
-  const socialSource=actionKind==="SOCIAL"&&ensureWorldRegistry(state).npcs.some(n=>canInteractWithNpc(state,n)&&n.name&&action.includes(n.name));
   return local||socialSource||(actionKind==="OBSERVE"&&hasEvidence>0)
  }
  if(kind==="sideQuest"){
-  const socialSource=actionKind==="SOCIAL"&&ensureWorldRegistry(state).npcs.some(n=>canInteractWithNpc(state,n)&&n.name&&action.includes(n.name));
   return socialSource||(actionKind==="OBSERVE"&&hasEvidence>0)
  }
  return false
