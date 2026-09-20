@@ -58,7 +58,14 @@ export function newGame(seed){
   narrative:"你在陌生的環境中醒來。你不知道這是哪裡，也不知道這個世界叫甚麼；現在能依靠的只有眼前能直接感受到的事物。你身上沒有任何預設物品，也沒有任何預設同伴。"}
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
-export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score);revealStoredLore(state)}}
+export function discover(state,item,score=3){
+ if(!item||state.knowledge.some(k=>k.id===item.id))return false;
+ const canon=new Set((state.world?.canon?.facts||[]).map(f=>f.id)),history=new Set((state.world?.history||[]).map(h=>h.id));
+ const verified=item.status==="VERIFIED"&&((item.factId&&canon.has(item.factId))||(item.historyId&&history.has(item.historyId)));
+ state.knowledge.push({...item,score:verified?Math.max(1,Number(item.score)||Number(score)||1):0});
+ if(verified)state.player.knowledgeScore=Math.min(100,(Number(state.player.knowledgeScore)||0)+Math.max(1,Number(item.score)||Number(score)||1));
+ revealStoredLore(state);return true
+}
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");if(!candidate.worldCalendar||typeof candidate.worldCalendar!=="object"||Array.isArray(candidate.worldCalendar))throw new Error("WORLD_CALENDAR_REQUIRED");if(!candidate.worldBible?.weatherSystem||!Array.isArray(candidate.worldBible.weatherSystem.phenomena)||candidate.worldBible.weatherSystem.phenomena.length<4)throw new Error("WORLD_WEATHER_REQUIRED");
  const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));const pacing=createTimelinePacing(compliance.expected.targetPlayHours);const timelineReport=validateWorldTimeline(candidate.worldTimeline,pacing);if(!timelineReport.valid)throw new Error("WORLD_TIMELINE_FAILED:"+timelineReport.errors.join(","));const historyReport=validateWorldHistory(candidate.worldHistory);if(!historyReport.valid)throw new Error("WORLD_HISTORY_FAILED:"+historyReport.errors.join(","));
