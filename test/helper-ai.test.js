@@ -85,7 +85,7 @@ test("AI scene title persists when safe, while missing title falls back to curre
  applyTurnCandidate(s,{sceneTitle:"追查鐘聲來源",narrative:"鐘聲再次從北面傳來。",suggestions:["前往北街","詢問艾琳"]},{action:"聽鐘聲",roll:{success:true}});
  assert.equal(s.sceneTitle,"追查鐘聲來源");
  applyTurnCandidate(s,{narrative:"你停下來整理已知線索。",suggestions:["檢查石碑","觀察北街"]},{action:"整理線索",roll:{success:true}});
- assert.equal(s.sceneTitle,"調查石門廣場的異常鐘聲");
+ assert.equal(s.sceneTitle,s.quests.main.objectives[0]);
 });
 
 test("static HTML no longer ships with the old first-day scene title",async()=>{
