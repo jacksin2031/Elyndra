@@ -9,6 +9,7 @@ import {dungeonSnapshot} from "./dungeon-engine.js?v=270";
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
 export function helperSnapshot(state){
+ state=structuredClone(state);
  const r=state.world?.registry||{locations:[],npcs:[],factions:[],sideQuests:[]},locations=Array.isArray(r.locations)?r.locations:[],npcs=Array.isArray(r.npcs)?r.npcs:[],factions=Array.isArray(r.factions)?r.factions:[],sideQuests=Array.isArray(r.sideQuests)?r.sideQuests:[];
  const locName=String(state.player?.location||state.world?.state?.location||""),loc=locations.find(x=>x.name===locName)||null;
  const present=n=>n?.alive!==false&&(n?.companion?.status==="ACTIVE"||Boolean(loc&&n?.locationId===loc.id));
