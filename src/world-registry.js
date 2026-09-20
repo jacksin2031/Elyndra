@@ -48,9 +48,9 @@ export function revealRegistryEntities(state,reveals=[]){
  const r=ensureWorldRegistry(state),maps={location:r.locations,npc:r.npcs,faction:r.factions,sideQuest:r.sideQuests},out=[];
  for(const x of Array.isArray(reveals)?reveals.slice(0,6):[]){
   const kind=clean(x?.kind,30),id=clean(x?.id,140),list=maps[kind];if(!list||!id)continue;
-  const entity=list.find(v=>v.id===id);if(!entity||entity.known===true)continue;
+  const entity=list.find(v=>v.id===id);if(!entity)continue;const wasKnown=entity.known===true,wasEncountered=entity.encountered===true;
   entity.known=true;entity.discoveredDay??=state.world.state.day;if(kind==="npc"&&isNpcPresent(state,entity))entity.encountered=true;
-  out.push({kind,id,name:entity.name||entity.title||""})
+  if(!wasKnown||(!wasEncountered&&entity.encountered===true))out.push({kind,id,name:entity.name||entity.title||""})
  }
  if(out.length){state.events??=[];state.events.push({id:uid("EV"),type:"ENTITY_REVEALED",visibility:"PLAYER_KNOWN",day:state.world.state.day,summary:out.map(x=>`${x.kind}:${x.name}`).join(" · "),at:Date.now()})}
  return out
