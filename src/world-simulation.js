@@ -4,11 +4,18 @@ import {tickFactions} from "./faction-engine.js";
 import {tickNpcs} from "./npc-engine.js";
 import {ensureClock} from "./world-clock.js";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-export function ensureWorldSimulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,flags:{}};ensureCrisis(state);return state.world.state.simulation}
+export function ensureWorldSimulation(state){
+ const clock=ensureClock(state);
+ state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:clock.totalMinutes,npcCursor:0,factionCursor:0,flags:{}};
+ const sim=state.world.state.simulation;
+ sim.tension=Number.isFinite(sim.tension)?sim.tension:10;sim.lastEventMinute=Number.isFinite(sim.lastEventMinute)?sim.lastEventMinute:0;sim.lastTickMinute=Number.isFinite(sim.lastTickMinute)?sim.lastTickMinute:clock.totalMinutes;sim.npcCursor=Number.isInteger(sim.npcCursor)?sim.npcCursor:0;sim.factionCursor=Number.isInteger(sim.factionCursor)?sim.factionCursor:0;sim.flags??={};
+ ensureCrisis(state);return sim
+}
 export function tickWorld(state){
+ const sim=ensureWorldSimulation(state),clock=ensureClock(state);
  tickNpcs(state);tickFactions(state);
- const sim=ensureWorldSimulation(state),clock=ensureClock(state),danger=Math.max(1,Math.min(5,Number(state.world?.seedContract?.danger)||3));
- sim.tension=Math.min(100,sim.tension+Math.max(1,danger-2));
+ const danger=Math.max(1,Math.min(5,Number(state.world?.seedContract?.danger)||3)),elapsedSinceTick=Math.max(0,clock.totalMinutes-sim.lastTickMinute),steps=Math.floor(elapsedSinceTick/30);
+ if(steps>0){sim.tension=Math.min(100,sim.tension+steps*Math.max(1,danger-2));sim.lastTickMinute+=steps*30}
  const elapsed=clock.totalMinutes-sim.lastEventMinute;if(elapsed<180)return null;
  const roll=Math.random();let event=null;
  if(sim.tension>=18&&roll<.35)event={kind:"RUMOR",summary:"從可觀察的痕跡與零碎動靜中，你察覺周遭的風險正在上升。",pressure:2};
