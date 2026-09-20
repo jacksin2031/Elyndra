@@ -4,11 +4,11 @@ const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0
 export function createTimelinePacing(playHours=15){
  const targetPlayHours=clamp(Math.round(Number(playHours)||15),2,100);
  let majorEventCount,horizonDays;
- if(targetPlayHours<=5){majorEventCount=4;horizonDays=Math.max(7,Math.round(targetPlayHours*1.6))}
- else if(targetPlayHours<=12){majorEventCount=5;horizonDays=Math.round(targetPlayHours*1.7)}
- else if(targetPlayHours<=25){majorEventCount=6;horizonDays=Math.round(targetPlayHours*1.8)}
- else if(targetPlayHours<=50){majorEventCount=7;horizonDays=Math.round(targetPlayHours*1.9)}
- else{majorEventCount=8;horizonDays=Math.min(180,Math.round(targetPlayHours*1.8))}
+ if(targetPlayHours<=5){majorEventCount=4;horizonDays=Math.max(3,Math.round(targetPlayHours*.9))}
+ else if(targetPlayHours<=12){majorEventCount=5;horizonDays=Math.max(4,Math.round(targetPlayHours*.75))}
+ else if(targetPlayHours<=25){majorEventCount=6;horizonDays=Math.max(7,Math.round(targetPlayHours*.65))}
+ else if(targetPlayHours<=50){majorEventCount=7;horizonDays=Math.max(12,Math.round(targetPlayHours*.6))}
+ else{majorEventCount=8;horizonDays=Math.min(90,Math.max(24,Math.round(targetPlayHours*.55)))}
  const averageGapDays=Math.max(1,Math.round(horizonDays/(majorEventCount+1)));
  return {targetPlayHours,majorEventCount,horizonDays,averageGapDays,phases:{
   early:{fromDay:2,toDay:Math.max(3,Math.round(horizonDays*.25))},
