@@ -1,14 +1,15 @@
-import {d20} from "./world-engine.js?v=231";
-import {advanceTime,ensureClock} from "./world-clock.js?v=231";
-import {tickWorld} from "./world-simulation.js?v=231";
+import {d20} from "./world-engine.js?v=266";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=266";
+import {advanceTime,ensureClock} from "./world-clock.js?v=266";
+import {tickWorld} from "./world-simulation.js?v=266";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
- OBSERVE:{dc:10,bonus:2,minutes:15},
- SOCIAL:{dc:11,bonus:1,minutes:20},
- TRAVEL:{dc:12,bonus:1,minutes:45},
- RISKY:{dc:14,bonus:0,minutes:30},
- GENERAL:{dc:12,bonus:1,minutes:30}
+ OBSERVE:{dc:10,minutes:15},
+ SOCIAL:{dc:11,minutes:20},
+ TRAVEL:{dc:12,minutes:45},
+ RISKY:{dc:14,minutes:30},
+ GENERAL:{dc:12,minutes:30}
 };
 export function actionProfile(input=""){
  const q=clean(input).toLowerCase();
@@ -21,7 +22,7 @@ export function actionProfile(input=""){
 function ensure(state){
  ensureClock(state);
  state.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};
- state.discoveries??=0
+ state.discoveries??=0;ensureCheckProfile(state)
 }
 function localNarrative(label,roll,profile){
  if(roll.grade==="CRITICAL_SUCCESS")return `你嘗試「${label}」。結果比預期更順利；你取得了明確而可驗證的進展。`;
@@ -31,11 +32,12 @@ function localNarrative(label,roll,profile){
 }
 export function performAction(state,action="free",customText=""){
  ensure(state);
- const label=clean(customText||action)||"觀察目前環境",profile=actionProfile(label),roll=d20(profile.dc,profile.bonus);
+ const label=clean(customText||action)||"觀察目前環境",profile=actionProfile(label),check=buildActionCheck(state,label,profile),roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
+ const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
  advanceTime(state,profile.minutes);
  const text=localNarrative(label,roll,profile);
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind}
+ return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training}
 }

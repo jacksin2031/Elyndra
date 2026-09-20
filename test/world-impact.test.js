@@ -65,9 +65,9 @@ test("impact snapshot gives Director current mutable state and recent player con
  const snap=impactSnapshot(s,{director:true});assert.equal(snap.entityStates.locations[0].state.infrastructure,57);assert.equal(snap.recent.at(-1).title,"加固橋樑");assert.ok(snap.capability.allowedScopes.includes("LOCAL"));
 });
 
-test("save format v8 preserves impact runtime and initializes recognition",()=>{
+test("save format v9 preserves impact runtime and initializes recognition",()=>{
  const s=localWorld();s.formatVersion=6;delete s.world.impact;for(const x of s.world.registry.locations)delete x.worldState;
- const m=migrateSave(s);assert.equal(m.formatVersion,8);assert.ok(m.world.impact);assert.ok(m.world.recognition);assert.equal(m.world.registry.locations[0].worldState.infrastructure,50);assert.equal(validateSaveState(m).valid,true);
+ const m=migrateSave(s);assert.equal(m.formatVersion,9);assert.ok(m.world.impact);assert.ok(m.world.recognition);assert.equal(m.world.registry.locations[0].worldState.infrastructure,50);assert.equal(validateSaveState(m).valid,true);
 });
 
 test("invalid impact candidate is rejected before mutation",()=>{

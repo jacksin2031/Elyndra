@@ -268,3 +268,53 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - State Director 失敗：不套用任何未驗證世界 mutation，沿用原有 fallback 流程。
 
 Scene request 使用較小 visible-only context 與較低 output budget；State request 保留 Director context，但不再負責長篇敘事，降低單次生成負擔。
+
+
+## V0.26.6 — RPG Check Engine
+
+骰子由固定「行動類型 bonus」升級成統一 RPG 判定：
+
+```
+D20
++ Attribute
++ Skill
++ Equipment
++ Companion Support
++ Explicit Relationship
++ Situation
+vs
+Dynamic DC
+```
+
+### Attributes
+- Strength / 力量
+- Agility / 敏捷
+- Mind / 心智
+- Presence / 魅力
+- Instinct / 直覺
+
+現有角色會透過 Save Format v9 自動補齊新能力欄位，不需要重開世界。
+
+### Skills
+五個行動技能：
+- OBSERVE / 觀察
+- SOCIAL / 交涉
+- TRAVEL / 旅行
+- RISKY / 冒險
+- GENERAL / 應變
+
+成功使用技能會累積熟練度；Critical Success 取得較多熟練度。技能最高 Lv.5。
+
+### Contextual modifiers
+- 功能性工具／裝備可提供 -2 至 +2 的 check bonus；Engine 會限制總裝備 modifier。
+- 最多同時裝備 2 件具判定加成的工具。
+- 合適角色／目標的 ACTIVE 夥伴可提供有限支援。
+- SOCIAL 行動只有在玩家明確點名已知 NPC／勢力時，對應 trust / reputation 才會加入判定；不使用全世界全知名聲。
+- 低 HP、當地 infrastructure / stability 等目前環境可改變 modifier。
+- World Seed 的 danger / politics，以及 CRISIS / ENDGAME 狀態會改變相關 Dynamic DC。
+
+### Combat
+Attack、Defend、Retreat 亦統一使用 RPG Check Engine，不再使用獨立固定 +2 / +1 戰鬥骰規則。
+
+### Transparency
+每次 D20 結果 UI 會列出能力、技能、裝備、夥伴、關係、情境以及 Dynamic DC 修正。新增「角色能力」頁可查看能力值、技能熟練度、裝備工具及同行夥伴。

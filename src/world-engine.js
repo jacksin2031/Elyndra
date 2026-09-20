@@ -1,7 +1,7 @@
-import {revealStoredLore} from "./lore-engine.js?v=232";
-import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=232";
-import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=232";
-import {normalizeCalendar} from "./world-locality.js?v=232";
+import {revealStoredLore} from "./lore-engine.js?v=266";
+import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=266";
+import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=266";
+import {normalizeCalendar} from "./world-locality.js?v=266";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -44,7 +44,7 @@ export function validateWorld(world){
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
  return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},integrity:report,
-  player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點"},
+  player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點",stats:{strength:2,agility:2,mind:2,presence:2,instinct:2},skills:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0},skillProgress:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0}},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
   discoveries:0,suggestions:[],

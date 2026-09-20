@@ -20,6 +20,8 @@ export function validateSaveState(s){
  if(!obj(s.player)||typeof s.player.name!=="string"||!s.player.name.trim()||typeof s.player.worldNameKnown!=="boolean"||typeof s.player.calendarKnown!=="boolean"||!finite(s.player.hp)||!finite(s.player.maxHp)||!finite(s.player.gold)||!finite(s.player.knowledgeScore)||typeof s.player.location!=="string"||!obj(s.player.wallet||{}))errors.push("PLAYER_INVALID");
  if(s.player?.hp<0||s.player?.hp>s.player?.maxHp)errors.push("PLAYER_HP_INVALID");
  if(s.player?.level!=null&&(!Number.isInteger(s.player.level)||s.player.level<1))errors.push("PLAYER_LEVEL_INVALID");
+ const stats=s.player?.stats;if(stats!=null&&(!obj(stats)||!["strength","agility","mind","presence","instinct"].every(k=>finite(stats[k])&&stats[k]>=0&&stats[k]<=20)))errors.push("PLAYER_STATS_INVALID");
+ const skills=s.player?.skills,skillProgress=s.player?.skillProgress;if(skills!=null&&(!obj(skills)||!["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].every(k=>Number.isInteger(skills[k])&&skills[k]>=0&&skills[k]<=5)))errors.push("PLAYER_SKILLS_INVALID");if(skillProgress!=null&&(!obj(skillProgress)||!["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].every(k=>finite(skillProgress[k])&&skillProgress[k]>=0)))errors.push("PLAYER_SKILL_PROGRESS_INVALID");
  if(!arr(s.inventory)||s.inventory.some(x=>!obj(x)||typeof x.name!=="string") )errors.push("INVENTORY_INVALID");
  if(!arr(s.knowledge)||s.knowledge.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string"))errors.push("KNOWLEDGE_INVALID");
  if(!arr(s.events)||s.events.some(x=>!obj(x)||typeof x.type!=="string"))errors.push("EVENTS_INVALID");
