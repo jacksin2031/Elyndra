@@ -1,4 +1,4 @@
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=267";
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative,sanitizeSceneTitle} from "./runtime-guard.js?v=267";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 
 export function sceneTurnSnapshot(snapshot={}){
@@ -27,9 +27,10 @@ export function mergeTurnCandidates(scene,state,roll={},context={}){
  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("TURN_STATE_REQUIRED");
  const fallback=fallbackNarrative(context.action,roll),sceneText=sanitizePlayerText(scene?.narrative,1200,""),stateText=sanitizePlayerText(state.outcomeSummary,1200,"");
  const narrative=state?.encounter?.type==="combat"?(stateText||sceneText||fallback):(sceneText||stateText||fallback);
- const suggestions=sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]);
+ const suggestions=sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]),sceneTitle=sanitizeSceneTitle(scene?.sceneTitle,context.state||{},context.action||"");
  return {
   narrative,
+  sceneTitle,
   location:state.location??null,
   worldNameKnown:state.worldNameKnown===true,
   calendarKnown:state.calendarKnown===true,
