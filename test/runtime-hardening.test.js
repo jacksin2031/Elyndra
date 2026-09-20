@@ -66,27 +66,29 @@ test("save migration v8 normalizes simulation cursors, visibility and impact run
  const s=newGame(seed);s.formatVersion=3;delete s.world.state.simulation.lastTickMinute;delete s.world.state.simulation.npcCursor;delete s.world.state.simulation.factionCursor;
  s.events.push({id:"secret",type:"FACTION_ACTION",day:1,summary:"秘密"});
  const m=migrateSave(s);
- assert.equal(m.formatVersion,10);assert.equal(m.events.at(-1).visibility,"INTERNAL");assert.ok(m.world.impact);assert.ok(m.world.recognition);
+ assert.equal(m.formatVersion,11);assert.equal(m.events.at(-1).visibility,"INTERNAL");assert.ok(m.world.impact);assert.ok(m.world.recognition);
  assert.ok(Number.isFinite(m.world.state.simulation.lastTickMinute));assert.equal(m.world.state.simulation.npcCursor,0);assert.equal(m.world.state.simulation.factionCursor,0);assert.deepEqual(m.player.wallet,{});assert.equal(m.player.calendarKnown,false);
 });
 
 test("crisis pressure alone cannot unlock ENDGAME before world knowledge",()=>{
  const s=newGame(seed);addCrisisPressure(s,100,"pressure only");assert.equal(ensureCrisis(s).stage,"CRISIS");
- s.player.knowledgeScore=10;s.knowledge.push(
-  {id:"K1",title:"線索一",text:"第一項足以理解危機的世界線索。"},
-  {id:"K2",title:"線索二",text:"第二項足以理解危機的世界線索。"},
-  {id:"K3",title:"線索三",text:"第三項足以理解危機的世界線索。"}
+ s.world.canon.facts.push({id:"FACT-K1",type:"public",visibility:"public",text:"第一項足以理解危機的世界線索。",canonical:true},{id:"FACT-K2",type:"public",visibility:"public",text:"第二項足以理解危機的世界線索。",canonical:true},{id:"FACT-K3",type:"public",visibility:"public",text:"第三項足以理解危機的世界線索。",canonical:true});s.player.knowledgeScore=10;s.knowledge.push(
+  {id:"K1",title:"線索一",text:"第一項足以理解危機的世界線索。",factId:"FACT-K1",status:"VERIFIED",score:4},
+  {id:"K2",title:"線索二",text:"第二項足以理解危機的世界線索。",factId:"FACT-K2",status:"VERIFIED",score:3},
+  {id:"K3",title:"線索三",text:"第三項足以理解危機的世界線索。",factId:"FACT-K3",status:"VERIFIED",score:3}
  );
  addCrisisPressure(s,0,"knowledge acquired");assert.equal(ensureCrisis(s).stage,"ENDGAME");assert.equal(s.quests.main.status,"CLIMAX");
 });
 
-test("side quest evidence progresses locally from discoveries and items",()=>{
+test("unverified AI discoveries cannot progress quests while owned evidence can",()=>{
  const s=newGame(seed);
  canonizeGeneration(s,{sideQuests:[{title:"失蹤商隊",objective:"找出商隊去向",known:true,evidenceKeywords:["商隊徽章","破損車輪"],target:2}]});
  const q=s.world.registry.sideQuests[0];
- applyTurnCandidate(s,{narrative:"你找到一枚徽章。",discoveries:[{title:"商隊徽章",text:"徽章刻有商隊標記。"}],suggestions:["繼續搜索"]});
+ applyTurnCandidate(s,{narrative:"你以為找到一枚徽章。",discoveries:[{title:"商隊徽章",text:"這只是 AI 提出的未驗證觀察。"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"觀察"});
+ assert.equal(q.progress,0);
+ applyTurnCandidate(s,{narrative:"你取得實體徽章。",items:[{name:"商隊徽章",description:"屬於失蹤商隊。"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
  assert.equal(q.progress,1);
- applyTurnCandidate(s,{narrative:"你找到第二項線索。",items:[{name:"破損車輪",description:"屬於同一支商隊。"}],suggestions:["追蹤車痕"]});
+ applyTurnCandidate(s,{narrative:"你取得第二項實體證據。",items:[{name:"破損車輪",description:"屬於同一支商隊。"}],suggestions:["追蹤車痕"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
  assert.equal(q.status,"COMPLETED");assert.equal(q.progress,2);
 });
 test("scheduled world timeline exposes only observable effect when due",()=>{
