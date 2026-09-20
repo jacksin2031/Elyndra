@@ -10,7 +10,12 @@ export function ensureLocalMarket(state){
  const l=loc(state);if(!l)return null;l.market??={version:1,goods:goodsFor(l),lastMinute:Number(state.world?.state?.clock?.totalMinutes)||0};if(!Array.isArray(l.market.goods))l.market.goods=goodsFor(l);return l.market
 }
 function priceMultiplier(state){const l=loc(state),ws=l?.worldState||{},pros=Number(ws.prosperity)||50,supply=Number(ws.supply)||50;return clamp(1+(50-supply)/100+(pros-50)/200,.5,1.8)}
-export function marketSnapshot(state){const l=loc(state),m=ensureLocalMarket(state);if(!l||!m)return null;const currency=l.trade?.currencies?.[0]||null;return {locationId:l.id,mode:l.trade?.mode||"barter",currency,goods:m.goods.map(g=>({...g,price:Math.max(1,Math.round(g.basePrice*priceMultiplier(state)))))}}
+export function marketSnapshot(state){
+ const l=loc(state),m=ensureLocalMarket(state);if(!l||!m)return null;
+ const currency=l.trade?.currencies?.[0]||null;
+ const goods=m.goods.map(g=>({...g,price:Math.max(1,Math.round(g.basePrice*priceMultiplier(state)))}));
+ return {locationId:l.id,mode:l.trade?.mode||"barter",currency,goods}
+}
 export function buyGood(state,goodId){
  const snap=marketSnapshot(state),m=ensureLocalMarket(state);if(!snap||!m)return {ok:false,reason:"NO_MARKET"};const good=m.goods.find(x=>x.id===goodId);if(!good||good.stock<=0)return {ok:false,reason:"OUT_OF_STOCK"};
  if(snap.mode==="barter"){const barter=(loc(state)?.trade?.commonBarter||[]),idx=(state.inventory||[]).findIndex(x=>barter.includes(x.name));if(idx<0)return {ok:false,reason:"BARTER_ITEM_REQUIRED"};state.inventory.splice(idx,1)}
