@@ -54,13 +54,13 @@ export function normalizeCommunicationSystem(input={},seed={},civilizationInput=
  const latency=capLatency(proposedLatency,cap.maxLatency),range=capRange(proposedRange,cap.maxRange);
  const downgraded=latency!==proposedLatency||range!==proposedRange;
  return {
-  name:clean(input?.name,80)||fallback.name,
-  medium:clean(input?.medium,100)||fallback.medium,
-  description:clean(input?.description,280)||fallback.description,
+  name:downgraded?fallback.name:(clean(input?.name,80)||fallback.name),
+  medium:downgraded?fallback.medium:(clean(input?.medium,100)||fallback.medium),
+  description:downgraded?fallback.description:(clean(input?.description,280)||fallback.description),
   latency,
   range,
   accessRule:"ENCOUNTERED",
-  constraints:clean(input?.constraints,240)||fallback.constraints,
+  constraints:downgraded?fallback.constraints:(clean(input?.constraints,240)||fallback.constraints),
   realtime:REALTIME.has(latency),
   civilizationLevel:civ.level,
   magicLevel:magic,
