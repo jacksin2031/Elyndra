@@ -240,3 +240,15 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 每個階段都有獨立 timeout、JSON 驗證與錯誤名稱，最後再合併成原有 World Candidate，由 Engine 統一執行 Seed / Timeline / Canon validation 與 Canonize。
 
 生成進度現在代表真實階段，不再用等待單一 request 的假進度停在 72%。瀏覽器模組 cache 同步更新至 `v263`，確保載入最新 timeout 與 staged compiler 邏輯。
+
+
+## V0.26.4 — Faster Parallel World Compilation
+
+世界生成效能與 Seed 驗證修正：
+
+- **Theme Canonicalization**：AI 在同一次 CORE 回覆中若用不同措辭描述同一主題，Engine 會以 `worldTheme` 作為唯一 Canon theme，並同步 `seedCompliance.theme.value`，保留 evidence 與其餘 Seed 驗證規則。
+- **Parallel Compiler DAG**：CORE 完成後，CHRONOLOGY 與 REGION 會並行；REGION 完成後可立即進入 CAST，不必等待 Timeline。
+- **Smaller Opening Payload**：初始只生成 1 個出生地點、最多 1 個勢力、1 個附近 NPC 與最多 1 個支線；其他世界內容依原有 Lazy Generation 機制於探索時生成。
+- **Per-stage output budgets**：只有 World Compiler 明確設定 `maxOutputTokens`；普通回合、NPC 與其他 AI 呼叫不會被意外限制。
+- **Lighter prompts**：CORE 不再傳送整份 Constitution／完整 directive；REGION 不再攜帶 Timeline、hiddenFacts 與完整 seedCompliance。
+- **Cache generation**：前端模組統一更新至 `v264`。
