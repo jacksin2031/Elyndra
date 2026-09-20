@@ -93,7 +93,7 @@ function authorizeTarget(state,scope,kind,target){
  }
  if(scope==="REGIONAL"){
   const region=here?.region;if(!region)return false;
-  if(kind==="location")return entity.region===region;
+  if(kind==="location")return entity.id===here?.id||Boolean(region&&entity.region===region);
   if(kind==="npc")return entityLocation(state,kind,entity)?.region===region;
   if(kind==="faction")return factionHasPresenceInRegion(state,entity.id,region);
  }
