@@ -5,9 +5,9 @@ const scaleValue=v=>["小型","中型","大型"].includes(v)?v:"中型";
 const rowValue=(c,key)=>c?.[key]?.value;
 const evidence=(c,key)=>text(c?.[key]?.evidence,500);
 export function createWorldSeedContract(seed={}){
- const random=seed.worldviewMode==="random",styled=applyWorldStyleBase(seed),preset=random?null:getWorldStylePreset(styled.genre);
+ const random=["ai","random"].includes(seed.worldviewMode),styled=applyWorldStyleBase(seed),preset=random?null:getWorldStylePreset(styled.genre);
  return {
-  worldviewMode:random?"random":"style",
+  worldviewMode:random?"ai":"style",
   genre:random?"AI_DECIDES":text(styled.genre,80),
   theme:"AI_DECIDES",
   scale:random?"AI_DECIDES":scaleValue(styled.scale),
@@ -74,7 +74,7 @@ export function localSeedCompliance(seed){
  }
 }
 export function seedDirective(seed){
- const s=createWorldSeedContract(seed),random=s.worldviewMode==="random";
+ const s=createWorldSeedContract(seed),random=s.worldviewMode==="ai";
  return {
   contract:s,
   styleFoundation:random?null:getWorldStylePreset(s.genre),
