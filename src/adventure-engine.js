@@ -1,21 +1,22 @@
-import {normalizeLore,revealStoredLore} from "./lore-engine.js?v=232";
-import {crisisSnapshot} from "./crisis-engine.js?v=232";
-import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=232";
-import {factionSnapshot,changeReputation} from "./faction-engine.js?v=232";
-import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration} from "./world-registry.js?v=232";
-import {tokenBudgetSnapshot} from "./context-manager.js?v=232";
-import {startCombat} from "./combat-engine.js?v=232";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=232";
-import {playerVisibleEvents} from "./event-visibility.js?v=232";
-import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=232";
-import {directorTimelineSnapshot} from "./world-timeline.js?v=250";
-import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=260";
-import {recognitionSnapshot} from "./recognition-engine.js?v=260";
+import {normalizeLore,revealStoredLore} from "./lore-engine.js?v=266";
+import {crisisSnapshot} from "./crisis-engine.js?v=266";
+import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=266";
+import {factionSnapshot,changeReputation} from "./faction-engine.js?v=266";
+import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration} from "./world-registry.js?v=266";
+import {tokenBudgetSnapshot} from "./context-manager.js?v=266";
+import {startCombat} from "./combat-engine.js?v=266";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=266";
+import {playerVisibleEvents} from "./event-visibility.js?v=266";
+import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=266";
+import {directorTimelineSnapshot} from "./world-timeline.js?v=266";
+import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=266";
+import {recognitionSnapshot} from "./recognition-engine.js?v=266";
+import {checkProfileSnapshot,normalizeCheckBonuses} from "./check-engine.js?v=266";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function buildSnapshot(state){
  const recentEvents=playerVisibleEvents(state,12).map(e=>({day:e.day,action:e.customText||e.action,type:e.type,summary:text(e.summary,220)}));
- return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),recognition:recognitionSnapshot(state,{director:true}),hiddenFacts:[]})
+ return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true,checks:checkProfileSnapshot(state)},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),recognition:recognitionSnapshot(state,{director:true}),hiddenFacts:[]})
 }
 export function validateTurnCandidate(c){
  const errors=[];if(!c||typeof c!=="object"||Array.isArray(c))return {valid:false,errors:["CANDIDATE_INVALID"]};
@@ -45,7 +46,7 @@ export function applyTurnCandidate(state,c,context={}){
  if(text(c.location,120)){state.player.location=text(c.location,120);state.world.state.location=state.player.location}
  if(c.worldNameKnown===true)state.player.worldNameKnown=true;if(c.calendarKnown===true)state.player.calendarKnown=true;
  for(const d of (c.discoveries||[]).slice(0,2)){const title=text(d.title,100),body=text(d.text,500);if(title&&body&&!state.knowledge.some(k=>k.title===title)){state.knowledge.push({id:id(),title,status:"PARTIAL",text:body,sources:["AI_TURN"]});state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+2)}}
- for(const item of (c.items||[]).slice(0,1)){const name=text(item.name,100);if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:text(item.description,300),identified:true,lore:normalizeLore(item.lore)})}
+ for(const item of (c.items||[]).slice(0,1)){const name=text(item.name,100);if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:text(item.description,300),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false})}
  revealRegistryEntities(state,c.entityReveals);canonizeGeneration(state,c.generation);for(const d of (c.discoveries||[]).slice(0,2))evaluateQuestEvidence(state,`${text(d.title,100)} ${text(d.text,500)}`);for(const item of (c.items||[]).slice(0,1))evaluateQuestEvidence(state,`${text(item.name,100)} ${text(item.description,300)}`);
  const registry=ensureWorldRegistry(state);
  for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId&&x.known===true);if(npc)npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+n.trustDelta))}
