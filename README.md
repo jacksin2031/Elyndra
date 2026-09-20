@@ -127,3 +127,23 @@ Serverless endpoints：
 ## CI / Deployment
 
 GitHub Actions 在每次 push 到 `main` 時先執行 `npm test`，只有測試成功才部署 GitHub Pages。最近一次已驗證的 run（2026-09-20）為 **44/44 tests passed**，test 與 Pages deploy 均成功。
+
+## V0.22.3 — Unknown World + Stored Lore
+
+目前世界生成採用「**AI 只生成一次，Engine 負責之後的揭露與重用**」：
+
+- 玩家可自行輸入角色名稱；留空時由 World Architect 決定名稱。
+- 新世界開局知識為 **0%**，玩家看到的是「未知世界／未知地點」，不會因 Canon 中已有世界名、地名或 public facts 而自動知道。
+- 行動按鈕由 AI 根據當前場景動態生成；UI 不再硬編碼森林／道路／銅幣／莉亞等固定選項。AI 不可用未發現資訊製造 suggestion。
+- World Architect／Adventure Director 首次建立物品、地點、NPC、勢力時，可同時建立 `lore.story`、`unlockKeywords`、`minMatches`。Lore 會 Canonize 並保存在存檔。
+- 玩家之後取得所需知識時，`Lore Engine` 在本地直接解鎖既有 story，加入世界手帳；**不再次呼叫 AI**。
+- 查看背包、已知物品描述、已解鎖故事、已知資料等純查詢會走 local fast path，不消耗生成模型 token。
+- 尚未被玩家發現的實體不會出現在 player-facing registry / faction snapshot。
+- Adventure Director 另有最小化的 `directorRegistry`，可知道「已存在但玩家未知」的 Canon ID/名稱，用來避免重複生成。真正遇見時只回 `entityReveals`，由 Engine 本地標記為已知，不會重建該 NPC／地點／勢力或再次生成其背景故事。
+- Director-only registry 同樣受 context budget 限制，不會無限增加 prompt 大小。
+
+核心原則：
+
+> Generate once. Canonize once. Reveal locally. Reuse forever.
+
+V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub Pages deployment 成功。
