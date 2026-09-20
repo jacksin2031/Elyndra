@@ -1,8 +1,9 @@
+import {tickFactions} from "./faction-engine.js";
 import {tickNpcs} from "./npc-engine.js";
 import {ensureClock} from "./world-clock.js";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,flags:{}};return state.world.state.simulation}
-export function tickWorld(state){tickNpcs(state);
+export function tickWorld(state){tickNpcs(state);tickFactions(state);
  const sim=ensureWorldSimulation(state),clock=ensureClock(state);sim.tension=Math.min(100,sim.tension+1);
  const elapsed=clock.totalMinutes-sim.lastEventMinute;if(elapsed<180)return null;
  const roll=Math.random();let event=null;
