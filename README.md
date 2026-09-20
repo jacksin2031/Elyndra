@@ -252,3 +252,19 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - **Per-stage output budgets**：只有 World Compiler 明確設定 `maxOutputTokens`；普通回合、NPC 與其他 AI 呼叫不會被意外限制。
 - **Lighter prompts**：CORE 不再傳送整份 Constitution／完整 directive；REGION 不再攜帶 Timeline、hiddenFacts 與完整 seedCompliance。
 - **Cache generation**：前端模組統一更新至 `v264`。
+
+
+## V0.26.5 — Dual-AI Turn Compiler
+
+一般冒險回合由單一大型 Adventure Director request 改為最多 **2 個 AI request 並行**：
+
+1. **Scene Narrator** — 只處理玩家可見敘事與下一步 suggestions。只收到 player-visible snapshot，不可讀取 Director-only Timeline、Registry 或 World Impact capability，也不可修改 Canon。
+2. **State Director** — 只處理結構化世界狀態候選，包括 discoveries、items、NPC／勢力／夥伴變化、encounter、generation、quest 與 worldImpacts。
+
+兩個 request 同時開始，最後由 Turn Compiler 合併，再交給既有 `validateTurnCandidate()` / Engine 執行驗證與套用。任何時候不會因單一回合開超過兩個並行 AI request。
+
+失敗策略：
+- Scene Narrator 失敗但 State Director 成功：以 State Director 的短 `outcomeSummary` 作安全 fallback，世界狀態仍可正常驗證。
+- State Director 失敗：不套用任何未驗證世界 mutation，沿用原有 fallback 流程。
+
+Scene request 使用較小 visible-only context 與較低 output budget；State request 保留 Director context，但不再負責長篇敘事，降低單次生成負擔。
