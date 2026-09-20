@@ -15,7 +15,7 @@ function grantKnowledge(s,count=3,score=3){
 }
 function localWorld(){
  const s=newGame(seed);
- canonizeGeneration(s,{locations:[{name:"石橋鎮",type:"聚落",description:"沿河而建的聚落",known:true}],factions:[{name:"河岸盟",goal:"控制渡口",description:"地方勢力",known:true}],npcs:[{name:"米拉",role:"渡船人",description:"熟悉河道",known:true}]});
+ canonizeGeneration(s,{locations:[{name:"石橋鎮",type:"聚落",region:"河谷",description:"沿河而建的聚落",known:true}],factions:[{name:"河岸盟",goal:"控制渡口",description:"地方勢力",known:true}],npcs:[{name:"米拉",role:"渡船人",description:"熟悉河道",known:true}]});
  s.player.location="石橋鎮";s.world.state.location="石橋鎮";return s
 }
 
