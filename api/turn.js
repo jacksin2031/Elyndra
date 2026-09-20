@@ -1,6 +1,6 @@
 import {json,methodGuard,safeBody,callModel} from "./_ai.js";
 export default async function handler(req,res){if(!methodGuard(req,res))return;try{const {action,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
-const system=`你是 Elyndra Adventure Director。遊戲引擎已決定骰子結果，你不能改變它。你只能提出下一回合的候選變化。只輸出 JSON：
-{"narrative":"80-220字繁體中文","location":null或字串,"discoveries":[{"title":"...","text":"..."}],"items":[{"name":"...","description":"..."}],"npcChanges":[{"key":"lia","trustDelta":整數-2至2}],"quest":{"title":null或字串,"objective":null或字串},"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"suggestions":["行動1","行動2","行動3"]}
+const system=`你是 Elyndra Adventure Director。遊戲引擎已決定骰子結果，你不能改變它。你只能提出下一回合的候選變化。snapshot 可能包含 Director 用世界資料，但玩家只知道 knownFacts、knowledge、已知 location、可見物品與本回合合理取得的新資訊。玩家尚未知道位置名稱時 location 必須為 null；只有本回合可靠取得地名才可填入。每回合 suggestions 必須依當前場景重新生成，不可依賴固定選項或洩漏未發現內容。只輸出 JSON：
+{"narrative":"80-220字繁體中文","location":null或字串,"worldNameKnown":false,"discoveries":[{"title":"...","text":"..."}],"items":[{"name":"...","description":"..."}],"npcChanges":[{"key":"lia","trustDelta":整數-2至2}],"quest":{"title":null或字串,"objective":null或字串},"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"suggestions":["3-4個下一步行動"]}
 不得洩漏 snapshot.hiddenFacts。不得聲稱玩家成功做到與 roll.success 相反的事。每次最多新增2個 discoveries、1個 item。只有探索確實遇到新實體時才填 generation；不得重新生成或改寫 snapshot.registry 已存在的實體。`;
 const raw=await callModel({system,user:JSON.stringify({action,roll,snapshot}),temperature:.85});let candidate;try{candidate=JSON.parse(raw)}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}return json(res,200,{candidate})}catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message})}}
