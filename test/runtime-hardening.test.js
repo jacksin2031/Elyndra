@@ -86,9 +86,10 @@ test("unverified AI discoveries cannot progress quests while owned evidence can"
  const q=s.world.registry.sideQuests[0];
  applyTurnCandidate(s,{narrative:"你以為找到一枚徽章。",discoveries:[{title:"商隊徽章",text:"這只是 AI 提出的未驗證觀察。"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"觀察"});
  assert.equal(q.progress,0);
- applyTurnCandidate(s,{narrative:"你取得實體徽章。",items:[{name:"商隊徽章",description:"屬於失蹤商隊。"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
+ s.world.canon.facts.push({id:"FACT-BADGE",type:"clue",visibility:"public",text:"這件金屬標記可驗證屬於失蹤商隊。",canonical:true},{id:"FACT-WHEEL",type:"clue",visibility:"public",text:"這件木製殘骸可驗證來自同一支失蹤商隊。",canonical:true});
+ applyTurnCandidate(s,{narrative:"你取得實體徽章。",discoveries:[{title:"第一件商隊物證",text:"確認來源。",factId:"FACT-BADGE",evidenceType:"EXAMINED"}],items:[{name:"商隊徽章",description:"屬於失蹤商隊。",evidenceFactId:"FACT-BADGE"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
  assert.equal(q.progress,1);
- applyTurnCandidate(s,{narrative:"你取得第二項實體證據。",items:[{name:"破損車輪",description:"屬於同一支商隊。"}],suggestions:["追蹤車痕"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
+ applyTurnCandidate(s,{narrative:"你取得第二項實體證據。",discoveries:[{title:"第二件商隊物證",text:"確認來源。",factId:"FACT-WHEEL",evidenceType:"EXAMINED"}],items:[{name:"破損車輪",description:"屬於同一支商隊。",evidenceFactId:"FACT-WHEEL"}],suggestions:["追蹤車痕"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
  assert.equal(q.status,"COMPLETED");assert.equal(q.progress,2);
 });
 test("scheduled world timeline exposes only observable effect when due",()=>{
@@ -97,7 +98,7 @@ test("scheduled world timeline exposes only observable effect when due",()=>{
 });
 
 test("side quest reward uses current location currency instead of universal gold",()=>{
- const s=newGame(seed);canonizeGeneration(s,{locations:[{name:"霧市",type:"聚落",description:"被霧包圍的市場",known:true,culture:{identity:"以交換承諾與聲譽維持秩序"},trade:{mode:"currency",currencies:[{id:"CUR-MIST",name:"霧印",issuer:"霧市行會"}],questReward:3,combatReward:1}}],sideQuests:[{title:"找回帳冊",objective:"找回失落帳冊",known:true,evidenceKeywords:["舊帳冊"],target:1}]});s.player.location="霧市";s.world.state.location="霧市";applyTurnCandidate(s,{narrative:"你找到了帳冊。",discoveries:[{title:"舊帳冊",text:"這正是行會遺失的帳冊。"}],suggestions:["交還帳冊"]});assert.equal(s.world.registry.sideQuests[0].status,"COMPLETED");assert.equal(s.player.wallet["CUR-MIST"],3);assert.equal(s.player.gold,0);
+ const s=newGame(seed);canonizeGeneration(s,{locations:[{name:"霧市",type:"聚落",description:"被霧包圍的市場",known:true,culture:{identity:"以交換承諾與聲譽維持秩序"},trade:{mode:"currency",currencies:[{id:"CUR-MIST",name:"霧印",issuer:"霧市行會"}],questReward:3,combatReward:1}}],sideQuests:[{title:"找回帳冊",objective:"找回失落帳冊",known:true,evidenceKeywords:["舊帳冊"],target:1}]});s.player.location="霧市";s.world.state.location="霧市";s.world.canon.facts.push({id:"FACT-LEDGER",type:"clue",visibility:"public",text:"這份紙本記錄可驗證是行會遺失物。",canonical:true});applyTurnCandidate(s,{narrative:"你找到了帳冊。",discoveries:[{title:"行會遺失物證",text:"確認來源。",factId:"FACT-LEDGER",evidenceType:"EXAMINED"}],items:[{name:"舊帳冊",description:"這正是行會遺失的帳冊。",evidenceFactId:"FACT-LEDGER"}],suggestions:["交還帳冊"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"檢查帳冊"});assert.equal(s.world.registry.sideQuests[0].status,"COMPLETED");assert.equal(s.player.wallet["CUR-MIST"],3);assert.equal(s.player.gold,0);
 });
 
 test("any known NPC can join and later leave under local relationship rules",()=>{
