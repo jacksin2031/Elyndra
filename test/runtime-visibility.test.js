@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {newGame} from "../src/world-engine.js";
-import {canonizeGeneration,revealRegistryEntities,resolvePlayerLocation,repairPlayerLocation,canInteractWithNpc} from "../src/world-registry.js";
+import {canonizeGeneration,revealRegistryEntities,resolvePlayerLocation,repairPlayerLocation,canInteractWithNpc,npcInteractionMode} from "../src/world-registry.js";
+import {applyNpcConversationTurn} from "../src/npc-conversation.js";
 import {applyTurnCandidate} from "../src/adventure-engine.js";
 import {sanitizePlayerText,sanitizeSuggestion} from "../src/runtime-guard.js";
 import {routeAction} from "../src/jev-router.js";
@@ -11,8 +12,8 @@ const seed={worldviewMode:"style",genre:"王道奇幻",scale:"中型",danger:3,m
 function world(){
  const s=newGame(seed);
  canonizeGeneration(s,{locations:[
-  {name:"石門廣場",type:"廣場",description:"灰石鋪成的廣場",known:true},
-  {name:"河岸小徑",type:"道路",description:"沿河延伸的小徑",known:true}
+  {name:"石門廣場",type:"廣場",region:"中央",description:"灰石鋪成的廣場",known:true},
+  {name:"河岸小徑",type:"道路",region:"中央",description:"沿河延伸的小徑",known:true}
  ],npcs:[
   {name:"艾琳",role:"旅人",description:"正在觀察四周",locationName:"石門廣場",known:false},
   {name:"洛安",role:"商人",description:"在河岸整理貨物",locationName:"河岸小徑",known:false}
@@ -29,6 +30,16 @@ test("NPC becomes interactable only after an actual nearby reveal and stops bein
  assert.equal(canInteractWithNpc(s,a),true);
  resolvePlayerLocation(s,"河岸小徑");
  assert.equal(canInteractWithNpc(s,a),false);
+});
+
+test("after a real local conversation a civilization-supported contact can remain remotely reachable",()=>{
+ const s=world(),a=s.world.registry.npcs.find(x=>x.name==="艾琳");
+ s.world.bible={civilization:{level:3},communication:{name:"共鳴台",medium:"魔導節點",description:"區域短訊",latency:"NEAR_INSTANT",range:"REGIONAL",constraints:"需先建立聯絡"}};
+ revealRegistryEntities(s,[{kind:"npc",id:a.id}]);
+ applyNpcConversationTurn(s,a,"你好","艾琳點頭回應。");
+ resolvePlayerLocation(s,"河岸小徑");
+ assert.equal(npcInteractionMode(s,a),"REMOTE");
+ assert.equal(canInteractWithNpc(s,a),true);
 });
 
 test("hearing about a remote NPC does not make that NPC directly interactable",()=>{
@@ -97,11 +108,11 @@ test("combat uses main action buttons and no longer has an automatic combat moda
  assert.doesNotMatch(app,/openCombat\(\)/);
 });
 
-test("NPC dock is explicitly nearby-only and filters through interaction boundary",async()=>{
+test("NPC contact dock filters through local-or-canonical-remote interaction boundary",async()=>{
  const [app,html]=await Promise.all([
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../index.html",import.meta.url),"utf8")
  ]);
- assert.match(html,/NEARBY NPCS/);
+ assert.match(html,/CONTACTS/);
  assert.match(app,/npcs\.filter\(x=>canInteractWithNpc\(gameState,x\)\)/);
 });
