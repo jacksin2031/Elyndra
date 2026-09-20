@@ -1,5 +1,5 @@
 import {revealStoredLore} from "./lore-engine.js";
-import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js";
+import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=225";
 const NAMES=["艾斯特拉","諾爾海姆","瑟雷恩","阿爾維亞","伊瑟蘭","露米納"];
 const FALLBACK_ACTIONS=["環顧四周，確認眼前能直接觀察到的事物","檢查自己的身體、衣物與隨身狀態","保持安靜，仔細聆聽附近的聲音"];
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
