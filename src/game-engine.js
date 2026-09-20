@@ -6,6 +6,7 @@ import {tickSurvival} from "./survival-engine.js?v=268";
 import {applyCultureAction} from "./culture-engine.js?v=268";
 import {resolveEconomyAction} from "./economy-engine.js?v=268";
 import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=268";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=268";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
@@ -47,6 +48,6 @@ export function performAction(state,action="free",customText=""){
  const text=localNarrative(label,roll,profile);
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
- const worldEvent=tickWorld(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic}}
+ const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
+ return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,questProgress}}
 }
