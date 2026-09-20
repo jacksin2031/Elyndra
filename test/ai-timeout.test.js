@@ -9,8 +9,11 @@ test("world generation receives a long direct-AI timeout and clear timeout error
  ]);
  assert.doesNotMatch(settings,/abort\(\),25000/);
  assert.match(settings,/AI_TIMEOUT: Provider/);
- assert.match(client,/timeoutMs:120000/);
- assert.match(client,/World Architect/);
+ assert.doesNotMatch(client,/timeoutMs:120000[\s\S]*World Architect/);
+ assert.ok(client.includes('WORLD_${stage}_FAILED'));
+ for(const stage of ["CORE","CHRONOLOGY","REGION","CAST"])assert.match(client,new RegExp(`worldStage\\("${stage}"`));
+ assert.match(client,/timeoutMs:75000/);
+ assert.match(client,/timeoutMs:65000/);
 });
 
 test("server world generation timeout is longer than ordinary narration",async()=>{
