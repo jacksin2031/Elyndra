@@ -243,7 +243,7 @@ export function applyWorldImpacts(state,input,context={}){
  return applied
 }
 function triggerVisibility(state,item){
- if(item.targetKind==="world"||item.scope==="WORLD")return "OBSERVABLE";
+ if(item.targetKind==="world")return "OBSERVABLE";
  const here=currentLocation(state);return here&&item.observableAtLocationIds?.includes(here.id)?"OBSERVABLE":"INTERNAL"
 }
 function compactQueue(impact){
