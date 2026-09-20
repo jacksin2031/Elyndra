@@ -10,6 +10,14 @@ export function ensureWorldRegistry(state){
  for(const n of r.npcs){if(n.encountered==null)n.encountered=Boolean(n.companion?.status==="ACTIVE"||(n.memories||[]).length||(Number(n.trust)||0)!==0)}
  return r
 }
+export function repairPlayerLocation(state){
+ const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
+ const player=String(state.player?.location||"").trim(),worldLoc=String(state.world?.state?.location||"").trim();
+ let entity=r.locations.find(x=>x.name===player)||r.locations.find(x=>x.name===worldLoc);
+ if(!entity)entity=[...r.locations].reverse().find(x=>x.known===true)||r.locations[0];
+ if(entity){state.player.location=entity.name;state.world.state.location=entity.name}
+ return entity||null
+}
 export function currentLocationRecord(state){
  const r=ensureWorldRegistry(state),name=String(state.player?.location||state.world?.state?.location||"").trim();
  return r.locations.find(x=>x.name===name)||null
