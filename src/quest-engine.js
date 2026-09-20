@@ -1,5 +1,6 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=231";
-import {recordCausalEvent} from "./knowledge-graph.js?v=231";
+import {ensureWorldRegistry} from "./world-registry.js?v=232";
+import {recordCausalEvent} from "./knowledge-graph.js?v=232";
+import {localCurrencyReward} from "./world-locality.js?v=232";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function ensureQuestProgress(state){for(const q of ensureWorldRegistry(state).sideQuests){q.progress??=0;q.target??=3;q.status??="ACTIVE";q.evidence??=[];q.evidenceKeywords??=[];q.matchedKeywords??=[]}return state.world.registry.sideQuests}
@@ -7,9 +8,8 @@ export function progressSideQuest(state,questId,evidence){const q=ensureQuestPro
 export function completeSideQuest(state,questId){
  const q=ensureQuestProgress(state).find(x=>x.id===questId);if(!q||q.status==="COMPLETED"||q.progress<q.target)return false;
  q.status="COMPLETED";q.completedDay=state.world.state.day;
- const economy=state.world?.economy||state.world?.bible?.economy||{},reward=economy.currencyExists===true?clamp(Math.round(Number(economy.questReward)||0),0,20):0;
- if(reward)state.player.gold+=reward;
- const suffix=reward?`，獲得 ${reward} ${economy.currencyName||"貨幣"}`:"";
+ const reward=localCurrencyReward(state,"questReward");
+ const suffix=reward?`，獲得 ${reward.amount} ${reward.currency.name}`:"";
  const ev={id:id(),type:"QUEST_COMPLETED",visibility:"PLAYER_KNOWN",summary:"完成支線任務："+q.title+suffix,day:state.world.state.day,at:Date.now()};state.events.push(ev);recordCausalEvent(state,ev,{entityIds:[q.id]});return true
 }
 export function questSnapshot(state){const r=ensureWorldRegistry(state);ensureQuestProgress(state);return {main:state.quests.main,side:r.sideQuests.slice(-12).map(q=>({id:q.id,title:q.title,objective:q.objective,status:q.status,progress:q.progress,target:q.target}))}}

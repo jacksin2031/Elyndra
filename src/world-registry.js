@@ -1,4 +1,4 @@
-import {normalizeLore} from "./lore-engine.js?v=231";
+import {normalizeLore} from "./lore-engine.js?v=232";
 import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=232";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
@@ -13,7 +13,7 @@ export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
  return {
   locations:filter(r.locations).slice(-20).map(({id,name,type,region,description,culture,trade})=>({id,name,type,region,description,culture,trade})),
-  npcs:filter(r.npcs).slice(-20).map(({id,name,role,locationId,factionId,description,personality,goal,trust})=>({id,name,role,locationId,factionId,description,personality,goal,trust})),
+  npcs:filter(r.npcs).slice(-20).map(({id,name,role,locationId,factionId,description,personality,goal,trust,companion})=>({id,name,role,locationId,factionId,description,personality,goal,trust,companionStatus:companion?.status||"NONE"})),
   factions:filter(r.factions).slice(-12).map(({id,name,goal,description,resources,influence,playerReputation,relations,culture,trade})=>({id,name,goal,description,resources,influence,playerReputation,relations,culture,trade})),
   sideQuests:r.sideQuests.filter(q=>!visibleOnly||q.known===true).filter(q=>q.status!=="COMPLETED").slice(-12).map(({id,title,objective,status,progress,target})=>({id,title,objective,status,progress:progress??0,target:target??3}))
  }
@@ -22,7 +22,7 @@ export function directorRegistrySnapshot(state){
  const r=ensureWorldRegistry(state);
  return {
   locations:r.locations.slice(-12).map(({id,name,type,region,known})=>({id,name,type,region,known:Boolean(known)})),
-  npcs:r.npcs.slice(-12).map(({id,name,role,locationId,factionId,known})=>({id,name,role,locationId,factionId,known:Boolean(known)})),
+  npcs:r.npcs.slice(-12).map(({id,name,role,locationId,factionId,known,companion,companionProfile,goal})=>({id,name,role,locationId,factionId,known:Boolean(known),goal,companionStatus:companion?.status||"NONE",companionProfile})),
   factions:r.factions.slice(-8).map(({id,name,known})=>({id,name,known:Boolean(known)}))
  }
 }
@@ -42,7 +42,7 @@ export function validateGeneration(g){
  if(typeof g!=="object"||Array.isArray(g))return {valid:false,errors:["GENERATION_INVALID"]};
  for(const k of ["locations","npcs","factions","sideQuests"])if(g[k]!=null&&!Array.isArray(g[k]))e.push(k.toUpperCase()+"_INVALID");
  for(const x of g.locations||[])if(!clean(x?.name,80)||!clean(x?.description,400))e.push("LOCATION_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("LOCATION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("LOCATION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("LOCATION_TRADE_INVALID")}
- for(const x of g.npcs||[])if(!clean(x?.name,80)||!clean(x?.role,100))e.push("NPC_SHAPE_INVALID");else if(x.lore!=null&&!normalizeLore(x.lore))e.push("NPC_LORE_INVALID");
+ for(const x of g.npcs||[])if(!clean(x?.name,80)||!clean(x?.role,100))e.push("NPC_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("NPC_LORE_INVALID");if(x.companionProfile!=null&&typeof x.companionProfile!=="object")e.push("NPC_COMPANION_PROFILE_INVALID")}
  for(const x of g.factions||[])if(!clean(x?.name,80)||!clean(x?.goal,200))e.push("FACTION_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("FACTION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("FACTION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("FACTION_TRADE_INVALID")}
  for(const x of g.sideQuests||[]){if(!clean(x?.title,100)||!clean(x?.objective,240))e.push("SIDE_QUEST_SHAPE_INVALID");if(x.evidenceKeywords!=null&&!Array.isArray(x.evidenceKeywords))e.push("SIDE_QUEST_EVIDENCE_INVALID");if(x.target!=null&&(!Number.isInteger(x.target)||x.target<1||x.target>5))e.push("SIDE_QUEST_TARGET_INVALID")}
  return {valid:e.length===0,errors:[...new Set(e)]}
@@ -71,7 +71,7 @@ export function canonizeGeneration(state,g){
   const requestedLoc=clean(x.locationId,120),requestedFac=clean(x.factionId,120);
   const resolvedLoc=locIds.has(requestedLoc)?requestedLoc:locByName(x.locationName)?.id||null;
   const resolvedFac=facIds.has(requestedFac)?requestedFac:facByName(x.factionName)?.id||null;
-  const o={id:uid("NPC"),name,role:clean(x.role,100),description:clean(x.description,400),personality:clean(x.personality,240)||"對陌生人保持謹慎",goal:clean(x.goal,240)||"維持自己的生活與安全",locationId:resolvedLoc,factionId:resolvedFac,knowledgeScope:resolveKnowledgeScope(state,x.knowledgeScope),known:x.known===true,lore:normalizeLore(x.lore),alive:true,trust:0,memories:[],lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};
+  const o={id:uid("NPC"),name,role:clean(x.role,100),description:clean(x.description,400),personality:clean(x.personality,240)||"對陌生人保持謹慎",goal:clean(x.goal,240)||"維持自己的生活與安全",locationId:resolvedLoc,factionId:resolvedFac,knowledgeScope:resolveKnowledgeScope(state,x.knowledgeScope),known:x.known===true,lore:normalizeLore(x.lore),alive:true,trust:0,companionProfile:{joinThreshold:clamp(Math.round(Number(x.companionProfile?.joinThreshold)||35),5,90),leaveThreshold:clamp(Math.round(Number(x.companionProfile?.leaveThreshold)||10),0,70),motives:Array.isArray(x.companionProfile?.motives)?x.companionProfile.motives.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[],boundaries:Array.isArray(x.companionProfile?.boundaries)?x.companionProfile.boundaries.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""},memories:[],lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};
   r.npcs.push(o);added.npcs.push(o)
  }
  for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const evidenceKeywords=keywords(x.evidenceKeywords),target=clamp(Number.isInteger(x.target)?x.target:(evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3),1,5),o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,status:"ACTIVE",progress:0,target,evidence:[],evidenceKeywords,matchedKeywords:[],createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}

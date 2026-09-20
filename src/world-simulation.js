@@ -1,8 +1,9 @@
-import {ensureCrisis,addCrisisPressure} from "./crisis-engine.js?v=231";
-import {recordCausalEvent} from "./knowledge-graph.js?v=231";
-import {tickFactions} from "./faction-engine.js?v=231";
-import {tickNpcs} from "./npc-engine.js?v=231";
-import {ensureClock} from "./world-clock.js?v=231";
+import {ensureCrisis,addCrisisPressure} from "./crisis-engine.js?v=232";
+import {recordCausalEvent} from "./knowledge-graph.js?v=232";
+import {tickFactions} from "./faction-engine.js?v=232";
+import {tickNpcs} from "./npc-engine.js?v=232";
+import {ensureClock} from "./world-clock.js?v=232";
+import {triggerDueTimelineEvents} from "./world-timeline.js?v=232";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){
  const clock=ensureClock(state);
@@ -16,6 +17,7 @@ export function tickWorld(state){
  tickNpcs(state);tickFactions(state);
  const danger=Math.max(1,Math.min(5,Number(state.world?.seedContract?.danger)||3)),elapsedSinceTick=Math.max(0,clock.totalMinutes-sim.lastTickMinute),steps=Math.floor(elapsedSinceTick/30);
  if(steps>0){sim.tension=Math.min(100,sim.tension+steps*Math.max(1,danger-2));sim.lastTickMinute+=steps*30}
+ const scheduled=triggerDueTimelineEvents(state);if(scheduled){sim.lastEventMinute=clock.totalMinutes;sim.tension=Math.max(5,sim.tension-5);const record={id:id(),type:"WORLD_EVENT",visibility:"OBSERVABLE",subtype:"TIMELINE_EVENT",timelineId:scheduled.id,summary:scheduled.observableEffect,day:clock.day,at:Date.now()};state.events.push(record);const crisis=state.world.graph?.nodes?.find(n=>n.type==="crisis");recordCausalEvent(state,record,{causeIds:crisis?[crisis.id]:[]});if(scheduled.pressure)addCrisisPressure(state,scheduled.pressure,scheduled.observableEffect);state.world.state.lastWorldEvent=record;return record}
  const elapsed=clock.totalMinutes-sim.lastEventMinute;if(elapsed<180)return null;
  const roll=Math.random();let event=null;
  if(sim.tension>=18&&roll<.35)event={kind:"RUMOR",summary:"從可觀察的痕跡與零碎動靜中，你察覺周遭的風險正在上升。",pressure:2};

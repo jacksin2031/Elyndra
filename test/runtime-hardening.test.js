@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {newGame} from "../src/world-engine.js";
 import {advanceTime} from "../src/world-clock.js";
 import {tickWorld} from "../src/world-simulation.js";
-import {tickNpcs} from "../src/npc-engine.js";
+import {tickNpcs,inviteCompanion} from "../src/npc-engine.js";
 import {tickFactions} from "../src/faction-engine.js";
 import {bootstrapKnowledgeGraph,graphSnapshot,recordCausalEvent} from "../src/knowledge-graph.js";
 import {tokenBudgetSnapshot} from "../src/context-manager.js";
@@ -62,12 +62,12 @@ test("degraded AI context keeps the immutable world seed contract",()=>{
  assert.equal(snap.world.seedContract.prompt,seed.prompt);
 });
 
-test("save migration v5 normalizes simulation cursors and event visibility",()=>{
+test("save migration v6 normalizes simulation cursors and event visibility",()=>{
  const s=newGame(seed);s.formatVersion=3;delete s.world.state.simulation.lastTickMinute;delete s.world.state.simulation.npcCursor;delete s.world.state.simulation.factionCursor;
  s.events.push({id:"secret",type:"FACTION_ACTION",day:1,summary:"秘密"});
  const m=migrateSave(s);
- assert.equal(m.formatVersion,5);assert.equal(m.events.at(-1).visibility,"INTERNAL");
- assert.ok(Number.isFinite(m.world.state.simulation.lastTickMinute));assert.equal(m.world.state.simulation.npcCursor,0);assert.equal(m.world.state.simulation.factionCursor,0);
+ assert.equal(m.formatVersion,6);assert.equal(m.events.at(-1).visibility,"INTERNAL");
+ assert.ok(Number.isFinite(m.world.state.simulation.lastTickMinute));assert.equal(m.world.state.simulation.npcCursor,0);assert.equal(m.world.state.simulation.factionCursor,0);assert.deepEqual(m.player.wallet,{});assert.equal(m.player.calendarKnown,false);
 });
 
 test("crisis pressure alone cannot unlock ENDGAME before world knowledge",()=>{
@@ -88,4 +88,16 @@ test("side quest evidence progresses locally from discoveries and items",()=>{
  assert.equal(q.progress,1);
  applyTurnCandidate(s,{narrative:"你找到第二項線索。",items:[{name:"破損車輪",description:"屬於同一支商隊。"}],suggestions:["追蹤車痕"]});
  assert.equal(q.status,"COMPLETED");assert.equal(q.progress,2);
+});
+test("scheduled world timeline exposes only observable effect when due",()=>{
+ const s=newGame(seed);s.world.timeline=[{id:"TL-1",title:"隱藏變局",category:"CRISIS",earliestDay:2,latestDay:2,triggerDay:2,directorTruth:"真正原因是地下封印被某勢力故意破壞。",observableEffect:"遠方地面傳來持續震動，附近鳥群突然離開。",pressure:4,status:"SCHEDULED",triggeredDay:null}];s.world.state.day=2;s.world.state.clock.day=2;s.world.state.clock.totalMinutes=1440;s.world.state.simulation.lastTickMinute=1440;
+ const ev=tickWorld(s);assert.equal(ev.subtype,"TIMELINE_EVENT");assert.match(ev.summary,/鳥群/);assert.equal(ev.summary.includes("地下封印"),false);assert.equal(s.world.timeline[0].status,"TRIGGERED");
+});
+
+test("side quest reward uses current location currency instead of universal gold",()=>{
+ const s=newGame(seed);canonizeGeneration(s,{locations:[{name:"霧市",type:"聚落",description:"被霧包圍的市場",known:true,culture:{identity:"以交換承諾與聲譽維持秩序"},trade:{mode:"currency",currencies:[{id:"CUR-MIST",name:"霧印",issuer:"霧市行會"}],questReward:3,combatReward:1}}],sideQuests:[{title:"找回帳冊",objective:"找回失落帳冊",known:true,evidenceKeywords:["舊帳冊"],target:1}]});s.player.location="霧市";s.world.state.location="霧市";applyTurnCandidate(s,{narrative:"你找到了帳冊。",discoveries:[{title:"舊帳冊",text:"這正是行會遺失的帳冊。"}],suggestions:["交還帳冊"]});assert.equal(s.world.registry.sideQuests[0].status,"COMPLETED");assert.equal(s.player.wallet["CUR-MIST"],3);assert.equal(s.player.gold,0);
+});
+
+test("any known NPC can join and later leave under local relationship rules",()=>{
+ const s=newGame(seed);canonizeGeneration(s,{npcs:[{name:"洛恩",role:"流浪記錄者",description:"四處記錄地方傳說",known:true,companionProfile:{joinThreshold:20,leaveThreshold:8,motives:["想記錄旅途"],boundaries:["不接受背叛"]}}]});const npc=s.world.registry.npcs[0];npc.trust=25;assert.equal(inviteCompanion(s,npc.id).accepted,true);assert.equal(npc.companion.status,"ACTIVE");npc.trust=5;npc.lastActionMinute=0;s.world.state.clock.totalMinutes=300;tickNpcs(s);assert.equal(npc.companion.status,"LEFT");assert.ok(s.events.some(e=>e.type==="COMPANION_LEFT"));
 });

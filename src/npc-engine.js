@@ -1,18 +1,27 @@
-import {ensureCrisis} from "./crisis-engine.js?v=231";
-import {recordCausalEvent} from "./knowledge-graph.js?v=231";
-import {ensureWorldRegistry} from "./world-registry.js?v=231";
-import {ensureClock} from "./world-clock.js?v=231";
-const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
+import {ensureCrisis} from "./crisis-engine.js?v=232";
+import {recordCausalEvent} from "./knowledge-graph.js?v=232";
+import {ensureWorldRegistry} from "./world-registry.js?v=232";
+import {ensureClock} from "./world-clock.js?v=232";
+const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function simulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:ensureClock(state).totalMinutes,flags:{}};state.world.state.simulation.npcCursor??=0;return state.world.state.simulation}
 function roundRobin(state,list,key,limit=4){if(!list.length)return [];const sim=simulation(state),count=Math.min(limit,list.length),start=Math.max(0,Number(sim[key])||0)%list.length,out=Array.from({length:count},(_,i)=>list[(start+i)%list.length]);sim[key]=(start+count)%list.length;return out}
-export function ensureNpcRuntime(state){const r=ensureWorldRegistry(state),now=ensureClock(state).totalMinutes;for(const n of r.npcs){n.personality??="對陌生人保持謹慎";n.goal??="維持自己的生活與安全";n.knowledgeScope??=[];n.memories??=[];n.trust??=0;n.alive??=true;n.lastActionMinute??=now}return r.npcs}
+function companionProfile(p={}){return {joinThreshold:clamp(Math.round(Number(p.joinThreshold)||35),5,90),leaveThreshold:clamp(Math.round(Number(p.leaveThreshold)||10),0,70),motives:Array.isArray(p.motives)?p.motives.map(String).slice(0,4):[],boundaries:Array.isArray(p.boundaries)?p.boundaries.map(String).slice(0,4):[]}}
+function companionState(c={}){return {status:["NONE","OFFERED","ACTIVE","LEFT"].includes(c.status)?c.status:"NONE",joinedDay:Number.isFinite(c.joinedDay)?c.joinedDay:null,leftDay:Number.isFinite(c.leftDay)?c.leftDay:null,offeredDay:Number.isFinite(c.offeredDay)?c.offeredDay:null,reason:String(c.reason||"").slice(0,220)}}
+function relationEvent(state,npc,type,summary){const ev={id:id(),type,visibility:"PLAYER_KNOWN",npcId:npc.id,summary,day:state.world.state.day,at:Date.now()};state.events.push(ev);npc.memories.push({id:id(),type:type.toLowerCase(),summary,day:state.world.state.day});npc.memories=npc.memories.slice(-12);return ev}
+export function companionSnapshot(state){return ensureNpcRuntime(state).filter(n=>n.known===true&&["ACTIVE","OFFERED"].includes(n.companion.status)).map(n=>({id:n.id,name:n.name,role:n.role,trust:n.trust,status:n.companion.status,goal:n.goal}))}
+export function inviteCompanion(state,npcId){const npc=findNpc(state,npcId);if(!npc||npc.known!==true||npc.alive===false)return {accepted:false,reason:"NPC_UNAVAILABLE"};if(npc.companion.status==="ACTIVE")return {accepted:true,reason:"ALREADY_ACTIVE"};const threshold=npc.companionProfile.joinThreshold;if((npc.trust??0)<threshold){relationEvent(state,npc,"COMPANION_INVITE_DECLINED",npc.name+" 暫時沒有接受同行邀請。");return {accepted:false,reason:"TRUST_TOO_LOW",requiredTrust:threshold}}npc.companion={...npc.companion,status:"ACTIVE",joinedDay:state.world.state.day,leftDay:null,reason:"接受玩家邀請"};relationEvent(state,npc,"COMPANION_JOINED",npc.name+" 接受邀請，成為同行夥伴。");return {accepted:true,npc}}
+export function acceptCompanionOffer(state,npcId){const npc=findNpc(state,npcId);if(!npc||npc.companion.status!=="OFFERED"||npc.alive===false)return false;npc.companion={...npc.companion,status:"ACTIVE",joinedDay:state.world.state.day,leftDay:null,reason:"玩家接受主動同行提議"};relationEvent(state,npc,"COMPANION_JOINED",npc.name+" 正式加入你的旅程。");return true}
+export function dismissCompanion(state,npcId,reason="玩家希望暫時分開行動"){const npc=findNpc(state,npcId);if(!npc||npc.companion.status!=="ACTIVE")return false;npc.companion={...npc.companion,status:"LEFT",leftDay:state.world.state.day,reason:String(reason).slice(0,220)};relationEvent(state,npc,"COMPANION_LEFT",npc.name+" 離開了目前的同行隊伍。");return true}
+export function applyCompanionChange(state,change){const npc=findNpc(state,change?.npcId);if(!npc||npc.known!==true||npc.alive===false)return false;const action=String(change?.action||"").toUpperCase(),reason=String(change?.reason||"").trim().slice(0,220);if(action==="OFFER"){if(!["NONE","LEFT"].includes(npc.companion.status)||(npc.trust??0)<Math.max(5,npc.companionProfile.joinThreshold-10))return false;npc.companion={...npc.companion,status:"OFFERED",offeredDay:state.world.state.day,reason:reason||"NPC 主動提出同行"};relationEvent(state,npc,"COMPANION_OFFERED",npc.name+" 主動提出希望與你同行。");return true}if(action==="LEAVE"&&npc.companion.status==="ACTIVE"){npc.companion={...npc.companion,status:"LEFT",leftDay:state.world.state.day,reason:reason||"NPC 依照自己的目標離開"};relationEvent(state,npc,"COMPANION_LEFT",npc.name+" 決定離開同行隊伍。");return true}return false}
+function evaluateCompanionAutonomy(state,npc,crisis){const day=state.world.state.day;if(npc.lastCompanionDecisionDay===day)return;if(npc.companion.status==="ACTIVE"&&(npc.trust??0)<=npc.companionProfile.leaveThreshold){npc.lastCompanionDecisionDay=day;applyCompanionChange(state,{npcId:npc.id,action:"LEAVE",reason:"彼此信任已低於繼續同行的底線"});return}const pressure=["ESCALATING","CRISIS","ENDGAME"].includes(crisis.stage);if(npc.known===true&&["NONE","LEFT"].includes(npc.companion.status)&&(npc.trust??0)>=npc.companionProfile.joinThreshold+(pressure?10:25)){npc.lastCompanionDecisionDay=day;applyCompanionChange(state,{npcId:npc.id,action:"OFFER",reason:pressure?"世界局勢令他認為同行更符合自己的目標":"長期累積的信任令他願意主動同行"})}}
+export function ensureNpcRuntime(state){const r=ensureWorldRegistry(state),now=ensureClock(state).totalMinutes;for(const n of r.npcs){n.personality??="對陌生人保持謹慎";n.goal??="維持自己的生活與安全";n.knowledgeScope??=[];n.memories??=[];n.trust??=0;n.alive??=true;n.companionProfile=companionProfile(n.companionProfile);n.companion=companionState(n.companion);n.lastActionMinute??=now}return r.npcs}
 export function tickNpcs(state){
- const now=ensureClock(state).totalMinutes,out=[],npcs=ensureNpcRuntime(state);
+ const now=ensureClock(state).totalMinutes,out=[],npcs=ensureNpcRuntime(state),crisis=ensureCrisis(state);
  for(const npc of roundRobin(state,npcs,"npcCursor",4)){
   if(!npc.alive||now-npc.lastActionMinute<120)continue;
-  npc.lastActionMinute=now;
-  const crisis=ensureCrisis(state),reaction=crisis.stage==="ENDGAME"?"並開始為迫近的終局作準備":crisis.stage==="CRISIS"?"並因世界危機調整了自己的計劃":crisis.stage==="ESCALATING"?"，同時開始留意近期異常":"";
-  const summary=npc.name+" 為了「"+npc.goal+"」採取了自己的行動"+reaction+"。";
+  npc.lastActionMinute=now;evaluateCompanionAutonomy(state,npc,crisis);
+  const reaction=crisis.stage==="ENDGAME"?"並開始為迫近的終局作準備":crisis.stage==="CRISIS"?"並因世界危機調整了自己的計劃":crisis.stage==="ESCALATING"?"，同時開始留意近期異常":"";
+  const companionNote=npc.companion.status==="ACTIVE"?"，並把同行中的處境納入自己的判斷":"";const summary=npc.name+" 為了「"+npc.goal+"」採取了自己的行動"+reaction+companionNote+"。";
   const ev={id:id(),type:"NPC_AUTONOMOUS_ACTION",visibility:"INTERNAL",npcId:npc.id,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),at:Date.now()};
   npc.memories.push({id:id(),type:"autonomous",summary,day:state.world.state.day});npc.memories=npc.memories.slice(-12);state.events.push(ev);recordCausalEvent(state,ev,{entityIds:[npc.id,npc.factionId].filter(Boolean)});out.push(ev)
  }

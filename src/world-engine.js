@@ -1,6 +1,6 @@
-import {revealStoredLore} from "./lore-engine.js?v=231";
-import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=231";
-import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=231";
+import {revealStoredLore} from "./lore-engine.js?v=232";
+import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=232";
+import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=232";
 import {normalizeCalendar} from "./world-locality.js?v=232";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
@@ -12,7 +12,9 @@ export const WORLD_CONSTITUTION=[
  {id:"C-004",text:"骰子與規則結果由 Game Engine 決定，AI 只能提出符合結果的候選變化"},
  {id:"C-005",text:"新生成內容必須通過 Canon、時間線與依賴驗證"},
  {id:"C-006",text:"玩家開局對世界知識為零；世界真相、地名與常識不等於玩家已知資訊"},
- {id:"C-007",text:"Engine 不得硬編碼任何特定世界的地名、人物、勢力、貨幣或敵人"}
+ {id:"C-007",text:"Engine 不得硬編碼任何特定世界的地名、人物、勢力、貨幣或敵人"},
+ {id:"C-008",text:"世界不得默認採用現實地球曆法、國家制度或全球通用貨幣；地方文化與交易制度必須由 Canon 定義"},
+ {id:"C-009",text:"世界大事件時間線在創世時 Canonize，之後由 Engine 按內部時間觸發，不得提前向玩家洩漏 Director 真相"}
 ];
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return h}
 function localWorldName(seed){const a=["艾","賽","諾","維","伊","洛","瑟","亞"],b=["蘭","爾","恩","斯","姆","亞","里","德"],c=["達","拉","恩","亞","爾","斯"];const h=Math.abs(hash(JSON.stringify(seed)));return a[h%a.length]+b[Math.floor(h/a.length)%b.length]+c[Math.floor(h/(a.length*b.length))%c.length]}
@@ -52,7 +54,7 @@ export function newGame(seed){
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
 export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score);revealStoredLore(state)}}
 export function applyWorldCandidate(state,candidate){
- if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
+ if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");if(!candidate.worldCalendar||typeof candidate.worldCalendar!=="object"||Array.isArray(candidate.worldCalendar))throw new Error("WORLD_CALENDAR_REQUIRED");
  const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));const pacing=createTimelinePacing(compliance.expected.targetPlayHours);const timelineReport=validateWorldTimeline(candidate.worldTimeline,pacing);if(!timelineReport.valid)throw new Error("WORLD_TIMELINE_FAILED:"+timelineReport.errors.join(","));
  state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;state.world.timelinePacing=timelineReport.pacing;state.world.timeline=timelineReport.timeline;state.world.calendar=normalizeCalendar(candidate.worldCalendar);
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;

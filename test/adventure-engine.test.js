@@ -72,3 +72,6 @@ test("AI turn can start a world-specific combat encounter",()=>{
  assert.equal(s.combat.active,true);
  assert.equal(s.combat.enemy.name,"玻璃甲蟲");
 });
+test("Adventure Director can propose companion offer and calendar discovery without forcing join",()=>{
+ const s=newGame(seed);s.world.registry.npcs.push({id:"NPC-comp",name:"薇塔",role:"採集者",description:"熟悉附近地形",known:true,alive:true,trust:45,memories:[],knowledgeScope:[],companionProfile:{joinThreshold:35,leaveThreshold:8,motives:["共同探索"],boundaries:[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""}});applyTurnCandidate(s,{narrative:"她表示願意同行，並向你解釋了當地如何記錄時序。",calendarKnown:true,companionChanges:[{npcId:"NPC-comp",action:"OFFER",reason:"共同探索符合她目前的目標"}],suggestions:["回應她的提議"]});assert.equal(s.player.calendarKnown,true);assert.equal(s.world.registry.npcs[0].companion.status,"OFFERED");const snap=buildSnapshot(s);assert.ok(snap.companions.some(x=>x.id==="NPC-comp"&&x.status==="OFFERED"));
+});

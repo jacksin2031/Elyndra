@@ -158,7 +158,7 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - NPC 只讀取自己的 `knowledgeScope` 與 memories；`publicFacts` 不再等於所有 NPC 自動知道。
 - 新增 Event Visibility Gate；NPC／勢力自主模擬屬於 `INTERNAL`，不會出現在玩家旅程紀錄或玩家 AI snapshot。
 - Adventure Director 可提出符合目前世界的 `encounter`；敵人、戰利品與戰鬥來源不再由 Engine 預設。
-- 貨幣由 World Architect 的 `worldBible.economy` 決定；無貨幣世界不顯示虛構金幣，任務與戰鬥亦不再固定發放金幣。
+- 世界不再有全域通用貨幣；每個地點／勢力首次生成自己的 `culture` 與 `trade`，可使用地方貨幣、代幣、配給或以物易物。任務與戰鬥獎勵只使用目前所在地接受的交易制度。
 - World Simulation 的可見事件只使用玩家可直接感知的中性描述，不再偷渡特定區域或勢力資訊。
 - UI 改為動態 NPC Dock，世界手帳／旅程紀錄與已發現世界遵守 player knowledge boundary。
 - 加入 legacy-canon regression tests，防止固定世界內容重新混入 Runtime。
@@ -179,3 +179,17 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 目前原則進一步明確化：
 
 > AI creates new possibilities. Engine owns truth, time, visibility, progression and persistence.
+
+## V0.24.0 — Living Isekai World
+
+這一版把世界由「現實世界換皮」進一步改成真正的異世界文明模擬：
+
+- **世界原生曆法**：World Architect 首次生成 `worldCalendar`，包括紀元、週期、日序與時段名稱。Engine 內部仍以 deterministic minutes/day 排程，但玩家未學會曆法前只看到「時序未知」，學會後才顯示世界自己的時間稱呼。
+- **遊玩時長驅動 Timeline**：玩家設定希望遊玩小時數，Engine 轉成 timeline horizon、事件數與早／中／後期比例。AI 只在創世時生成 4–8 個大事件時間窗；到期後由 Engine 本地觸發 `observableEffect`，`directorTruth` 永不提前向玩家洩漏。
+- **地方文化與交易**：每個新地點／勢力首次生成自己的文化、禁忌、飲食、信仰、建築、命名與交易制度。可以因歷史／政治共享，但不能無理由使用全世界同一文化或貨幣。
+- **多貨幣錢包**：玩家使用 `wallet` 保存不同地方貨幣；任務／戰鬥不再發全域 gold，而是依當前地點的 `trade` 規則給地方貨幣；純 barter 地區不會憑空產生錢。
+- **任意 NPC 夥伴**：所有 NPC 都有 companion profile，但沒有人天生是固定同伴。玩家可邀請；高信任 NPC 可主動提出同行；同行者可因信任跌破底線或自身目標主動離隊。狀態由 Engine 保存為 `NONE / OFFERED / ACTIVE / LEFT`。
+- **AI 邊界**：AI 只提出新文化、Timeline 與關係轉折候選；Engine 擁有時間、可見性、夥伴狀態、貨幣 balance 與事件觸發權。
+- **Save Format v6**：舊存檔自動補 wallet、calendar knowledge、timeline 與 companion runtime，不會把舊版固定 suggestions 帶回新世界。
+
+> No Earth defaults. Every culture must belong to the world that created it.
