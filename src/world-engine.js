@@ -33,6 +33,8 @@ export function newGame(seed){
   inventory:[{id:"rusty-sword",name:"生鏽短劍",identified:false},{id:"strange-coin",name:"陌生銅幣",identified:false}],
   knowledge:[{id:"K-coin",title:"陌生銅幣",status:"PARTIAL",text:"銅幣上的文字尚未能解讀。",sources:["strange-coin"]},{id:"K-lia",title:"莉亞",status:"PARTIAL",text:"自稱旅行者，但似乎刻意避開談論自己的出身。",sources:["NPC-lia"]}],
   npcs:{lia:{id:"NPC-lia",name:"莉亞",alive:true,trust:18,goal:"尋找失蹤的姐姐",knowledgeScope:["F-north"],memories:[]}},
+  quests:{main:{id:"Q-main",title:"找到前往文明聚落的方法",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","找到安全的聚落","查明陌生銅幣的來源"]}},
+  discoveries:0,
   events:[{id:uuid(),type:"WORLD_CREATED",day:1,at:Date.now()}],narrative:"潮濕的泥土沾在掌心。遠處有鐘聲，卻看不見任何城鎮。你身上只有一枚看不懂文字的銅幣，以及一把生鏽短劍。"};
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
