@@ -1,6 +1,6 @@
 import {normalizeLore} from "./lore-engine.js";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
-const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
+const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 export function ensureWorldRegistry(state){
  state.world.registry??={locations:[],npcs:[],factions:[],sideQuests:[]};
  const r=state.world.registry;
@@ -43,7 +43,7 @@ export function validateGeneration(g){
  for(const x of g.locations||[])if(!clean(x?.name,80)||!clean(x?.description,400))e.push("LOCATION_SHAPE_INVALID");else if(x.lore!=null&&!normalizeLore(x.lore))e.push("LOCATION_LORE_INVALID");
  for(const x of g.npcs||[])if(!clean(x?.name,80)||!clean(x?.role,100))e.push("NPC_SHAPE_INVALID");else if(x.lore!=null&&!normalizeLore(x.lore))e.push("NPC_LORE_INVALID");
  for(const x of g.factions||[])if(!clean(x?.name,80)||!clean(x?.goal,200))e.push("FACTION_SHAPE_INVALID");else if(x.lore!=null&&!normalizeLore(x.lore))e.push("FACTION_LORE_INVALID");
- for(const x of g.sideQuests||[])if(!clean(x?.title,100)||!clean(x?.objective,240))e.push("SIDE_QUEST_SHAPE_INVALID");
+ for(const x of g.sideQuests||[]){if(!clean(x?.title,100)||!clean(x?.objective,240))e.push("SIDE_QUEST_SHAPE_INVALID");if(x.evidenceKeywords!=null&&!Array.isArray(x.evidenceKeywords))e.push("SIDE_QUEST_EVIDENCE_INVALID");if(x.target!=null&&(!Number.isInteger(x.target)||x.target<1||x.target>5))e.push("SIDE_QUEST_TARGET_INVALID")}
  return {valid:e.length===0,errors:[...new Set(e)]}
 }
 function resolveKnowledgeScope(state,input){
@@ -73,7 +73,7 @@ export function canonizeGeneration(state,g){
   const o={id:uid("NPC"),name,role:clean(x.role,100),description:clean(x.description,400),personality:clean(x.personality,240)||"對陌生人保持謹慎",goal:clean(x.goal,240)||"維持自己的生活與安全",locationId:resolvedLoc,factionId:resolvedFac,knowledgeScope:resolveKnowledgeScope(state,x.knowledgeScope),known:x.known===true,lore:normalizeLore(x.lore),alive:true,trust:0,memories:[],lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};
   r.npcs.push(o);added.npcs.push(o)
  }
- for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,status:"ACTIVE",progress:0,target:3,evidence:[],createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}
+ for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const evidenceKeywords=keywords(x.evidenceKeywords),target=clamp(Number.isInteger(x.target)?x.target:(evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3),1,5),o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,status:"ACTIVE",progress:0,target,evidence:[],evidenceKeywords,matchedKeywords:[],createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}
  if(Object.values(added).some(a=>a.length)){state.world.version++;state.events.push({id:uid("EV"),type:"WORLD_CANON_EXPANDED",visibility:"INTERNAL",day:state.world.state.day,summary:Object.entries(added).filter(([,a])=>a.length).map(([k,a])=>`${k} +${a.length}`).join(" · "),at:Date.now()})}
  return added
 }
