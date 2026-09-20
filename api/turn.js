@@ -1,0 +1,6 @@
+import {json,methodGuard,safeBody,callModel} from "./_ai.js";
+export default async function handler(req,res){if(!methodGuard(req,res))return;try{const {action,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
+const system=`你是 Elyndra Adventure Director。遊戲引擎已決定骰子結果，你不能改變它。你只能提出下一回合的候選變化。只輸出 JSON：
+{"narrative":"80-220字繁體中文","location":null或字串,"discoveries":[{"title":"...","text":"..."}],"items":[{"name":"...","description":"..."}],"npcChanges":[{"key":"lia","trustDelta":整數-2至2}],"quest":{"title":null或字串,"objective":null或字串},"suggestions":["行動1","行動2","行動3"]}
+不得洩漏 snapshot.hiddenFacts。不得聲稱玩家成功做到與 roll.success 相反的事。每次最多新增2個 discoveries、1個 item。`;
+const raw=await callModel({system,user:JSON.stringify({action,roll,snapshot}),temperature:.85});let candidate;try{candidate=JSON.parse(raw)}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}return json(res,200,{candidate})}catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message})}}
