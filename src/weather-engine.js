@@ -71,16 +71,19 @@ function durationFor(state,p){
  return p.durationMin+(span?h%(span+1):0)
 }
 export function initializeWeather(state,{force=false}={}){
- state.world.bible??={};const hadCanon=Boolean(state.world.bible.weatherSystem?.phenomena?.length);state.world.bible.weatherSystem=normalizeWeatherSystem(state.world.bible.weatherSystem,state.world.seedContract||state.world.seed||{});
+ state.world.bible??={};
  const clock=Number(state.world?.state?.clock?.totalMinutes)||0;
  state.world.weather??={version:1,currentId:"",startedMinute:clock,nextChangeMinute:clock,locationKey:"",sequence:0,history:[],legacyNeutral:false};
  const w=state.world.weather;w.history??=[];w.sequence=Number.isInteger(w.sequence)?w.sequence:0;
- const valid=state.world.bible.weatherSystem.phenomena.some(x=>x.id===w.currentId),key=locationKey(state);
+ const hadCanon=Boolean(state.world.bible.weatherSystem?.phenomena?.length),key=locationKey(state);
+ if(w.legacyNeutral===true&&!hadCanon){w.currentId="WTH-STABLE";w.startedMinute=clock;w.nextChangeMinute=Number.MAX_SAFE_INTEGER;w.locationKey=key;return w}
+ state.world.bible.weatherSystem=normalizeWeatherSystem(state.world.bible.weatherSystem,state.world.seedContract||state.world.seed||{});
+ const valid=state.world.bible.weatherSystem.phenomena.some(x=>x.id===w.currentId);
  if(force||!valid){const p=!hadCanon&&!valid?state.world.bible.weatherSystem.phenomena[0]:choose(state,"");w.currentId=p.id;w.startedMinute=clock;w.nextChangeMinute=clock+durationFor(state,p);w.locationKey=key}
  return w
 }
 export function currentWeather(state){
- initializeWeather(state);const sys=state.world.bible.weatherSystem,w=state.world.weather;
+ const w=initializeWeather(state);if(w.legacyNeutral===true&&!state.world.bible?.weatherSystem?.phenomena?.length)return genericPhenomena[0];const sys=state.world.bible.weatherSystem;
  return sys.phenomena.find(x=>x.id===w.currentId)||sys.phenomena[0]
 }
 export function tickWeather(state,{force=false}={}){
