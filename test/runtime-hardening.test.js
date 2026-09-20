@@ -62,11 +62,11 @@ test("degraded AI context keeps the immutable world seed contract",()=>{
  assert.equal(snap.world.seedContract.prompt,seed.prompt);
 });
 
-test("save migration v4 normalizes simulation cursors and event visibility",()=>{
+test("save migration v5 normalizes simulation cursors and event visibility",()=>{
  const s=newGame(seed);s.formatVersion=3;delete s.world.state.simulation.lastTickMinute;delete s.world.state.simulation.npcCursor;delete s.world.state.simulation.factionCursor;
  s.events.push({id:"secret",type:"FACTION_ACTION",day:1,summary:"秘密"});
  const m=migrateSave(s);
- assert.equal(m.formatVersion,4);assert.equal(m.events.at(-1).visibility,"INTERNAL");
+ assert.equal(m.formatVersion,5);assert.equal(m.events.at(-1).visibility,"INTERNAL");
  assert.ok(Number.isFinite(m.world.state.simulation.lastTickMinute));assert.equal(m.world.state.simulation.npcCursor,0);assert.equal(m.world.state.simulation.factionCursor,0);
 });
 
