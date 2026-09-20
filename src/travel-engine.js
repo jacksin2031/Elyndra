@@ -1,5 +1,6 @@
 import {advanceTime} from "./world-clock.js?v=268";
-import {currentWeather,retargetWeather} from "./weather-engine.js?v=268";
+import {currentWeather,retargetWeather,tickWeather} from "./weather-engine.js?v=268";
+import {tickSurvival} from "./survival-engine.js?v=268";
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return Math.abs(h)};
@@ -52,7 +53,7 @@ export function travelTo(state,destination,{roll=null,actionKind="",baseMinutes=
  if(!force&&String(actionKind||roll?.profile?.kind||"").toUpperCase()!=="TRAVEL")return {ok:false,reason:"TRAVEL_ACTION_REQUIRED"};
  if(!force&&roll?.success===false)return {ok:false,reason:"TRAVEL_CHECK_FAILED"};
  target.known=true;const plan=findTravelPlan(state,target.id);if(!plan)return {ok:false,reason:"NO_CANON_ROUTE"};
- const extraMinutes=force?0:Math.max(0,plan.minutes-Math.max(0,Number(baseMinutes)||0));if(extraMinutes)advanceTime(state,extraMinutes);
+ const extraMinutes=force?0:Math.max(0,plan.minutes-Math.max(0,Number(baseMinutes)||0));if(extraMinutes){advanceTime(state,extraMinutes);tickSurvival(state,extraMinutes,{kind:"TRAVEL"});tickWeather(state)}
  state.player.location=target.name;state.world.state.location=target.name;state.world.state.region=target.region||state.world.state.region;target.discoveredDay??=state.world.state.day;
  for(const route of plan.routes)route.lastUsedMinute=state.world.state.clock?.totalMinutes||0;
  retargetWeather(state);state.events??=[];state.events.push({id:uid("EV"),type:"TRAVEL_COMPLETED",visibility:"PLAYER_KNOWN",fromId:plan.fromId,toId:plan.toId,distanceKm:plan.distanceKm,minutes:plan.minutes,summary:"你沿著可通行路線抵達 "+target.name+"。",day:state.world.state.day,at:Date.now()});
