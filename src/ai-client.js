@@ -1,8 +1,8 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=265";
-import {seedDirective} from "./seed-contract.js?v=265";
-import {recognitionForNpc} from "./recognition-engine.js?v=265";
-import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=265";
-import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=265";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=266";
+import {seedDirective} from "./seed-contract.js?v=266";
+import {recognitionForNpc} from "./recognition-engine.js?v=266";
+import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=266";
+import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=266";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -95,7 +95,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
 export async function talkToNpc(state,key,message){const npc=state.npcs?.[key];if(!npc)throw new Error("NPC_NOT_FOUND");const knownFacts=npcKnownFacts(state,npc),payload={message,npc,knownFacts,memories:npc.memories||[],scene:{day:state.world.state.day,location:state.player.location}};if(hasDirectAI())return directChat({timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。只能使用提供的 knownFacts 與 memories，不知道就表現不知道。繁體中文1-4句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
 export async function talkToDynamicNpc(state,npc,message){const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,trust:npc.trust},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location}};if(hasDirectAI())return directChat({timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。不知道的事不可捏造。繁體中文1-5句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
 const TURN_SCENE_SCHEMA='{"narrative":"80-180字繁體中文，只描述玩家當下可感知的行動結果，不建立或修改 Canon","suggestions":["3-4個只基於眼前資訊的下一步行動"]}';
-const TURN_STATE_SCHEMA='{"outcomeSummary":"40-100字可見結果摘要","location":null,"worldNameKnown":false,"calendarKnown":false,"discoveries":[{"title":"...","text":"..."}],"items":[{"name":"...","description":"玩家當下可見描述","lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"npcChanges":[{"npcId":"已知 NPC id","trustDelta":0}],"companionChanges":[{"npcId":"已知 NPC id","action":"OFFER|LEAVE","reason":"符合角色設定的原因"}],"factionChanges":[{"factionId":"已知勢力 id","reputationDelta":0}],"quest":{"title":null,"objective":null},"entityReveals":[{"kind":"location|npc|faction|sideQuest","id":"directorRegistry 既有實體 id"}],"encounter":null或{"type":"combat","enemy":{"name":"符合本世界的敵對存在","level":1,"hp":20,"defense":11,"damage":6,"loot":"可空字串"}},"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"worldImpacts":[]}';
+const TURN_STATE_SCHEMA='{"outcomeSummary":"40-100字可見結果摘要","location":null,"worldNameKnown":false,"calendarKnown":false,"discoveries":[{"title":"...","text":"..."}],"items":[{"name":"...","description":"玩家當下可見描述","lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1},"checkBonuses":{"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL|ALL":"可選整數 -2 至 2；只有功能性工具／裝備才填"}}],"npcChanges":[{"npcId":"已知 NPC id","trustDelta":0}],"companionChanges":[{"npcId":"已知 NPC id","action":"OFFER|LEAVE","reason":"符合角色設定的原因"}],"factionChanges":[{"factionId":"已知勢力 id","reputationDelta":0}],"quest":{"title":null,"objective":null},"entityReveals":[{"kind":"location|npc|faction|sideQuest","id":"directorRegistry 既有實體 id"}],"encounter":null或{"type":"combat","enemy":{"name":"符合本世界的敵對存在","level":1,"hp":20,"defense":11,"damage":6,"loot":"可空字串"}},"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"worldImpacts":[]}';
 
 export async function generateTurn(action,roll,snapshot){
  if(hasDirectAI()){
@@ -109,7 +109,7 @@ export async function generateTurn(action,roll,snapshot){
 
   const statePromise=directChat({
    timeoutMs:50000,maxOutputTokens:1800,temperature:.55,
-   system:`你是 Elyndra State Director。你只負責結構化世界狀態候選，不寫長篇敘事。骰子結果不可修改。snapshot.world.seedContract 是硬性世界合約；所有新事件、實體、敵人與世界擴展都必須符合它。directorRegistry 與 directorTimeline 只供保持 Canon，directorTruth 絕不能寫入玩家可見欄位。npcChanges 只能引用 snapshot.registry 中已知 NPC id。companionChanges 只可對已知 NPC 使用 OFFER 或 LEAVE。只有行動與骰子合理導致直接衝突才建立 encounter。worldImpacts 只用於玩家真正造成的持久改變；不得改寫過去 Canon；scope 不得高於 snapshot.worldImpact.capability.maxScope；REGIONAL 以上才可調整未觸發 Timeline；recognition 必須忠於已成立 impact 且 spread 不得超過 impact scope。既有實體只用 entityReveals，不得重建。新 generation 必須符合既有 Canon；普通行動可回空 generation/worldImpacts。outcomeSummary 只用作敘事 AI 失敗時的安全 fallback。只輸出 JSON：${TURN_STATE_SCHEMA}`,
+   system:`你是 Elyndra State Director。你只負責結構化世界狀態候選，不寫長篇敘事。骰子結果不可修改。snapshot.world.seedContract 是硬性世界合約；所有新事件、實體、敵人與世界擴展都必須符合它。directorRegistry 與 directorTimeline 只供保持 Canon，directorTruth 絕不能寫入玩家可見欄位。npcChanges 只能引用 snapshot.registry 中已知 NPC id。companionChanges 只可對已知 NPC 使用 OFFER 或 LEAVE。只有行動與骰子合理導致直接衝突才建立 encounter。worldImpacts 只用於玩家真正造成的持久改變；不得改寫過去 Canon；scope 不得高於 snapshot.worldImpact.capability.maxScope；REGIONAL 以上才可調整未觸發 Timeline；recognition 必須忠於已成立 impact 且 spread 不得超過 impact scope。既有實體只用 entityReveals，不得重建。新 generation 必須符合既有 Canon；普通行動可回空 generation/worldImpacts。若新增 item，checkBonuses 只可用於明確具功能性的工具／裝備，單項每類 -2 至 2；普通素材或故事物件不要加能力值。outcomeSummary 只用作敘事 AI 失敗時的安全 fallback。只輸出 JSON：${TURN_STATE_SCHEMA}`,
    user:JSON.stringify(stateInput)
   }).then(parseJSON);
 
