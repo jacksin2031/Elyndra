@@ -4,6 +4,7 @@ import {recognitionForNpc} from "./recognition-engine.js?v=267";
 import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=267";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=267";
 import {sanitizePlayerText} from "./runtime-guard.js?v=267";
+import {helperSnapshot} from "./helper-context.js?v=267";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -98,6 +99,13 @@ export async function talkToDynamicNpc(state,npc,message){const knownFacts=npcKn
 const TURN_SCENE_SCHEMA='{"sceneTitle":"4-18字繁體中文目前目標，讓玩家一眼知道現在應該處理甚麼，例如「調查鐘聲來源」","narrative":"80-180字繁體中文，只描述玩家當下可感知的行動結果，不建立或修改 Canon","suggestions":["3-4個只基於眼前資訊的下一步行動"]}';
 const TURN_STATE_SCHEMA='{"outcomeSummary":"40-100字可見結果摘要","location":null,"worldNameKnown":false,"calendarKnown":false,"discoveries":[{"title":"...","text":"..."}],"items":[{"name":"...","description":"玩家當下可見描述","lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1},"checkBonuses":{"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL|ALL":"可選整數 -2 至 2；只有功能性工具／裝備才填"}}],"npcChanges":[{"npcId":"已知 NPC id","trustDelta":0}],"companionChanges":[{"npcId":"已知 NPC id","action":"OFFER|LEAVE","reason":"符合角色設定的原因"}],"factionChanges":[{"factionId":"已知勢力 id","reputationDelta":0}],"quest":{"title":null,"objective":null},"entityReveals":[{"kind":"location|npc|faction|sideQuest","id":"directorRegistry 既有實體 id"}],"encounter":null或{"type":"combat","enemy":{"name":"符合本世界的敵對存在","level":1,"hp":20,"defense":11,"damage":6,"loot":"可空字串"}},"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"worldImpacts":[]}';
 
+export async function askTravelHelper(state,question){
+ const q=String(question||"").trim().slice(0,240);if(!q)throw new Error("HELPER_QUESTION_REQUIRED");
+ const snapshot=helperSnapshot(state);
+ const system="你是 Elyndra 旅途輔助 AI。你只能根據 payload.snapshot 中玩家目前已知或可直接感知的資料回答，不可以使用模型自身對這個虛構世界的知識補完，不可以推測 hidden facts、Director Timeline、未發現地點、未遇 NPC 或未公開勢力。若資料不足，直接說「目前沒有足夠情報確認」。你只提供資訊整理與方向提示，不可以改變劇情、時間、骰子、HP、物品、任務、NPC 關係、戰鬥或任何 Canon。只使用繁體中文，回答 2-6 句，清楚區分『已知』與『未確認』。";
+ if(hasDirectAI()){const raw=await directChat({timeoutMs:30000,maxOutputTokens:700,temperature:.25,system,user:JSON.stringify({question:q,snapshot})});return sanitizePlayerText(raw,900,"目前沒有足夠情報確認。")}
+ const raw=(await post("/api/helper",{question:q,snapshot})).text;return sanitizePlayerText(raw,900,"目前沒有足夠情報確認。")
+}
 export async function generateTurn(action,roll,snapshot){
  if(hasDirectAI()){
   const sceneInput={action,roll,snapshot:sceneTurnSnapshot(snapshot)};
