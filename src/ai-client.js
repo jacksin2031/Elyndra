@@ -9,35 +9,71 @@ export async function aiHealth(){if(hasDirectAI())return {ok:true,aiConfigured:t
 export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text)}
 export function npcKnownFacts(state,npc){const scope=new Set(Array.isArray(npc?.knowledgeScope)?npc.knowledgeScope:[]);return state.world.canon.facts.filter(f=>scope.has(f.id)).map(f=>f.text)}
 export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){return directChat({timeoutMs:45000,system:"你是 Elyndra 的繁體中文敘事者。玩家只知道 payload 中 visibleFacts、playerLocation 與這次行動能直接感知到的結果。world/Canon 可能存在更多真相，但不可提前說出任何未學會的世界名稱、地名、國家、勢力、歷史或規則。只能描述已由遊戲引擎決定的結果，不可改骰子、Canon、HP、物品。回答80-180字。",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},visibleFacts:visibleFacts(state)})})}return (await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},visibleFacts:visibleFacts(state)})).text}
-export async function generateWorldCandidate(seed,constitution){
+function emitWorldProgress(cb,progress,label,detail){try{cb?.({progress,label,detail})}catch{}}
+async function worldStage(stage,args){
+ try{return parseJSON(await directChat(args))}
+ catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
+}
+export async function generateWorldCandidate(seed,constitution,onProgress){
  const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract;
  const chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
  if(hasDirectAI()){
-  const raw=await directChat({
-   timeoutMs:120000,
-   system:`你是 Elyndra World Architect。世界主題永遠由你自行創造，不可從固定主題清單選擇。當 worldviewMode=style，玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation 是硬性基礎，你只能在此基礎上創造獨特世界與 theme。當 worldviewMode=ai，你必須自行決定 genre、theme、scale、danger、magic、politics，並令六者形成有因果的一致世界觀；不要固定回到王道奇幻或常見模板。seedCompliance 必須回傳最後實際採用的具體值與不同的 evidence，禁止輸出 AI_DECIDES 作為值。Engine 不預設任何地名、人物、勢力、貨幣、武器或敵人。不得採用現實地球公曆、現實國家制度或全世界統一金幣作預設；世界要有自己的曆法，每個首次生成的地點／勢力要有 culture 與 trade，可因世界內因果共享但不可無理由一致。玩家開局知識為 0，openingHook 與 suggestions 不得洩漏未學會的專有資訊。seed.playerName 有值必須原樣保留，否則由你決定玩家名稱。只輸出 JSON，不要 Markdown。`,
-   user:JSON.stringify({
-    seed,seedDirective:directive,constitution,
-    required:{
-     worldName:"string",worldTheme:"AI 自行創造的具體核心主題",playerName:"string",summary:"120-300字世界概要",
-     seedCompliance:{
-      genre:{value:chosen(expected.genre),evidence:"具體如何影響 tone/文化/事件"},
-      theme:{value:"AI 自行創造的具體核心主題，必須與 worldTheme 完全相同",evidence:"如何成為核心因果"},
-      scale:{value:chosen(expected.scale),evidence:"如何影響世界範圍與 lazy generation"},
-      danger:{value:auto?"AI 自行選擇 1-5 整數":expected.danger,evidence:"如何影響生存壓力與風險"},
-      magic:{value:auto?"AI 自行選擇 1-5 整數":expected.magic,evidence:"如何影響魔法普及、用途與代價"},
-      politics:{value:auto?"AI 自行選擇 1-5 整數":expected.politics,evidence:"如何影響勢力與政治關係"},
-      ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"如何落實玩家自訂要求"}}:{})
-     },
-     worldCalendar:{name:"本世界曆法名稱",epochName:"紀元名稱",dayTerm:"本世界對日序的稱呼",cycleTerm:"短週期稱呼",longCycleTerm:"長週期稱呼",daysPerCycle:"3-60整數",cyclesPerLongCycle:"3-30整數",cycles:["本世界週期名稱"],periods:[{name:"時段名稱",fromMinute:0,toMinute:359}]},worldTimeline:Array.from({length:directive.timelinePacing.majorEventCount},(_,i)=>({title:`大事件${i+1}`,category:"世界內事件類型",earliestDay:"Engine 內部最早觸發日",latestDay:"Engine 內部最晚觸發日",directorTruth:"只有 Director 知道的真正因果",observableEffect:"到時玩家可以直接觀察到、但不洩漏真相的表面影響",pressure:"0-15整數"})),worldBible:{era:"世界自己的時代稱呼，不使用現實公曆",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛"},
-     publicFacts:["2-5項居民可能知道但玩家尚未知的事實"],hiddenFacts:["2-5項真正秘密"],openingHook:"80-220字零世界知識感官開場",suggestions:["3-4個只根據眼前可感知資訊而產生的行動；不可使用預設固定按鈕"],
-     generation:{locations:[{name:"...",type:"...",region:"...",description:"...",known:false,culture:{identity:"地方文化核心",etiquette:["禮儀"],taboos:["禁忌"],food:["飲食"],beliefs:["信仰"],architecture:["建築"],clothing:["服飾"],hospitality:["待客方式"],namingStyle:"命名規則",languageNotes:["語言特徵"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"地方穩定貨幣ID",name:"貨幣或代幣名稱",symbol:"可空白",issuer:"發行者",description:"價值與形態"}],commonBarter:["常見交換物"],foreignAcceptance:["可接受外來貨幣ID"],priceCulture:"議價或定價文化",questReward:0,combatReward:0},lore:{story:"此地真正背景，只生成一次",unlockKeywords:["線索詞"],minMatches:1}}],npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"...",factionName:"...",knowledgeScope:["只能填本次 publicFacts 完整文字或既有 fact id"],known:false,companionProfile:{joinThreshold:"5-90",leaveThreshold:"0-70",motives:["可能同行的原因"],boundaries:["可能離開或拒絕的底線"]},lore:{story:"角色真正背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],factions:[{name:"...",goal:"...",description:"...",known:false,culture:{identity:"勢力文化核心",etiquette:["禮儀"],taboos:["禁忌"],beliefs:["信仰"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"穩定ID",name:"名稱",issuer:"發行者"}],commonBarter:["交換物"],foreignAcceptance:["可接受ID"],priceCulture:"交易習慣",questReward:0,combatReward:0},lore:{story:"勢力背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],sideQuests:[{title:"...",objective:"...",known:false,evidenceKeywords:["2-5個玩家日後可能實際取得的線索詞"],target:3}]}
-    },generationLimits:{locations:2,npcs:2,factions:1,sideQuests:1}
-   })
+  emitWorldProgress(onProgress,42,"世界核心","AI 正在建立世界規則、核心衝突與深層真相");
+  const core=await worldStage("CORE",{
+   timeoutMs:75000,
+   system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
+   user:JSON.stringify({seed,seedDirective:directive,constitution,required:{
+    worldName:"string",worldTheme:"具體核心主題",playerName:"string",summary:"120-300字世界概要",
+    seedCompliance:{
+     genre:{value:chosen(expected.genre),evidence:"具體 evidence"},
+     theme:{value:"必須與 worldTheme 完全相同",evidence:"具體 evidence"},
+     scale:{value:chosen(expected.scale),evidence:"具體 evidence"},
+     danger:{value:auto?"1-5整數":expected.danger,evidence:"具體 evidence"},
+     magic:{value:auto?"1-5整數":expected.magic,evidence:"具體 evidence"},
+     politics:{value:auto?"1-5整數":expected.politics,evidence:"具體 evidence"},
+     ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"如何落實玩家自訂要求"}}:{})
+    },
+    worldBible:{era:"世界自己的時代稱呼",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛"},
+    publicFacts:["2-5項居民可能知道但玩家尚未知的事實"],
+    hiddenFacts:["2-5項真正秘密"]
+   }})
   });
-  return parseJSON(raw)
+  if(!core?.worldName||!core?.worldTheme||!core?.summary||!core?.seedCompliance||!core?.worldBible||!Array.isArray(core.publicFacts)||!Array.isArray(core.hiddenFacts))throw new Error("WORLD_CORE_INVALID");
+
+  emitWorldProgress(onProgress,58,"曆法與時間線","核心世界已建立，正在編譯世界曆法與大事件時間線");
+  const chronology=await worldStage("CHRONOLOGY",{
+   timeoutMs:65000,
+   system:`你是 Elyndra Chronology Compiler。你收到已 Canon 候選的世界核心，只負責建立該世界自己的曆法與完整大事件 Timeline。不得改寫 core，不得洩漏 directorTruth 給玩家。Timeline 必須符合 timelinePacing，事件按 earliestDay 排序並涵蓋 early/middle/late。只輸出 JSON，不要 Markdown。`,
+   user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,summary:core.summary,worldBible:core.worldBible,seedCompliance:core.seedCompliance},timelinePacing:directive.timelinePacing,required:{
+    worldCalendar:{name:"本世界曆法名稱",epochName:"紀元名稱",dayTerm:"本世界對日序的稱呼",cycleTerm:"短週期稱呼",longCycleTerm:"長週期稱呼",daysPerCycle:"3-60整數",cyclesPerLongCycle:"3-30整數",cycles:["週期名稱"],periods:[{name:"時段名稱",fromMinute:0,toMinute:359}]},
+    worldTimeline:Array.from({length:directive.timelinePacing.majorEventCount},(_,i)=>({title:`大事件${i+1}`,category:"世界內事件類型",earliestDay:"2-horizonDays",latestDay:"earliestDay-horizonDays",directorTruth:"只有 Director 知道的真正因果",observableEffect:"玩家日後可觀察到的表面影響",pressure:"0-15整數"}))
+   }})
+  });
+  if(!chronology?.worldCalendar||!Array.isArray(chronology?.worldTimeline)||chronology.worldTimeline.length!==directive.timelinePacing.majorEventCount)throw new Error("WORLD_CHRONOLOGY_INVALID");
+
+  emitWorldProgress(onProgress,72,"開局區域","時間線已完成，正在建立最小可玩區域、人物與第一批行動");
+  const opening=await worldStage("OPENING",{
+   timeoutMs:75000,
+   system:`你是 Elyndra Opening Region Compiler。你收到固定世界核心與 chronology，只建立開局所需最小可玩內容。不得改寫 core、worldBible、calendar 或 timeline。每個首次生成地點／勢力必須有符合當地歷史的 culture 與 trade；不可假設世界共用貨幣。玩家開局知識為 0，所以 openingHook 與 suggestions 不得洩漏尚未發現的專有地名、人物、勢力、歷史或世界名稱。最多2地點、2 NPC、1勢力、1支線。只輸出 JSON，不要 Markdown。`,
+   user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,summary:core.summary,worldBible:core.worldBible,publicFacts:core.publicFacts,hiddenFacts:core.hiddenFacts,seedCompliance:core.seedCompliance},chronology:{worldCalendar:chronology.worldCalendar,worldTimeline:chronology.worldTimeline},required:{
+    openingHook:"80-220字零世界知識感官開場",
+    suggestions:["3-4個只根據眼前可感知資訊而產生的行動"],
+    generation:{
+     locations:[{name:"...",type:"...",region:core.worldBible.startingRegion,description:"...",known:false,culture:{identity:"地方文化核心",etiquette:[],taboos:[],food:[],beliefs:[],architecture:[],clothing:[],hospitality:[],namingStyle:"...",languageNotes:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"價值與形態"}],commonBarter:[],foreignAcceptance:[],priceCulture:"...",questReward:0,combatReward:0},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+     npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"...",factionName:"...",knowledgeScope:["只能使用 core.publicFacts 完整文字"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:[],boundaries:[]},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+     factions:[{name:"...",goal:"...",description:"...",known:false,culture:{identity:"...",etiquette:[],taboos:[],beliefs:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"...",questReward:0,combatReward:0},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+     sideQuests:[{title:"...",objective:"...",known:false,evidenceKeywords:["2-5個可驗證線索詞"],target:3}]
+    }
+   }})
+  });
+  if(!opening?.openingHook||!Array.isArray(opening?.suggestions)||opening.suggestions.length<2||!opening?.generation)throw new Error("WORLD_OPENING_INVALID");
+  emitWorldProgress(onProgress,78,"整合世界","三個生成階段完成，正在合併並交由 Engine 驗證");
+  return {...core,...chronology,...opening}
  }
- return (await post("/api/world",{seed,constitution,seedDirective:directive})).candidate
+ emitWorldProgress(onProgress,42,"世界核心","正在透過伺服器建立世界");
+ const candidate=(await post("/api/world",{seed,constitution,seedDirective:directive})).candidate;
+ emitWorldProgress(onProgress,78,"整合世界","伺服器世界候選已完成，準備 Engine 驗證");
+ return candidate
 }
 export async function talkToNpc(state,key,message){const npc=state.npcs?.[key];if(!npc)throw new Error("NPC_NOT_FOUND");const knownFacts=npcKnownFacts(state,npc),payload={message,npc,knownFacts,memories:npc.memories||[],scene:{day:state.world.state.day,location:state.player.location}};if(hasDirectAI())return directChat({timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。只能使用提供的 knownFacts 與 memories，不知道就表現不知道。繁體中文1-4句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
 export async function talkToDynamicNpc(state,npc,message){const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,trust:npc.trust},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location}};if(hasDirectAI())return directChat({timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。不知道的事不可捏造。繁體中文1-5句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
