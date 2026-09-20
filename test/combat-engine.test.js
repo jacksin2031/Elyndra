@@ -1,0 +1,2 @@
+import test from "node:test";import assert from "node:assert/strict";import {newGame} from "../src/world-engine.js";import {startCombat,combatAction} from "../src/combat-engine.js";const seed={genre:"王道奇幻",theme:"失落文明",scale:"中型",danger:3,magic:4,politics:3,prompt:""};
+test("combat state is bounded",()=>{const s=newGame(seed);const c=startCombat(s,{name:"霧狼",hp:20,defense:11,damage:6});assert.equal(c.active,true);const r=combatAction(s);assert.ok(r.roll.natural>=1&&r.roll.natural<=20);assert.ok(s.player.hp>=0)})
