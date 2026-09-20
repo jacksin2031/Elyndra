@@ -1,6 +1,6 @@
-import {d20} from "./world-engine.js";
-import {advanceTime} from "./world-clock.js";
-import {tickWorld} from "./world-simulation.js";
+import {d20} from "./world-engine.js?v=231";
+import {advanceTime} from "./world-clock.js?v=231";
+import {tickWorld} from "./world-simulation.js?v=231";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2};p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};return p}
