@@ -1,12 +1,12 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=268";
-import {seedDirective} from "./seed-contract.js?v=268";
-import {recognitionForNpc} from "./recognition-engine.js?v=268";
-import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=268";
-import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=268";
-import {sanitizePlayerText} from "./runtime-guard.js?v=268";
-import {helperSnapshot} from "./helper-context.js?v=268";
-import {directorHistorySnapshot} from "./world-history.js?v=268";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=268";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=270";
+import {seedDirective} from "./seed-contract.js?v=270";
+import {recognitionForNpc} from "./recognition-engine.js?v=270";
+import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=270";
+import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=270";
+import {sanitizePlayerText} from "./runtime-guard.js?v=270";
+import {helperSnapshot} from "./helper-context.js?v=270";
+import {directorHistorySnapshot} from "./world-history.js?v=270";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=270";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
