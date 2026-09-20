@@ -1,5 +1,6 @@
 import {revealStoredLore} from "./lore-engine.js?v=231";
 import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=231";
+import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=231";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -20,7 +21,7 @@ function normalizeEconomy(input){
  return {currencyExists,currencyName:currencyExists?clean(input.currencyName,40):"",currencySymbol:currencyExists?clean(input.currencySymbol,12):"",startingAmount:currencyExists?clamp(Math.round(Number(input.startingAmount)||0),0,20):0,questReward:currencyExists?clamp(Math.round(Number(input.questReward)||0),0,20):0,combatReward:currencyExists?clamp(Math.round(Number(input.combatReward)||0),0,20):0}
 }
 export function compileWorld(seed){
- const now=Date.now(),seedContract=createWorldSeedContract(seed),economy=normalizeEconomy(null),world={id:uuid(),name:localWorldName(seed),seed,seedContract,seedCompliance:localSeedCompliance(seed),economy,createdAt:now,version:1,constitution:WORLD_CONSTITUTION,
+ const now=Date.now(),seedContract=createWorldSeedContract(seed),timelinePacing=createTimelinePacing(seedContract.targetPlayHours),economy=normalizeEconomy(null),world={id:uuid(),name:localWorldName(seed),seed,seedContract,seedCompliance:localSeedCompliance(seed),timelinePacing,timeline:[],economy,createdAt:now,version:1,constitution:WORLD_CONSTITUTION,
   canon:{facts:[
    {id:"F-origin",type:"premise",visibility:"hidden",text:premise(seed),canonical:true},
    {id:"F-magic",type:"rule",visibility:"hidden",text:`World Seed 規定魔法普及度為 ${seedContract.magic}/5；具體魔法制度由符合 Seed Contract 的世界 Canon 決定。`,canonical:true},
@@ -30,7 +31,7 @@ export function compileWorld(seed){
  };
  const report=validateWorld(world);if(!report.valid)throw new Error(report.errors.join("\n"));return {world,report}
 }
-function premise(seed){const s=createWorldSeedContract(seed),extra=s.prompt?` 玩家硬性要求：${s.prompt}`:"";if(s.worldviewMode==="random")return `World Seed：完整世界觀交由 AI World Architect 隨機決定；世界主題必須由 AI 原創。${extra}`;return `World Seed：基礎風格「${s.genre}」，世界主題由 AI 決定，規模「${s.scale}」、危險度 ${s.danger}/5、魔法普及度 ${s.magic}/5、政治複雜度 ${s.politics}/5。${extra}`}
+function premise(seed){const s=createWorldSeedContract(seed),extra=s.prompt?` 玩家硬性要求：${s.prompt}`:"";if(s.worldviewMode==="ai")return `World Seed：完整世界觀交由 AI World Architect 隨機決定；世界主題必須由 AI 原創。${extra}`;return `World Seed：基礎風格「${s.genre}」，世界主題由 AI 決定，規模「${s.scale}」、危險度 ${s.danger}/5、魔法普及度 ${s.magic}/5、政治複雜度 ${s.politics}/5。${extra}`}
 export function validateWorld(world){
  const errors=[];if(!world?.id)errors.push("WORLD_ID_MISSING");if(!world?.name)errors.push("WORLD_NAME_MISSING");
  if(!Array.isArray(world?.constitution)||world.constitution.length<6)errors.push("CONSTITUTION_INCOMPLETE");
@@ -51,8 +52,8 @@ export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),tot
 export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score);revealStoredLore(state)}}
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
- const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));
- state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;
+ const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));const pacing=createTimelinePacing(compliance.expected.targetPlayHours);const timelineReport=validateWorldTimeline(candidate.worldTimeline,pacing);if(!timelineReport.valid)throw new Error("WORLD_TIMELINE_FAILED:"+timelineReport.errors.join(","));
+ state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;state.world.timelinePacing=timelineReport.pacing;state.world.timeline=timelineReport.timeline;
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;
  const aiName=clean(candidate.playerName,40);if(state.player?.nameSource==="AI_PENDING"&&aiName){state.player.name=aiName;state.player.nameSource="AI"}
  const bible=candidate.worldBible;
