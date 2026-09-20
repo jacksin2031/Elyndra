@@ -13,7 +13,7 @@ test("stored entity lore unlocks locally once required knowledge exists",()=>{
  assert.equal(npc.known,false);
  assert.equal(visibleLore(npc),"");
  assert.deepEqual(revealStoredLore(s),[]);
- s.knowledge.push({id:"K-badge",title:"商隊徽章",text:"你確認這枚徽章屬於失蹤商隊。"});
+ s.world.canon.facts.push({id:"FACT-BADGE",type:"clue",visibility:"public",text:"商隊徽章可確認屬於失蹤商隊。",canonical:true});s.knowledge.push({id:"K-badge",title:"商隊徽章",text:"你確認這枚徽章屬於失蹤商隊。",factId:"FACT-BADGE",status:"VERIFIED",score:2});
  const first=revealStoredLore(s);
  assert.equal(first.length,1);
  assert.equal(npc.known,true);
@@ -31,7 +31,7 @@ test("known item description and unlocked lore resolve without generation",()=>{
  const surface=resolveLocalLoreAction(s,"查看破損地圖");
  assert.equal(surface.source,"stored-description");
  assert.match(surface.text,/缺角/);
- s.knowledge.push({id:"K-legion",title:"第三軍團",text:"你已確認第三軍團曾在此活動。"});
+ s.world.canon.facts.push({id:"FACT-LEGION",type:"history",visibility:"public",text:"第三軍團曾在此活動。",canonical:true});s.knowledge.push({id:"K-legion",title:"第三軍團",text:"你已確認第三軍團曾在此活動。",factId:"FACT-LEGION",status:"VERIFIED",score:2});
  revealStoredLore(s);
  const story=resolveLocalLoreAction(s,"查看破損地圖的來歷");
  assert.equal(story.source,"stored-lore");
