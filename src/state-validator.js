@@ -8,6 +8,8 @@ const TARGETS=new Set(["location","npc","faction","world"]);
 const VISIBILITY=new Set(["PLAYER_KNOWN","OBSERVABLE","RUMOR","INTERNAL","DIRECTOR_ONLY"]);
 const QUEUE_STATUS=new Set(["SCHEDULED","TRIGGERED","CANCELLED"]);
 const RECORD_TYPES=new Set(["PLAYER_IMPACT","CONSEQUENCE"]);
+const SCOPE_TARGETS={PERSONAL:new Set(["npc"]),LOCAL:new Set(["location","npc","faction"]),REGIONAL:new Set(["location","npc","faction"]),FACTION:new Set(["faction"]),WORLD:new Set(["location","npc","faction","world"])};
+const scopeTargetValid=(scope,kind)=>Boolean(SCOPE_TARGETS[scope]?.has(kind));
 const LOCATION_FIELDS=new Set(["safety","prosperity","supply","infrastructure","stability"]);
 const FACTION_FIELDS=new Set(["resources","influence","stability"]);
 const NPC_FIELDS=new Set(["trust"]);
@@ -27,10 +29,12 @@ function validWorldState(x,kind){
  return true
 }
 function validImpactRecord(x){
- return obj(x)&&typeof x.id==="string"&&RECORD_TYPES.has(x.type)&&SCOPES.has(x.scope)&&TARGETS.has(x.targetKind)&&typeof x.targetId==="string"&&VISIBILITY.has(x.visibility)&&arr(x.changes||[])
+ const authority=x?.authority;
+ const authorityValid=authority==null||(obj(authority)&&(authority.originLocationId==null||typeof authority.originLocationId==="string")&&typeof (authority.region??"")==="string"&&typeof (authority.parentTargetKind??x.targetKind)==="string"&&typeof (authority.parentTargetId??x.targetId)==="string");
+ return obj(x)&&typeof x.id==="string"&&RECORD_TYPES.has(x.type)&&SCOPES.has(x.scope)&&TARGETS.has(x.targetKind)&&scopeTargetValid(x.scope,x.targetKind)&&typeof x.targetId==="string"&&VISIBILITY.has(x.visibility)&&arr(x.changes||[])&&x.changes.every(ch=>obj(ch)&&typeof ch.field==="string")&&authorityValid
 }
 function validImpactQueue(x){
- return obj(x)&&typeof x.id==="string"&&typeof x.parentImpactId==="string"&&SCOPES.has(x.scope)&&TARGETS.has(x.targetKind)&&typeof x.targetId==="string"&&QUEUE_STATUS.has(x.status)&&finite(x.dueMinute)&&x.dueMinute>=0&&arr(x.mutations)&&x.mutations.length>0&&x.mutations.every(m=>validMutation(x.targetKind,m))&&arr(x.observableAtLocationIds||[])&&(x.observableAtLocationIds||[]).every(id=>typeof id==="string")&&(x.revealedAtMinute==null||finite(x.revealedAtMinute))
+ return obj(x)&&typeof x.id==="string"&&typeof x.parentImpactId==="string"&&SCOPES.has(x.scope)&&TARGETS.has(x.targetKind)&&scopeTargetValid(x.scope,x.targetKind)&&typeof x.targetId==="string"&&QUEUE_STATUS.has(x.status)&&finite(x.dueMinute)&&x.dueMinute>=0&&arr(x.mutations)&&x.mutations.length>0&&x.mutations.every(m=>validMutation(x.targetKind,m))&&arr(x.observableAtLocationIds||[])&&(x.observableAtLocationIds||[]).every(id=>typeof id==="string")&&(x.revealedAtMinute==null||finite(x.revealedAtMinute))
 }
 export function validateSaveState(s){
  const errors=[];
