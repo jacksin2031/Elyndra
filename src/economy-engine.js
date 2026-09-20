@@ -20,7 +20,7 @@ export function buyGood(state,goodId){
  const snap=marketSnapshot(state),m=ensureLocalMarket(state);if(!snap||!m)return {ok:false,reason:"NO_MARKET"};const good=m.goods.find(x=>x.id===goodId);if(!good||good.stock<=0)return {ok:false,reason:"OUT_OF_STOCK"};
  if(snap.mode==="barter"){const barter=(loc(state)?.trade?.commonBarter||[]),idx=(state.inventory||[]).findIndex(x=>barter.includes(x.name));if(idx<0)return {ok:false,reason:"BARTER_ITEM_REQUIRED"};state.inventory.splice(idx,1)}
  else{const cur=snap.currency;if(!cur)return {ok:false,reason:"NO_LOCAL_CURRENCY"};const price=Math.max(1,Math.round(good.basePrice*priceMultiplier(state)));state.player.wallet??={};if((Number(state.player.wallet[cur.id])||0)<price)return {ok:false,reason:"INSUFFICIENT_FUNDS"};state.player.wallet[cur.id]-=price}
- good.stock--;state.inventory.push({id:"BUY-"+Date.now()+"-"+good.id,name:good.name,description:"在 "+loc(state).name+" 的地方市場取得。",identified:true,equipped:false});return {ok:true,good}
+ good.stock--;state.inventory.push({id:"BUY-"+Date.now()+"-"+good.id,name:good.name,description:"在 "+loc(state).name+" 的地方市場取得。",identified:true,equipped:false,source:"MARKET"});return {ok:true,good}
 }
 export function sellItem(state,itemId){
  const snap=marketSnapshot(state);if(!snap)return {ok:false,reason:"NO_MARKET"};const idx=(state.inventory||[]).findIndex(x=>x.id===itemId||x.name===itemId);if(idx<0)return {ok:false,reason:"ITEM_NOT_OWNED"};const item=state.inventory[idx];
