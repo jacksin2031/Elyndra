@@ -1,5 +1,5 @@
-import {ensureWorldRegistry} from "./world-registry.js";
-import {recordCausalEvent} from "./knowledge-graph.js";
+import {ensureWorldRegistry} from "./world-registry.js?v=231";
+import {recordCausalEvent} from "./knowledge-graph.js?v=231";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function ensureQuestProgress(state){for(const q of ensureWorldRegistry(state).sideQuests){q.progress??=0;q.target??=3;q.status??="ACTIVE";q.evidence??=[];q.evidenceKeywords??=[];q.matchedKeywords??=[]}return state.world.registry.sideQuests}
