@@ -1,8 +1,8 @@
-import {d20} from "./world-engine.js?v=266";
-import {advanceTime} from "./world-clock.js?v=266";
-import {tickWorld} from "./world-simulation.js?v=266";
-import {localCurrencyReward} from "./world-locality.js?v=266";
-import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=266";
+import {d20} from "./world-engine.js?v=268";
+import {advanceTime} from "./world-clock.js?v=268";
+import {tickWorld} from "./world-simulation.js?v=268";
+import {localCurrencyReward} from "./world-locality.js?v=268";
+import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=268";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2,presence:2,instinct:2};p.stats.presence??=2;p.stats.instinct??=2;p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};return p}
