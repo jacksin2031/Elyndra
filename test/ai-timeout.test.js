@@ -32,7 +32,9 @@ test("server world generation timeout is longer than ordinary narration",async()
  assert.match(core,/timeoutMs=30000/);
  assert.match(core,/AI_TIMEOUT: upstream provider exceeded/);
  assert.match(world,/timeoutMs:120000/);
- assert.match(turn,/timeoutMs:60000/);
+ assert.match(turn,/timeoutMs:35000/);
+ assert.match(turn,/timeoutMs:50000/);
+ assert.doesNotMatch(turn,/timeoutMs:60000/);
  assert.match(narrate,/timeoutMs:45000/);
  assert.match(npc,/timeoutMs:45000/);
 });
