@@ -1,66 +1,103 @@
 # Elyndra
 
-**Elyndra** 是一款以 AI 生成世界、骰子判定、知識探索與 AI 夥伴為核心的異世界網頁 RPG 概念原型。
+**Elyndra** 是一款 AI × TRPG × World Discovery 的異世界網頁 RPG。
 
 > 每一個世界，都有自己的真相。
 
-## 目前原型
+## V0.2 — API-ready gameplay foundation
 
-- 異世界世界種子建立流程
-- 王道 / 黑暗 / 東方 / 蒸汽 / 末日世界風格
-- 危險度、魔法普及度、政治複雜度參數
-- 基礎 RPG 冒險畫面
-- D20 判定
-- 世界手帳 / Knowledge Fragment 概念
-- 背包
-- AI 夥伴概念
-- 本地存檔（localStorage）
-- 響應式手機版 UI
+目前版本已經從 UI Concept 升級成可持續開發的遊戲骨架：
 
-目前仍屬於 **V0.1 Concept Prototype**。這一版的主要目的不是完成 AI 世界生成，而是先把核心玩家體驗、UI 與資料流建立起來。
+- World Seed 建立流程
+- World Compiler
+- World Constitution
+- Canon facts / visibility
+- World integrity validator
+- D20 Game Engine（AI 無權修改結果）
+- Player Knowledge / Knowledge Fragment
+- NPC state / knowledge scope / episodic memory
+- append-only Event History
+- Inventory
+- IndexedDB autosave
+- `.elyndra` 世界匯出 / 匯入
+- 存檔載入完整性驗證
+- OpenAI-compatible Provider abstraction
+- Narrator context knowledge gate
+- deterministic local narration fallback
+- Node built-in test suite
+- Desktop / mobile responsive UI
 
-## 核心方向
+目前**不包含任何 API key，也沒有發生付費 API 呼叫**。
 
-Elyndra 的最終世界引擎會遵循以下架構：
+## 架構
 
 ```
 World Seed
   ↓
-World Constitution
+World Compiler
   ↓
-World Bible / Knowledge Graph
+World Constitution + Canon
   ↓
-World Validator
+Validator
   ↓
-Canonical World
-  ↓
-Runtime World State
-  ↓
-NPC / Event / Narrator AI
+Runtime World
+  ├─ Player
+  ├─ NPC + Memory + Knowledge Scope
+  ├─ Inventory
+  ├─ Player Knowledge
+  └─ Event History
+       ↓
+Game Engine / D20
+       ↓
+AI Provider (optional)
+       ↓
+Narrator / NPC / World candidate
+       ↓
+Validator
+       ↓
+Save Manager → IndexedDB / .elyndra
 ```
 
-AI 負責提出內容，遊戲引擎負責驗證與保存 Canon。
+核心原則：
+
+> AI proposes. Game Engine decides. Database remembers.
 
 ## 本地啟動
 
-直接開啟 `index.html` 即可。
-
-也可以使用任意靜態伺服器：
+ES Modules 與 IndexedDB 需要透過本地 HTTP server 開啟：
 
 ```bash
 python -m http.server 8000
 ```
 
-然後打開 `http://localhost:8000`。
+瀏覽 `http://localhost:8000`。
 
-## 下一階段
+## 測試
 
-- IndexedDB 正式 Save Manager
-- .elyndra 世界匯出 / 匯入
-- World Schema
-- World Constitution
-- World Compiler prototype
-- World integrity validation
-- NPC 記憶與知識權限
-- 事件系統
-- AI Provider abstraction
+Node.js 20+：
+
+```bash
+npm test
+```
+
+測試不需要安裝第三方 dependency。
+
+## 重要檔案
+
+- `src/world-engine.js` — World Compiler / Constitution / Validator / D20
+- `src/game-engine.js` — deterministic gameplay mutation
+- `src/storage.js` — IndexedDB + .elyndra import/export
+- `src/ai-provider.js` — AI Provider boundary / narrator context gate
+- `docs/WORLD_SCHEMA.md` — Canon 與 runtime schema
+- `docs/API_INTEGRATION.md` — 下一階段 API 安全接入規格
+
+## 下一階段：AI API
+
+目前架構已刻意停在 API boundary。下一步加入 server-side AI proxy 後，即可把 AI 用於：
+
+1. 世界候選內容生成
+2. NPC 對話
+3. 場景敘事
+4. Lore 擴展
+
+正式 API key **不得**放入瀏覽器 JavaScript 或提交到 GitHub。詳見 `docs/API_INTEGRATION.md`。
