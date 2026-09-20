@@ -4,11 +4,30 @@ const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function ensureWorldRegistry(state){
  state.world.registry??={locations:[],npcs:[],factions:[],sideQuests:[]};
  const r=state.world.registry;
- r.locations??=[];r.npcs??=[];r.factions??=[];r.sideQuests??=[];return r
+ r.locations??=[];r.npcs??=[];r.factions??=[];r.sideQuests??=[];for(const list of [r.locations,r.npcs,r.factions,r.sideQuests])for(const x of list)if(x.known==null)x.known=true;return r
 }
 export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
  return {locations:filter(r.locations).slice(-20).map(({id,name,type,region,description})=>({id,name,type,region,description})),npcs:filter(r.npcs).slice(-20).map(({id,name,role,locationId,factionId,description,personality,goal,trust})=>({id,name,role,locationId,factionId,description,personality,goal,trust})),factions:filter(r.factions).slice(-12).map(({id,name,goal,description,resources,influence,playerReputation,relations})=>({id,name,goal,description,resources,influence,playerReputation,relations})),sideQuests:r.sideQuests.filter(q=>!visibleOnly||q.known===true).filter(q=>q.status!=="COMPLETED").slice(-12).map(({id,title,objective,status,progress,target})=>({id,title,objective,status,progress:progress??0,target:target??3}))}
+}
+export function directorRegistrySnapshot(state){
+ const r=ensureWorldRegistry(state);
+ return {
+  locations:r.locations.slice(-12).map(({id,name,type,region,known})=>({id,name,type,region,known:Boolean(known)})),
+  npcs:r.npcs.slice(-12).map(({id,name,role,locationId,factionId,known})=>({id,name,role,locationId,factionId,known:Boolean(known)})),
+  factions:r.factions.slice(-8).map(({id,name,known})=>({id,name,known:Boolean(known)}))
+ }
+}
+export function revealRegistryEntities(state,reveals=[]){
+ const r=ensureWorldRegistry(state),maps={location:r.locations,npc:r.npcs,faction:r.factions,sideQuest:r.sideQuests},out=[];
+ for(const x of Array.isArray(reveals)?reveals.slice(0,6):[]){
+  const kind=clean(x?.kind,30),id=clean(x?.id,140),list=maps[kind];if(!list||!id)continue;
+  const entity=list.find(v=>v.id===id);if(!entity||entity.known===true)continue;
+  entity.known=true;entity.discoveredDay??=state.world.state.day;
+  out.push({kind,id,name:entity.name||entity.title||""})
+ }
+ if(out.length){state.events??=[];state.events.push({id:uid("EV"),type:"ENTITY_REVEALED",day:state.world.state.day,summary:out.map(x=>`${x.kind}:${x.name}`).join(" · "),at:Date.now()})}
+ return out
 }
 export function validateGeneration(g){
  if(g==null)return {valid:true,errors:[]};const e=[];
