@@ -226,3 +226,17 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - **Save Format v8**：v0.25 已存在的 PLAYER_IMPACT 會回填成 deeds / rumors / renown，不會因升級而失去過往主角歷史。
 
 > The world does not declare you the protagonist. It gradually learns that you matter.
+
+
+## V0.26.3 — Staged World Compiler
+
+世界建立不再用一個巨型 AI request 一次生成所有內容。Direct AI 現在分成四個獨立編譯階段：
+
+1. **CORE** — 世界名稱、主題、Seed Compliance、World Bible、公開／隱藏 Canon。
+2. **CHRONOLOGY** — 世界專屬曆法與完整大事件 Timeline。
+3. **REGION** — 開局地區、地方文化、交易制度、勢力與零知識 opening hook。
+4. **CAST** — 附近 NPC、第一個支線與玩家眼前可合理採取的 suggestions。
+
+每個階段都有獨立 timeout、JSON 驗證與錯誤名稱，最後再合併成原有 World Candidate，由 Engine 統一執行 Seed / Timeline / Canon validation 與 Canonize。
+
+生成進度現在代表真實階段，不再用等待單一 request 的假進度停在 72%。瀏覽器模組 cache 同步更新至 `v263`，確保載入最新 timeout 與 staged compiler 邏輯。
