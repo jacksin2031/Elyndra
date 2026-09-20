@@ -9,24 +9,27 @@ export function visibleFacts(state){return state.world.canon.facts.filter(f=>sta
 export function npcKnownFacts(state,npc){const scope=new Set(Array.isArray(npc?.knowledgeScope)?npc.knowledgeScope:[]);return state.world.canon.facts.filter(f=>scope.has(f.id)).map(f=>f.text)}
 export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){return directChat({system:"你是 Elyndra 的繁體中文敘事者。玩家只知道 payload 中 visibleFacts、playerLocation 與這次行動能直接感知到的結果。world/Canon 可能存在更多真相，但不可提前說出任何未學會的世界名稱、地名、國家、勢力、歷史或規則。只能描述已由遊戲引擎決定的結果，不可改骰子、Canon、HP、物品。回答80-180字。",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},visibleFacts:visibleFacts(state)})})}return (await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},visibleFacts:visibleFacts(state)})).text}
 export async function generateWorldCandidate(seed,constitution){
- const directive=seedDirective(seed);
+ const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract;
+ const chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
  if(hasDirectAI()){
   const raw=await directChat({
-   system:"你是 Elyndra World Architect。玩家的 World Seed 是硬性合約，不是參考。你必須逐項遵守 genre/theme/scale/danger/magic/politics/custom prompt，並在 seedCompliance 中原樣回傳每個設定值與具體 evidence。Engine 不預設任何特定地名、人物、勢力、貨幣、武器或敵人，這些都必須由本次世界設定決定。玩家剛轉生且世界知識為 0：openingHook / suggestions 不得洩漏世界名、地名、國家、勢力、歷史、魔法規則等未學會專有資訊。若 seed.playerName 有值必須原樣保留，否則由你決定玩家名稱。只輸出 JSON，不要 Markdown。",
+   system:`你是 Elyndra World Architect。世界主題永遠由你自行創造，不可從固定主題清單選擇。當 worldviewMode=style，玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation 是硬性基礎，你只能在此基礎上創造獨特世界與 theme。當 worldviewMode=ai，你必須自行決定 genre、theme、scale、danger、magic、politics，並令六者形成有因果的一致世界觀；不要固定回到王道奇幻或常見模板。seedCompliance 必須回傳最後實際採用的具體值與不同的 evidence，禁止輸出 AI_DECIDES 作為值。Engine 不預設任何地名、人物、勢力、貨幣、武器或敵人。玩家開局知識為 0，openingHook 與 suggestions 不得洩漏未學會的專有資訊。seed.playerName 有值必須原樣保留，否則由你決定玩家名稱。只輸出 JSON，不要 Markdown。`,
    user:JSON.stringify({
     seed,seedDirective:directive,constitution,
     required:{
-     worldName:"string",playerName:"string",summary:"120-300字世界概要",
+     worldName:"string",worldTheme:"AI 自行創造的具體核心主題",playerName:"string",summary:"120-300字世界概要",
      seedCompliance:{
-      genre:{value:directive.contract.genre,evidence:"具體如何影響 tone/文化/事件"},theme:{value:directive.contract.theme,evidence:"具體如何成為核心因果"},scale:{value:directive.contract.scale,evidence:"如何影響世界範圍與 lazy generation"},danger:{value:directive.contract.danger,evidence:"如何影響生存壓力與風險"},magic:{value:directive.contract.magic,evidence:"如何影響魔法普及、用途與代價"},politics:{value:directive.contract.politics,evidence:"如何影響勢力與政治關係"},...(directive.contract.prompt?{prompt:{value:directive.contract.prompt,evidence:"如何落實玩家自訂要求"}}:{})
+      genre:{value:chosen(expected.genre),evidence:"具體如何影響 tone/文化/事件"},
+      theme:{value:"AI 自行創造的具體核心主題，必須與 worldTheme 完全相同",evidence:"如何成為核心因果"},
+      scale:{value:chosen(expected.scale),evidence:"如何影響世界範圍與 lazy generation"},
+      danger:{value:auto?"AI 自行選擇 1-5 整數":expected.danger,evidence:"如何影響生存壓力與風險"},
+      magic:{value:auto?"AI 自行選擇 1-5 整數":expected.magic,evidence:"如何影響魔法普及、用途與代價"},
+      politics:{value:auto?"AI 自行選擇 1-5 整數":expected.politics,evidence:"如何影響勢力與政治關係"},
+      ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"如何落實玩家自訂要求"}}:{})
      },
      worldBible:{era:"時代",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛",economy:{currencyExists:"boolean",currencyName:"有貨幣才填名稱，否則空字串",currencySymbol:"可空白",startingAmount:0,questReward:"0-20整數",combatReward:"0-20整數"}},
-     publicFacts:["2-5項居民可能知道但玩家尚未知的事實"],hiddenFacts:["2-5項真正秘密"],openingHook:"80-220字零世界知識感官開場",suggestions:["3-4個只根據眼前可感知資訊的下一步行動"],
-     generation:{
-      locations:[{name:"...",type:"...",region:"...",description:"...",known:false,lore:{story:"此地真正背景，只生成一次",unlockKeywords:["線索詞"],minMatches:1}}],
-      npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"...",factionName:"...",knowledgeScope:["只能填本次 publicFacts 的完整文字或既有 fact id"],known:false,lore:{story:"角色真正背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],
-      factions:[{name:"...",goal:"...",description:"...",known:false,lore:{story:"勢力背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],sideQuests:[{title:"...",objective:"...",known:false,evidenceKeywords:["2-5個玩家日後可能實際取得的線索詞"],target:3}]
-     }
+     publicFacts:["2-5項居民可能知道但玩家尚未知的事實"],hiddenFacts:["2-5項真正秘密"],openingHook:"80-220字零世界知識感官開場",suggestions:["3-4個只根據眼前可感知資訊而產生的行動；不可使用預設固定按鈕"],
+     generation:{locations:[{name:"...",type:"...",region:"...",description:"...",known:false,lore:{story:"此地真正背景，只生成一次",unlockKeywords:["線索詞"],minMatches:1}}],npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"...",factionName:"...",knowledgeScope:["只能填本次 publicFacts 完整文字或既有 fact id"],known:false,lore:{story:"角色真正背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],factions:[{name:"...",goal:"...",description:"...",known:false,lore:{story:"勢力背景，只生成一次",unlockKeywords:["線索"],minMatches:1}}],sideQuests:[{title:"...",objective:"...",known:false,evidenceKeywords:["2-5個玩家日後可能實際取得的線索詞"],target:3}]}
     },generationLimits:{locations:2,npcs:2,factions:1,sideQuests:1}
    })
   });
