@@ -1,5 +1,5 @@
 import {hasDirectAI,directChat} from "./ai-settings.js";
-import {seedDirective} from "./seed-contract.js";
+import {seedDirective} from "./seed-contract.js?v=225";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
