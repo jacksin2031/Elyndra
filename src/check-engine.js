@@ -14,7 +14,7 @@ const RELEVANCE={
 export function ensureCheckProfile(state){
  const p=state.player;
  p.stats??={strength:2,agility:2,mind:2,presence:2,instinct:2};
- for(const k of ["strength","agility","mind","presence","instinct"])p.stats[k]=clamp(Math.round(Number(p.stats[k])||2),0,20);
+ for(const k of ["strength","agility","mind","presence","instinct"]){const n=Number(p.stats[k]);p.stats[k]=clamp(Math.round(Number.isFinite(n)?n:2),0,20)}
  p.skills??={OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0};
  p.skillProgress??={OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0};
  for(const k of KINDS){p.skills[k]=clamp(Math.round(Number(p.skills[k])||0),0,5);p.skillProgress[k]=Math.max(0,Math.round(Number(p.skillProgress[k])||0))}
