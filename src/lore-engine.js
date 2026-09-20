@@ -19,7 +19,7 @@ function entries(state){
 }
 export function revealStoredLore(state){
  const trustedKnowledge=(state.knowledge||[]).filter(k=>k?.status==="VERIFIED"&&(k.factId||k.historyId));
- const physicalEvidence=(state.inventory||[]).filter(x=>x?.identified!==false).flatMap(x=>[x.name,x.description]);
+ const physicalEvidence=(state.inventory||[]).filter(x=>x?.identified!==false&&(x?.source==="DUNGEON"||x?.source==="MARKET"||(x?.evidenceFactId&&(state.knowledge||[]).some(k=>k.factId===x.evidenceFactId&&k.status==="VERIFIED")))).flatMap(x=>[x.name,x.description]);
  const corpus=[...trustedKnowledge.flatMap(k=>[k.title,k.text]),...physicalEvidence].filter(Boolean).join("\n").toLowerCase();
  const revealed=[];
  for(const {kind,entity} of entries(state)){
