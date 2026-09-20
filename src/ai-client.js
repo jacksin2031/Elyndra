@@ -1,6 +1,6 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=232";
-import {seedDirective} from "./seed-contract.js?v=232";
-import {recognitionForNpc} from "./recognition-engine.js?v=260";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=263";
+import {seedDirective} from "./seed-contract.js?v=263";
+import {recognitionForNpc} from "./recognition-engine.js?v=263";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -51,23 +51,31 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   });
   if(!chronology?.worldCalendar||!Array.isArray(chronology?.worldTimeline)||chronology.worldTimeline.length!==directive.timelinePacing.majorEventCount)throw new Error("WORLD_CHRONOLOGY_INVALID");
 
-  emitWorldProgress(onProgress,72,"開局區域","時間線已完成，正在建立最小可玩區域、人物與第一批行動");
-  const opening=await worldStage("OPENING",{
-   timeoutMs:75000,
-   system:`你是 Elyndra Opening Region Compiler。你收到固定世界核心與 chronology，只建立開局所需最小可玩內容。不得改寫 core、worldBible、calendar 或 timeline。每個首次生成地點／勢力必須有符合當地歷史的 culture 與 trade；不可假設世界共用貨幣。玩家開局知識為 0，所以 openingHook 與 suggestions 不得洩漏尚未發現的專有地名、人物、勢力、歷史或世界名稱。最多2地點、2 NPC、1勢力、1支線。只輸出 JSON，不要 Markdown。`,
+  emitWorldProgress(onProgress,68,"開局地區","時間線已完成，正在建立出生地附近的地點、文化、交易與勢力");
+  const region=await worldStage("REGION",{
+   timeoutMs:65000,
+   system:`你是 Elyndra Opening Region Compiler。你收到固定世界核心與 chronology，只建立開局地區骨架：最多2個地點與1個勢力，並產生零知識 openingHook。不得生成 NPC、任務或 suggestions。至少一個 location.name 必須與 worldBible.startingLocation 完全一致。每個地點／勢力必須有 culture 與 trade；不可假設世界共用貨幣。openingHook 不得洩漏尚未發現的世界名稱、地名、人物、勢力或歷史。只輸出 JSON，不要 Markdown。`,
    user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,summary:core.summary,worldBible:core.worldBible,publicFacts:core.publicFacts,hiddenFacts:core.hiddenFacts,seedCompliance:core.seedCompliance},chronology:{worldCalendar:chronology.worldCalendar,worldTimeline:chronology.worldTimeline},required:{
     openingHook:"80-220字零世界知識感官開場",
-    suggestions:["3-4個只根據眼前可感知資訊而產生的行動"],
-    generation:{
-     locations:[{name:"...",type:"...",region:core.worldBible.startingRegion,description:"...",known:false,culture:{identity:"地方文化核心",etiquette:[],taboos:[],food:[],beliefs:[],architecture:[],clothing:[],hospitality:[],namingStyle:"...",languageNotes:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"價值與形態"}],commonBarter:[],foreignAcceptance:[],priceCulture:"...",questReward:0,combatReward:0},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
-     npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"...",factionName:"...",knowledgeScope:["只能使用 core.publicFacts 完整文字"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:[],boundaries:[]},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
-     factions:[{name:"...",goal:"...",description:"...",known:false,culture:{identity:"...",etiquette:[],taboos:[],beliefs:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"...",questReward:0,combatReward:0},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
-     sideQuests:[{title:"...",objective:"...",known:false,evidenceKeywords:["2-5個可驗證線索詞"],target:3}]
-    }
+    locations:[{name:"其中一個必須等於 worldBible.startingLocation",type:"...",region:core.worldBible.startingRegion,description:"...",known:false,culture:{identity:"地方文化核心",etiquette:[],taboos:[],food:[],beliefs:[],architecture:[],clothing:[],hospitality:[],namingStyle:"...",languageNotes:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"價值與形態"}],commonBarter:[],foreignAcceptance:[],priceCulture:"...",questReward:0,combatReward:0},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+    factions:[{name:"...",goal:"...",description:"...",known:false,culture:{identity:"...",etiquette:[],taboos:[],beliefs:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"...",questReward:0,combatReward:0},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}]
    }})
   });
-  if(!opening?.openingHook||!Array.isArray(opening?.suggestions)||opening.suggestions.length<2||!opening?.generation)throw new Error("WORLD_OPENING_INVALID");
-  emitWorldProgress(onProgress,78,"整合世界","三個生成階段完成，正在合併並交由 Engine 驗證");
+  if(!region?.openingHook||!Array.isArray(region?.locations)||!region.locations.length||!Array.isArray(region?.factions))throw new Error("WORLD_REGION_INVALID");
+
+  emitWorldProgress(onProgress,78,"人物與支線","地區骨架完成，正在生成附近人物、第一個支線與可見行動");
+  const cast=await worldStage("CAST",{
+   timeoutMs:65000,
+   system:`你是 Elyndra Opening Cast Compiler。你只能根據既有 core、chronology 與 region 建立最多2個 NPC、1個支線與3-4個開局 suggestions。不得改寫任何既有內容。NPC knowledgeScope 只能引用 core.publicFacts 完整文字；suggestions 只能根據 openingHook 中玩家直接可感知的內容，不能偷用未知專有名詞。只輸出 JSON，不要 Markdown。`,
+   user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:core.worldBible,publicFacts:core.publicFacts},region:{openingHook:region.openingHook,locations:region.locations,factions:region.factions},required:{
+    npcs:[{name:"...",role:"...",description:"...",personality:"...",goal:"...",locationName:"必須引用 region.locations 名稱",factionName:"可空或引用 region.factions 名稱",knowledgeScope:["只能使用 core.publicFacts 完整文字"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:[],boundaries:[]},lore:{story:"只生成一次",unlockKeywords:["線索"],minMatches:1}}],
+    sideQuests:[{title:"...",objective:"...",known:false,evidenceKeywords:["2-5個可驗證線索詞"],target:3}],
+    suggestions:["3-4個只根據 openingHook 眼前資訊產生的行動"]
+   }})
+  });
+  if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2)throw new Error("WORLD_CAST_INVALID");
+  const opening={openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,2),npcs:cast.npcs.slice(0,2),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}};
+  emitWorldProgress(onProgress,84,"整合世界","三個生成階段完成，正在合併並交由 Engine 驗證");
   return {...core,...chronology,...opening}
  }
  emitWorldProgress(onProgress,42,"世界核心","正在透過伺服器建立世界");
