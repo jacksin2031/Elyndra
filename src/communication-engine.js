@@ -79,13 +79,16 @@ export function worldCommunication(state){return ensureCommunicationCanon(state)
 export function ensureNpcRemoteContact(state,npc){
  if(!npc)return null;
  npc.remoteContact??={established:false,blocked:false};
- if(npc.encountered===true&&npc.remoteContact.established!==true)npc.remoteContact.established=true;
  return npc.remoteContact
 }
+export function establishNpcRemoteContact(state,npc){
+ if(!npc||npc.encountered!==true)return false;const system=worldCommunication(state),contact=ensureNpcRemoteContact(state,npc);if(system.realtime!==true)return false;contact.established=true;contact.establishedDay=state.world?.state?.day??null;contact.method=system.name;return true
+}
+function rangeAllows(state,npc,system){if(system.range==="WORLD")return true;if(system.range==="LOCAL")return false;const locations=state.world?.registry?.locations||[],playerLoc=locations.find(x=>x.name===state.player?.location||x.name===state.world?.state?.location),npcLoc=locations.find(x=>x.id===npc.locationId);return Boolean(playerLoc?.region&&npcLoc?.region&&playerLoc.region===npcLoc.region)}
 export function canRemoteContactNpc(state,npc){
  if(!npc||npc.alive===false||npc.known!==true||npc.encountered!==true)return false;
  const system=worldCommunication(state),contact=ensureNpcRemoteContact(state,npc);
- return system.realtime===true&&contact?.established===true&&contact?.blocked!==true
+ return system.realtime===true&&rangeAllows(state,npc,system)&&contact?.established===true&&contact?.blocked!==true
 }
 export function npcConversationMinutes(state,mode){
  if(mode!=="REMOTE")return 12;
