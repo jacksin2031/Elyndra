@@ -1,0 +1,1 @@
+import {compactNpcMemories} from "./context-manager.js";export function maintainSession(state){if(state.events.length>120)state.runtimeSummary=state.runtimeSummary||`世界已累積 ${state.events.length} 個事件。`;for(const npc of Object.values(state.npcs||{}))if(npc.memories)npc.memories=compactNpcMemories(npc.memories,12);state.events=state.events.slice(-200);return state}
