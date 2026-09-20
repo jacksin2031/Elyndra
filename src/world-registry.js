@@ -1,6 +1,7 @@
-import {normalizeLore} from "./lore-engine.js?v=267";
-import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=267";
-import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=267";
+import {normalizeLore} from "./lore-engine.js?v=268";
+import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=268";
+import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=268";
+import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=268";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 export function ensureWorldRegistry(state){
@@ -35,12 +36,12 @@ export function canInteractWithNpc(state,npc){return Boolean(npcInteractionMode(
 export function resolvePlayerLocation(state,raw){
  const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state);
  const entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;
- entity.known=true;entity.discoveredDay??=state.world.state.day;state.player.location=entity.name;state.world.state.location=entity.name;return entity
+ entity.known=true;entity.discoveredDay??=state.world.state.day;state.player.location=entity.name;state.world.state.location=entity.name;retargetWeather(state);return entity
 }
 export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
  return {
-  locations:filter(r.locations).slice(-20).map(({id,name,type,region,description,culture,trade,worldState})=>({id,name,type,region,description,culture,trade,worldState})),
+  locations:filter(r.locations).slice(-20).map(({id,name,type,region,description,culture,trade,weatherProfile,worldState})=>({id,name,type,region,description,culture,trade,weatherProfile,worldState})),
   npcs:filter(r.npcs).slice(-20).map(n=>({id:n.id,name:n.name,role:n.role,locationId:n.locationId,factionId:n.factionId,description:n.description,personality:n.personality,goal:n.goal,trust:n.trust,companionStatus:n.companion?.status||"NONE",encountered:n.encountered===true,present:isNpcPresent(state,n),remoteContactable:canRemoteContactNpc(state,n),worldState:n.worldState})),
   factions:filter(r.factions).slice(-12).map(({id,name,goal,description,resources,influence,playerReputation,relations,culture,trade,worldState})=>({id,name,goal,description,resources,influence,playerReputation,relations,culture,trade,worldState})),
   sideQuests:r.sideQuests.filter(q=>!visibleOnly||q.known===true).filter(q=>q.status!=="COMPLETED").slice(-12).map(({id,title,objective,status,progress,target})=>({id,title,objective,status,progress:progress??0,target:target??3}))
@@ -69,7 +70,7 @@ export function validateGeneration(g){
  if(g==null)return {valid:true,errors:[]};const e=[];
  if(typeof g!=="object"||Array.isArray(g))return {valid:false,errors:["GENERATION_INVALID"]};
  for(const k of ["locations","npcs","factions","sideQuests"])if(g[k]!=null&&!Array.isArray(g[k]))e.push(k.toUpperCase()+"_INVALID");
- for(const x of g.locations||[])if(!clean(x?.name,80)||!clean(x?.description,400))e.push("LOCATION_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("LOCATION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("LOCATION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("LOCATION_TRADE_INVALID")}
+ for(const x of g.locations||[])if(!clean(x?.name,80)||!clean(x?.description,400))e.push("LOCATION_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("LOCATION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("LOCATION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("LOCATION_TRADE_INVALID");if(x.weatherProfile!=null&&typeof x.weatherProfile!=="object")e.push("LOCATION_WEATHER_INVALID")}
  for(const x of g.npcs||[])if(!clean(x?.name,80)||!clean(x?.role,100))e.push("NPC_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("NPC_LORE_INVALID");if(x.companionProfile!=null&&typeof x.companionProfile!=="object")e.push("NPC_COMPANION_PROFILE_INVALID")}
  for(const x of g.factions||[])if(!clean(x?.name,80)||!clean(x?.goal,200))e.push("FACTION_SHAPE_INVALID");else{if(x.lore!=null&&!normalizeLore(x.lore))e.push("FACTION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("FACTION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("FACTION_TRADE_INVALID")}
  for(const x of g.sideQuests||[]){if(!clean(x?.title,100)||!clean(x?.objective,240))e.push("SIDE_QUEST_SHAPE_INVALID");if(x.evidenceKeywords!=null&&!Array.isArray(x.evidenceKeywords))e.push("SIDE_QUEST_EVIDENCE_INVALID");if(x.target!=null&&(!Number.isInteger(x.target)||x.target<1||x.target>5))e.push("SIDE_QUEST_TARGET_INVALID")}
@@ -89,7 +90,7 @@ export function canonizeGeneration(state,g){
  const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));
  const r=ensureWorldRegistry(state),added={locations:[],npcs:[],factions:[],sideQuests:[]};
  const byName=(arr,name)=>arr.some(x=>String(x.name||"").toLowerCase()===name.toLowerCase());
- for(const x of (g?.locations||[]).slice(0,2)){const name=clean(x.name,80);if(byName(r.locations,name))continue;const o={id:uid("LOC"),name,type:clean(x.type,60)||"未知地點",region:clean(x.region,80)||state.world.state.region||"",description:clean(x.description,400),known:x.known===true,lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]},canonical:true,createdDay:state.world.state.day};r.locations.push(o);added.locations.push(o)}
+ for(const x of (g?.locations||[]).slice(0,2)){const name=clean(x.name,80);if(byName(r.locations,name))continue;const o={id:uid("LOC"),name,type:clean(x.type,60)||"未知地點",region:clean(x.region,80)||state.world.state.region||"",description:clean(x.description,400),known:x.known===true,lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),weatherProfile:normalizeWeatherProfile(x.weatherProfile),worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]},canonical:true,createdDay:state.world.state.day};r.locations.push(o);added.locations.push(o)}
  for(const x of (g?.factions||[]).slice(0,1)){const name=clean(x.name,80);if(byName(r.factions,name))continue;const o={id:uid("FAC"),name,goal:clean(x.goal,200),description:clean(x.description,400),known:x.known===true,lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),resources:50,influence:25,playerReputation:0,relations:{},worldState:{stability:50,statusTags:[]},lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};r.factions.push(o);added.factions.push(o)}
  const locByName=name=>r.locations.find(v=>v.name.toLowerCase()===clean(name,80).toLowerCase());
  const facByName=name=>r.factions.find(v=>v.name.toLowerCase()===clean(name,80).toLowerCase());
