@@ -1,12 +1,12 @@
-import {d20} from "./world-engine.js?v=232";
-import {advanceTime} from "./world-clock.js?v=232";
-import {tickWorld} from "./world-simulation.js?v=232";
-import {localCurrencyReward} from "./world-locality.js?v=232";
+import {d20} from "./world-engine.js?v=266";
+import {advanceTime} from "./world-clock.js?v=266";
+import {tickWorld} from "./world-simulation.js?v=266";
+import {localCurrencyReward} from "./world-locality.js?v=266";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2};p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};return p}
+export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2,presence:2,instinct:2};p.stats.presence??=2;p.stats.instinct??=2;p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};return p}
 export function xpNeeded(level){return 40+Math.max(1,Number(level)||1)*30}
-export function grantXp(state,xp){const p=ensureCharacter(state);p.xp+=Math.max(0,Math.round(Number(xp)||0));while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;p.maxHp+=8;p.hp=p.maxHp;p.stats.strength++;if(p.level%2===0)p.stats.agility++;if(p.level%3===0)p.stats.mind++}return p}
+export function grantXp(state,xp){const p=ensureCharacter(state);p.xp+=Math.max(0,Math.round(Number(xp)||0));while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;p.maxHp+=8;p.hp=p.maxHp;p.stats.strength++;if(p.level%2===0)p.stats.agility++;if(p.level%3===0)p.stats.mind++;if(p.level%4===0)p.stats.presence++;if(p.level%2===0)p.stats.instinct++}return p}
 export function recoverFromDefeat(state){const p=ensureCharacter(state);if(p.status!=="DOWNED")return false;p.status="ALIVE";p.hp=Math.max(1,Math.ceil(p.maxHp*.35));state.combat=null;return true}
 export function startCombat(state,enemy){
  ensureCharacter(state);
