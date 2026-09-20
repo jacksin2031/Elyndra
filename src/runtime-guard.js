@@ -56,17 +56,14 @@ export function sanitizeLocationName(value){
 }
 
 export function deriveSceneTitle(state={},action=""){
- if(state.combat?.active&&state.combat.enemy?.name)return sanitizePlayerText(`與${state.combat.enemy.name}的交鋒`,60,"戰鬥之中");
- const loc=sanitizeLocationName(state.player?.location||state.world?.state?.location)||"陌生之地";
- const crisis=state.world?.state?.crisis?.stage;
- if(crisis==="ENDGAME")return `${loc} · 最後關頭`;
- if(crisis==="CRISIS")return `${loc} · 危機逼近`;
- const q=state.quests?.main,title=sanitizePlayerText(q?.title,60,"");
- if(title&&title!=="在陌生世界活下來")return `${loc} · ${title}`.slice(0,60);
- const a=sanitizeSuggestion(action,40);
- if(a)return `${loc} · ${a}`.slice(0,60);
- const day=Math.max(1,Number(state.world?.state?.day)||1);
- return day<=1?`${loc} · 初來乍到`:`${loc} · 第 ${day} 日`
+ if(state.combat?.active&&state.combat.enemy?.name)return `應對${sanitizePlayerText(state.combat.enemy.name,32,"眼前敵人")}`;
+ const objective=sanitizePlayerText(state.quests?.main?.objectives?.[0],60,"").replace(/[。！？!?]+$/,"").trim();
+ if(objective)return objective;
+ const crisis=state.world?.state?.crisis?.stage,loc=sanitizeLocationName(state.player?.location||state.world?.state?.location)||"目前地點";
+ if(crisis==="ENDGAME")return `處理${loc}的最後危機`.slice(0,60);
+ if(crisis==="CRISIS")return `調查${loc}正在逼近的危機`.slice(0,60);
+ const a=sanitizeSuggestion(action,40);if(a)return a;
+ return `探索${loc}`.slice(0,60)
 }
 export function sanitizeSceneTitle(value,state={},action=""){
  const s=sanitizePlayerText(value,60,"").replace(/[。！？!?]+$/,"").trim();
