@@ -16,7 +16,7 @@ import {ensureCharacter,startCombat,combatAction,recoverFromDefeat,xpNeeded} fro
 import {ensureQuestProgress} from "./src/quest-engine.js?v=220";
 import {ensureCrisis} from "./src/crisis-engine.js?v=220";
 import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=220";
-const $=s=>document.querySelector(s),$=s=>[...document.querySelectorAll(s)];let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false;
+const $=s=>document.querySelector(s),$=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false;
 function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}$("[data-action],#freeActionForm button,.suggestion").forEach(b=>b.disabled=on);const input=$("#freeAction");if(input)input.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 function show(id){$$(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active")}
