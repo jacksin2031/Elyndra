@@ -29,7 +29,7 @@ const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);
 function registerDiscovery(state,d,context={}){
  const title=sanitizePlayerText(d?.title,100,""),body=sanitizePlayerText(d?.text,500,"");if(!title||!body||state.knowledge.some(k=>k.title===title))return null;
  const factId=typeof d?.factId==="string"?d.factId:"",fact=(state.world?.canon?.facts||[]).find(f=>f.id===factId),evidenceType=String(d?.evidenceType||"").toUpperCase();
- const verified=Boolean(fact&&EVIDENCE_TYPES.has(evidenceType)&&context.roll?.success!==false);
+ const verified=Boolean(fact&&String(fact.visibility||"").toLowerCase()==="public"&&EVIDENCE_TYPES.has(evidenceType)&&context.roll?.success!==false);
  const entry={id:id(),title,status:verified?"VERIFIED":"OBSERVATION",text:verified?fact.text:body,factId:verified?fact.id:null,evidenceType:verified?evidenceType:"UNVERIFIED",sources:[verified?"CANON_EVIDENCE":"AI_OBSERVATION"],score:verified?2:0};
  state.knowledge.push(entry);if(verified)state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+entry.score);return entry
 }
