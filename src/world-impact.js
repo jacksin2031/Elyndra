@@ -45,8 +45,15 @@ export function ensureWorldImpact(state){
  const r=state.world.registry||{};for(const e of r.locations||[])ensureEntityState(e,"location");for(const e of r.npcs||[])ensureEntityState(e,"npc");for(const e of r.factions||[])ensureEntityState(e,"faction");
  return x
 }
+function verifiedKnowledgeScore(state){
+ const canon=new Set((state.world?.canon?.facts||[]).map(x=>x.id)),history=new Set((state.world?.history||[]).map(x=>x.id));
+ return (state.knowledge||[]).reduce((sum,k)=>{
+  const valid=(k?.factId&&canon.has(k.factId))||(k?.historyId&&history.has(k.historyId));
+  return valid?sum+Math.max(1,Number(k.score)||(k.historyId?3:2)):sum
+ },0)
+}
 export function impactCapability(state,roll=null){
- const impact=ensureWorldImpact(state),score=Math.max(0,Number(state.player?.knowledgeScore)||0),records=impact.records.filter(x=>x.type==="PLAYER_IMPACT").length,crisis=ensureCrisis(state).stage;
+ const impact=ensureWorldImpact(state),rawScore=Math.max(0,Number(state.player?.knowledgeScore)||0),score=Math.min(rawScore,verifiedKnowledgeScore(state)),records=impact.records.filter(x=>x.type==="PLAYER_IMPACT").length,crisis=ensureCrisis(state).stage;
  let max="LOCAL";
  if(score>=8&&records>=2)max="REGIONAL";
  if(score>=12&&records>=4)max="FACTION";
@@ -75,10 +82,40 @@ function entityLocation(state,kind,entity){
  if(kind==="npc")return locationById(state,entity?.locationId)||null;
  return null
 }
+function factionHasPresenceAtLocation(state,factionId,locationId){
+ return Boolean(locationId&&(state.world.registry?.npcs||[]).some(n=>n.factionId===factionId&&n.locationId===locationId))
+}
 function factionHasPresenceInRegion(state,factionId,region){
  if(!region)return false;
  const r=state.world.registry||{};
  return (r.npcs||[]).some(n=>n.factionId===factionId&&locationById(state,n.locationId)?.region===region)
+}
+function authorityFor(state,kind,target){
+ const here=currentLocation(state),entity=target?.entity;
+ const entityLoc=kind==="location"?entity:kind==="npc"?entityLocation(state,kind,entity):null;
+ const origin=here||entityLoc||null;
+ return {originLocationId:origin?.id||null,region:origin?.region||"",parentTargetKind:kind,parentTargetId:target?.targetId||""}
+}
+function consequenceWithinAuthority(state,parent,kind,target){
+ if(!parent||!target||parent.scope==="WORLD")return Boolean(parent&&target);
+ const authority=parent.authority||{},originId=authority.originLocationId||null,region=authority.region||"";
+ if(parent.scope==="PERSONAL")return kind==="npc"&&target.targetId===parent.targetId;
+ if(parent.scope==="FACTION")return kind==="faction"&&target.targetId===parent.targetId;
+ if(parent.scope==="LOCAL"){
+  if(!originId)return kind===parent.targetKind&&target.targetId===parent.targetId;
+  if(kind==="location")return target.targetId===originId;
+  if(kind==="npc")return entityLocation(state,kind,target.entity)?.id===originId;
+  if(kind==="faction")return factionHasPresenceAtLocation(state,target.targetId,originId);
+  return false
+ }
+ if(parent.scope==="REGIONAL"){
+  if(!region)return kind===parent.targetKind&&target.targetId===parent.targetId;
+  if(kind==="location")return target.entity?.region===region;
+  if(kind==="npc")return entityLocation(state,kind,target.entity)?.region===region;
+  if(kind==="faction")return factionHasPresenceInRegion(state,target.targetId,region);
+  return false
+ }
+ return false
 }
 function scopeAllowsKind(scope,kind){return Boolean(TARGETS[scope]?.has(kind))}
 function authorizeTarget(state,scope,kind,target){
@@ -177,7 +214,7 @@ export function validateImpactCandidate(input){
 }
 function scheduleConsequence(state,parent,raw,roll){
  const kind=raw?.targetKind||parent.targetKind,rawId=raw?.targetId||parent.targetId,target=resolveTarget(state,kind,rawId);
- if(!target||!authorizeTarget(state,parent.scope,kind,target))return null;
+ if(!target||!authorizeTarget(state,parent.scope,kind,target)||!consequenceWithinAuthority(state,parent,kind,target))return null;
  const delay=clamp(Math.round(Number(raw?.delayMinutes)||0),30,43200),summary=clean(raw?.observableEffect,400);
  const mutations=(Array.isArray(raw?.mutations)?raw.mutations:[]).slice(0,5).filter(m=>mutationSchemaValid(kind,m)&&mutationAllowedForRoll(m,roll,parent.outcome));
  if(!summary||!mutations.length)return null;
@@ -194,7 +231,7 @@ export function applyWorldImpacts(state,input,context={}){
   const limit=LIMITS[scope],changes=[];
   for(const m of (raw.mutations||[]).slice(0,5)){if(!mutationAllowedForRoll(m,context.roll,outcome))continue;const c=applyMutation(state,target.entity,raw.targetKind,m,limit);if(c.changed)changes.push(c)}
   const timelineEffects=[];if(context.roll?.success!==false&&RANK[scope]>=RANK.REGIONAL)for(const e of (raw.timelineEffects||[]).slice(0,2)){const changed=applyTimelineImpact(state,e);if(changed)timelineEffects.push(changed)}
-  const record={id:uid("IMP"),type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope,targetKind:raw.targetKind,targetId:target.targetId,targetName:target.name,title:clean(raw.title,120),summary:clean(raw.summary,400),reason:clean(raw.reason,300),outcome,rollSuccess:context.roll?.success!==false,changes,timelineEffects:timelineEffects.map(x=>({timelineId:x.timelineId,action:x.action})),day:state.world.state.day,minute:state.world.state.clock?.totalMinutes||0,at:Date.now()};
+  const record={id:uid("IMP"),type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope,targetKind:raw.targetKind,targetId:target.targetId,targetName:target.name,authority:authorityFor(state,raw.targetKind,target),title:clean(raw.title,120),summary:clean(raw.summary,400),reason:clean(raw.reason,300),outcome,rollSuccess:context.roll?.success!==false,changes,timelineEffects:timelineEffects.map(x=>({timelineId:x.timelineId,action:x.action})),day:state.world.state.day,minute:state.world.state.clock?.totalMinutes||0,at:Date.now()};
   const queued=[];for(const item of (raw.consequences||[]).slice(0,3)){const q=scheduleConsequence(state,record,item,context.roll);if(q)queued.push(q.id)}
   if(!changes.length&&!timelineEffects.length&&!queued.length)continue;
   record.queuedConsequences=queued;impact.records.push(record);
@@ -217,7 +254,7 @@ export function processDueConsequences(state){
  const impact=ensureWorldImpact(state),now=state.world.state.clock?.totalMinutes||0,out=[];
  for(const item of impact.queue.filter(x=>x.status==="SCHEDULED"&&x.dueMinute<=now).sort((a,b)=>a.dueMinute-b.dueMinute).slice(0,8)){
   const parent=impact.records.find(x=>x.id===item.parentImpactId&&x.type==="PLAYER_IMPACT"),target=resolveTarget(state,item.targetKind,item.targetId);
-  if(!parent||!target||!target.known||!scopeAllowsKind(item.scope,item.targetKind)){item.status="CANCELLED";item.cancelReason="AUTHORITY_INVALID";continue}
+  if(!parent||!target||!target.known||!scopeAllowsKind(item.scope,item.targetKind)||!consequenceWithinAuthority(state,parent,item.targetKind,target)){item.status="CANCELLED";item.cancelReason="AUTHORITY_INVALID";continue}
   const allowed=(item.mutations||[]).filter(m=>mutationSchemaValid(item.targetKind,m)&&mutationAllowedForRoll(m,{success:item.rollSuccess!==false},item.outcome)),changes=[];
   if(!allowed.length){item.status="CANCELLED";item.cancelReason="NO_VALID_MUTATION";continue}
   for(const m of allowed){const c=applyMutation(state,target.entity,item.targetKind,m,LIMITS[item.scope]||12);if(c.changed)changes.push(c)}
