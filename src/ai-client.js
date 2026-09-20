@@ -75,7 +75,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   });
   if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2)throw new Error("WORLD_CAST_INVALID");
   const opening={openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,2),npcs:cast.npcs.slice(0,2),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}};
-  emitWorldProgress(onProgress,84,"整合世界","三個生成階段完成，正在合併並交由 Engine 驗證");
+  emitWorldProgress(onProgress,84,"整合世界","四個生成階段完成，正在合併並交由 Engine 驗證");
   return {...core,...chronology,...opening}
  }
  emitWorldProgress(onProgress,42,"世界核心","正在透過伺服器建立世界");
