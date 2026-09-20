@@ -27,7 +27,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const core=normalizeWorldCoreCandidate(await worldStage("CORE",{
    timeoutMs:65000,
    maxOutputTokens:1600,
-   system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
+   system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。每個世界必須有符合自身科技／魔法／文化的遠距聯絡方式，可讓已真正接觸並建立聯絡的人物進行即時或近即時通訊；不得無理由直接套用現實互聯網。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
    user:JSON.stringify({seed,seedDirective:{contract:directive.contract,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy},required:{
     worldName:"string",worldTheme:"具體核心主題",playerName:"string",summary:"80-160字世界概要",
     seedCompliance:{
@@ -39,7 +39,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
      politics:{value:auto?"1-5整數":expected.politics,evidence:"12-40字具體 evidence"},
      ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"如何落實玩家自訂要求"}}:{})
     },
-    worldBible:{era:"世界自己的時代稱呼",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛"},
+    worldBible:{era:"世界自己的時代稱呼",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛",communication:{name:"符合世界觀的遠距聯絡方式名稱",medium:"例如網絡終端、魔法傳訊、共鳴器等世界內媒介",description:"如何運作且為何符合本世界",latency:"INSTANT|NEAR_INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}},
     publicFacts:["2-3項簡潔公開事實"],
     hiddenFacts:["2-3項簡潔真正秘密"]
    }})
@@ -129,6 +129,6 @@ export async function generateTurn(action,roll,snapshot){
  }
  return (await post("/api/turn",{action,roll,snapshot})).candidate
 }
-export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||""}}
+export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",communication:b.communication||null}}
 export function regionExpansionPayload(state,reason="player_exploration"){return {reason,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
 export async function generateRegionExpansion(state,reason="player_exploration"){const payload=regionExpansionPayload(state,reason);if(hasDirectAI()){const raw=await directChat({timeoutMs:90000,system:'你是 Elyndra Progressive World Architect。world.seedContract 是不可違反的玩家世界設定；新區域必須維持同一 genre/theme/scale/danger/magic/politics/custom prompt，不可自行漂移。每個新地點／勢力首次生成時都要有符合當地歷史的 culture 與 trade；不得假設全世界通用貨幣或同一文化。任何新 NPC 都要有 companionProfile，但不代表一定會成為夥伴。只輸出 JSON：{"region":"新區域名稱","reason":"與既有世界的因果連接","generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","known":true或false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","knowledgeScope":["既有 public fact 完整文字或 fact id"],"known":true或false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","known":false,"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","known":true或false,"evidenceKeywords":["2-5個可驗證線索詞"],"target":3}]}}。最多2地點、2 NPC、1勢力、1支線。不得重建 existing、不得再次生成既有 lore、不得改寫 World Bible、不得洩漏 hidden secrets。',user:JSON.stringify(payload)});return parseJSON(raw)}return null}
