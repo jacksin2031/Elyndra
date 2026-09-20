@@ -12,8 +12,8 @@ test("snapshot never exposes hidden canon",()=>{
 });
 
 test("AI turn mutates any known NPC by id instead of a fixed companion key",()=>{
- const s=newGame(seed);
- s.world.registry.npcs.push({id:"NPC-guide",name:"引路人",role:"旅人",description:"沉默的旅人",known:true,alive:true,trust:18,memories:[],knowledgeScope:[]});
+ const s=newGame(seed);s.world.registry.locations.push({id:"LOC-now",name:"目前地點",type:"道路",description:"測試",known:true});s.player.location="目前地點";s.world.state.location="目前地點";
+ s.world.registry.npcs.push({id:"NPC-guide",name:"引路人",role:"旅人",description:"沉默的旅人",known:true,encountered:true,alive:true,trust:18,memories:[],knowledgeScope:[],locationId:"LOC-now"});
  applyTurnCandidate(s,{narrative:"對方接受了你的解釋。",npcChanges:[{npcId:"NPC-guide",trustDelta:2}],suggestions:["繼續交談"]});
  assert.equal(s.world.registry.npcs[0].trust,20);
  assert.equal(s.suggestions[0],"繼續交談");
@@ -73,7 +73,7 @@ test("AI turn can start a world-specific combat encounter",()=>{
  assert.equal(s.combat.enemy.name,"玻璃甲蟲");
 });
 test("Adventure Director can propose companion offer and calendar discovery without forcing join",()=>{
- const s=newGame(seed);s.world.registry.npcs.push({id:"NPC-comp",name:"薇塔",role:"採集者",description:"熟悉附近地形",known:true,alive:true,trust:45,memories:[],knowledgeScope:[],companionProfile:{joinThreshold:35,leaveThreshold:8,motives:["共同探索"],boundaries:[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""}});applyTurnCandidate(s,{narrative:"她表示願意同行，並向你解釋了當地如何記錄時序。",calendarKnown:true,companionChanges:[{npcId:"NPC-comp",action:"OFFER",reason:"共同探索符合她目前的目標"}],suggestions:["回應她的提議"]});assert.equal(s.player.calendarKnown,true);assert.equal(s.world.registry.npcs[0].companion.status,"OFFERED");const snap=buildSnapshot(s);assert.ok(snap.companions.some(x=>x.id==="NPC-comp"&&x.status==="OFFERED"));
+ const s=newGame(seed);s.world.registry.locations.push({id:"LOC-now",name:"目前地點",type:"道路",description:"測試",known:true});s.player.location="目前地點";s.world.state.location="目前地點";s.world.registry.npcs.push({id:"NPC-comp",name:"薇塔",role:"採集者",description:"熟悉附近地形",known:true,encountered:true,alive:true,trust:45,memories:[],knowledgeScope:[],locationId:"LOC-now",companionProfile:{joinThreshold:35,leaveThreshold:8,motives:["共同探索"],boundaries:[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""}});applyTurnCandidate(s,{narrative:"她表示願意同行，並向你解釋了當地如何記錄時序。",calendarKnown:true,companionChanges:[{npcId:"NPC-comp",action:"OFFER",reason:"共同探索符合她目前的目標"}],suggestions:["回應她的提議"]});assert.equal(s.player.calendarKnown,true);assert.equal(s.world.registry.npcs[0].companion.status,"OFFERED");const snap=buildSnapshot(s);assert.ok(snap.companions.some(x=>x.id==="NPC-comp"&&x.status==="OFFERED"));
 });
 
 test("Adventure Director world impact candidate mutates durable current world state through Engine",()=>{
