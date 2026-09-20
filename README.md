@@ -4,9 +4,9 @@
 
 > 每一個世界，都有自己的真相。
 
-## V0.2 — API-ready gameplay foundation
+## V0.3 — AI World Runtime
 
-目前版本已經從 UI Concept 升級成可持續開發的遊戲骨架：
+目前版本已建立可直接接入 AI Provider 的遊戲 Runtime：
 
 - World Seed 建立流程
 - World Compiler
@@ -101,3 +101,14 @@ npm test
 4. Lore 擴展
 
 正式 API key **不得**放入瀏覽器 JavaScript 或提交到 GitHub。詳見 `docs/API_INTEGRATION.md`。
+
+## V0.3 API Runtime
+
+Serverless endpoints：
+
+- `GET /api/health` — API 配置狀態
+- `POST /api/world` — AI World candidate
+- `POST /api/narrate` — 根據 Engine 已確定結果生成場景敘事
+- `POST /api/npc` — 受 Knowledge Scope 限制的 NPC 對話
+
+環境變數參考 `.env.example`。未設定 API 時遊戲自動使用 deterministic local fallback。
