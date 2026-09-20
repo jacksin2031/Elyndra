@@ -29,7 +29,7 @@ export function validateWorld(world){
 }
 export function newGame(seed){
  const {world,report}=compileWorld(seed);
- return {formatVersion:1,world,integrity:report,player:{hp:100,maxHp:100,gold:12,knowledgeScore:3,location:world.state.location},
+ return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},integrity:report,player:{hp:100,maxHp:100,gold:12,knowledgeScore:3,location:world.state.location},
   inventory:[{id:"rusty-sword",name:"生鏽短劍",identified:false},{id:"strange-coin",name:"陌生銅幣",identified:false}],
   knowledge:[{id:"K-coin",title:"陌生銅幣",status:"PARTIAL",text:"銅幣上的文字尚未能解讀。",sources:["strange-coin"]},{id:"K-lia",title:"莉亞",status:"PARTIAL",text:"自稱旅行者，但似乎刻意避開談論自己的出身。",sources:["NPC-lia"]}],
   npcs:{lia:{id:"NPC-lia",name:"莉亞",alive:true,trust:18,goal:"尋找失蹤的姐姐",knowledgeScope:["F-north"],memories:[]}},
