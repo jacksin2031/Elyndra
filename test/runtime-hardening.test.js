@@ -86,6 +86,7 @@ test("unverified AI discoveries cannot progress quests while owned evidence can"
  const q=s.world.registry.sideQuests[0];
  applyTurnCandidate(s,{narrative:"你以為找到一枚徽章。",discoveries:[{title:"商隊徽章",text:"這只是 AI 提出的未驗證觀察。"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"觀察"});
  assert.equal(q.progress,0);
+ applyTurnCandidate(s,{narrative:"你拿到一件名稱可疑但沒有 Canon 來源的物品。",items:[{name:"商隊徽章",description:"AI 聲稱它屬於商隊，但沒有可驗證來源。"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});assert.equal(q.progress,0);
  s.world.canon.facts.push({id:"FACT-BADGE",type:"clue",visibility:"public",text:"這件金屬標記可驗證屬於失蹤商隊。",canonical:true},{id:"FACT-WHEEL",type:"clue",visibility:"public",text:"這件木製殘骸可驗證來自同一支失蹤商隊。",canonical:true});
  applyTurnCandidate(s,{narrative:"你取得實體徽章。",discoveries:[{title:"第一件商隊物證",text:"確認來源。",factId:"FACT-BADGE",evidenceType:"EXAMINED"}],items:[{name:"商隊徽章",description:"屬於失蹤商隊。",evidenceFactId:"FACT-BADGE"}],suggestions:["繼續搜索"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"搜索"});
  assert.equal(q.progress,1);
