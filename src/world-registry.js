@@ -41,7 +41,7 @@ export function resolvePlayerLocation(state,raw){
 export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
  return {
-  locations:filter(r.locations).slice(-20).map(({id,name,type,region,description,culture,trade,weatherProfile,worldState})=>({id,name,type,region,description,culture,trade,weatherProfile,worldState})),
+  locations:filter(r.locations).slice(-20).map(({id,name,type,region,description,culture,trade,worldState})=>({id,name,type,region,description,culture,trade,worldState})),
   npcs:filter(r.npcs).slice(-20).map(n=>({id:n.id,name:n.name,role:n.role,locationId:n.locationId,factionId:n.factionId,description:n.description,personality:n.personality,goal:n.goal,trust:n.trust,companionStatus:n.companion?.status||"NONE",encountered:n.encountered===true,present:isNpcPresent(state,n),remoteContactable:canRemoteContactNpc(state,n),worldState:n.worldState})),
   factions:filter(r.factions).slice(-12).map(({id,name,goal,description,resources,influence,playerReputation,relations,culture,trade,worldState})=>({id,name,goal,description,resources,influence,playerReputation,relations,culture,trade,worldState})),
   sideQuests:r.sideQuests.filter(q=>!visibleOnly||q.known===true).filter(q=>q.status!=="COMPLETED").slice(-12).map(({id,title,objective,status,progress,target})=>({id,title,objective,status,progress:progress??0,target:target??3}))
@@ -104,6 +104,7 @@ export function canonizeGeneration(state,g){
   r.npcs.push(o);added.npcs.push(o)
  }
  for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const evidenceKeywords=keywords(x.evidenceKeywords),target=clamp(Number.isInteger(x.target)?x.target:(evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3),1,5),o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,status:"ACTIVE",progress:0,target,evidence:[],evidenceKeywords,matchedKeywords:[],createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}
+ if(added.locations.length)retargetWeather(state);
  if(Object.values(added).some(a=>a.length)){state.world.version++;state.events.push({id:uid("EV"),type:"WORLD_CANON_EXPANDED",visibility:"INTERNAL",day:state.world.state.day,summary:Object.entries(added).filter(([,a])=>a.length).map(([k,a])=>`${k} +${a.length}`).join(" · "),at:Date.now()})}
  return added
 }
