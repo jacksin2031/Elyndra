@@ -1,6 +1,5 @@
 import {revealStoredLore} from "./lore-engine.js?v=231";
 import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=231";
-const FALLBACK_ACTIONS=["環顧四周，確認眼前能直接觀察到的事物","檢查自己的身體、衣物與隨身狀態","保持安靜，仔細聆聽附近的聲音"];
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -31,7 +30,7 @@ export function compileWorld(seed){
  };
  const report=validateWorld(world);if(!report.valid)throw new Error(report.errors.join("\n"));return {world,report}
 }
-function premise(seed){const s=createWorldSeedContract(seed),extra=s.prompt?` 玩家硬性要求：${s.prompt}`:"";return `World Seed：風格「${s.genre}」、核心主題「${s.theme}」、規模「${s.scale}」、危險度 ${s.danger}/5、魔法普及度 ${s.magic}/5、政治複雜度 ${s.politics}/5。${extra}`}
+function premise(seed){const s=createWorldSeedContract(seed),extra=s.prompt?` 玩家硬性要求：${s.prompt}`:"";if(s.worldviewMode==="random")return `World Seed：完整世界觀交由 AI World Architect 隨機決定；世界主題必須由 AI 原創。${extra}`;return `World Seed：基礎風格「${s.genre}」，世界主題由 AI 決定，規模「${s.scale}」、危險度 ${s.danger}/5、魔法普及度 ${s.magic}/5、政治複雜度 ${s.politics}/5。${extra}`}
 export function validateWorld(world){
  const errors=[];if(!world?.id)errors.push("WORLD_ID_MISSING");if(!world?.name)errors.push("WORLD_NAME_MISSING");
  if(!Array.isArray(world?.constitution)||world.constitution.length<6)errors.push("CONSTITUTION_INCOMPLETE");
@@ -44,7 +43,7 @@ export function newGame(seed){
   player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,hp:100,maxHp:100,gold:0,knowledgeScore:0,location:"未知地點"},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
-  discoveries:0,suggestions:[...FALLBACK_ACTIONS],
+  discoveries:0,suggestions:[],
   events:[{id:uuid(),type:"WORLD_CREATED",visibility:"PLAYER_KNOWN",day:1,at:Date.now()}],
   narrative:"你在陌生的環境中醒來。你不知道這是哪裡，也不知道這個世界叫甚麼；現在能依靠的只有眼前能直接感受到的事物。你身上沒有任何預設物品，也沒有任何預設同伴。"}
 }
@@ -53,7 +52,7 @@ export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
  const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));
- state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);
+ state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;
  const aiName=clean(candidate.playerName,40);if(state.player?.nameSource==="AI_PENDING"&&aiName){state.player.name=aiName;state.player.nameSource="AI"}
  const bible=candidate.worldBible;
