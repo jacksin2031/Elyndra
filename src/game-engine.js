@@ -2,7 +2,7 @@ import {d20} from "./world-engine.js?v=268";
 import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=268";
 import {advanceTime,ensureClock} from "./world-clock.js?v=268";
 import {tickWorld} from "./world-simulation.js?v=268";
-import {tickSurvival} from "./survival-engine.js?v=268";
+import {tickSurvival,resolveSurvivalAction} from "./survival-engine.js?v=268";
 import {applyCultureAction} from "./culture-engine.js?v=268";
 import {resolveEconomyAction} from "./economy-engine.js?v=268";
 import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=268";
@@ -19,7 +19,7 @@ const PROFILES={
 };
 export function actionProfile(input=""){
  const q=clean(input).toLowerCase();
- if(/休息|睡眠|紮營|露營|rest|sleep|camp/.test(q))return {kind:"GENERAL",dc:7,minutes:240,rest:true};
+ if(/休息|睡眠|紮營|露營|住宿|旅店|投宿|rest|sleep|camp|lodging|inn/.test(q))return {kind:"GENERAL",dc:7,minutes:240,rest:true};
  if(/施法|魔法|術式|咒|spell|cast|magic/.test(q))return {kind:"RISKY",dc:13,minutes:20,magic:true};
  if(/購買|買下|出售|賣掉|賣出|buy|sell/.test(q))return {kind:"SOCIAL",dc:9,minutes:20,economy:true};
  if(/觀察|查看|檢查|搜尋|調查|聆聽|閱讀|inspect|search|observe|listen/.test(q))return {kind:"OBSERVE",...PROFILES.OBSERVE};
@@ -45,10 +45,10 @@ export function performAction(state,action="free",customText=""){
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
  advanceTime(state,profile.minutes);
  const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:profile.rest===true});if(profile.rest&&roll.success)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
- const culture=applyCultureAction(state,label,roll),economy=resolveEconomyAction(state,label,roll),magic=resolveMagicAction(state,label,roll),dungeon=exploreDungeon(state,label,roll);
+ const culture=applyCultureAction(state,label,roll),economy=resolveEconomyAction(state,label,roll),magic=resolveMagicAction(state,label,roll),supply=resolveSurvivalAction(state,label,roll),dungeon=exploreDungeon(state,label,roll);
  const text=localNarrative(label,roll,profile);
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,dungeon,questProgress}}
+ return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,supply,dungeon,questProgress}}
 }
