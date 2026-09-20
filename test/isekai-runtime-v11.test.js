@@ -11,6 +11,7 @@ import {performAction} from "../src/game-engine.js";
 import {learnSpell,resolveMagicAction} from "../src/magic-engine.js";
 import {applyCultureAction} from "../src/culture-engine.js";
 import {tickNpcs} from "../src/npc-engine.js";
+import {applyNpcConversationTurn} from "../src/npc-dialogue-engine.js";
 import {tickFactions} from "../src/faction-engine.js";
 import {tickMainQuest} from "../src/quest-engine.js";
 import {ensureDungeonSites,exploreDungeon} from "../src/dungeon-engine.js";
@@ -74,6 +75,13 @@ test("local taboos affect persistent cultural standing",()=>{
 test("NPCs can relocate through the canonical route network for their own survival",()=>{
  const s=game();canonizeGeneration(s,{locations:[{name:"危谷",type:"谷地",region:"北境",description:"危險谷地",known:true},{name:"高牆鎮",type:"城鎮",region:"北境",description:"安全城鎮",known:true}],npcs:[{name:"洛卡",role:"居民",description:"在谷地生活",known:true,locationName:"危谷",goal:"維持自己的生活與安全"}]});
  const [danger,safe]=s.world.registry.locations;danger.worldState.safety=10;safe.worldState.safety=90;const npc=s.world.registry.npcs[0];npc.lastActionMinute=0;npc.life={hp:30,maxHp:30,energy:70,hunger:20,occupation:"居民",schedulePhase:"ACTIVE",homeLocationId:danger.id,lastMoveMinute:0,lastWorkMinute:0,needs:[],equipment:[]};s.world.state.clock.totalMinutes=500;tickNpcs(s);assert.equal(npc.locationId,safe.id)
+});
+
+test("NPC testimony can advance a clue quest without becoming verified world knowledge",()=>{
+ const s=game();canonizeGeneration(s,{locations:[{name:"橋村",type:"村落",region:"河谷",description:"河邊聚落",known:true}],npcs:[{name:"希爾",role:"目擊者",description:"曾看見商隊經過",known:true,locationName:"橋村"}],sideQuests:[{title:"追查商隊",objective:"問出商隊去向",known:true,evidenceKeywords:["紅旗車隊"],target:1}]});
+ const npc=s.world.registry.npcs[0];s.player.location="橋村";s.world.state.location="橋村";npc.encountered=true;const before=s.player.knowledgeScore;
+ const out=applyNpcConversationTurn(s,npc,{question:"你見過那支商隊嗎？",answer:"我昨晚看見紅旗車隊沿河往東。"});
+ assert.equal(out.questProgress.length,1);assert.equal(s.world.registry.sideQuests[0].status,"COMPLETED");assert.equal(s.player.knowledgeScore,before);assert.equal(s.knowledge.at(-1).status,"TESTIMONY")
 });
 
 test("factions choose strategy from goals and can change territory prosperity",()=>{
