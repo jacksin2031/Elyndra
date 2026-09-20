@@ -4,3 +4,4 @@ export function visibleFacts(state){return state.world.canon.facts.filter(f=>f.v
 export async function narrate(state,action,roll){return (await post("/api/narrate",{action,roll,world:{name:state.world.name,day:state.world.state.day,location:state.player.location},visibleFacts:visibleFacts(state)})).text}
 export async function generateWorldCandidate(seed,constitution){return (await post("/api/world",{seed,constitution})).candidate}
 export async function talkToNpc(state,key,message){const npc=state.npcs[key];const knownFacts=state.world.canon.facts.filter(f=>npc.knowledgeScope.includes(f.id)).map(f=>f.text);return (await post("/api/npc",{message,npc,knownFacts,memories:npc.memories,scene:{day:state.world.state.day,location:state.player.location}})).text}
+export async function generateTurn(action,roll,snapshot){return (await post("/api/turn",{action,roll,snapshot})).candidate}
