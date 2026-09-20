@@ -1,7 +1,7 @@
-import {d20} from "./world-engine.js?v=266";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=266";
-import {advanceTime,ensureClock} from "./world-clock.js?v=266";
-import {tickWorld} from "./world-simulation.js?v=266";
+import {d20} from "./world-engine.js?v=267";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=267";
+import {advanceTime,ensureClock} from "./world-clock.js?v=267";
+import {tickWorld} from "./world-simulation.js?v=267";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
@@ -26,9 +26,9 @@ function ensure(state){
 }
 function localNarrative(label,roll,profile){
  if(roll.grade==="CRITICAL_SUCCESS")return `你嘗試「${label}」。結果比預期更順利；你取得了明確而可驗證的進展。`;
- if(roll.grade==="CRITICAL_FAILURE")return `你嘗試「${label}」，但行動明顯失敗，而且局勢因此變得更不利。你沒有獲得任何未經確認的新情報。`;
- if(roll.success)return `你嘗試「${label}」。行動取得了可確認的進展，但世界沒有因此自動揭露你尚未發現的真相。`;
- return `你嘗試「${label}」，但目前條件不足。這次沒有取得足以確認的新資訊。`
+ if(roll.grade==="CRITICAL_FAILURE")return `你嘗試「${label}」，但結果比預期更差，眼前局勢因此變得更棘手。`;
+ if(roll.success)return `你完成了「${label}」，並取得可以直接確認的進展。`;
+ return `你嘗試「${label}」，但這次沒有達成預期目的。從眼前反應看來，換一個方法會更有機會。`
 }
 export function performAction(state,action="free",customText=""){
  ensure(state);

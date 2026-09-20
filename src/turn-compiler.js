@@ -1,3 +1,4 @@
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=267";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 
 export function sceneTurnSnapshot(snapshot={}){
@@ -11,8 +12,9 @@ export function sceneTurnSnapshot(snapshot={}){
   recentEvents:snapshot.recentEvents,
   runtimeSummary:snapshot.runtimeSummary,
   factions:snapshot.factions,
-  registry:snapshot.registry,
+  registry:{...(snapshot.registry||{}),npcs:(snapshot.registry?.npcs||[]).filter(n=>n.present===true)},
   companions:snapshot.companions,
+  priorSuggestions:(snapshot.priorSuggestions||[]).slice(0,4),
   recognition:{
    tier:snapshot.recognition?.tier,
    titles:snapshot.recognition?.titles||[],
@@ -21,11 +23,14 @@ export function sceneTurnSnapshot(snapshot={}){
  }
 }
 
-export function mergeTurnCandidates(scene,state,roll={}){
+export function mergeTurnCandidates(scene,state,roll={},context={}){
  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("TURN_STATE_REQUIRED");
- const narrative=text(scene?.narrative,1200)||text(state.outcomeSummary,1200)||(roll?.success?"你的行動取得了進展。":"事情沒有完全按你的打算發展。");
+ const fallback=fallbackNarrative(context.action,roll),sceneText=sanitizePlayerText(scene?.narrative,1200,""),stateText=sanitizePlayerText(state.outcomeSummary,1200,"");
+ const narrative=state?.encounter?.type==="combat"?(stateText||sceneText||fallback):(sceneText||stateText||fallback);
+ const suggestions=sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
  return {
   narrative,
+  sceneTitle,
   location:state.location??null,
   worldNameKnown:state.worldNameKnown===true,
   calendarKnown:state.calendarKnown===true,
@@ -39,6 +44,6 @@ export function mergeTurnCandidates(scene,state,roll={}){
   encounter:state.encounter??null,
   generation:state.generation??null,
   worldImpacts:Array.isArray(state.worldImpacts)?state.worldImpacts:[],
-  suggestions:Array.isArray(scene?.suggestions)?scene.suggestions:[]
+  suggestions
  }
 }

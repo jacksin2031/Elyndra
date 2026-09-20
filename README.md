@@ -154,7 +154,7 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 這個版本把 Runtime 從舊版固定世界內容徹底抽離，讓 World Seed 真正控制每一個世界：
 
 - Game Engine 不再硬編碼森林、道路、銅幣、特定 NPC、地名或怪物；自由行動改由通用 Action Profile 判定難度與時間。
-- NPC relationship mutation 改用實際 `npcId`；任何已知 NPC 都可以直接交談，不再存在固定 Companion。
+- NPC relationship mutation 改用實際 `npcId`；互動能力由是否真正遇過、目前是否在場，以及世界 Canon 是否存在可用遠距聯絡方式決定，不再存在固定 Companion。
 - NPC 只讀取自己的 `knowledgeScope` 與 memories；`publicFacts` 不再等於所有 NPC 自動知道。
 - 新增 Event Visibility Gate；NPC／勢力自主模擬屬於 `INTERNAL`，不會出現在玩家旅程紀錄或玩家 AI snapshot。
 - Adventure Director 可提出符合目前世界的 `encounter`；敵人、戰利品與戰鬥來源不再由 Engine 預設。
@@ -318,3 +318,67 @@ Attack、Defend、Retreat 亦統一使用 RPG Check Engine，不再使用獨立�
 
 ### Transparency
 每次 D20 結果 UI 會列出能力、技能、裝備、夥伴、關係、情境以及 Dynamic DC 修正。新增「角色能力」頁可查看能力值、技能熟練度、裝備工具及同行夥伴。
+
+
+## V0.26.7 — Runtime Visibility, World History & Travel Helper
+
+呢個版本集中修正長時間遊玩後嘅 runtime 一致性問題，並加入唯讀旅途助手。
+
+### Runtime visibility hardening
+- NPC 分成 **known / encountered / present / interactable** 多層；只聽聞過但未真正遇到的 NPC 不會被當成可直接聯絡人物。
+- 玩家離開 NPC 所在地後，只有世界 Canon 支援即時／近即時遠距通訊，而且玩家曾與該 NPC 面對面交談並建立聯絡時，才可繼續遠距對話。
+- NPC dock 改名為 **CONTACTS**，同時顯示附近人物與合法可遠距聯絡人物，並標示聯絡方式。
+- Scene Narrator 只會收到目前 present NPC，而唔係所有已知 NPC；遠距 NPC 對話走獨立 knowledge-bounded NPC 路徑。
+
+### Civilization-aware communication
+- World Bible 新增 **civilization level 1–5**、基建、識字／教育與人口流動方式。
+- 通訊能力由 **文明程度 + 魔法普及度 + 世界風格**共同限制；AI 即使提出過度先進的通訊，Engine 亦會降級到世界合理上限。
+- 低文明＋低魔法通常只有信使／驛站／烽火等 **DELAYED** 通訊，不能當成即時 NPC 對話。
+- 低文明但高魔法可以合理存在區域傳訊術；高文明則可出現世界內合理的終端、網絡或其他等價系統。
+- 遠距聯絡仍受 range 與 contact establishment 約束，唔會因「已知 NPC」就自動全世界通話。
+
+### Immutable World History
+- 創世 CHRONOLOGY 階段會同時生成 **World History + Calendar + Future Timeline**。
+- World History 至少包含多個已經發生的大事件，例如王朝興衰、戰爭、宗教分裂、技術／魔法突破、遷徙、災難或改革。
+- 歷史事件會以 `canonical:true / mutable:false` 儲存；玩家與後續 AI 只能發現、引用其遺產，不能重寫已發生的歷史。
+- Lazy Region Generation 與 State Director 會收到受 context budget 限制的 Director History，用來保持地區文化、勢力、技術與世界過去一致。
+- World History 與未來 Timeline 分離：歷史不可改寫；未來 Timeline 可因玩家造成的實際影響改變觸發時間或最終結果。
+
+### NPC conversation as a world turn
+- 與 NPC 對話而家係正式世界互動，不再只係 UI 回覆。
+- 面對面對話會消耗世界時間；合法遠距通訊亦會按通訊延遲消耗時間。
+- 對話會寫入 NPC memories 與玩家可見 event，並用對話內容檢查支線任務 evidence。
+- 對話完成後會執行 World Simulation tick，所以 Timeline、NPC／勢力活動與延遲後果仍會繼續前進。
+- 第一次面對面對話後，如果該世界文明／魔法支援即時遠距聯絡，Engine 才會建立該 NPC 的 remote contact。
+
+### Player-facing output guards
+- 移除 `[世界動向]`、`【世界改變】`、SYSTEM 等系統標籤。
+- 玩家可見 narrative、suggestions、地點與 NPC 回覆會做語言／亂碼 sanitization。
+- 明顯日文、韓文、俄文等非繁體中文 leakage 會被拒絕並使用安全 fallback。
+- 地點更新只接受已 Canonize location 或本回合新建立且已 Canonize 的 location；舊存檔中無效位置會自動修復到有效已知地點。
+
+### Stable assets and actions
+- 資產顯示改為優先顯示玩家實際 wallet，不會因進入 barter 地區而令已有貨幣看似消失。
+- 舊式「但目前條件不足」fallback 已移除，改為描述本次方法未奏效並鼓勵改變做法。
+- AI suggestions 若與上一輪完全相同，Engine 會換成新的 deterministic fallback actions，避免按鈕長期不變。
+
+### Combat UX
+- 遇敵唔再自動彈出 modal。
+- 主行動區會切換為 **攻擊 / 防禦 / 撤退** 三個戰鬥行動。
+- 戰鬥期間自由行動輸入會停用，避免同時走兩套互動流程。
+
+### Dynamic current objective
+主場景大標題由固定「陌生世界的第一天」改為 **目前目標**：
+- 優先採用最新 Scene AI 提出的動詞導向目標。
+- AI 未提供時由 Engine 根據主線 objective、戰鬥、危機與當前位置生成。
+- 戰鬥時 Engine 強制使用「應對○○」類目標，確保玩家清楚知道目前要處理甚麼。
+
+### Travel Helper AI
+新增 **旅途助手**：
+- 可問「我現在在哪裏？」「四周圍有什麼？」「附近有誰可以對話？」「我目前知道什麼？」「下一步可以做什麼？」。
+- Helper context 只包含玩家已知／目前可直接感知資料。
+- 不包含 Director Timeline、Hidden Facts、未發現地點、未遇 NPC 或未公開勢力。
+- 問附近資訊時，只可使用 current location / current narrative / nearby NPCs / combat。
+- Helper 唔擲骰、唔消耗世界時間、唔寫入 event、唔改 HP／物品／任務／關係／戰鬥／Canon。
+- Helper 對話只存在當前頁面記憶，唔寫入世界存檔。
+- 主回合 AI 運行時 Helper 會被鎖住，因此單一時刻仍維持最多兩個 AI request。
