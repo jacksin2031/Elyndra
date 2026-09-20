@@ -34,7 +34,7 @@ test("local deeds create earned renown, title, rumor and legacy mark",()=>{
 
 test("local rumor is known nearby but not telepathically known by a remote NPC",()=>{
  const s=world(),[localNpc,remoteNpc]=s.world.registry.npcs;
- applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,title:"重開渡口",summary:"渡口恢復通行。",mutations:[{field:"safety",op:"DELTA",value:4}],recognition:{rumor:"石橋鎮有人重開了封閉多日的渡口。",tone:"RESPECT",spread:"LOCAL",publicLabel:"渡口重開者"}}],{roll:{success:true}});
+ applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,title:"重開渡口",summary:"你令封閉多日的渡口重新恢復正常通行。",mutations:[{field:"safety",op:"DELTA",value:4}],recognition:{rumor:"石橋鎮有人重開了封閉多日的渡口。",tone:"RESPECT",spread:"LOCAL",publicLabel:"渡口重開者"}}],{roll:{success:true}});
  assert.equal(recognitionForNpc(s,localNpc).knownDeeds.length,1);
  assert.equal(recognitionForNpc(s,localNpc).titles[0],"渡口重開者");
  assert.equal(recognitionForNpc(s,remoteNpc).knownDeeds.length,0);
