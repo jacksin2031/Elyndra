@@ -67,7 +67,7 @@ test("impact snapshot gives Director current mutable state and recent player con
 
 test("save format v10 preserves impact runtime and initializes recognition",()=>{
  const s=localWorld();s.formatVersion=6;delete s.world.impact;for(const x of s.world.registry.locations)delete x.worldState;
- const m=migrateSave(s);assert.equal(m.formatVersion,10);assert.ok(m.world.impact);assert.ok(m.world.recognition);assert.equal(m.world.registry.locations[0].worldState.infrastructure,50);assert.equal(validateSaveState(m).valid,true);
+ const m=migrateSave(s);assert.equal(m.formatVersion,11);assert.ok(m.world.impact);assert.ok(m.world.recognition);assert.equal(m.world.registry.locations[0].worldState.infrastructure,50);assert.equal(validateSaveState(m).valid,true);
 });
 
 test("invalid impact candidate is rejected before mutation",()=>{
