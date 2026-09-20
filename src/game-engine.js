@@ -45,8 +45,9 @@ export function performAction(state,action="free",customText=""){
  const label=clean(customText||action)||"觀察目前環境",profile=actionProfile(label),check=buildActionCheck(state,label,profile),roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
  advanceTime(state,profile.minutes);
- const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:profile.rest===true});if(profile.rest&&roll.success)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
- const culture=applyCultureAction(state,label,roll),economy=resolveEconomyAction(state,label,roll),magic=resolveMagicAction(state,label,roll),supply=resolveSurvivalAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
+ const economy=resolveEconomyAction(state,label,roll),paidLodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),restGranted=profile.rest===true&&roll.success&&(!paidLodging||economy?.ok===true);
+ const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
+ const culture=applyCultureAction(state,label,roll),magic=resolveMagicAction(state,label,roll),supply=resolveSurvivalAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
  const text=localNarrative(label,roll,profile);
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
