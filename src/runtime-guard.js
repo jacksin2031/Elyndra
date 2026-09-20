@@ -1,4 +1,4 @@
-const clean=(v,max=1200)=>String(v??"").normalize("NFKC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").replace(/\uFFFD/g,"").trim().slice(0,max);
+const clean=(v,max=1200)=>String(v??"").normalize("NFC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").replace(/\uFFFD/g,"").trim().slice(0,max);
 const SYSTEM_LINE=/^\s*(?:\[|【)\s*(?:世界動向|世界改變|世界開始記住你|系統|SYSTEM|WORLD\s*(?:EVENT|UPDATE)|DEBUG|STATE)\s*(?:\]|】)\s*[:：-]?\s*/i;
 const ROLE_LINE=/^\s*(?:narrative|scene|assistant|system|敘事|旁白)\s*[:：]\s*/i;
 const FOREIGN=/[\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/g;
@@ -43,10 +43,9 @@ export function fallbackNarrative(action="",roll={}){
 }
 export function fallbackSuggestions(state={},context={}){
  if(state.combat?.active)return ["攻擊","防禦","撤退"];
- const pool=["仔細觀察剛才行動造成的變化","沿著目前可見的方向繼續探索","尋找附近可以直接交流的人","檢查周圍有沒有新的線索","換一種方法處理眼前的問題"];
+ const pool=["仔細觀察剛才行動造成的變化","沿著目前可見的方向繼續探索","尋找附近可以直接交流的人","檢查周圍有沒有新的線索","換一種方法處理眼前的問題","回顧剛才得到的情報","確認目前最需要處理的目標","先留在原地觀察一會","嘗試從另一個方向接近問題"];
  const previous=(state.suggestions||[]).map(sanitizeSuggestion).filter(Boolean),seed=Math.abs(Number(state.world?.state?.clock?.totalMinutes)||0)+(String(context.action||"").length||0);
- const out=[];for(let i=0;i<pool.length&&out.length<4;i++){const x=pool[(seed+i)%pool.length];if(!previous.includes(x)&&!out.includes(x))out.push(x)}
- if(out.length<3)for(const x of pool)if(!out.includes(x)&&out.length<4)out.push(x);
+ const out=[];for(let i=0;i<pool.length*2&&out.length<4;i++){const x=pool[(seed+i)%pool.length];if(!previous.includes(x)&&!out.includes(x))out.push(x)}
  return out
 }
 export function sanitizeLocationName(value){
