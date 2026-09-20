@@ -17,7 +17,7 @@ test("new canon lore unlocks locally when the same turn supplies its clue",()=>{
  assert.ok(s.knowledge.some(k=>k.id===`LORE-${npc.id}`&&/護衛/.test(k.text)));
 });
 
-test("unknown registry entities stay out of player-facing AI snapshot",()=>{
+test("unknown registry entities stay hidden from player but remain reusable by Director",()=>{
  const s=newGame(seed);
  s.world.registry.locations.push({id:"LOC-secret",name:"黑塔",type:"塔",description:"未發現",known:false});
  s.world.registry.factions.push({id:"FAC-secret",name:"夜盟",goal:"未知",description:"未發現",known:false,resources:50,influence:25,playerReputation:0,relations:{}});
@@ -25,4 +25,16 @@ test("unknown registry entities stay out of player-facing AI snapshot",()=>{
  assert.equal(snap.registry.locations.some(x=>x.name==="黑塔"),false);
  assert.equal(snap.registry.factions.some(x=>x.name==="夜盟"),false);
  assert.equal(snap.factions.some(x=>x.name==="夜盟"),false);
+ assert.ok(snap.directorRegistry.locations.some(x=>x.id==="LOC-secret"&&x.name==="黑塔"&&x.known===false));
+ assert.ok(snap.directorRegistry.factions.some(x=>x.id==="FAC-secret"&&x.name==="夜盟"&&x.known===false));
+});
+
+test("entityReveals exposes existing canon without regenerating it",()=>{
+ const s=newGame(seed);
+ s.world.registry.npcs.push({id:"NPC-hidden",name:"賽恩",role:"守門人",description:"尚未遇見",known:false,alive:true,trust:0,memories:[],knowledgeScope:[]});
+ const before=s.world.registry.npcs.length;
+ applyTurnCandidate(s,{narrative:"霧後走出一名守門人。",entityReveals:[{kind:"npc",id:"NPC-hidden"}],suggestions:["向他打招呼"]});
+ assert.equal(s.world.registry.npcs.length,before);
+ assert.equal(s.world.registry.npcs[0].known,true);
+ assert.ok(s.events.some(e=>e.type==="ENTITY_REVEALED"));
 });
