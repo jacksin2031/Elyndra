@@ -3,6 +3,7 @@ import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from
 import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=267";
 import {normalizeCalendar} from "./world-locality.js?v=267";
 import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=267";
+import {normalizeCommunicationSystem} from "./communication-engine.js?v=267";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -65,7 +66,7 @@ export function applyWorldCandidate(state,candidate){
   if(typeof bible!=="object"||Array.isArray(bible))throw new Error("INVALID_WORLD_BIBLE");
   const economy=normalizeEconomy(null);
   state.world.economy=economy;state.player.gold=0;
-  state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),startingLocation:clean(bible.startingLocation,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200)}
+  state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),startingLocation:clean(bible.startingLocation,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200),communication:normalizeCommunicationSystem(bible.communication,state.world.seedContract||state.world.seed)}
  }
  const existing=new Set(state.world.canon.facts.map(f=>f.text));let n=0;
  for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]])for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
