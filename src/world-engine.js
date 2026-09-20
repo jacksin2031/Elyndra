@@ -71,7 +71,7 @@ export function applyWorldCandidate(state,candidate){
  for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]])for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
  state.world.summary=String(candidate.summary).slice(0,1000);
  if(candidate.worldBible?.startingRegion)state.world.state.region=clean(candidate.worldBible.startingRegion,120);
- const trueStart=sanitizeLocationName(candidate.generation?.locations?.[0]?.name)||sanitizeLocationName(candidate.worldBible?.startingLocation);if(trueStart){state.world.state.location=trueStart;state.player.location=trueStart}
+ const trueStart=sanitizeLocationName(candidate.generation?.locations?.[0]?.name)||sanitizeLocationName(candidate.worldBible?.startingLocation);if(trueStart)state.world.state.location=trueStart
  const opening=sanitizePlayerText(candidate.openingHook,1000,"你在陌生的環境中醒來，只能先從眼前可見的事物判斷身處何方。");if(opening)state.narrative=opening;
  const suggestions=sanitizeSuggestions(candidate.suggestions,[]);if(suggestions.length)state.suggestions=suggestions;
  state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report
