@@ -18,6 +18,7 @@ test("world generation receives a long direct-AI timeout and clear timeout error
  assert.match(client,/timeoutMs:50000/);
  assert.match(settings,/max_completion_tokens/);
  assert.match(settings,/maxOutputTokens/);
+ assert.match(settings,/limit=requested\?Math\.max\(256/);
 });
 
 test("server world generation timeout is longer than ordinary narration",async()=>{
