@@ -1,4 +1,4 @@
-import {assertSaveState} from "./state-validator.js";
+import {assertSaveState} from "./state-validator.js?v=231";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=4;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}
