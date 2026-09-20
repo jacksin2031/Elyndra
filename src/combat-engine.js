@@ -3,6 +3,7 @@ import {advanceTime} from "./world-clock.js?v=268";
 import {tickWorld} from "./world-simulation.js?v=268";
 import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=268";
 import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=268";
+import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=268";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const ABILITY_KINDS=new Set(["ATTACK","HEAVY","STATUS","HEAL"]);
@@ -13,14 +14,9 @@ function normalizeEnemy(enemy,state){
  const hp=clamp(Number(enemy?.hp)||20,1,300),element=ELEMENTS.has(String(enemy?.element||"").toUpperCase())?String(enemy.element).toUpperCase():"PHYSICAL",abilities=(Array.isArray(enemy?.abilities)?enemy.abilities:[]).slice(0,4).map(normalizeAbility);
  return {id:id(),name:String(enemy?.name||"未知威脅").slice(0,80),level:clamp(Number(enemy?.level)||ensureCharacter(state).level,1,99),hp,maxHp:hp,defense:clamp(Number(enemy?.defense)||11,5,22),damage:clamp(Number(enemy?.damage)||6,1,35),element,weaknesses:normalizeList(enemy?.weaknesses),resistances:normalizeList(enemy?.resistances),abilities,statuses:[],phase:1,loot:String(enemy?.loot||"").slice(0,80),description:String(enemy?.description||"").slice(0,220)}
 }
-export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2,presence:2,instinct:2};p.stats.presence??=2;p.stats.instinct??=2;p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};p.talents=Array.isArray(p.talents)?p.talents:[];p.combatStatuses=Array.isArray(p.combatStatuses)?p.combatStatuses:[];return p}
+export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2,presence:2,instinct:2};p.stats.presence??=2;p.stats.instinct??=2;p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};ensureTalents(state);p.combatStatuses=Array.isArray(p.combatStatuses)?p.combatStatuses:[];return p}
 export function xpNeeded(level){return 40+Math.max(1,Number(level)||1)*30}
-function grantTalentPoint(p){p.talentPoints=(Number(p.talentPoints)||0)+1}
-export function grantXp(state,xp){const p=ensureCharacter(state);p.xp+=Math.max(0,Math.round(Number(xp)||0));while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;p.maxHp+=6;p.hp=p.maxHp;grantTalentPoint(p)}return p}
-export function learnTalent(state,talent){
- const p=ensureCharacter(state),idv=String(talent?.id||"").trim(),name=String(talent?.name||"").trim();if(!idv||!name||(p.talentPoints||0)<1||p.talents.some(x=>x.id===idv))return false;
- p.talentPoints--;p.talents.push({id:idv.slice(0,80),name:name.slice(0,80),kind:String(talent.kind||"GENERAL").slice(0,40),bonus:clamp(Number(talent.bonus)||1,-2,3),description:String(talent.description||"").slice(0,220)});return true
-}
+export function grantXp(state,xp){const p=ensureCharacter(state);p.xp+=Math.max(0,Math.round(Number(xp)||0));while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;p.maxHp+=6;p.hp=p.maxHp;grantTalentPoint(state)}return p}
 export function recoverFromDefeat(state){const p=ensureCharacter(state);if(p.status!=="DOWNED")return false;p.status="ALIVE";p.hp=Math.max(1,Math.ceil(p.maxHp*.35));p.combatStatuses=[];state.combat=null;return true}
 export function canStartEncounter(state,enemy,context={}){
  if(state.combat?.active||!enemy?.name)return false;const kind=String(context.actionKind||context.roll?.profile?.kind||"").toUpperCase(),action=String(context.action||"");
