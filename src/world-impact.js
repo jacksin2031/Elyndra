@@ -73,7 +73,7 @@ function applyMutation(state,target,kind,mutation,limit){
   const before=Number(target[field]??(field==="resources"?50:25)),after=clamp(before+delta,0,100);target[field]=after;return {changed:before!==after,field,before,after,delta:after-before}
  }
  if(kind==="world"&&WORLD_FIELDS.has(field)){
-  if(field==="crisisPressure"){const before=ensureCrisis(state).pressure;addCrisisPressure(state,Math.max(0,delta),"PLAYER_IMPACT");const after=ensureCrisis(state).pressure;return {changed:before!==after,field,before,after,delta:after-before}}
+  if(field==="crisisPressure"){const crisis=ensureCrisis(state),before=crisis.pressure;if(delta>0)addCrisisPressure(state,delta,"PLAYER_IMPACT");else crisis.pressure=clamp(before+delta,0,100);const after=ensureCrisis(state).pressure;return {changed:before!==after,field,before,after,delta:after-before}}
   state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:0,npcCursor:0,factionCursor:0,flags:{}};const before=Number(state.world.state.simulation.tension||0),after=clamp(before+delta,0,100);state.world.state.simulation.tension=after;return {changed:before!==after,field,before,after,delta:after-before}
  }
  return {changed:false}
