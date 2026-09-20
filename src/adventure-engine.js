@@ -17,7 +17,7 @@ import {directorHistorySnapshot} from "./world-history.js?v=268";
 import {travelSnapshot} from "./travel-engine.js?v=268";
 import {survivalSnapshot} from "./survival-engine.js?v=268";
 import {cultureSnapshot} from "./culture-engine.js?v=268";
-import {magicSnapshot} from "./magic-engine.js?v=268";
+import {magicSnapshot,learnSpell} from "./magic-engine.js?v=268";
 import {marketSnapshot} from "./economy-engine.js?v=268";
 import {dungeonSnapshot} from "./dungeon-engine.js?v=268";
 import {pacingSnapshot} from "./world-pacing.js?v=268";
@@ -43,6 +43,7 @@ export function validateTurnCandidate(c){
  if(c.worldNameKnown!=null&&typeof c.worldNameKnown!=="boolean")errors.push("WORLD_NAME_KNOWLEDGE_INVALID");if(c.calendarKnown!=null&&typeof c.calendarKnown!=="boolean")errors.push("CALENDAR_KNOWLEDGE_INVALID");
  if(c.discoveries!=null&&!Array.isArray(c.discoveries))errors.push("DISCOVERIES_INVALID");
  if(c.items!=null&&!Array.isArray(c.items))errors.push("ITEMS_INVALID");
+ if(c.magicLearning!=null&&!Array.isArray(c.magicLearning))errors.push("MAGIC_LEARNING_INVALID");
  if(c.npcChanges!=null&&!Array.isArray(c.npcChanges))errors.push("NPC_CHANGES_INVALID");
  if(c.factionChanges!=null&&!Array.isArray(c.factionChanges))errors.push("FACTION_CHANGES_INVALID");if(c.companionChanges!=null&&!Array.isArray(c.companionChanges))errors.push("COMPANION_CHANGES_INVALID");
  if(c.suggestions!=null&&!Array.isArray(c.suggestions))errors.push("SUGGESTIONS_INVALID");
@@ -53,6 +54,7 @@ export function validateTurnCandidate(c){
  const gv=validateGeneration(c.generation);if(!gv.valid)errors.push(...gv.errors);
  for(const d of c.discoveries||[])if(!d||typeof d.title!=="string"||typeof d.text!=="string")errors.push("DISCOVERY_SHAPE_INVALID");
  for(const i of c.items||[])if(!i||typeof i.name!=="string")errors.push("ITEM_SHAPE_INVALID");else if(i.lore!=null&&!normalizeLore(i.lore))errors.push("ITEM_LORE_INVALID");
+ for(const m of c.magicLearning||[])if(!m||typeof m.name!=="string"||typeof m.sourceFactId!=="string"||!m.sourceFactId)errors.push("MAGIC_LEARNING_SHAPE_INVALID");
  for(const n of c.npcChanges||[])if(!n||typeof n.npcId!=="string"||!Number.isInteger(n.trustDelta)||n.trustDelta < -2||n.trustDelta > 2)errors.push("NPC_CHANGE_SHAPE_INVALID");
  for(const f of c.factionChanges||[])if(!f||typeof f.factionId!=="string"||!Number.isInteger(f.reputationDelta)||f.reputationDelta < -5||f.reputationDelta > 5)errors.push("FACTION_CHANGE_SHAPE_INVALID");for(const x of c.companionChanges||[])if(!x||typeof x.npcId!=="string"||!["OFFER","LEAVE"].includes(String(x.action||"").toUpperCase()))errors.push("COMPANION_CHANGE_SHAPE_INVALID");
  for(const s of c.suggestions||[])if(typeof s!=="string")errors.push("SUGGESTION_SHAPE_INVALID");
@@ -69,6 +71,7 @@ export function applyTurnCandidate(state,c,context={}){
  const generation=c.generation?structuredClone(c.generation):c.generation;
  if(!rollSucceeded&&generation)for(const key of ["locations","npcs","factions","sideQuests"])for(const x of generation[key]||[])x.known=false;
  canonizeGeneration(state,generation);
+ if(rollSucceeded)for(const spell of (c.magicLearning||[]).slice(0,1))learnSpell(state,spell);
  const requestedLocation=sanitizeLocationName(c.location);if(requestedLocation&&!resolvePlayerLocation(state,requestedLocation,{...context,actionKind:context.roll?.profile?.kind||""})){state.events.push({id:id(),type:"LOCATION_CANDIDATE_REJECTED",visibility:"INTERNAL",day:state.world.state.day,summary:requestedLocation,at:Date.now()})}
  if(rollSucceeded)revealRegistryEntities(state,c.entityReveals);
  for(const d of verifiedDiscoveries)evaluateQuestEvidence(state,d.title+" "+d.text,{factId:d.factId,source:"CANON_EVIDENCE"});for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,1))evaluateQuestEvidence(state,sanitizePlayerText(item.name,100,"")+" "+sanitizePlayerText(item.description,300,""),{itemName:sanitizePlayerText(item.name,100,""),source:"ITEM"});
