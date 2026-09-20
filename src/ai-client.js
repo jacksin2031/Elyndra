@@ -1,5 +1,5 @@
-async function post(path,body){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
-export async function aiHealth(){try{const r=await fetch("/api/health");return r.ok?await r.json():{ok:false,aiConfigured:false}}catch{return {ok:false,aiConfigured:false}}}
+const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");\nconst apiPath=path=>API_BASE?API_BASE+path:path;\nasync function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
+export async function aiHealth(){try{const r=await fetch(apiPath("/api/health"));return r.ok?await r.json():{ok:false,aiConfigured:false}}catch{return {ok:false,aiConfigured:false}}}
 export function visibleFacts(state){return state.world.canon.facts.filter(f=>f.visibility==="public"||state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text)}
 export async function narrate(state,action,roll){return (await post("/api/narrate",{action,roll,world:{name:state.world.name,day:state.world.state.day,location:state.player.location},visibleFacts:visibleFacts(state)})).text}
 export async function generateWorldCandidate(seed,constitution){return (await post("/api/world",{seed,constitution})).candidate}
