@@ -1,3 +1,4 @@
+import {revealStoredLore} from "./lore-engine.js";
 const NAMES=["艾斯特拉","諾爾海姆","瑟雷恩","阿爾維亞","伊瑟蘭","露米納"];
 const FALLBACK_ACTIONS=["環顧四周，確認眼前能直接觀察到的事物","檢查自己的身體、衣物與隨身狀態","保持安靜，仔細聆聽附近的聲音"];
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
@@ -41,7 +42,7 @@ export function newGame(seed){
   narrative:"潮濕的泥土沾在掌心。你不知道這是哪裡，也不知道這個世界叫甚麼。眼前只有能親自感受到的光線、氣味、聲音與地形。你獨自醒來，身上沒有任何物品，也沒有任何熟悉的人。"};
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
-export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score)}}
+export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score);revealStoredLore(state)}}
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;
