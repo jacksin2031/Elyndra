@@ -9,7 +9,7 @@ export function validateSaveState(s){
  if(s.player?.hp<0||s.player?.hp>s.player?.maxHp)errors.push("PLAYER_HP_INVALID");if(s.player?.level!=null&&(!Number.isInteger(s.player.level)||s.player.level<1))errors.push("PLAYER_LEVEL_INVALID");if(!Array.isArray(s.inventory))errors.push("INVENTORY_INVALID");
  if(!Array.isArray(s.knowledge))errors.push("KNOWLEDGE_INVALID");
  if(!Array.isArray(s.events))errors.push("EVENTS_INVALID");
- if(!obj(s.npcs)||!obj(s.npcs.lia)||!Array.isArray(s.npcs.lia.memories))errors.push("NPC_INVALID");
+ if(!obj(s.npcs))errors.push("NPC_INVALID");else for(const npc of Object.values(s.npcs)){if(!obj(npc)||!Array.isArray(npc.memories||[]))errors.push("NPC_INVALID")}
  if(!obj(s.quests)||!obj(s.quests.main)||!Array.isArray(s.quests.main.objectives))errors.push("QUEST_INVALID");
  if(typeof s.narrative!=="string")errors.push("NARRATIVE_INVALID");
  return {valid:errors.length===0,errors};
