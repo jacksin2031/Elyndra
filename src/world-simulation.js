@@ -3,7 +3,8 @@ import {recordCausalEvent} from "./knowledge-graph.js?v=232";
 import {tickFactions} from "./faction-engine.js?v=232";
 import {tickNpcs} from "./npc-engine.js?v=232";
 import {ensureClock} from "./world-clock.js?v=232";
-import {triggerDueTimelineEvents} from "./world-timeline.js?v=232";
+import {triggerDueTimelineEvents,effectiveTimelinePressure} from "./world-timeline.js?v=250";
+import {processDueConsequences} from "./world-impact.js?v=250";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){
  const clock=ensureClock(state);
@@ -15,9 +16,10 @@ export function ensureWorldSimulation(state){
 export function tickWorld(state){
  const sim=ensureWorldSimulation(state),clock=ensureClock(state);
  tickNpcs(state);tickFactions(state);
+ const consequences=processDueConsequences(state);if(consequences.length){const first=consequences[0];const record={id:id(),type:"WORLD_EVENT",visibility:"OBSERVABLE",subtype:"PLAYER_CONSEQUENCE",impactId:first.id,summary:first.summary,day:clock.day,at:Date.now()};state.world.state.lastWorldEvent=record;return record}
  const danger=Math.max(1,Math.min(5,Number(state.world?.seedContract?.danger)||3)),elapsedSinceTick=Math.max(0,clock.totalMinutes-sim.lastTickMinute),steps=Math.floor(elapsedSinceTick/30);
  if(steps>0){sim.tension=Math.min(100,sim.tension+steps*Math.max(1,danger-2));sim.lastTickMinute+=steps*30}
- const scheduled=triggerDueTimelineEvents(state);if(scheduled){sim.lastEventMinute=clock.totalMinutes;sim.tension=Math.max(5,sim.tension-5);const record={id:id(),type:"WORLD_EVENT",visibility:"OBSERVABLE",subtype:"TIMELINE_EVENT",timelineId:scheduled.id,summary:scheduled.observableEffect,day:clock.day,at:Date.now()};state.events.push(record);const crisis=state.world.graph?.nodes?.find(n=>n.type==="crisis");recordCausalEvent(state,record,{causeIds:crisis?[crisis.id]:[]});if(scheduled.pressure)addCrisisPressure(state,scheduled.pressure,scheduled.observableEffect);state.world.state.lastWorldEvent=record;return record}
+ const scheduled=triggerDueTimelineEvents(state);if(scheduled){sim.lastEventMinute=clock.totalMinutes;sim.tension=Math.max(5,sim.tension-5);const record={id:id(),type:"WORLD_EVENT",visibility:"OBSERVABLE",subtype:"TIMELINE_EVENT",timelineId:scheduled.id,summary:scheduled.observableEffect,day:clock.day,at:Date.now()};state.events.push(record);const crisis=state.world.graph?.nodes?.find(n=>n.type==="crisis");recordCausalEvent(state,record,{causeIds:crisis?[crisis.id]:[]});const timelinePressure=effectiveTimelinePressure(scheduled);if(timelinePressure)addCrisisPressure(state,timelinePressure,scheduled.observableEffect);state.world.state.lastWorldEvent=record;return record}
  const elapsed=clock.totalMinutes-sim.lastEventMinute;if(elapsed<180)return null;
  const roll=Math.random();let event=null;
  if(sim.tension>=18&&roll<.35)event={kind:"RUMOR",summary:"從可觀察的痕跡與零碎動靜中，你察覺周遭的風險正在上升。",pressure:2};

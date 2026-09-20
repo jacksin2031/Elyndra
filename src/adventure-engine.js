@@ -8,12 +8,13 @@ import {startCombat} from "./combat-engine.js?v=232";
 import {evaluateQuestEvidence} from "./quest-engine.js?v=232";
 import {playerVisibleEvents} from "./event-visibility.js?v=232";
 import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=232";
-import {directorTimelineSnapshot} from "./world-timeline.js?v=232";
+import {directorTimelineSnapshot} from "./world-timeline.js?v=250";
+import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=250";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function buildSnapshot(state){
  const recentEvents=playerVisibleEvents(state,12).map(e=>({day:e.day,action:e.customText||e.action,type:e.type,summary:text(e.summary,220)}));
- return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),hiddenFacts:[]})
+ return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),hiddenFacts:[]})
 }
 export function validateTurnCandidate(c){
  const errors=[];if(!c||typeof c!=="object"||Array.isArray(c))return {valid:false,errors:["CANDIDATE_INVALID"]};
@@ -28,6 +29,7 @@ export function validateTurnCandidate(c){
  if(c.entityReveals!=null&&!Array.isArray(c.entityReveals))errors.push("ENTITY_REVEALS_INVALID");
  if(c.quest!=null&&(typeof c.quest!=="object"||Array.isArray(c.quest)))errors.push("QUEST_INVALID");
  if(c.encounter!=null){const e=c.encounter;if(!e||typeof e!=="object"||Array.isArray(e)||e.type!=="combat"||!e.enemy||typeof e.enemy!=="object"||!text(e.enemy.name,80))errors.push("ENCOUNTER_INVALID")}
+ const iv=validateImpactCandidate(c.worldImpacts);if(!iv.valid)errors.push(...iv.errors);
  const gv=validateGeneration(c.generation);if(!gv.valid)errors.push(...gv.errors);
  for(const d of c.discoveries||[])if(!d||typeof d.title!=="string"||typeof d.text!=="string")errors.push("DISCOVERY_SHAPE_INVALID");
  for(const i of c.items||[])if(!i||typeof i.name!=="string")errors.push("ITEM_SHAPE_INVALID");else if(i.lore!=null&&!normalizeLore(i.lore))errors.push("ITEM_LORE_INVALID");
@@ -37,7 +39,7 @@ export function validateTurnCandidate(c){
  for(const x of c.entityReveals||[])if(!x||!["location","npc","faction","sideQuest"].includes(x.kind)||typeof x.id!=="string")errors.push("ENTITY_REVEAL_SHAPE_INVALID");
  return {valid:!errors.length,errors:[...new Set(errors)]}
 }
-export function applyTurnCandidate(state,c){
+export function applyTurnCandidate(state,c,context={}){
  const v=validateTurnCandidate(c);if(!v.valid)throw new Error(v.errors.join(","));state.narrative=text(c.narrative,1200);
  if(text(c.location,120)){state.player.location=text(c.location,120);state.world.state.location=state.player.location}
  if(c.worldNameKnown===true)state.player.worldNameKnown=true;if(c.calendarKnown===true)state.player.calendarKnown=true;
@@ -47,6 +49,7 @@ export function applyTurnCandidate(state,c){
  const registry=ensureWorldRegistry(state);
  for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId&&x.known===true);if(npc)npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+n.trustDelta))}
  for(const f of (c.factionChanges||[]).slice(0,2)){if(registry.factions.some(x=>x.id===f.factionId&&x.known===true))changeReputation(state,f.factionId,f.reputationDelta)}for(const x of (c.companionChanges||[]).slice(0,2))applyCompanionChange(state,x)
+ applyWorldImpacts(state,c.worldImpacts,context)
  if(c.quest&&state.quests?.main){if(text(c.quest.title,120))state.quests.main.title=text(c.quest.title,120);if(text(c.quest.objective,180))state.quests.main.objectives=[text(c.quest.objective,180)]}
  revealStoredLore(state);
  if(c.encounter?.type==="combat"&&!state.combat?.active)startCombat(state,c.encounter.enemy);
