@@ -30,7 +30,7 @@ export function sanitizeSuggestion(value,max=120){
 }
 export function sanitizeSuggestions(input,previous=[]){
  const out=[];for(const raw of Array.isArray(input)?input:[]){const s=sanitizeSuggestion(raw);if(s&&!out.includes(s))out.push(s);if(out.length>=4)break}
- const before=(Array.isArray(previous)?previous:[]).map(sanitizeSuggestion).filter(Boolean);
+ const before=(Array.isArray(previous)?previous:[]).map(x=>sanitizeSuggestion(x)).filter(Boolean);
  const same=out.length===before.length&&out.length>0&&out.every((x,i)=>x===before[i]);
  return same?[]:out
 }
@@ -44,7 +44,7 @@ export function fallbackNarrative(action="",roll={}){
 export function fallbackSuggestions(state={},context={}){
  if(state.combat?.active)return ["攻擊","防禦","撤退"];
  const pool=["仔細觀察剛才行動造成的變化","沿著目前可見的方向繼續探索","尋找附近可以直接交流的人","檢查周圍有沒有新的線索","換一種方法處理眼前的問題","回顧剛才得到的情報","確認目前最需要處理的目標","先留在原地觀察一會","嘗試從另一個方向接近問題"];
- const previous=(state.suggestions||[]).map(sanitizeSuggestion).filter(Boolean),seed=Math.abs(Number(state.world?.state?.clock?.totalMinutes)||0)+(String(context.action||"").length||0);
+ const previous=(state.suggestions||[]).map(x=>sanitizeSuggestion(x)).filter(Boolean),seed=Math.abs(Number(state.world?.state?.clock?.totalMinutes)||0)+(String(context.action||"").length||0);
  const out=[];for(let i=0;i<pool.length*2&&out.length<4;i++){const x=pool[(seed+i)%pool.length];if(!previous.includes(x)&&!out.includes(x))out.push(x)}
  return out
 }
