@@ -105,16 +105,16 @@ export function applyWorldImpacts(state,input,context={}){
  const valid=validateImpactCandidate(input);if(!valid.valid)throw new Error(valid.errors.join(","));
  const impact=ensureWorldImpact(state),applied=[],capability=impactCapability(state,context.roll||null);
  for(const raw of (input||[]).slice(0,2)){
-  const scope=String(raw.scope||"").toUpperCase();if(RANK[scope]>RANK[capability.maxScope])continue;
+  const scope=String(raw.scope||"").toUpperCase();if(RANK[scope]>RANK[capability.maxScope])continue;if(raw.targetKind==="world"&&scope!=="WORLD")continue;
   const target=resolveTarget(state,raw.targetKind,raw.targetId);if(!target||!target.known)continue;
   const limit=LIMITS[scope],changes=[];
   for(const m of (raw.mutations||[]).slice(0,5)){const c=applyMutation(state,target.entity,raw.targetKind,m,limit);if(c.changed)changes.push(c)}
   const timelineEffects=[];if(RANK[scope]>=RANK.REGIONAL)for(const e of (raw.timelineEffects||[]).slice(0,2)){const changed=applyTimelineImpact(state,e);if(changed)timelineEffects.push(changed)}
-  if(!changes.length&&!timelineEffects.length&&!(raw.consequences||[]).length)continue;
   const record={id:uid("IMP"),type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope,targetKind:raw.targetKind,targetId:target.targetId,targetName:target.name,title:clean(raw.title,120),summary:clean(raw.summary,400),reason:clean(raw.reason,300),changes,timelineEffects:timelineEffects.map(x=>({timelineId:x.timelineId,action:x.action})),day:state.world.state.day,minute:state.world.state.clock?.totalMinutes||0,at:Date.now()};
   impact.records.push(record);impact.records=impact.records.slice(-120);
   const k=scope.toLowerCase();impact.influence[k]=(impact.influence[k]||0)+POINTS[scope];
   const queued=[];for(const c of (raw.consequences||[]).slice(0,3)){const q=scheduleConsequence(state,record,c);if(q)queued.push(q.id)}
+  if(!changes.length&&!timelineEffects.length&&!queued.length)continue;
   record.queuedConsequences=queued;
   state.events.push({id:uid("EV"),type:"WORLD_IMPACT",visibility:"PLAYER_KNOWN",impactId:record.id,scope,summary:record.title+"："+record.summary,day:state.world.state.day,at:Date.now()});
   applied.push(record)
