@@ -1,6 +1,6 @@
-import {d20} from "./world-engine.js";
-import {advanceTime,ensureClock} from "./world-clock.js";
-import {tickWorld} from "./world-simulation.js";
+import {d20} from "./world-engine.js?v=231";
+import {advanceTime,ensureClock} from "./world-clock.js?v=231";
+import {tickWorld} from "./world-simulation.js?v=231";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
