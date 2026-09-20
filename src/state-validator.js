@@ -1,17 +1,31 @@
 const obj=v=>v&&typeof v==="object"&&!Array.isArray(v);
+const arr=v=>Array.isArray(v);
+const finite=v=>Number.isFinite(v);
+const validEntity=(x,nameKey="name")=>obj(x)&&typeof x.id==="string"&&x.id&&typeof x[nameKey]==="string"&&x[nameKey].trim();
 export function validateSaveState(s){
  const errors=[];
  if(!obj(s))return {valid:false,errors:["STATE_INVALID"]};
  if(!obj(s.world)||!s.world.id||!s.world.name)errors.push("WORLD_INVALID");
- if(!obj(s.world?.state)||!Number.isFinite(s.world?.state?.day)||s.world.state.day<1)errors.push("WORLD_STATE_INVALID");
- if(!Array.isArray(s.world?.canon?.facts))errors.push("CANON_INVALID");
- if(!obj(s.player)||typeof s.player.name!=="string"||!s.player.name.trim()||typeof s.player.worldNameKnown!=="boolean"||!Number.isFinite(s.player.hp)||!Number.isFinite(s.player.maxHp)||!Number.isFinite(s.player.gold)||!Number.isFinite(s.player.knowledgeScore)||typeof s.player.location!=="string")errors.push("PLAYER_INVALID");
- if(s.player?.hp<0||s.player?.hp>s.player?.maxHp)errors.push("PLAYER_HP_INVALID");if(s.player?.level!=null&&(!Number.isInteger(s.player.level)||s.player.level<1))errors.push("PLAYER_LEVEL_INVALID");if(!Array.isArray(s.inventory))errors.push("INVENTORY_INVALID");
- if(!Array.isArray(s.knowledge))errors.push("KNOWLEDGE_INVALID");
- if(!Array.isArray(s.events))errors.push("EVENTS_INVALID");
- if(!obj(s.npcs))errors.push("NPC_INVALID");else for(const npc of Object.values(s.npcs)){if(!obj(npc)||!Array.isArray(npc.memories||[]))errors.push("NPC_INVALID")}
- if(!obj(s.quests)||!obj(s.quests.main)||!Array.isArray(s.quests.main.objectives))errors.push("QUEST_INVALID");
+ if(!obj(s.world?.state)||!finite(s.world?.state?.day)||s.world.state.day<1)errors.push("WORLD_STATE_INVALID");
+ const clock=s.world?.state?.clock;if(clock!=null&&(!obj(clock)||!finite(clock.totalMinutes)||!Number.isInteger(clock.day)||!Number.isInteger(clock.hour)||!Number.isInteger(clock.minute)))errors.push("CLOCK_INVALID");
+ const sim=s.world?.state?.simulation;if(sim!=null&&(!obj(sim)||!finite(sim.tension)||!finite(sim.lastEventMinute)||!finite(sim.lastTickMinute??0)||!Number.isInteger(sim.npcCursor??0)||!Number.isInteger(sim.factionCursor??0)||!obj(sim.flags||{})))errors.push("SIMULATION_INVALID");
+ const crisis=s.world?.state?.crisis;if(crisis!=null&&(!obj(crisis)||!["DORMANT","RUMORS","ESCALATING","CRISIS","ENDGAME"].includes(crisis.stage)||!finite(crisis.pressure)||!arr(crisis.history)))errors.push("CRISIS_INVALID");
+ if(!arr(s.world?.canon?.facts)||s.world.canon.facts.some(f=>!obj(f)||typeof f.id!=="string"||typeof f.text!=="string"))errors.push("CANON_INVALID");
+ const contract=s.world?.seedContract;if(contract!=null&&(!obj(contract)||typeof contract.genre!=="string"||typeof contract.theme!=="string"||typeof contract.scale!=="string"||![contract.danger,contract.magic,contract.politics].every(v=>finite(v)&&v>=1&&v<=5)))errors.push("SEED_CONTRACT_INVALID");
+ const economy=s.world?.economy;if(economy!=null&&(!obj(economy)||typeof economy.currencyExists!=="boolean"||!finite(economy.startingAmount??0)||!finite(economy.questReward??0)||!finite(economy.combatReward??0)))errors.push("ECONOMY_INVALID");
+ const registry=s.world?.registry;if(registry!=null){if(!obj(registry)||!["locations","npcs","factions","sideQuests"].every(k=>arr(registry[k])))errors.push("REGISTRY_INVALID");else{if(registry.locations.some(x=>!validEntity(x)))errors.push("LOCATION_REGISTRY_INVALID");if(registry.npcs.some(x=>!validEntity(x)))errors.push("NPC_REGISTRY_INVALID");if(registry.factions.some(x=>!validEntity(x)))errors.push("FACTION_REGISTRY_INVALID");if(registry.sideQuests.some(x=>!validEntity(x,"title")))errors.push("QUEST_REGISTRY_INVALID")}}
+ const graph=s.world?.graph;if(graph!=null&&(!obj(graph)||!arr(graph.nodes)||!arr(graph.edges)||!arr(graph.expansions)))errors.push("GRAPH_INVALID");
+ if(!obj(s.player)||typeof s.player.name!=="string"||!s.player.name.trim()||typeof s.player.worldNameKnown!=="boolean"||!finite(s.player.hp)||!finite(s.player.maxHp)||!finite(s.player.gold)||!finite(s.player.knowledgeScore)||typeof s.player.location!=="string")errors.push("PLAYER_INVALID");
+ if(s.player?.hp<0||s.player?.hp>s.player?.maxHp)errors.push("PLAYER_HP_INVALID");
+ if(s.player?.level!=null&&(!Number.isInteger(s.player.level)||s.player.level<1))errors.push("PLAYER_LEVEL_INVALID");
+ if(!arr(s.inventory)||s.inventory.some(x=>!obj(x)||typeof x.name!=="string") )errors.push("INVENTORY_INVALID");
+ if(!arr(s.knowledge)||s.knowledge.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string"))errors.push("KNOWLEDGE_INVALID");
+ if(!arr(s.events)||s.events.some(x=>!obj(x)||typeof x.type!=="string"))errors.push("EVENTS_INVALID");
+ if(!obj(s.npcs))errors.push("NPC_INVALID");else for(const npc of Object.values(s.npcs)){if(!obj(npc)||!arr(npc.memories||[]))errors.push("NPC_INVALID")}
+ if(!obj(s.quests)||!obj(s.quests.main)||!arr(s.quests.main.objectives))errors.push("QUEST_INVALID");
+ if(!arr(s.suggestions)||s.suggestions.some(x=>typeof x!=="string"))errors.push("SUGGESTIONS_INVALID");
  if(typeof s.narrative!=="string")errors.push("NARRATIVE_INVALID");
- return {valid:errors.length===0,errors};
+ if(s.combat!=null){const c=s.combat;if(!obj(c)||typeof c.active!=="boolean"||!obj(c.enemy)||typeof c.enemy.name!=="string"||!finite(c.enemy.hp)||!finite(c.enemy.maxHp)||c.enemy.hp<0||c.enemy.hp>c.enemy.maxHp)errors.push("COMBAT_INVALID")}
+ return {valid:errors.length===0,errors:[...new Set(errors)]}
 }
 export function assertSaveState(s){const r=validateSaveState(s);if(!r.valid)throw new Error("SAVE_INTEGRITY_FAILED: "+r.errors.join(","));return s}
