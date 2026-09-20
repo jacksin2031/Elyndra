@@ -1,7 +1,8 @@
 import {normalizeLore} from "./lore-engine.js?v=268";
 import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=268";
 import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=268";
-import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=268";
+import {normalizeWeatherProfile} from "./weather-engine.js?v=268";
+import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=268";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 export function ensureWorldRegistry(state){
@@ -10,7 +11,7 @@ export function ensureWorldRegistry(state){
  r.locations??=[];r.npcs??=[];r.factions??=[];r.sideQuests??=[];
  for(const list of [r.locations,r.npcs,r.factions,r.sideQuests])for(const x of list)if(x.known==null)x.known=true;
  for(const n of r.npcs){if(n.encountered==null)n.encountered=Boolean(n.companion?.status==="ACTIVE"||(n.memories||[]).length||(Number(n.trust)||0)!==0);ensureNpcRemoteContact(state,n)}
- return r
+ ensureTravelNetwork(state);return r
 }
 export function repairPlayerLocation(state){
  const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
@@ -33,10 +34,11 @@ export function isNpcPresent(state,npc){
 }
 export function npcInteractionMode(state,npc){if(!npc||npc.known!==true||npc.encountered!==true||npc.alive===false)return null;if(isNpcPresent(state,npc))return "LOCAL";if(canRemoteContactNpc(state,npc))return "REMOTE";return null}
 export function canInteractWithNpc(state,npc){return Boolean(npcInteractionMode(state,npc))}
-export function resolvePlayerLocation(state,raw){
- const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state);
- const entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;
- entity.known=true;entity.discoveredDay??=state.world.state.day;state.player.location=entity.name;state.world.state.location=entity.name;retargetWeather(state);return entity
+export function resolvePlayerLocation(state,raw,context={}){
+ const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state),entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;
+ const result=travelTo(state,entity,{roll:context.roll||null,actionKind:context.actionKind||context.roll?.profile?.kind||"",baseMinutes:Number(context.baseTravelMinutes)||45,force:context.force===true});
+ if(!result.ok){state.events.push({id:uid("EV"),type:"TRAVEL_REJECTED",visibility:"INTERNAL",destinationId:entity.id,reason:result.reason,day:state.world.state.day,at:Date.now()});return null}
+ return entity
 }
 export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
