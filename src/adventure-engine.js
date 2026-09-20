@@ -5,7 +5,7 @@ import {factionSnapshot,changeReputation} from "./faction-engine.js?v=268";
 import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration,resolvePlayerLocation,canInteractWithNpc} from "./world-registry.js?v=268";
 import {tokenBudgetSnapshot} from "./context-manager.js?v=268";
 import {startCombat} from "./combat-engine.js?v=268";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=268";
+import {evaluateQuestEvidence,tickMainQuest} from "./quest-engine.js?v=268";
 import {playerVisibleEvents} from "./event-visibility.js?v=268";
 import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=268";
 import {directorTimelineSnapshot} from "./world-timeline.js?v=268";
@@ -69,7 +69,7 @@ export function applyTurnCandidate(state,c,context={}){
  for(const f of (c.factionChanges||[]).slice(0,2)){if(registry.factions.some(x=>x.id===f.factionId&&x.known===true))changeReputation(state,f.factionId,f.reputationDelta)}
  for(const x of (c.companionChanges||[]).slice(0,2)){const npc=registry.npcs.find(n=>n.id===x.npcId);if(canInteractWithNpc(state,npc)||npc?.companion?.status==="ACTIVE")applyCompanionChange(state,x)}
  applyWorldImpacts(state,c.worldImpacts,context)
- if(c.quest&&state.quests?.main){const title=sanitizePlayerText(c.quest.title,120,""),objective=sanitizePlayerText(c.quest.objective,180,"");if(title)state.quests.main.title=title;if(objective)state.quests.main.objectives=[objective]}
+ if(c.quest&&state.quests?.main){const hint=sanitizePlayerText(c.quest.objective||c.quest.title,180,"");if(hint)state.quests.main.aiHint=hint}tickMainQuest(state)
  revealStoredLore(state);
  if(c.encounter?.type==="combat"&&!state.combat?.active)startCombat(state,c.encounter.enemy);state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
  const fresh=sanitizeSuggestions(c.suggestions,previousSuggestions);state.suggestions=fresh.length?fresh:fallbackSuggestions(state,context);
