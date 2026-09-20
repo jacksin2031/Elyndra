@@ -15,13 +15,14 @@ function timelineFor(s=seed){
  }
  return out
 }
-function bible(){return {era:"灰燼紀元",centralConflict:"舊王朝遺產正在引發新的權力衝突",magicCost:"每次施法都會消耗施術者的一段清晰記憶",startingRegion:"灰境",startingSettlement:"灰塔聚落",startingLocation:"斷碑谷",ancientTruth:"世界曾被未知力量重置過一次",currentCrisis:"古代封印正逐步失去穩定並影響周邊聚落",tone:"陰暗而壓迫"}}
+function historyFor(){return Array.from({length:5},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:`舊紀${i+1}`,title:`歷史事件${i+1}`,category:"改革",summary:`第${i+1}項已發生且不可改寫的世界歷史。`,causes:["舊制度累積"],legacies:["影響延續至今"],regions:["灰境"],factions:[],discoverKeywords:[`史跡${i+1}`]}))}
+function bible(){return {era:"灰燼紀元",centralConflict:"舊王朝遺產正在引發新的權力衝突",magicCost:"每次施法都會消耗施術者的一段清晰記憶",startingRegion:"灰境",startingSettlement:"灰塔聚落",startingLocation:"斷碑谷",ancientTruth:"世界曾被未知力量重置過一次",currentCrisis:"古代封印正逐步失去穩定並影響周邊聚落",tone:"陰暗而壓迫",civilization:{level:2,stage:"城邦文明",infrastructure:"驛路與魔法節點並存",literacy:"書記階層掌握文字",mobility:"商旅沿固定道路往來"},communication:{name:"灰印傳訊",medium:"成對灰印",description:"高魔法支撐的區域傳訊",latency:"NEAR_INSTANT",range:"REGIONAL",accessRule:"ENCOUNTERED",constraints:"需先交換灰印"}}}
 function candidateFor(s=seed,extra={}){
  const compliance=localSeedCompliance(s),theme=compliance.theme.value;
  return {
   seedCompliance:compliance,worldName:"洛希亞",worldTheme:theme,playerName:"凜",summary:"測試摘要",
   publicFacts:["公開事實"],hiddenFacts:["隱藏真相"],openingHook:"你在冰冷石面上醒來。",
-  suggestions:["觀察天色","檢查衣物","聆聽四周"],worldBible:bible(),worldTimeline:timelineFor(s),
+  suggestions:["觀察天色","檢查衣物","聆聽四周"],worldBible:bible(),worldHistory:historyFor(),worldTimeline:timelineFor(s),
   worldCalendar:{name:"灰環曆",epochName:"裂世紀",dayTerm:"刻日",cycleTerm:"環",longCycleTerm:"紀",daysPerCycle:9,cyclesPerLongCycle:8,cycles:["灰環","白環","黑環"],periods:[{name:"沉夜",fromMinute:0,toMinute:359},{name:"初明",fromMinute:360,toMinute:719},{name:"盛明",fromMinute:720,toMinute:1079},{name:"餘暮",fromMinute:1080,toMinute:1439}]},
   generation:{},...extra
  }
@@ -32,7 +33,7 @@ test("new game has persistent runtime domains without preset action buttons",()=
 test("validator rejects broken world",()=>assert.equal(validateWorld({}).valid,false));
 test("d20 stays inside rules",()=>{for(let i=0;i<100;i++){const r=d20(12,2);assert.ok(r.natural>=1&&r.natural<=20);assert.equal(r.total,r.natural+2)}});
 test("arbitrary action appends a generic player event without fixed companion logic",()=>{const s=newGame(seed),before=s.events.length,r=performAction(s,"free","嘗試呼喊");assert.equal(s.events.length,before+1);assert.deepEqual(s.npcs,{});assert.equal(r.actionKind,"GENERAL");assert.equal(s.events.at(-1).visibility,"PLAYER_KNOWN")});
-test("AI candidate assigns hidden world truth without giving it to the player",()=>{const s=newGame(seed),before=s.world.canon.facts.length,r=applyWorldCandidate(s,candidateFor());assert.equal(r.valid,true);assert.equal(s.world.name,"洛希亞");assert.equal(s.world.state.location,"斷碑谷");assert.equal(s.player.location,"未知地點");assert.equal(s.player.worldNameKnown,false);assert.equal(s.player.name,"凜");assert.equal(s.player.nameSource,"AI");assert.equal(s.world.theme,localSeedCompliance(seed).theme.value);assert.equal(s.suggestions[0],"觀察天色");assert.equal(s.world.timeline.length,createTimelinePacing(seed.playHours).majorEventCount);assert.equal(s.world.canon.facts.length,before+2)});
+test("AI candidate assigns hidden world truth without giving it to the player",()=>{const s=newGame(seed),before=s.world.canon.facts.length,r=applyWorldCandidate(s,candidateFor());assert.equal(r.valid,true);assert.equal(s.world.name,"洛希亞");assert.equal(s.world.state.location,"斷碑谷");assert.equal(s.player.location,"未知地點");assert.equal(s.player.worldNameKnown,false);assert.equal(s.player.name,"凜");assert.equal(s.player.nameSource,"AI");assert.equal(s.world.theme,localSeedCompliance(seed).theme.value);assert.equal(s.suggestions[0],"觀察天色");assert.equal(s.world.timeline.length,createTimelinePacing(seed.playHours).majorEventCount);assert.equal(s.world.history.length,5);assert.equal(s.world.history[0].mutable,false);assert.equal(s.world.bible.civilization.level,2);assert.equal(s.world.canon.facts.length,before+2)});
 test("invalid AI candidate is rejected",()=>{const s=newGame(seed);assert.throws(()=>applyWorldCandidate(s,{summary:"x"}))});
 test("AI world is rejected when seed compliance mismatches user settings",()=>{const s=newGame(seed),bad=localSeedCompliance(seed);bad.magic={value:1,evidence:"模型錯誤地把魔法設定改成低普及度。"};assert.throws(()=>applyWorldCandidate(s,candidateFor(seed,{seedCompliance:bad})),/SEED_MAGIC_MISMATCH/)});
 test("custom world prompt is a hard seed requirement",()=>{const s=newGame(seed),bad=localSeedCompliance(seed);bad.prompt={value:"另一個完全不同的世界要求",evidence:"模型忽略了玩家原本的自訂世界描述。"};assert.throws(()=>applyWorldCandidate(s,candidateFor(seed,{seedCompliance:bad})),/SEED_PROMPT_MISMATCH/)});
