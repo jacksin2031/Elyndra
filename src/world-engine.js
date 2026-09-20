@@ -48,5 +48,5 @@ export function applyWorldCandidate(state,candidate){
  }
  state.world.summary=String(candidate.summary).slice(0,1000);if(candidate.worldBible?.startingRegion)state.world.state.region=String(candidate.worldBible.startingRegion).slice(0,120);
  if(candidate.openingHook)state.narrative=String(candidate.openingHook).slice(0,1000);
- state.world.version++;const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report;
+ state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report;
 }
