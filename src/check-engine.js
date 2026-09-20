@@ -1,5 +1,8 @@
 import {ensureWorldRegistry} from "./world-registry.js?v=268";
 import {weatherActionModifier} from "./weather-engine.js?v=268";
+import {survivalModifier} from "./survival-engine.js?v=268";
+import {cultureActionModifier} from "./culture-engine.js?v=268";
+import {magicActionModifier} from "./magic-engine.js?v=268";
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const KINDS=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"];
@@ -67,7 +70,10 @@ export function buildActionCheck(state,label,profile){
   companion:companionBonus(state,kind),
   relationship:relationshipBonus(state,kind,label),
   situation:situationBonus(state,kind),
-  weather:weatherActionModifier(state,kind)
+  weather:weatherActionModifier(state,kind),
+  survival:survivalModifier(state,kind),
+  culture:cultureActionModifier(state,label,kind),
+  magic:magicActionModifier(state,label,kind)
  };
  const bonus=clamp(Object.values(modifiers).reduce((a,b)=>a+(Number(b)||0),0),-6,10),dc=clamp(baseDC+difficulty,7,20);
  return {kind,attribute,skill:kind,skillLabel:SKILL_LABELS[kind],baseDC,difficulty,dc,bonus,modifiers}
