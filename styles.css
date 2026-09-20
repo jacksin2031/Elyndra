@@ -41,3 +41,6 @@ body[data-world-genre="東方幻想"] .scene-art{background:linear-gradient(180d
 body[data-world-genre="蒸汽魔法"] .scene-art{background:linear-gradient(180deg,rgba(12,10,8,.05),rgba(9,7,6,.9)),radial-gradient(circle at 60% 35%,rgba(156,111,67,.26),transparent 28%),linear-gradient(135deg,#35281d,#1d1813 45%,#0e0d0c)}
 body[data-world-genre="末日異世界"] .scene-art{background:linear-gradient(180deg,rgba(10,10,9,.05),rgba(7,7,6,.92)),radial-gradient(circle at 60% 35%,rgba(111,105,76,.25),transparent 28%),linear-gradient(135deg,#2e3028,#191b17 45%,#0d0f0d)}
 @media(max-width:900px){.npc-dock{margin-top:0}}
+
+.version-badge{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:30;padding:4px 7px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:rgba(7,10,18,.62);backdrop-filter:blur(8px);color:var(--muted);font-size:10px;line-height:1;letter-spacing:.08em;font-variant-numeric:tabular-nums;opacity:.72;pointer-events:none;user-select:none}
+@media(max-width:620px){.version-badge{right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));font-size:9px;opacity:.62}}
