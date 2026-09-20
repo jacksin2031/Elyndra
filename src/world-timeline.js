@@ -25,7 +25,7 @@ export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
   if(!title||directorTruth.length<8||observableEffect.length<8)continue;
   const id=clean(x.id,100)||`TL-${i+1}-${hash(title+"|"+earliestDay+"|"+latestDay)}`;
   const triggerDay=earliestDay+(hash(id+"|"+title)%(latestDay-earliestDay+1));
-  out.push({id,title,category:clean(x.category,60)||"WORLD_EVENT",earliestDay,latestDay,triggerDay,directorTruth,observableEffect,pressure:clamp(Math.round(Number(x.pressure)||0),0,15),status:"SCHEDULED",triggeredDay:null})
+  out.push({id,title,category:clean(x.category,60)||"WORLD_EVENT",earliestDay,latestDay,triggerDay,baseTriggerDay:triggerDay,impactOffsetDays:0,intensityModifier:0,impactHistory:[],directorTruth,observableEffect,pressure:clamp(Math.round(Number(x.pressure)||0),0,15),status:"SCHEDULED",triggeredDay:null})
  }
  return out
 }
@@ -41,12 +41,25 @@ export function validateWorldTimeline(input,pacing=createTimelinePacing()){
  }
  return {valid:errors.length===0,errors,timeline,pacing}
 }
+export function effectiveTriggerDay(x){return Math.max(2,Math.round(Number(x?.baseTriggerDay??x?.triggerDay)||2)+Math.round(Number(x?.impactOffsetDays)||0))}
+export function effectiveTimelinePressure(x){return clamp(Math.round(Number(x?.pressure)||0)+Math.round(Number(x?.intensityModifier)||0),0,20)}
+export function applyTimelineImpact(state,effect){
+ const id=clean(effect?.timelineId,120),action=String(effect?.action||"").toUpperCase(),timeline=(state.world?.timeline||[]).find(x=>x.id===id&&x.status==="SCHEDULED");if(!timeline||!["DELAY","ADVANCE","WEAKEN","STRENGTHEN"].includes(action))return null;
+ timeline.baseTriggerDay??=timeline.triggerDay;timeline.impactOffsetDays??=0;timeline.intensityModifier??=0;timeline.impactHistory??=[];
+ const horizon=Math.max(7,Number(state.world?.timelinePacing?.horizonDays)||30),current=Math.max(1,Number(state.world?.state?.day)||1),beforeDay=effectiveTriggerDay(timeline),beforePressure=effectiveTimelinePressure(timeline);
+ if(action==="DELAY"){const days=clamp(Math.round(Number(effect?.days)||1),1,5);timeline.impactOffsetDays=clamp(timeline.impactOffsetDays+days,-horizon,horizon)}
+ if(action==="ADVANCE"){const days=clamp(Math.round(Number(effect?.days)||1),1,3),minOffset=(current+1)-timeline.baseTriggerDay;timeline.impactOffsetDays=Math.max(minOffset,timeline.impactOffsetDays-days)}
+ if(action==="WEAKEN"){timeline.intensityModifier=clamp(timeline.intensityModifier-clamp(Math.round(Number(effect?.amount)||1),1,5),-10,10)}
+ if(action==="STRENGTHEN"){timeline.intensityModifier=clamp(timeline.intensityModifier+clamp(Math.round(Number(effect?.amount)||1),1,5),-10,10)}
+ timeline.impactHistory.push({day:current,action,days:Number(effect?.days)||0,amount:Number(effect?.amount)||0});timeline.impactHistory=timeline.impactHistory.slice(-8);
+ return {timelineId:timeline.id,action,beforeDay,afterDay:effectiveTriggerDay(timeline),beforePressure,afterPressure:effectiveTimelinePressure(timeline)}
+}
 export function directorTimelineSnapshot(state,limit=6){
- return (state.world?.timeline||[]).filter(x=>x.status==="SCHEDULED").slice(0,limit).map(x=>({id:x.id,category:x.category,earliestDay:x.earliestDay,latestDay:x.latestDay,triggerDay:x.triggerDay,directorTruth:x.directorTruth,observableEffect:x.observableEffect,pressure:x.pressure}))
+ return (state.world?.timeline||[]).filter(x=>x.status==="SCHEDULED").slice(0,limit).map(x=>({id:x.id,category:x.category,earliestDay:x.earliestDay,latestDay:x.latestDay,triggerDay:effectiveTriggerDay(x),baseTriggerDay:x.baseTriggerDay??x.triggerDay,impactOffsetDays:x.impactOffsetDays||0,intensityModifier:x.intensityModifier||0,directorTruth:x.directorTruth,observableEffect:x.observableEffect,pressure:effectiveTimelinePressure(x)}))
 }
 export function triggerDueTimelineEvents(state){
- const day=Number(state.world?.state?.day)||1,timeline=state.world?.timeline||[],due=timeline.find(x=>x.status==="SCHEDULED"&&day>=x.triggerDay);
+ const day=Number(state.world?.state?.day)||1,timeline=state.world?.timeline||[],due=timeline.find(x=>x.status==="SCHEDULED"&&day>=effectiveTriggerDay(x));
  if(!due)return null;
- due.status="TRIGGERED";due.triggeredDay=day;
+ due.status="TRIGGERED";due.triggeredDay=day;due.effectivePressure=effectiveTimelinePressure(due);
  return due
 }
