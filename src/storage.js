@@ -30,6 +30,13 @@ export function migrateSave(input){
  if(v<11){
   const now=Number(s.world.state?.clock?.totalMinutes)||0;
   s.world.impact??={version:2,influence:{personal:0,local:0,regional:0,faction:0,world:0},records:[],queue:[]};s.world.impact.version=2;s.world.impact.records=Array.isArray(s.world.impact.records)?s.world.impact.records:[];s.world.impact.queue=Array.isArray(s.world.impact.queue)?s.world.impact.queue:[];
+  const locations=s.world.registry?.locations||[],npcs=s.world.registry?.npcs||[];
+  for(const rec of s.world.impact.records){
+   if(rec?.type!=="PLAYER_IMPACT"||rec.authority)continue;
+   let loc=null;if(rec.targetKind==="location")loc=locations.find(x=>x.id===rec.targetId)||null;
+   if(rec.targetKind==="npc"){const npc=npcs.find(x=>x.id===rec.targetId);loc=locations.find(x=>x.id===npc?.locationId)||null}
+   rec.authority={originLocationId:loc?.id||null,region:loc?.region||"",parentTargetKind:rec.targetKind||"",parentTargetId:rec.targetId||""}
+  }
   for(const q of s.world.impact.queue){q.observableAtLocationIds=Array.isArray(q.observableAtLocationIds)?q.observableAtLocationIds:(q.targetKind==="location"&&q.targetId?[q.targetId]:[]);q.revealedAtMinute=Number.isFinite(q.revealedAtMinute)?q.revealedAtMinute:null;q.rollSuccess=q.rollSuccess!==false;q.outcome??=""}
   s.world.state.statusTags??=[];s.world.state.structures=Array.isArray(s.world.state.structures)?s.world.state.structures:[];
   for(const x of s.world.registry?.locations||[]){x.worldState??={safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]};x.worldState.structures=Array.isArray(x.worldState.structures)?x.worldState.structures:[]}
