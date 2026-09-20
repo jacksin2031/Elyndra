@@ -8,7 +8,7 @@ export const WORLD_STYLE_PRESETS={
 export const WORLD_STYLE_NAMES=Object.freeze(Object.keys(WORLD_STYLE_PRESETS));
 export function getWorldStylePreset(name){return WORLD_STYLE_PRESETS[name]||WORLD_STYLE_PRESETS["王道奇幻"]}
 export function applyWorldStyleBase(seed={}){
- if(seed.worldviewMode==="random")return {...seed,genre:"",scale:"",danger:null,magic:null,politics:null};
+ if(["ai","random"].includes(seed.worldviewMode))return {...seed,genre:"",scale:"",danger:null,magic:null,politics:null};
  const p=getWorldStylePreset(seed.genre);
  return {...seed,genre:WORLD_STYLE_PRESETS[seed.genre]?seed.genre:"王道奇幻",scale:seed.scale||p.scale,danger:Number.isFinite(Number(seed.danger))?Number(seed.danger):p.danger,magic:Number.isFinite(Number(seed.magic))?Number(seed.magic):p.magic,politics:Number.isFinite(Number(seed.politics))?Number(seed.politics):p.politics}
 }
