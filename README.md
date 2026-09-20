@@ -318,3 +318,46 @@ Attack、Defend、Retreat 亦統一使用 RPG Check Engine，不再使用獨立�
 
 ### Transparency
 每次 D20 結果 UI 會列出能力、技能、裝備、夥伴、關係、情境以及 Dynamic DC 修正。新增「角色能力」頁可查看能力值、技能熟練度、裝備工具及同行夥伴。
+
+
+## V0.26.7 — Runtime Visibility & Travel Helper
+
+呢個版本集中修正長時間遊玩後嘅 runtime 一致性問題，並加入唯讀旅途助手。
+
+### Runtime visibility hardening
+- NPC 分成 **known / encountered / present / interactable** 四層；只聽聞過但未真正遇到的 NPC 不會出現在附近 NPC dock。
+- 玩家離開 NPC 所在地後，除 ACTIVE 夥伴外不可再直接對話或改 trust。
+- NPC dock 改名為 **NEARBY NPCS**，只顯示目前可互動人物。
+- Scene Narrator 只會收到目前 present NPC，而唔係所有已知 NPC。
+
+### Player-facing output guards
+- 移除 `[世界動向]`、`【世界改變】`、SYSTEM 等系統標籤。
+- 玩家可見 narrative、suggestions、地點與 NPC 回覆會做語言／亂碼 sanitization。
+- 明顯日文、韓文、俄文等非繁體中文 leakage 會被拒絕並使用安全 fallback。
+- 地點更新只接受已 Canonize location 或本回合新建立且已 Canonize 的 location；舊存檔中無效位置會自動修復到有效已知地點。
+
+### Stable assets and actions
+- 資產顯示改為優先顯示玩家實際 wallet，不會因進入 barter 地區而令已有貨幣看似消失。
+- 舊式「但目前條件不足」fallback 已移除，改為描述本次方法未奏效並鼓勵改變做法。
+- AI suggestions 若與上一輪完全相同，Engine 會換成新的 deterministic fallback actions，避免按鈕長期不變。
+
+### Combat UX
+- 遇敵唔再自動彈出 modal。
+- 主行動區會切換為 **攻擊 / 防禦 / 撤退** 三個戰鬥行動。
+- 戰鬥期間自由行動輸入會停用，避免同時走兩套互動流程。
+
+### Dynamic current objective
+主場景大標題由固定「陌生世界的第一天」改為 **目前目標**：
+- 優先採用最新 Scene AI 提出的動詞導向目標。
+- AI 未提供時由 Engine 根據主線 objective、戰鬥、危機與當前位置生成。
+- 戰鬥時 Engine 強制使用「應對○○」類目標，確保玩家清楚知道目前要處理甚麼。
+
+### Travel Helper AI
+新增 **旅途助手**：
+- 可問「我現在在哪裏？」「四周圍有什麼？」「附近有誰可以對話？」「我目前知道什麼？」「下一步可以做什麼？」。
+- Helper context 只包含玩家已知／目前可直接感知資料。
+- 不包含 Director Timeline、Hidden Facts、未發現地點、未遇 NPC 或未公開勢力。
+- 問附近資訊時，只可使用 current location / current narrative / nearby NPCs / combat。
+- Helper 唔擲骰、唔消耗世界時間、唔寫入 event、唔改 HP／物品／任務／關係／戰鬥／Canon。
+- Helper 對話只存在當前頁面記憶，唔寫入世界存檔。
+- 主回合 AI 運行時 Helper 會被鎖住，因此單一時刻仍維持最多兩個 AI request。
