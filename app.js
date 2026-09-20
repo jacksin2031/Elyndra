@@ -1,28 +1,28 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=264";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=264";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=264";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion} from "./src/ai-client.js?v=264";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=264";
-import {maintainSession} from "./src/session-maintenance.js?v=264";
-import {performAction} from "./src/game-engine.js?v=264";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld} from "./src/storage.js?v=264";
-import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=264";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=264";
-import {ensureWorldRegistry,canonizeGeneration} from "./src/world-registry.js?v=264";
-import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=264";
-import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=264";
-import {ensureFactionRuntime} from "./src/faction-engine.js?v=264";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=264";
-import {ensureQuestProgress} from "./src/quest-engine.js?v=264";
-import {ensureCrisis} from "./src/crisis-engine.js?v=264";
-import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=264";
-import {playerVisibleEvents} from "./src/event-visibility.js?v=264";
-import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=264";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=264";
-import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=264";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=264";
-import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=264";
+import {APP_VERSION} from "./src/version.js?v=265";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=265";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=265";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion} from "./src/ai-client.js?v=265";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=265";
+import {maintainSession} from "./src/session-maintenance.js?v=265";
+import {performAction} from "./src/game-engine.js?v=265";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld} from "./src/storage.js?v=265";
+import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=265";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=265";
+import {ensureWorldRegistry,canonizeGeneration} from "./src/world-registry.js?v=265";
+import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=265";
+import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=265";
+import {ensureFactionRuntime} from "./src/faction-engine.js?v=265";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=265";
+import {ensureQuestProgress} from "./src/quest-engine.js?v=265";
+import {ensureCrisis} from "./src/crisis-engine.js?v=265";
+import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=265";
+import {playerVisibleEvents} from "./src/event-visibility.js?v=265";
+import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=265";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=265";
+import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=265";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=265";
+import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=265";
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,aiWorldviewAuto=false;
 function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}$$("[data-action],#choices button,#freeActionForm button,.suggestion").forEach(b=>b.disabled=on);const input=$("#freeAction");if(input)input.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -43,7 +43,7 @@ function openNpcPanel(npcId,answer=""){const npc=findNpc(gameState,npcId);if(!np
 async function openNpcConversation(npcId){if(!gameState||aiBusy)return;const npc=findNpc(gameState,npcId);if(!npc||npc.known!==true)return;const q=prompt(`想對${npc.name}說甚麼？`);if(!q)return;let answer=`${npc.name}沒有提供更多可以確認的資訊。`;if(aiStatus.aiConfigured){setAIThinking(true,`AI 正在生成 ${npc.name} 的回應…`);try{answer=await talkToDynamicNpc(gameState,npc,q)}catch(e){console.warn("NPC fallback",e)}finally{setAIThinking(false)}}npc.memories??=[];npc.memories.push({id:crypto.randomUUID?.()||String(Date.now()),type:"conversation",summary:`玩家：${q} / ${npc.name}：${answer}`,day:gameState.world.state.day});npc.memories=npc.memories.slice(-12);await persist();await refresh();openNpcPanel(npc.id,answer)}
 function bindNpcLinks(){document.querySelectorAll("#modalContent .npc-link[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
 function renderRoll(roll){$("#d20").textContent=roll.natural;$("#rollLabel").textContent=`D20 ${roll.natural} + ${roll.bonus} = ${roll.total} / DC ${roll.dc}`;$("#rollResult").textContent=roll.grade.replaceAll("_"," ")}
-async function runAction(action,customText=""){if(!gameState||aiBusy)return;const impactBefore=ensureWorldImpact(gameState).records.length;if(gameState.combat?.active){openCombat();return;}const localLore=resolveLocalLoreAction(gameState,customText||action);if(localLore){gameState.narrative=localLore.text;await refresh();return;}if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";await persist();return refresh()}const {roll,text:localText,worldEvent}=performAction(gameState,action,customText);gameState.narrative=localText;if(aiStatus.aiConfigured){setAIThinking(true,"AI 正在判斷你的行動並生成世界回應…");try{const label=customText||action;const routing=await routeAction(label,gameState);if(routing.needsGeneration){const candidate=await generateTurn(label,roll,buildSnapshot(gameState));applyTurnCandidate(gameState,candidate,{action:label,roll})}else gameState.narrative=localText}catch(e){console.warn("AI turn fallback",e);try{gameState.narrative=await narrate(gameState,customText||action,roll)}catch{gameState.narrative=localText}}finally{setAIThinking(false)}}const newImpacts=ensureWorldImpact(gameState).records.slice(impactBefore).filter(x=>x.type==="PLAYER_IMPACT");if(newImpacts.length){gameState.narrative+=`\n\n【世界改變】${newImpacts.map(x=>`${x.title}（${impactLabel(x.scope)}）`).join(" · ")}`;const remembered=newImpacts.map(x=>x.recognition).filter(Boolean);if(remembered.length)gameState.narrative+=`\n\n【世界開始記住你】${remembered.map(x=>x.title||x.rumor?.text||"你的事蹟開始流傳").join(" · ")}`;}if(worldEvent)gameState.narrative+=`\n\n【世界動向】${worldEvent.summary}`;renderRoll(roll);if(aiStatus.aiConfigured&&needsExpansion(gameState)){setAIThinking(true,"AI 正在擴展你剛發現的世界區域…");try{const ex=await generateRegionExpansion(gameState,customText||action);if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||"玩家探索");gameState.world.state.flags.requestExpansion=false}}catch(e){console.warn("region expansion fallback",e)}finally{setAIThinking(false)}}await persist();await refresh();if(gameState.combat?.active)openCombat()}
+async function runAction(action,customText=""){if(!gameState||aiBusy)return;const impactBefore=ensureWorldImpact(gameState).records.length;if(gameState.combat?.active){openCombat();return;}const localLore=resolveLocalLoreAction(gameState,customText||action);if(localLore){gameState.narrative=localLore.text;await refresh();return;}if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";await persist();return refresh()}const {roll,text:localText,worldEvent}=performAction(gameState,action,customText);gameState.narrative=localText;if(aiStatus.aiConfigured){setAIThinking(true,"2 個 AI 正在並行處理敘事與世界狀態…");try{const label=customText||action;const routing=await routeAction(label,gameState);if(routing.needsGeneration){const candidate=await generateTurn(label,roll,buildSnapshot(gameState));applyTurnCandidate(gameState,candidate,{action:label,roll})}else gameState.narrative=localText}catch(e){console.warn("AI turn fallback",e);try{gameState.narrative=await narrate(gameState,customText||action,roll)}catch{gameState.narrative=localText}}finally{setAIThinking(false)}}const newImpacts=ensureWorldImpact(gameState).records.slice(impactBefore).filter(x=>x.type==="PLAYER_IMPACT");if(newImpacts.length){gameState.narrative+=`\n\n【世界改變】${newImpacts.map(x=>`${x.title}（${impactLabel(x.scope)}）`).join(" · ")}`;const remembered=newImpacts.map(x=>x.recognition).filter(Boolean);if(remembered.length)gameState.narrative+=`\n\n【世界開始記住你】${remembered.map(x=>x.title||x.rumor?.text||"你的事蹟開始流傳").join(" · ")}`;}if(worldEvent)gameState.narrative+=`\n\n【世界動向】${worldEvent.summary}`;renderRoll(roll);if(aiStatus.aiConfigured&&needsExpansion(gameState)){setAIThinking(true,"AI 正在擴展你剛發現的世界區域…");try{const ex=await generateRegionExpansion(gameState,customText||action);if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||"玩家探索");gameState.world.state.flags.requestExpansion=false}}catch(e){console.warn("region expansion fallback",e)}finally{setAIThinking(false)}}await persist();await refresh();if(gameState.combat?.active)openCombat()}
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};$$("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
 function syncWorldviewCreator(applyPreset=false){const genre=$("#genre"),danger=$("#danger"),magic=$("#magic"),politics=$("#politics"),scale=$("#scale"),hint=$("#styleHint"),btn=$("#aiWorldviewBtn");for(const el of [genre,danger,magic,politics,scale])if(el)el.disabled=aiWorldviewAuto;if(btn){btn.setAttribute("aria-pressed",String(aiWorldviewAuto));btn.textContent=aiWorldviewAuto?"↩ 改為自行設定":"✨ 交給 AI 決定世界觀"}if(aiWorldviewAuto){if(hint)hint.textContent="AI 會自行決定世界風格、核心主題、規模、危險度、魔法普及度與政治複雜度；自訂描述仍會作為生成條件。";return}const p=getWorldStylePreset(genre?.value);if(applyPreset&&p){danger.value=p.danger;magic.value=p.magic;politics.value=p.politics;scale.value=p.scale}if(hint)hint.textContent=(p?.foundation||"")+" 你仍可自行調整下面參數；世界核心主題由 AI 根據這些設定創造。"}
