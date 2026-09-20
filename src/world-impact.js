@@ -1,5 +1,6 @@
 import {addCrisisPressure,ensureCrisis} from "./crisis-engine.js?v=250";
-import {applyTimelineImpact} from "./world-timeline.js?v=250";
+import {applyTimelineImpact} from "./world-timeline.js?v=260";
+import {validateRecognitionCandidate,registerImpactRecognition} from "./recognition-engine.js?v=260";
 
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=300)=>typeof v==="string"?v.trim().slice(0,max):"";
@@ -90,7 +91,8 @@ export function validateImpactCandidate(input){
    if(clean(x.title,120).length<3||clean(x.summary,400).length<8)errors.push("WORLD_IMPACT_TEXT_INVALID");
    if(x.mutations!=null&&!Array.isArray(x.mutations))errors.push("WORLD_IMPACT_MUTATIONS_INVALID");
    if(x.consequences!=null&&!Array.isArray(x.consequences))errors.push("WORLD_IMPACT_CONSEQUENCES_INVALID");
-   if(x.timelineEffects!=null&&!Array.isArray(x.timelineEffects))errors.push("WORLD_IMPACT_TIMELINE_INVALID")
+   if(x.timelineEffects!=null&&!Array.isArray(x.timelineEffects))errors.push("WORLD_IMPACT_TIMELINE_INVALID");
+   const rv=validateRecognitionCandidate(x.recognition);if(!rv.valid)errors.push(...rv.errors)
   }
  }
  return {valid:errors.length===0,errors:[...new Set(errors)]}
@@ -111,11 +113,11 @@ export function applyWorldImpacts(state,input,context={}){
   for(const m of (raw.mutations||[]).slice(0,5)){const c=applyMutation(state,target.entity,raw.targetKind,m,limit);if(c.changed)changes.push(c)}
   const timelineEffects=[];if(RANK[scope]>=RANK.REGIONAL)for(const e of (raw.timelineEffects||[]).slice(0,2)){const changed=applyTimelineImpact(state,e);if(changed)timelineEffects.push(changed)}
   const record={id:uid("IMP"),type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope,targetKind:raw.targetKind,targetId:target.targetId,targetName:target.name,title:clean(raw.title,120),summary:clean(raw.summary,400),reason:clean(raw.reason,300),changes,timelineEffects:timelineEffects.map(x=>({timelineId:x.timelineId,action:x.action})),day:state.world.state.day,minute:state.world.state.clock?.totalMinutes||0,at:Date.now()};
-  impact.records.push(record);impact.records=impact.records.slice(-120);
-  const k=scope.toLowerCase();impact.influence[k]=(impact.influence[k]||0)+POINTS[scope];
-  const queued=[];for(const c of (raw.consequences||[]).slice(0,3)){const q=scheduleConsequence(state,record,c);if(q)queued.push(q.id)}
+  const queued=[];for(const item of (raw.consequences||[]).slice(0,3)){const q=scheduleConsequence(state,record,item);if(q)queued.push(q.id)}
   if(!changes.length&&!timelineEffects.length&&!queued.length)continue;
-  record.queuedConsequences=queued;
+  record.queuedConsequences=queued;impact.records.push(record);impact.records=impact.records.slice(-120);
+  const k=scope.toLowerCase();impact.influence[k]=(impact.influence[k]||0)+POINTS[scope];
+  record.recognition=registerImpactRecognition(state,record,raw.recognition||{});
   state.events.push({id:uid("EV"),type:"WORLD_IMPACT",visibility:"PLAYER_KNOWN",impactId:record.id,scope,summary:record.title+"："+record.summary,day:state.world.state.day,at:Date.now()});
   applied.push(record)
  }
