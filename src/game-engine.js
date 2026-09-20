@@ -1,7 +1,7 @@
-import {d20} from "./world-engine.js?v=267";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=267";
-import {advanceTime,ensureClock} from "./world-clock.js?v=267";
-import {tickWorld} from "./world-simulation.js?v=267";
+import {d20} from "./world-engine.js?v=268";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=268";
+import {advanceTime,ensureClock} from "./world-clock.js?v=268";
+import {tickWorld} from "./world-simulation.js?v=268";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
