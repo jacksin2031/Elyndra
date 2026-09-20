@@ -25,7 +25,8 @@ test("scene snapshot excludes director-only mutation context",()=>{
  const snap={world:{name:"UNKNOWN"},player:{name:"A"},knownFacts:["x"],knowledge:[],inventory:[],quest:null,recentEvents:[],runtimeSummary:"",factions:[],registry:[],companions:[],recognition:{tier:"UNKNOWN",titles:[],activeRumors:[]},directorRegistry:{secret:true},directorTimeline:[{directorTruth:"secret"}],directorHistory:[{summary:"secret history"}],worldImpact:{capability:{maxScope:"WORLD"}}};
  const out=sceneTurnSnapshot(snap);
  assert.equal(out.directorRegistry,undefined);
- assert.equal(out.directorTimeline,undefined);\n assert.equal(out.directorHistory,undefined);
+ assert.equal(out.directorTimeline,undefined);
+ assert.equal(out.directorHistory,undefined);
  assert.equal(out.worldImpact,undefined);
  assert.equal(out.recognition.tier,"UNKNOWN");
 });
