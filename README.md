@@ -147,3 +147,18 @@ GitHub Actions 在每次 push 到 `main` 時先執行 `npm test`，只有測試�
 > Generate once. Canonize once. Reveal locally. Reuse forever.
 
 V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub Pages deployment 成功。
+
+
+## V0.23.0 — Dynamic World Runtime Cleanup
+
+這個版本把 Runtime 從舊版固定世界內容徹底抽離，讓 World Seed 真正控制每一個世界：
+
+- Game Engine 不再硬編碼森林、道路、銅幣、特定 NPC、地名或怪物；自由行動改由通用 Action Profile 判定難度與時間。
+- NPC relationship mutation 改用實際 `npcId`；任何已知 NPC 都可以直接交談，不再存在固定 Companion。
+- NPC 只讀取自己的 `knowledgeScope` 與 memories；`publicFacts` 不再等於所有 NPC 自動知道。
+- 新增 Event Visibility Gate；NPC／勢力自主模擬屬於 `INTERNAL`，不會出現在玩家旅程紀錄或玩家 AI snapshot。
+- Adventure Director 可提出符合目前世界的 `encounter`；敵人、戰利品與戰鬥來源不再由 Engine 預設。
+- 貨幣由 World Architect 的 `worldBible.economy` 決定；無貨幣世界不顯示虛構金幣，任務與戰鬥亦不再固定發放金幣。
+- World Simulation 的可見事件只使用玩家可直接感知的中性描述，不再偷渡特定區域或勢力資訊。
+- UI 改為動態 NPC Dock，世界手帳／旅程紀錄與已發現世界遵守 player knowledge boundary。
+- 加入 legacy-canon regression tests，防止固定世界內容重新混入 Runtime。
