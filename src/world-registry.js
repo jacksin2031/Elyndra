@@ -1,4 +1,4 @@
-import {normalizeLore} from "./lore-engine.js";
+import {normalizeLore} from "./lore-engine.js?v=231";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 export function ensureWorldRegistry(state){
