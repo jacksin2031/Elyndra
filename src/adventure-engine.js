@@ -76,7 +76,7 @@ export function applyTurnCandidate(state,c,context={}){
  applyWorldImpacts(state,c.worldImpacts,context)
  if(c.quest&&state.quests?.main){const hint=sanitizePlayerText(c.quest.objective||c.quest.title,180,"");if(hint)state.quests.main.aiHint=hint}tickMainQuest(state)
  revealStoredLore(state);
- if(c.encounter?.type==="combat"&&!state.combat?.active){if(canStartEncounter(state,c.encounter.enemy,{...context,actionKind:context.roll?.profile?.kind||""}))startCombat(state,c.encounter.enemy,{...context,actionKind:context.roll?.profile?.kind||""});else state.events.push({id:id(),type:"ENCOUNTER_CANDIDATE_REJECTED",visibility:"INTERNAL",summary:sanitizePlayerText(c.encounter.enemy?.name,80,""),day:state.world.state.day,at:Date.now()})}state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
+ if(c.encounter?.type==="combat"&&!state.combat?.active){if(canStartEncounter(state,c.encounter.enemy,{...context,actionKind:context.roll?.profile?.kind||""}))startCombat(state,c.encounter.enemy,{...context,enforceCausality:true,actionKind:context.roll?.profile?.kind||""});else state.events.push({id:id(),type:"ENCOUNTER_CANDIDATE_REJECTED",visibility:"INTERNAL",summary:sanitizePlayerText(c.encounter.enemy?.name,80,""),day:state.world.state.day,at:Date.now()})}state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
  const fresh=sanitizeSuggestions(c.suggestions,previousSuggestions);state.suggestions=fresh.length?fresh:fallbackSuggestions(state,context);
  state.events.push({id:id(),type:"AI_TURN_APPLIED",visibility:"INTERNAL",day:state.world.state.day,at:Date.now()});
  return state
