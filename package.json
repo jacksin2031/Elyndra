@@ -1,10 +1,10 @@
 {
   "name": "elyndra",
-  "version": "0.22.3",
+  "version": "0.22.4",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --check app.js && node --check api/world.js && node --check api/turn.js && node --test"
+    "test": "node --check app.js && node --check api/world.js && node --check api/turn.js && node --check src/seed-contract.js && node --test"
   },
   "engines": {
     "node": ">=20"
