@@ -19,3 +19,13 @@ test("theme canonicalization does not invent missing compliance rows",()=>{
  assert.equal(core.worldTheme,"循環崩壞");
  assert.equal(core.seedCompliance.theme,undefined);
 });
+
+test("both direct and server world paths canonicalize theme before Engine validation",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const [client,server]=await Promise.all([
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../api/world.js",import.meta.url),"utf8")
+ ]);
+ assert.match(client,/normalizeWorldCoreCandidate\(await worldStage\("CORE"/);
+ assert.match(server,/normalizeWorldCoreCandidate\(JSON\.parse\(raw\)\)/);
+});
