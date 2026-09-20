@@ -2,9 +2,35 @@ import {d20} from "./world-engine.js";
 import {advanceTime} from "./world-clock.js";
 import {tickWorld} from "./world-simulation.js";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
-export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2};p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:"rusty-sword"};return p}
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+export function ensureCharacter(state){const p=state.player;p.level??=1;p.xp??=0;p.stats??={strength:2,agility:2,mind:2};p.defense??=10;p.status??="ALIVE";p.equipment??={weapon:null};return p}
 export function xpNeeded(level){return 40+Math.max(1,Number(level)||1)*30}
 export function grantXp(state,xp){const p=ensureCharacter(state);p.xp+=Math.max(0,Math.round(Number(xp)||0));while(p.xp>=xpNeeded(p.level)){p.xp-=xpNeeded(p.level);p.level++;p.maxHp+=8;p.hp=p.maxHp;p.stats.strength++;if(p.level%2===0)p.stats.agility++;if(p.level%3===0)p.stats.mind++}return p}
-export function recoverFromDefeat(state){const p=ensureCharacter(state);if(p.status!=="DOWNED")return false;p.status="ALIVE";p.hp=Math.max(1,Math.ceil(p.maxHp*.35));p.gold=Math.max(0,p.gold-Math.min(p.gold,5));state.combat=null;return true}
-export function startCombat(state,enemy){ensureCharacter(state);state.combat={active:true,enemy:{id:id(),name:String(enemy?.name||"未知魔物").slice(0,80),level:Math.max(1,Math.min(99,Number(enemy?.level)||ensureCharacter(state).level)),hp:Math.max(1,Math.min(200,Number(enemy?.hp)||20)),maxHp:Math.max(1,Math.min(200,Number(enemy?.hp)||20)),defense:Math.max(5,Math.min(20,Number(enemy?.defense)||11)),damage:Math.max(1,Math.min(30,Number(enemy?.damage)||6)),loot:String(enemy?.loot||"魔物素材").slice(0,80)},round:1};return state.combat}
-export function combatAction(state,action="attack"){if(!state.combat?.active)throw new Error("NO_ACTIVE_COMBAT");const e=state.combat.enemy,bonus=action==="defend"?1:2,roll=d20(e.defense,bonus);advanceTime(state,2);let damage=0;if(action==="retreat"&&roll.success){state.combat.active=false;state.events.push({id:id(),type:"COMBAT_RETREAT",enemy:e.name,summary:"你成功從 "+e.name+" 面前撤退。",day:state.world.state.day,at:Date.now()});tickWorld(state);return {roll,damage:0,won:false,retreated:true,enemyDamage:0,summary:"成功撤退。"}}if(action==="attack"&&roll.success){damage=Math.max(1,Math.floor(4+roll.natural/4));e.hp=Math.max(0,e.hp-damage)}if(e.hp===0){state.combat.active=false;state.player.gold+=5;const loot={id:id(),name:e.loot,description:"從 "+e.name+" 身上取得的戰利品。",identified:true,source:"COMBAT"};if(!state.inventory.some(i=>i.name===loot.name))state.inventory.push(loot);const ev={id:id(),type:"COMBAT_WON",enemy:e.name,summary:"擊敗 "+e.name+"，取得 "+loot.name+"。",day:state.world.state.day,at:Date.now()};state.events.push(ev);tickWorld(state);return {roll,damage,won:true,loot,enemyDamage:0,summary:ev.summary}}const reduction=action==="defend"?3:0,enemyDamage=Math.max(1,e.damage-Math.floor(Math.random()*3)-reduction);state.player.hp=Math.max(0,state.player.hp-enemyDamage);state.combat.round++;if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;tickWorld(state)}return {roll,damage,won:false,enemyDamage,defeated:state.player.hp===0,summary:action==="defend"?"你採取防禦姿態，減輕了傷害。":"戰鬥仍在持續。"}}
+export function recoverFromDefeat(state){const p=ensureCharacter(state);if(p.status!=="DOWNED")return false;p.status="ALIVE";p.hp=Math.max(1,Math.ceil(p.maxHp*.35));state.combat=null;return true}
+export function startCombat(state,enemy){
+ ensureCharacter(state);
+ const hp=clamp(Number(enemy?.hp)||20,1,200);
+ state.combat={active:true,enemy:{id:id(),name:String(enemy?.name||"未知威脅").slice(0,80),level:clamp(Number(enemy?.level)||ensureCharacter(state).level,1,99),hp,maxHp:hp,defense:clamp(Number(enemy?.defense)||11,5,20),damage:clamp(Number(enemy?.damage)||6,1,30),loot:String(enemy?.loot||"").slice(0,80)},round:1};
+ return state.combat
+}
+function currencyReward(state,key){
+ const e=state.world?.economy||state.world?.bible?.economy||{};
+ if(e.currencyExists!==true)return 0;
+ return clamp(Math.round(Number(e[key])||0),0,20)
+}
+export function combatAction(state,action="attack"){
+ if(!state.combat?.active)throw new Error("NO_ACTIVE_COMBAT");
+ const e=state.combat.enemy,bonus=action==="defend"?1:2,roll=d20(e.defense,bonus);advanceTime(state,2);let damage=0;
+ if(action==="retreat"&&roll.success){state.combat.active=false;state.events.push({id:id(),type:"COMBAT_RETREAT",visibility:"PLAYER_KNOWN",enemy:e.name,summary:"你成功從 "+e.name+" 面前撤退。",day:state.world.state.day,at:Date.now()});tickWorld(state);return {roll,damage:0,won:false,retreated:true,enemyDamage:0,summary:"成功撤退。"}}
+ if(action==="attack"&&roll.success){damage=Math.max(1,Math.floor(4+roll.natural/4));e.hp=Math.max(0,e.hp-damage)}
+ if(e.hp===0){
+  state.combat.active=false;grantXp(state,Math.max(5,e.level*5));
+  const reward=currencyReward(state,"combatReward");if(reward)state.player.gold+=reward;
+  let loot=null;if(e.loot){loot={id:id(),name:e.loot,description:"從 "+e.name+" 身上取得的物品。",identified:true,source:"COMBAT"};if(!state.inventory.some(i=>i.name===loot.name))state.inventory.push(loot)}
+  const economy=state.world?.economy||state.world?.bible?.economy||{},parts=["擊敗 "+e.name];if(loot)parts.push("取得 "+loot.name);if(reward)parts.push("獲得 "+reward+" "+(economy.currencyName||"貨幣"));
+  const ev={id:id(),type:"COMBAT_WON",visibility:"PLAYER_KNOWN",enemy:e.name,summary:parts.join("，")+"。",day:state.world.state.day,at:Date.now()};state.events.push(ev);tickWorld(state);return {roll,damage,won:true,loot,reward,enemyDamage:0,summary:ev.summary}
+ }
+ const reduction=action==="defend"?3:0,enemyDamage=Math.max(1,e.damage-Math.floor(Math.random()*3)-reduction);state.player.hp=Math.max(0,state.player.hp-enemyDamage);state.combat.round++;
+ if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;tickWorld(state)}
+ return {roll,damage,won:false,enemyDamage,defeated:state.player.hp===0,summary:action==="defend"?"你採取防禦姿態，減輕了傷害。":"戰鬥仍在持續。"}
+}

@@ -30,7 +30,7 @@ export function revealStoredLore(state){
    state.knowledge.push({id:kid,title:`${name}的故事`,status:"KNOWN",text:lore.story,sources:[entity.id||kind]});
    if(state.player)state.player.knowledgeScore=Math.min(100,(state.player.knowledgeScore||0)+1)
   }
-  state.events??=[];state.events.push({id:uid(),type:"LORE_REVEALED",entityId:entity.id,entityType:kind,summary:`理解了「${name}」背後的故事。`,day:state.world?.state?.day??1,at:Date.now()});
+  state.events??=[];state.events.push({id:uid(),type:"LORE_REVEALED",visibility:"PLAYER_KNOWN",entityId:entity.id,entityType:kind,summary:`理解了「${name}」背後的故事。`,day:state.world?.state?.day??1,at:Date.now()});
   revealed.push({kind,entityId:entity.id,name,story:lore.story})
  }
  return revealed
