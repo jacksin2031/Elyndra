@@ -1,6 +1,10 @@
 import {playerVisibleEvents} from "./event-visibility.js?v=268";
 import {sanitizePlayerText} from "./runtime-guard.js?v=268";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=268";
+import {survivalSnapshot} from "./survival-engine.js?v=268";
+import {travelSnapshot} from "./travel-engine.js?v=268";
+import {marketSnapshot} from "./economy-engine.js?v=268";
+import {dungeonSnapshot} from "./dungeon-engine.js?v=268";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
@@ -25,7 +29,9 @@ export function helperSnapshot(state){
    maxHp:state.player?.maxHp,
    level:state.player?.level,
    assets,
-   inventory:(state.inventory||[]).slice(-20).map(x=>({name:x.name,description:safe(x.description,120),equipped:x.equipped===true}))
+   inventory:(state.inventory||[]).slice(-20).map(x=>({name:x.name,description:safe(x.description,120),equipped:x.equipped===true})),
+   survival:survivalSnapshot(state),
+   magic:state.player?.magic?{strain:state.player.magic.strain,capacity:state.player.magic.capacity,knownSpells:(state.player.magic.knownSpells||[]).map(x=>({name:x.name,school:x.school,cost:x.cost,effect:safe(x.effect,140)}))}:null
   },
   world:{
    name:state.player?.worldNameKnown?state.world?.name:"UNKNOWN",
@@ -33,7 +39,10 @@ export function helperSnapshot(state){
    currentLocation:loc?{name:loc.name,type:loc.type,region:loc.region,description:safe(loc.description,220)}:{name:state.player?.location||"未知地點"},
    currentNarrative:safe(state.narrative,500),
    sceneTitle:safe(state.sceneTitle,80),
-   weather:playerWeatherSnapshot(state)
+   weather:playerWeatherSnapshot(state),
+   travel:travelSnapshot(state,{director:false}),
+   market:(()=>{const m=marketSnapshot(state);return m?{mode:m.mode,currency:m.currency?{id:m.currency.id,name:m.currency.name,symbol:m.currency.symbol}:null,goods:m.goods.map(x=>({name:x.name,price:x.price,stock:x.stock}))}:null})(),
+   dungeon:dungeonSnapshot(state,{director:false})
   },
   objective:{
    mainTitle:safe(state.quests?.main?.title,120),
