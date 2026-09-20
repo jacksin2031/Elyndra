@@ -50,7 +50,8 @@ export function findTravelPlan(state,destinationId){
 export function travelTo(state,destination,{roll=null,actionKind="",baseMinutes=45,force=false}={}){
  const target=typeof destination==="string"?locations(state).find(x=>x.id===destination||x.name===destination):destination;if(!target)return {ok:false,reason:"DESTINATION_UNKNOWN"};
  const start=current(state);if(start?.id===target.id){target.known=true;return {ok:true,target,plan:{routes:[],minutes:0,distanceKm:0},extraMinutes:0}}
- if(!force&&String(actionKind||roll?.profile?.kind||"").toUpperCase()!=="TRAVEL")return {ok:false,reason:"TRAVEL_ACTION_REQUIRED"};
+ if(force){target.known=true;state.player.location=target.name;state.world.state.location=target.name;state.world.state.region=target.region||state.world.state.region;target.discoveredDay??=state.world.state.day;retargetWeather(state);return {ok:true,target,plan:{routes:[],minutes:0,distanceKm:0,forced:true},extraMinutes:0}}
+ if(String(actionKind||roll?.profile?.kind||"").toUpperCase()!=="TRAVEL")return {ok:false,reason:"TRAVEL_ACTION_REQUIRED"};
  if(!force&&roll?.success===false)return {ok:false,reason:"TRAVEL_CHECK_FAILED"};
  target.known=true;const plan=findTravelPlan(state,target.id);if(!plan)return {ok:false,reason:"NO_CANON_ROUTE"};
  const extraMinutes=force?0:Math.max(0,plan.minutes-Math.max(0,Number(baseMinutes)||0));if(extraMinutes){advanceTime(state,extraMinutes);tickSurvival(state,extraMinutes,{kind:"TRAVEL"});tickWeather(state)}
