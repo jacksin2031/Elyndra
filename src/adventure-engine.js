@@ -5,6 +5,7 @@ import {factionSnapshot,changeReputation} from "./faction-engine.js";
 import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration} from "./world-registry.js";
 import {tokenBudgetSnapshot} from "./context-manager.js";
 import {startCombat} from "./combat-engine.js";
+import {evaluateQuestEvidence} from "./quest-engine.js";
 import {playerVisibleEvents} from "./event-visibility.js";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
@@ -40,7 +41,7 @@ export function applyTurnCandidate(state,c){
  if(c.worldNameKnown===true)state.player.worldNameKnown=true;
  for(const d of (c.discoveries||[]).slice(0,2)){const title=text(d.title,100),body=text(d.text,500);if(title&&body&&!state.knowledge.some(k=>k.title===title)){state.knowledge.push({id:id(),title,status:"PARTIAL",text:body,sources:["AI_TURN"]});state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+2)}}
  for(const item of (c.items||[]).slice(0,1)){const name=text(item.name,100);if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:text(item.description,300),identified:true,lore:normalizeLore(item.lore)})}
- revealRegistryEntities(state,c.entityReveals);canonizeGeneration(state,c.generation);
+ revealRegistryEntities(state,c.entityReveals);canonizeGeneration(state,c.generation);for(const d of (c.discoveries||[]).slice(0,2))evaluateQuestEvidence(state,`${text(d.title,100)} ${text(d.text,500)}`);for(const item of (c.items||[]).slice(0,1))evaluateQuestEvidence(state,`${text(item.name,100)} ${text(item.description,300)}`);
  const registry=ensureWorldRegistry(state);
  for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId&&x.known===true);if(npc)npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+n.trustDelta))}
  for(const f of (c.factionChanges||[]).slice(0,2)){if(registry.factions.some(x=>x.id===f.factionId&&x.known===true))changeReputation(state,f.factionId,f.reputationDelta)}
