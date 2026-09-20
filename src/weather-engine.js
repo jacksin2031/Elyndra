@@ -59,7 +59,8 @@ function currentLocation(state){
 function locationKey(state){const loc=currentLocation(state);return loc?.id||loc?.name||String(state.world?.state?.region||"WORLD")}
 function choose(state,excludeId=""){
  const sys=normalizeWeatherSystem(state.world?.bible?.weatherSystem,state.world?.seedContract||state.world?.seed||{}),loc=currentLocation(state),profile=normalizeWeatherProfile(loc?.weatherProfile),allowed=sys.phenomena.filter(x=>!profile.suppressions.includes(x.id));
- const pool=(allowed.length?allowed:sys.phenomena).map(x=>({x,w:x.weight*(profile.affinities.includes(x.id)?3:1)}));
+ const base=(allowed.length?allowed:sys.phenomena),candidates=excludeId&&base.length>1?base.filter(x=>x.id!==excludeId):base;
+ const pool=candidates.map(x=>({x,w:x.weight*(profile.affinities.includes(x.id)?3:1)}));
  const current=sys.phenomena.find(x=>x.id===excludeId);if(current?.transitions?.length){for(const p of pool)if(current.transitions.includes(p.x.id))p.w*=3}
  const total=pool.reduce((a,p)=>a+p.w,0),clock=Number(state.world?.state?.clock?.totalMinutes)||0,seq=Number(state.world?.weather?.sequence)||0,h=hash([state.world?.id,locationKey(state),clock,seq].join("|")),target=(h%Math.max(1,total))+1;
  let n=0;for(const p of pool){n+=p.w;if(target<=n)return p.x}return pool[0]?.x||sys.phenomena[0]
@@ -69,12 +70,12 @@ function durationFor(state,p){
  return p.durationMin+(span?h%(span+1):0)
 }
 export function initializeWeather(state,{force=false}={}){
- state.world.bible??={};state.world.bible.weatherSystem=normalizeWeatherSystem(state.world.bible.weatherSystem,state.world.seedContract||state.world.seed||{});
+ state.world.bible??={};const hadCanon=Boolean(state.world.bible.weatherSystem?.phenomena?.length);state.world.bible.weatherSystem=normalizeWeatherSystem(state.world.bible.weatherSystem,state.world.seedContract||state.world.seed||{});
  const clock=Number(state.world?.state?.clock?.totalMinutes)||0;
  state.world.weather??={version:1,currentId:"",startedMinute:clock,nextChangeMinute:clock,locationKey:"",sequence:0,history:[]};
  const w=state.world.weather;w.history??=[];w.sequence=Number.isInteger(w.sequence)?w.sequence:0;
  const valid=state.world.bible.weatherSystem.phenomena.some(x=>x.id===w.currentId),key=locationKey(state);
- if(force||!valid){const p=choose(state,"");w.currentId=p.id;w.startedMinute=clock;w.nextChangeMinute=clock+durationFor(state,p);w.locationKey=key}
+ if(force||!valid){const p=!hadCanon&&!valid?state.world.bible.weatherSystem.phenomena[0]:choose(state,"");w.currentId=p.id;w.startedMinute=clock;w.nextChangeMinute=clock+durationFor(state,p);w.locationKey=key}
  return w
 }
 export function currentWeather(state){
