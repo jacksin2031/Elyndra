@@ -1,12 +1,12 @@
-import {normalizeLore,revealStoredLore} from "./lore-engine.js";
-import {crisisSnapshot} from "./crisis-engine.js";
-import {graphSnapshot,causalContext} from "./knowledge-graph.js";
-import {factionSnapshot,changeReputation} from "./faction-engine.js";
-import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration} from "./world-registry.js";
-import {tokenBudgetSnapshot} from "./context-manager.js";
-import {startCombat} from "./combat-engine.js";
-import {evaluateQuestEvidence} from "./quest-engine.js";
-import {playerVisibleEvents} from "./event-visibility.js";
+import {normalizeLore,revealStoredLore} from "./lore-engine.js?v=231";
+import {crisisSnapshot} from "./crisis-engine.js?v=231";
+import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=231";
+import {factionSnapshot,changeReputation} from "./faction-engine.js?v=231";
+import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration} from "./world-registry.js?v=231";
+import {tokenBudgetSnapshot} from "./context-manager.js?v=231";
+import {startCombat} from "./combat-engine.js?v=231";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=231";
+import {playerVisibleEvents} from "./event-visibility.js?v=231";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function buildSnapshot(state){
