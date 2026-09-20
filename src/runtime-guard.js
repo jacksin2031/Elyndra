@@ -66,6 +66,7 @@ export function deriveSceneTitle(state={},action=""){
  return `探索${loc}`.slice(0,60)
 }
 export function sanitizeSceneTitle(value,state={},action=""){
+ if(state.combat?.active)return deriveSceneTitle(state,action);
  const s=sanitizePlayerText(value,60,"").replace(/[。！？!?]+$/,"").trim();
  return s||deriveSceneTitle(state,action)
 }
