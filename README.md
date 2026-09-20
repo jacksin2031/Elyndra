@@ -126,7 +126,7 @@ Serverless endpoints：
 
 ## CI / Deployment
 
-GitHub Actions 在每次 push 到 `main` 時先執行 `npm test`，只有測試成功才部署 GitHub Pages。最近一次已驗證的 run（2026-09-20）為 **44/44 tests passed**，test 與 Pages deploy 均成功。
+GitHub Actions 在每次 push 到 `main` 時先執行 browser/API/core syntax gates 與完整 `node --test` regression suite；只有 `main` 的測試成功才部署 GitHub Pages。Pull Request 亦會執行 test gate，但不部署 Pages。
 
 ## V0.22.3 — Unknown World + Stored Lore
 
@@ -162,3 +162,20 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - World Simulation 的可見事件只使用玩家可直接感知的中性描述，不再偷渡特定區域或勢力資訊。
 - UI 改為動態 NPC Dock，世界手帳／旅程紀錄與已發現世界遵守 player knowledge boundary。
 - 加入 legacy-canon regression tests，防止固定世界內容重新混入 Runtime。
+
+## V0.23.1 — Runtime Hardening
+
+這一版針對長期遊玩、知識隔離與存檔可靠性進行全項目 hardening：
+
+- **公平世界模擬**：NPC / Faction autonomous simulation 改為 round-robin cursor；世界超過 4 個實體後，後生成角色與勢力不會永久停止活動。
+- **時間驅動 tension**：World Simulation tension 依實際經過分鐘累積，不再依函式呼叫次數；短戰鬥回合不會異常加速世界危機。
+- **Knowledge Graph visibility**：內部 NPC／勢力事件不再被轉成 public causal nodes；player-facing graph edges 只保留兩端皆可見的關係，並修正舊存檔 event-first graph 無法 bootstrap World Bible fundamentals 的問題。
+- **Knowledge-gated ENDGAME**：危機 pressure 可以推進到 CRISIS，但 ENDGAME 同時需要玩家取得最低限度的有效世界知識，避免用重複行動直接磨出終局。
+- **本地支線證據引擎**：Side Quest 首次生成時可保存 `evidenceKeywords` / `target`；之後 discoveries / items 命中線索時由 Engine 本地加進度，同一線索不重複計算，不需要再次呼叫 AI。
+- **Save Format v4**：migration 補齊 event visibility、simulation cursor / clock、economy 與 runtime domains；State Validator 加強 registry、graph、crisis、economy、combat、suggestions 等完整性檢查。
+- **Context degradation 安全**：即使 prompt context 被壓縮到 minimal snapshot，仍保留 World Seed Contract，避免長局後 AI 因 token budget 遺失玩家最初的世界設定。
+- **完整 cache-bust**：不只 `app.js`，整個瀏覽器 module graph 的 nested imports 都使用同一版本 query；CI 新增 contract test 防止半套 cache-bust。
+
+目前原則進一步明確化：
+
+> AI creates new possibilities. Engine owns truth, time, visibility, progression and persistence.
