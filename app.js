@@ -64,4 +64,5 @@ $("#importFile").onchange=async e=>{try{gameState=await importWorld(e.target.fil
 
 $("#game .companion").onclick=async()=>{\n if(!gameState)return;\n const q=prompt("想對莉亞說什麼？");if(!q)return;\n let answer="莉亞看了你一眼，似乎還沒有打算回答更多。";\n if(aiStatus.aiConfigured){try{answer=await talkToNpc(gameState,"lia",q)}catch(e){console.warn("NPC fallback",e)}}\n gameState.npcs.lia.memories.push({id:crypto.randomUUID?.()||String(Date.now()),type:"conversation",summary:`玩家：${q} / 莉亞：${answer}`,day:gameState.world.state.day});\n await persist();openModal(`<div class="eyebrow">AI COMPANION</div><h2>莉亞</h2><p>${answer.replaceAll("<","&lt;")}</p>`);\n};\n\n$("#resetBtn").onclick=async()=>{if(confirm("確定要刪除目前的本地世界嗎？")){await deleteWorld();gameState=null;await refresh();show("landing")}};
 
+aiStatus=await aiHealth();
 await refresh();
