@@ -57,15 +57,34 @@ export function directorRegistrySnapshot(state){
   factions:r.factions.slice(-8).map(({id,name,known})=>({id,name,known:Boolean(known)}))
  }
 }
-export function revealRegistryEntities(state,reveals=[]){
+function revealAuthorized(state,kind,entity,context={}){
+ if(context.enforceCausality!==true)return true;
+ const actionKind=String(context.actionKind||context.roll?.profile?.kind||"").toUpperCase(),action=String(context.action||""),hasEvidence=Number(context.verifiedEvidenceCount)||0;
+ if(kind==="npc")return isNpcPresent(state,entity);
+ if(kind==="location"){
+  if(entity.name===state.player?.location)return true;
+  return actionKind==="OBSERVE"&&hasEvidence>0
+ }
+ if(kind==="faction"){
+  const local=ensureWorldRegistry(state).npcs.some(n=>n.factionId===entity.id&&isNpcPresent(state,n)&&n.encountered===true);
+  const socialSource=actionKind==="SOCIAL"&&ensureWorldRegistry(state).npcs.some(n=>canInteractWithNpc(state,n)&&n.name&&action.includes(n.name));
+  return local||socialSource||(actionKind==="OBSERVE"&&hasEvidence>0)
+ }
+ if(kind==="sideQuest"){
+  const socialSource=actionKind==="SOCIAL"&&ensureWorldRegistry(state).npcs.some(n=>canInteractWithNpc(state,n)&&n.name&&action.includes(n.name));
+  return socialSource||(actionKind==="OBSERVE"&&hasEvidence>0)
+ }
+ return false
+}
+export function revealRegistryEntities(state,reveals=[],context={}){
  const r=ensureWorldRegistry(state),maps={location:r.locations,npc:r.npcs,faction:r.factions,sideQuest:r.sideQuests},out=[];
  for(const x of Array.isArray(reveals)?reveals.slice(0,6):[]){
   const kind=clean(x?.kind,30),id=clean(x?.id,140),list=maps[kind];if(!list||!id)continue;
-  const entity=list.find(v=>v.id===id);if(!entity)continue;const wasKnown=entity.known===true,wasEncountered=entity.encountered===true;
+  const entity=list.find(v=>v.id===id);if(!entity||!revealAuthorized(state,kind,entity,context))continue;const wasKnown=entity.known===true,wasEncountered=entity.encountered===true;
   entity.known=true;entity.discoveredDay??=state.world.state.day;if(kind==="npc"&&isNpcPresent(state,entity)){entity.encountered=true;ensureNpcRemoteContact(state,entity)}
   if(!wasKnown||(!wasEncountered&&entity.encountered===true))out.push({kind,id,name:entity.name||entity.title||""})
  }
- if(out.length){state.events??=[];state.events.push({id:uid("EV"),type:"ENTITY_REVEALED",visibility:"PLAYER_KNOWN",day:state.world.state.day,summary:out.map(x=>`${x.kind}:${x.name}`).join(" · "),at:Date.now()})}
+ if(out.length){state.events??=[];state.events.push({id:uid("EV"),type:"ENTITY_REVEALED",visibility:"PLAYER_KNOWN",day:state.world.state.day,summary:out.map(x=>x.kind+":"+x.name).join(" · "),at:Date.now()})}
  return out
 }
 export function validateGeneration(g){
