@@ -35,7 +35,7 @@ export function validateSeedCompliance(seed,candidate){
  if(new Set(evidenceRows).size<Math.min(5,evidenceRows.length))errors.push("SEED_EVIDENCE_NOT_SPECIFIC");
  const bible=candidate?.worldBible;
  if(!bible||typeof bible!=="object"||Array.isArray(bible))errors.push("SEED_WORLD_BIBLE_REQUIRED");
- else for(const key of ["era","centralConflict","magicCost","startingRegion","startingSettlement","startingLocation","ancientTruth","currentCrisis","tone"])if(text(bible[key],600).length<3)errors.push(`SEED_WORLD_BIBLE_${key.toUpperCase()}_MISSING`);
+ else for(const key of ["era","centralConflict","magicCost","startingRegion","startingSettlement","startingLocation","ancientTruth","currentCrisis","tone"])if(!text(bible[key],600))errors.push(`SEED_WORLD_BIBLE_${key.toUpperCase()}_MISSING`);
  if(expected.politics>=4&&(candidate?.generation?.factions?.length||0)<1)errors.push("SEED_POLITICS_STRUCTURE_MISSING");
  if(expected.danger>=4&&text(bible?.currentCrisis,600).length<12)errors.push("SEED_DANGER_STRUCTURE_WEAK");
  if(text(bible?.magicCost,600).length<12)errors.push("SEED_MAGIC_STRUCTURE_WEAK");
