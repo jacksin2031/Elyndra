@@ -6,7 +6,10 @@ const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 
 function locations(state){return Array.isArray(state.world?.registry?.locations)?state.world.registry.locations:[]}
-function current(state){const name=String(state.player?.location||state.world?.state?.location||"");return locations(state).find(x=>x.name===name)||null}
+function current(state){
+ const playerName=String(state.player?.location||""),worldName=String(state.world?.state?.location||"");
+ return locations(state).find(x=>x.name===playerName)||locations(state).find(x=>x.name===worldName)||null
+}
 function hasRoute(routes,a,b){return routes.some(r=>(r.fromId===a&&r.toId===b)||(r.fromId===b&&r.toId===a))}
 function terrainFor(a,b){
  const text=((a?.type||"")+" "+(b?.type||"")+" "+(a?.region||"")+" "+(b?.region||"")).toLowerCase();
