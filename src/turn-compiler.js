@@ -37,6 +37,7 @@ export function mergeTurnCandidates(scene,state,roll={},context={}){
   calendarKnown:state.calendarKnown===true,
   discoveries:Array.isArray(state.discoveries)?state.discoveries:[],
   items:Array.isArray(state.items)?state.items:[],
+  magicLearning:Array.isArray(state.magicLearning)?state.magicLearning:[],
   npcChanges:Array.isArray(state.npcChanges)?state.npcChanges:[],
   companionChanges:Array.isArray(state.companionChanges)?state.companionChanges:[],
   factionChanges:Array.isArray(state.factionChanges)?state.factionChanges:[],
