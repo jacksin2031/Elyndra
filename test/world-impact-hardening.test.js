@@ -9,6 +9,10 @@ import {migrateSave} from "../src/storage.js";
 import {validateSaveState} from "../src/state-validator.js";
 
 const seed={genre:"黑暗奇幻",scale:"中型",danger:3,magic:3,politics:3,playHours:15,prompt:"因果必須由 Engine 驗證"};
+function grantVerifiedKnowledge(state,count=6){
+ state.player.knowledgeScore=0;
+ for(let i=0;i<count;i++){const id="FACT-AUTH-"+i;state.world.canon.facts.push({id,type:"public",visibility:"public",text:"可驗證世界知識 "+i+" 的完整說明。",canonical:true});state.knowledge.push({id:"K-AUTH-"+i,title:"世界知識 "+i,text:"可驗證世界知識 "+i+" 的完整說明。",factId:id,status:"VERIFIED",score:3});state.player.knowledgeScore+=3}
+}
 function world(){
  const s=newGame(seed);
  canonizeGeneration(s,{locations:[
@@ -60,7 +64,7 @@ test("remote consequence changes state but does not leak until observed locally"
  applyWorldImpacts(s,[{scope:"WORLD",targetKind:"location",targetId:b.id,title:"遠港封鎖",summary:"一項世界級行動影響到遠方港口。",mutations:[{field:"supply",op:"DELTA",value:-1}],consequences:[{delayMinutes:60,targetKind:"location",targetId:b.id,observableEffect:"遠港的補給進一步惡化。",mutations:[{field:"supply",op:"DELTA",value:-4}]}]}],{roll:{success:true}});
  // force capability for this isolated authorization test
  const impact=ensureWorldImpact(s);impact.records.push(...Array.from({length:6},(_,i)=>({id:"seed"+i,type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope:"LOCAL",targetKind:"location",targetId:b.id,changes:[]})));
- s.player.knowledgeScore=20;s.world.state.crisis={stage:"CRISIS",pressure:90,history:[]};
+ grantVerifiedKnowledge(s);s.world.state.crisis={stage:"CRISIS",pressure:90,history:[]};
  // schedule directly through a now-authorized second impact
  applyWorldImpacts(s,[{scope:"WORLD",targetKind:"location",targetId:b.id,title:"遠港連鎖",summary:"遠方港口將出現延遲後果。",mutations:[{field:"supply",op:"DELTA",value:-1}],consequences:[{delayMinutes:60,targetKind:"location",targetId:b.id,observableEffect:"遠港補給線中斷。",mutations:[{field:"supply",op:"DELTA",value:-4}]}]}],{roll:{success:true}});
  advanceTime(s,60);const due=processDueConsequences(s);assert.ok(due.length>=1);assert.equal(due.at(-1).visibility,"INTERNAL");assert.equal(revealTriggeredConsequences(s).length,0);
@@ -77,8 +81,20 @@ test("timeline impacts stay inside event window and due events trigger by effect
  s.world.state.day=8;const due=triggerDueTimelineEvents(s);assert.equal(due.id,"A")
 });
 
-test("future save versions are rejected and malformed impact state fails validation",()=>{
- const {s}=world();s.formatVersion=999;assert.throws(()=>migrateSave(s),/SAVE_VERSION_TOO_NEW/);
+test("future or malformed save versions are rejected and malformed impact state fails validation",()=>{
+ const {s}=world();s.formatVersion=999;assert.throws(()=>migrateSave(s),/SAVE_VERSION_TOO_NEW/);const malformed=world().s;malformed.formatVersion="future";assert.throws(()=>migrateSave(malformed),/SAVE_VERSION_INVALID/);
  const {s:fresh}=world();fresh.world.impact={version:2,influence:{personal:0,local:0,regional:0,faction:0,world:0},records:[],queue:[{id:"bad",parentImpactId:"x",scope:"LOCAL",targetKind:"world",targetId:"WORLD",status:"SCHEDULED",dueMinute:-1,mutations:[],observableAtLocationIds:[]}]};
  assert.equal(validateSaveState(fresh).valid,false)
+});
+
+test("unverified knowledgeScore alone cannot unlock higher impact scopes",()=>{
+ const {s}=world(),impact=ensureWorldImpact(s);impact.records.push(...Array.from({length:6},(_,i)=>({id:"seed-auth-"+i,type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,changes:[]})));s.world.state.crisis={stage:"CRISIS",pressure:90,history:[]};s.player.knowledgeScore=99;
+ assert.equal(impactCapability(s).maxScope,"LOCAL");grantVerifiedKnowledge(s);assert.equal(impactCapability(s).maxScope,"WORLD")
+});
+
+test("FACTION consequence cannot jump from its parent faction to another faction",()=>{
+ const {s,a}=world();canonizeGeneration(s,{factions:[{name:"山脊會",goal:"控制山道",description:"第二勢力",known:true}]});const first=s.world.registry.factions[0],second=s.world.registry.factions[1];
+ grantVerifiedKnowledge(s);const impact=ensureWorldImpact(s);impact.records.push(...Array.from({length:4},(_,i)=>({id:"seed-fac-"+i,type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope:"LOCAL",targetKind:"location",targetId:a.id,changes:[]})));
+ const out=applyWorldImpacts(s,[{scope:"FACTION",targetKind:"faction",targetId:first.id,title:"重整河岸盟",summary:"玩家對單一勢力造成持久影響。",mutations:[{field:"influence",op:"DELTA",value:2}],consequences:[{delayMinutes:60,targetKind:"faction",targetId:second.id,observableEffect:"另一勢力不應被 parent consequence 橫向修改。",mutations:[{field:"resources",op:"DELTA",value:-3}]}]}],{roll:{success:true}});
+ assert.equal(out.length,1);assert.equal(out[0].queuedConsequences.length,0)
 });
