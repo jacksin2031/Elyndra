@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Elyndra — AI 異世界冒險</title>
+  <meta name="description" content="Elyndra 是一款以 AI 生成世界、骰子判定、知識探索與 AI 夥伴為核心的異世界網頁 RPG。" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="topbar">
+    <div class="brand">ELYNDRA</div>
+    <div class="subtitle">名もなき異世界へ</div>
+    <button id="resetBtn" class="ghost">重置世界</button>
+  </header>
+
+  <main id="app">
+    <section id="landing" class="screen active">
+      <div class="hero">
+        <div class="eyebrow">AI × TRPG × WORLD DISCOVERY</div>
+        <h1>醒來時，你對這個世界一無所知。</h1>
+        <p>建立你的異世界，透過探索、骰子判定、物品、書本與 AI 夥伴，一步一步理解世界的真相。</p>
+        <div class="actions">
+          <button id="newWorldBtn" class="primary">開始轉生</button>
+          <button id="continueBtn" class="secondary">繼續冒險</button>
+        </div>
+      </div>
+      <div class="feature-grid">
+        <article><span>01</span><h3>AI 建構世界</h3><p>世界規則、國家、歷史、宗教、魔法與秘密。</p></article>
+        <article><span>02</span><h3>骰子決定命運</h3><p>AI 描述結果，但不改寫判定。</p></article>
+        <article><span>03</span><h3>知識就是力量</h3><p>武器、書本、遺物與對話都可能揭露真相。</p></article>
+        <article><span>04</span><h3>本地保存世界</h3><p>進度保存在你的瀏覽器，之後可擴充匯出與雲端同步。</p></article>
+      </div>
+    </section>
+
+    <section id="creator" class="screen">
+      <div class="panel wide">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">WORLD SEED</div>
+            <h2>創造你的異世界</h2>
+          </div>
+          <button class="ghost" data-go="landing">返回</button>
+        </div>
+        <div class="form-grid">
+          <label>世界風格
+            <select id="genre">
+              <option>王道奇幻</option>
+              <option>黑暗奇幻</option>
+              <option>東方幻想</option>
+              <option>蒸汽魔法</option>
+              <option>末日異世界</option>
+            </select>
+          </label>
+          <label>世界主題
+            <select id="theme">
+              <option>被遺忘的神</option>
+              <option>失落文明</option>
+              <option>世界輪迴</option>
+              <option>帝國崩壞</option>
+              <option>魔法正在消失</option>
+            </select>
+          </label>
+          <label>危險度
+            <input id="danger" type="range" min="1" max="5" value="4" />
+          </label>
+          <label>魔法普及度
+            <input id="magic" type="range" min="1" max="5" value="4" />
+          </label>
+          <label>政治複雜度
+            <input id="politics" type="range" min="1" max="5" value="3" />
+          </label>
+          <label>世界規模
+            <select id="scale">
+              <option>小型</option>
+              <option selected>中型</option>
+              <option>大型</option>
+            </select>
+          </label>
+        </div>
+        <label class="full">你想要這個世界有什麼感覺？
+          <textarea id="prompt" placeholder="例如：表面是一個和平的魔法王國，但古老遺跡暗示這個世界已經毀滅過很多次。"></textarea>
+        </label>
+        <button id="generateBtn" class="primary big">生成世界種子</button>
+      </div>
+    </section>
+
+    <section id="game" class="screen">
+      <div class="game-shell">
+        <aside class="sidebar">
+          <div class="world-title">
+            <span class="eyebrow">WORLD</span>
+            <h2 id="worldName">艾斯特拉</h2>
+            <small id="worldMeta">Day 1 · 未知年代</small>
+          </div>
+
+          <div class="stat-card">
+            <div><span>HP</span><b>100 / 100</b></div>
+            <div><span>知識</span><b id="knowledgePct">3%</b></div>
+            <div><span>金幣</span><b>12</b></div>
+          </div>
+
+          <nav>
+            <button class="navbtn active">冒險</button>
+            <button class="navbtn" id="journalBtn">世界手帳</button>
+            <button class="navbtn" id="inventoryBtn">背包</button>
+          </nav>
+
+          <div class="companion">
+            <div class="avatar">莉</div>
+            <div>
+              <strong>莉亞</strong>
+              <small>？？？ · 信任 18</small>
+            </div>
+          </div>
+        </aside>
+
+        <section class="scene">
+          <div class="scene-art">
+            <div class="scene-overlay"></div>
+            <div class="scene-copy">
+              <span class="location">霧森邊境 · 無名小徑</span>
+              <h2>你在陌生森林中醒來。</h2>
+              <p id="narrative">潮濕的泥土沾在掌心。遠處有鐘聲，卻看不見任何城鎮。你身上只有一枚看不懂文字的銅幣，以及一把生鏽短劍。</p>
+            </div>
+          </div>
+
+          <div class="decision-panel">
+            <div class="choices">
+              <button data-action="forest">探索森林深處</button>
+              <button data-action="road">沿著道路尋找人煙</button>
+              <button data-action="coin">研究陌生銅幣</button>
+              <button data-action="lia">詢問莉亞這是哪裡</button>
+            </div>
+
+            <div class="dice-box">
+              <div class="d20" id="d20">20</div>
+              <div>
+                <span class="eyebrow">D20 CHECK</span>
+                <strong id="rollLabel">尚未進行判定</strong>
+                <p id="rollResult">選擇一個需要判定的行動。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <div id="modal" class="modal hidden">
+      <div class="modal-card">
+        <button id="closeModal" class="close">×</button>
+        <div id="modalContent"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
