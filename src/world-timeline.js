@@ -1,12 +1,27 @@
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h)};
-export function normalizeWorldTimeline(input=[]){
+export function createTimelinePacing(playHours=15){
+ const targetPlayHours=clamp(Math.round(Number(playHours)||15),2,100);
+ let majorEventCount,horizonDays;
+ if(targetPlayHours<=5){majorEventCount=4;horizonDays=Math.max(7,Math.round(targetPlayHours*1.6))}
+ else if(targetPlayHours<=12){majorEventCount=5;horizonDays=Math.round(targetPlayHours*1.7)}
+ else if(targetPlayHours<=25){majorEventCount=6;horizonDays=Math.round(targetPlayHours*1.8)}
+ else if(targetPlayHours<=50){majorEventCount=7;horizonDays=Math.round(targetPlayHours*1.9)}
+ else{majorEventCount=8;horizonDays=Math.min(180,Math.round(targetPlayHours*1.8))}
+ const averageGapDays=Math.max(1,Math.round(horizonDays/(majorEventCount+1)));
+ return {targetPlayHours,majorEventCount,horizonDays,averageGapDays,phases:{
+  early:{fromDay:2,toDay:Math.max(3,Math.round(horizonDays*.25))},
+  middle:{fromDay:Math.max(4,Math.round(horizonDays*.25)),toDay:Math.max(5,Math.round(horizonDays*.7))},
+  late:{fromDay:Math.max(6,Math.round(horizonDays*.65)),toDay:horizonDays}
+ }}
+}
+export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
  const out=[];
- for(const [i,x] of (Array.isArray(input)?input:[]).slice(0,8).entries()){
+ for(const [i,x] of (Array.isArray(input)?input:[]).slice(0,pacing.majorEventCount).entries()){
   if(!x||typeof x!=="object")continue;
   const title=clean(x.title,120),directorTruth=clean(x.directorTruth,600),observableEffect=clean(x.observableEffect,500);
-  const earliestDay=clamp(Math.round(Number(x.earliestDay)||0),2,365),latestDay=clamp(Math.round(Number(x.latestDay)||earliestDay),earliestDay,365);
+  const earliestDay=clamp(Math.round(Number(x.earliestDay)||0),2,pacing.horizonDays),latestDay=clamp(Math.round(Number(x.latestDay)||earliestDay),earliestDay,pacing.horizonDays);
   if(!title||directorTruth.length<8||observableEffect.length<8)continue;
   const id=clean(x.id,100)||`TL-${i+1}-${hash(title+"|"+earliestDay+"|"+latestDay)}`;
   const triggerDay=earliestDay+(hash(id+"|"+title)%(latestDay-earliestDay+1));
@@ -14,11 +29,17 @@ export function normalizeWorldTimeline(input=[]){
  }
  return out
 }
-export function validateWorldTimeline(input){
- const timeline=normalizeWorldTimeline(input),errors=[];
- if(timeline.length<4)errors.push("WORLD_TIMELINE_TOO_SHORT");
+export function validateWorldTimeline(input,pacing=createTimelinePacing()){
+ const timeline=normalizeWorldTimeline(input,pacing),errors=[];
+ if(timeline.length!==pacing.majorEventCount)errors.push("WORLD_TIMELINE_EVENT_COUNT_MISMATCH");
  for(let i=1;i<timeline.length;i++)if(timeline[i].earliestDay<timeline[i-1].earliestDay)errors.push("WORLD_TIMELINE_NOT_ORDERED");
- return {valid:errors.length===0,errors,timeline}
+ if(timeline.length){
+  const early=timeline.some(x=>x.earliestDay<=pacing.phases.early.toDay),mid=timeline.some(x=>x.earliestDay>=pacing.phases.middle.fromDay&&x.earliestDay<=pacing.phases.middle.toDay),late=timeline.some(x=>x.latestDay>=pacing.phases.late.fromDay);
+  if(!early)errors.push("WORLD_TIMELINE_EARLY_EVENT_MISSING");
+  if(!mid)errors.push("WORLD_TIMELINE_MIDDLE_EVENT_MISSING");
+  if(!late)errors.push("WORLD_TIMELINE_LATE_EVENT_MISSING")
+ }
+ return {valid:errors.length===0,errors,timeline,pacing}
 }
 export function directorTimelineSnapshot(state,limit=6){
  return (state.world?.timeline||[]).filter(x=>x.status==="SCHEDULED").slice(0,limit).map(x=>({id:x.id,category:x.category,earliestDay:x.earliestDay,latestDay:x.latestDay,triggerDay:x.triggerDay,directorTruth:x.directorTruth,observableEffect:x.observableEffect,pressure:x.pressure}))
