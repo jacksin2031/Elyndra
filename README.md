@@ -4,7 +4,7 @@
 
 > 每一個世界，都有自己的真相。
 
-## V0.3 — AI World Runtime
+## V0.8 — Endless AI Adventure Runtime
 
 目前版本已建立可直接接入 AI Provider 的遊戲 Runtime：
 
@@ -112,3 +112,9 @@ Serverless endpoints：
 - `POST /api/npc` — 受 Knowledge Scope 限制的 NPC 對話
 
 環境變數參考 `.env.example`。未設定 API 時遊戲自動使用 deterministic local fallback。
+
+## V0.8 Endless AI Adventure
+
+目前停止點已達成：設定 AI Provider 後，玩家可反覆使用自由行動。每回合由 deterministic rules 先裁決，再由 `/api/turn` 產生經白名單驗證的下一回合候選內容。AI 可延伸場景、地點、Lore、道具、NPC 關係、任務與建議，但不能直接改骰子或隱藏 Canon。
+
+長期遊玩已有 context budget、event retention、NPC memory compaction 與 IndexedDB autosave。詳見 `docs/ENDLESS_RUNTIME.md`。
