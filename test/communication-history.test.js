@@ -14,7 +14,9 @@ test("low civilization and low magic downgrade impossible instant communication"
  assert.equal(c.latency,"DELAYED");
  assert.equal(c.range,"LOCAL");
  assert.equal(c.realtime,false);
- assert.equal(c.capability.downgraded,true);\n assert.notEqual(c.name,"不合理網絡");\n assert.match(c.medium,/信使|驛站|烽火/);
+ assert.equal(c.capability.downgraded,true);
+ assert.notEqual(c.name,"不合理網絡");
+ assert.match(c.medium,/信使|驛站|烽火/);
 });
 
 test("low civilization can still support fast contact when magic is sufficiently advanced",()=>{
