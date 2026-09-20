@@ -45,7 +45,7 @@ export function validateTurnCandidate(c){
 export function applyTurnCandidate(state,c,context={}){
  const v=validateTurnCandidate(c);if(!v.valid)throw new Error(v.errors.join(","));
  const previousSuggestions=[...(state.suggestions||[])];
- const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
+ const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);
  if(c.worldNameKnown===true)state.player.worldNameKnown=true;if(c.calendarKnown===true)state.player.calendarKnown=true;
  for(const d of (c.discoveries||[]).slice(0,2)){const title=sanitizePlayerText(d.title,100,""),body=sanitizePlayerText(d.text,500,"");if(title&&body&&!state.knowledge.some(k=>k.title===title)){state.knowledge.push({id:id(),title,status:"PARTIAL",text:body,sources:["AI_TURN"]});state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+2)}}
  for(const item of (c.items||[]).slice(0,1)){const name=sanitizePlayerText(item.name,100,"");if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:sanitizePlayerText(item.description,300,""),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false})}
@@ -60,7 +60,7 @@ export function applyTurnCandidate(state,c,context={}){
  applyWorldImpacts(state,c.worldImpacts,context)
  if(c.quest&&state.quests?.main){const title=sanitizePlayerText(c.quest.title,120,""),objective=sanitizePlayerText(c.quest.objective,180,"");if(title)state.quests.main.title=title;if(objective)state.quests.main.objectives=[objective]}
  revealStoredLore(state);
- if(c.encounter?.type==="combat"&&!state.combat?.active)startCombat(state,c.encounter.enemy);
+ if(c.encounter?.type==="combat"&&!state.combat?.active)startCombat(state,c.encounter.enemy);state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
  const fresh=sanitizeSuggestions(c.suggestions,previousSuggestions);state.suggestions=fresh.length?fresh:fallbackSuggestions(state,context);
  state.events.push({id:id(),type:"AI_TURN_APPLIED",visibility:"INTERNAL",day:state.world.state.day,at:Date.now()});
  return state
