@@ -2,7 +2,7 @@ import {advanceTime} from "./world-clock.js?v=267";
 import {tickWorld} from "./world-simulation.js?v=267";
 import {evaluateQuestEvidence} from "./quest-engine.js?v=267";
 import {npcInteractionMode} from "./world-registry.js?v=267";
-import {npcConversationMinutes,worldCommunication} from "./communication-engine.js?v=267";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=267";
 import {deriveSceneTitle} from "./runtime-guard.js?v=267";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
@@ -17,6 +17,7 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  const progressed=evaluateQuestEvidence(state,String(message||"")+" "+String(answer||""));
  const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
  state.events.push(event);
+ if(mode==="LOCAL")establishNpcRemoteContact(state,npc);
  const worldEvent=tickWorld(state);
  state.narrative=String(answer||"").slice(0,900);
  state.sceneTitle=deriveSceneTitle(state,"與"+npc.name+"交談");
