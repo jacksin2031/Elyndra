@@ -4,7 +4,7 @@ import {localCurrencyReward} from "./world-locality.js?v=270";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const CONDITION_TYPES=new Set(["FACT_KNOWN","ITEM_OWNED","ENTITY_KNOWN","EVENT_OCCURRED","LOCATION_STATE","NPC_STATE","FACTION_STATE"]);
-const TRUSTED_EVIDENCE=new Set(["CANON_EVIDENCE","ITEM","ENGINE_EVENT","WORLD_STATE"]);
+const TRUSTED_EVIDENCE=new Set(["CANON_EVIDENCE","ITEM","NPC_TESTIMONY","ENGINE_EVENT","WORLD_STATE"]);
 const MAIN=[
  {key:"SURVIVE",title:"在陌生世界活下來",objective:"理解自己身處何地，先確保能夠行動。"},
  {key:"ORIENT",title:"確認你的立足點",objective:"掌握目前地點、道路與最基本的當地規則。"},
@@ -64,7 +64,10 @@ export function questSnapshot(state){
  const r=ensureWorldRegistry(state);ensureQuestProgress(state);tickMainQuest(state);return {main:state.quests.main,side:r.sideQuests.slice(-12).map(q=>({id:q.id,title:q.title,objective:q.objective,status:q.status,progress:q.progress,target:q.target,conditions:q.conditions?.length||0}))}
 }
 export function evaluateQuestEvidence(state,evidence,context={}){
- const progressed=evaluateQuestState(state),raw=String(evidence||"").trim(),hay=raw.toLowerCase();if(!hay||!TRUSTED_EVIDENCE.has(String(context.source||"")))return progressed;
+ const progressed=evaluateQuestState(state),raw=String(evidence||"").trim(),hay=raw.toLowerCase(),source=String(context.source||"");if(!hay||!TRUSTED_EVIDENCE.has(source))return progressed;
+ if(source==="CANON_EVIDENCE"&&!(context.factId&&(state.knowledge||[]).some(k=>k.factId===context.factId&&k.status==="VERIFIED")))return progressed;
+ if(source==="ITEM"&&!(context.factId&&(state.knowledge||[]).some(k=>k.factId===context.factId&&k.status==="VERIFIED")))return progressed;
+ if(source==="NPC_TESTIMONY"){const npc=ensureWorldRegistry(state).npcs.find(n=>n.id===context.npcId);if(!npc||npc.known!==true||npc.encountered!==true)return progressed}
  for(const q of ensureQuestProgress(state)){
   if(q.status!=="ACTIVE"||q.known!==true||!Array.isArray(q.evidenceKeywords)||!q.evidenceKeywords.length)continue;
   for(const keyword of q.evidenceKeywords){const k=String(keyword).trim();if(!k||q.matchedKeywords.includes(k)||!hay.includes(k.toLowerCase()))continue;q.matchedKeywords.push(k);if(progressSideQuest(state,q.id,k+"："+raw.slice(0,120)))progressed.push({questId:q.id,keyword:k});if(q.status==="COMPLETED")break}
