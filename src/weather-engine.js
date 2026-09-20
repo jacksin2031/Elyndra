@@ -45,20 +45,21 @@ export function normalizeWeatherSystem(input={},seed={}){
   seedMagic:clamp(Math.round(Number(seed?.magic)||0),0,5)
  }
 }
-export function normalizeWeatherProfile(input={}){
+export function normalizeWeatherProfile(input={},allowedIds=null){
+ const allowed=allowedIds?new Set(allowedIds):null,keep=x=>{const v=clean(x,60);return v&&(!allowed||allowed.has(v))};
  return {
   zone:clean(input?.zone,100)||"",
-  affinities:Array.isArray(input?.affinities)?[...new Set(input.affinities.map(x=>clean(x,60)).filter(Boolean))].slice(0,6):[],
-  suppressions:Array.isArray(input?.suppressions)?[...new Set(input.suppressions.map(x=>clean(x,60)).filter(Boolean))].slice(0,6):[]
+  affinities:Array.isArray(input?.affinities)?[...new Set(input.affinities.map(x=>clean(x,60)).filter(x=>keep(x)))].slice(0,6):[],
+  suppressions:Array.isArray(input?.suppressions)?[...new Set(input.suppressions.map(x=>clean(x,60)).filter(x=>keep(x)))].slice(0,6):[]
  }
 }
 function currentLocation(state){
- const name=String(state.player?.location||state.world?.state?.location||"");
- return (state.world?.registry?.locations||[]).find(x=>x.name===name)||null
+ const locations=state.world?.registry?.locations||[],player=String(state.player?.location||""),worldLoc=String(state.world?.state?.location||"");
+ return locations.find(x=>x.name===player)||locations.find(x=>x.name===worldLoc)||null
 }
 function locationKey(state){const loc=currentLocation(state);return loc?.id||loc?.name||String(state.world?.state?.region||"WORLD")}
 function choose(state,excludeId=""){
- const sys=normalizeWeatherSystem(state.world?.bible?.weatherSystem,state.world?.seedContract||state.world?.seed||{}),loc=currentLocation(state),profile=normalizeWeatherProfile(loc?.weatherProfile),allowed=sys.phenomena.filter(x=>!profile.suppressions.includes(x.id));
+ const sys=normalizeWeatherSystem(state.world?.bible?.weatherSystem,state.world?.seedContract||state.world?.seed||{}),loc=currentLocation(state),profile=normalizeWeatherProfile(loc?.weatherProfile,sys.phenomena.map(x=>x.id)),allowed=sys.phenomena.filter(x=>!profile.suppressions.includes(x.id));
  const base=(allowed.length?allowed:sys.phenomena),candidates=excludeId&&base.length>1?base.filter(x=>x.id!==excludeId):base;
  const pool=candidates.map(x=>({x,w:x.weight*(profile.affinities.includes(x.id)?3:1)}));
  const current=sys.phenomena.find(x=>x.id===excludeId);if(current?.transitions?.length){for(const p of pool)if(current.transitions.includes(p.x.id))p.w*=3}
@@ -95,8 +96,8 @@ export function weatherActionModifier(state,kind){
 }
 export function playerWeatherSnapshot(state){
  const p=currentWeather(state),sys=state.world.bible.weatherSystem;
- return {observableName:p.observableName,sensoryCue:p.sensoryCue,danger:p.danger,forecastability:sys.forecastability,zone:normalizeWeatherProfile(currentLocation(state)?.weatherProfile).zone}
+ return {observableName:p.observableName,sensoryCue:p.sensoryCue,danger:p.danger,forecastability:sys.forecastability,zone:normalizeWeatherProfile(currentLocation(state)?.weatherProfile,sys.phenomena.map(x=>x.id)).zone}
 }
 export function directorWeatherSnapshot(state){
- initializeWeather(state);return {current:playerWeatherSnapshot(state),runtime:{...state.world.weather,history:(state.world.weather.history||[]).slice(-8)},system:state.world.bible.weatherSystem,locationProfile:normalizeWeatherProfile(currentLocation(state)?.weatherProfile)}
+ initializeWeather(state);return {current:playerWeatherSnapshot(state),runtime:{...state.world.weather,history:(state.world.weather.history||[]).slice(-8)},system:state.world.bible.weatherSystem,locationProfile:normalizeWeatherProfile(currentLocation(state)?.weatherProfile,state.world.bible.weatherSystem.phenomena.map(x=>x.id))}
 }
