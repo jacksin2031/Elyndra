@@ -50,10 +50,10 @@ function rumorRelevantToNpc(state,rumor,npc){
  if(rumor.status!=="ACTIVE")return false;
  if(rumor.spread==="WORLD")return true;
  if(rumor.targetKind==="npc"&&rumor.targetId===npc.id)return true;
- if(rumor.targetKind==="faction"&&npc.factionId===rumor.targetId)return true;
+ if(rumor.targetKind==="faction"&&RANK[rumor.spread]>=RANK.FACTION&&npc.factionId===rumor.targetId)return true;
  if(rumor.targetKind==="location"){
-  if(npc.locationId===rumor.targetId)return true;
-  if(rumor.spread==="REGIONAL"){
+  if(RANK[rumor.spread]>=RANK.LOCAL&&npc.locationId===rumor.targetId)return true;
+  if(RANK[rumor.spread]>=RANK.REGIONAL){
    const source=(state.world.registry?.locations||[]).find(x=>x.id===rumor.targetId),home=(state.world.registry?.locations||[]).find(x=>x.id===npc.locationId);
    return Boolean(source?.region&&home?.region&&source.region===home.region)
   }
@@ -106,12 +106,14 @@ export function processRecognition(state){
  return out
 }
 export function recognitionForNpc(state,npc){
- const r=ensureRecognition(state),rumors=r.rumors.filter(x=>rumorRelevantToNpc(state,x,npc)).slice(-6);
- return {tier:r.tier,renown:r.renown,notoriety:r.notoriety,titles:r.titles.slice(-4).map(x=>x.label),knownDeeds:rumors.map(x=>({tone:x.tone,text:x.text,targetName:x.targetName,scope:x.scope}))}
+ const r=ensureRecognition(state),rumors=r.rumors.filter(x=>rumorRelevantToNpc(state,x,npc)).slice(-6),knownImpactIds=new Set(rumors.map(x=>x.impactId)),titles=r.titles.filter(x=>knownImpactIds.has(x.impactId)).slice(-4).map(x=>x.label);
+ if(!rumors.length)return {tier:"UNKNOWN",renown:0,notoriety:0,titles:[],knownDeeds:[]};
+ return {tier:r.tier,renown:r.renown,notoriety:r.notoriety,titles,knownDeeds:rumors.map(x=>({tone:x.tone,text:x.text,targetName:x.targetName,scope:x.scope}))}
 }
 export function recognitionForFaction(state,faction){
- const r=ensureRecognition(state),rumors=r.rumors.filter(x=>rumorRelevantToFaction(x,faction)).slice(-6),attention=Number(r.factionAttention[faction.id])||0;
- return {tier:r.tier,renown:r.renown,attention,titles:r.titles.slice(-4).map(x=>x.label),knownDeeds:rumors.map(x=>({tone:x.tone,text:x.text,scope:x.scope})),reactions:r.reactions.filter(x=>x.factionId===faction.id).slice(-4)}
+ const r=ensureRecognition(state),rumors=r.rumors.filter(x=>rumorRelevantToFaction(x,faction)).slice(-6),attention=Number(r.factionAttention[faction.id])||0,knownImpactIds=new Set(rumors.map(x=>x.impactId)),titles=r.titles.filter(x=>knownImpactIds.has(x.impactId)).slice(-4).map(x=>x.label);
+ if(!rumors.length)return {tier:"UNKNOWN",renown:0,attention:0,titles:[],knownDeeds:[],reactions:[]};
+ return {tier:r.tier,renown:r.renown,attention,titles,knownDeeds:rumors.map(x=>({tone:x.tone,text:x.text,scope:x.scope})),reactions:r.reactions.filter(x=>x.factionId===faction.id).slice(-4)}
 }
 export function recognitionSnapshot(state,{director=false}={}){
  const r=ensureRecognition(state),base={renown:r.renown,notoriety:r.notoriety,tier:r.tier,titles:r.titles.slice(-8),activeRumors:r.rumors.filter(x=>x.status==="ACTIVE").slice(-12).map(x=>({id:x.id,scope:x.scope,spread:x.spread,tone:x.tone,targetKind:x.targetKind,targetId:x.targetId,targetName:x.targetName,text:x.text})),marks:r.marks.slice(-12),reactions:r.reactions.slice(-12)};
