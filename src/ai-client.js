@@ -46,7 +46,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
     hiddenFacts:["2-3項簡潔真正秘密"]
    }})
   }));
-  if(!core?.worldName||!core?.worldTheme||!core?.summary||!core?.seedCompliance||!core?.worldBible||!Array.isArray(core.publicFacts)||!Array.isArray(core.hiddenFacts))throw new Error("WORLD_CORE_INVALID");
+  if(!core?.worldName||!core?.worldTheme||!core?.summary||!core?.seedCompliance||!core?.worldBible||!Array.isArray(core.worldBible?.weatherSystem?.phenomena)||core.worldBible.weatherSystem.phenomena.length<4||!Array.isArray(core.publicFacts)||!Array.isArray(core.hiddenFacts))throw new Error("WORLD_CORE_INVALID");
 
   report(58,"平行編譯世界","時間線與開局地區將同時生成，減少等待時間");
   const chronologyPromise=worldStage("CHRONOLOGY",{
