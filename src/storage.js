@@ -1,9 +1,10 @@
+import {assertSaveState} from "./state-validator.js";
 const DB_NAME="elyndra"; const DB_VERSION=1; const STORE="saves";
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function tx(mode,fn){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,mode),s=t.objectStore(STORE);let value;try{value=fn(s)}catch(e){reject(e);return}t.oncomplete=()=>resolve(value);t.onerror=()=>reject(t.error)})}
-export async function saveWorld(state){const record={...structuredClone(state),id:"autosave",savedAt:new Date().toISOString(),formatVersion:1};await tx("readwrite",s=>s.put(record));return record}
+export async function saveWorld(state){assertSaveState(state);const record={...structuredClone(state),id:"autosave",savedAt:new Date().toISOString(),formatVersion:1};await tx("readwrite",s=>s.put(record));return record}
 export async function loadWorld(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).get("autosave");r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
 export async function hasWorld(){return !!(await loadWorld())}
 export async function deleteWorld(){await tx("readwrite",s=>s.delete("autosave"))}
 export function exportWorld(state){const payload={format:"elyndra-save",formatVersion:1,exportedAt:new Date().toISOString(),state};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${state.world?.name||"world"}.elyndra`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-export async function importWorld(file){const payload=JSON.parse(await file.text());if(payload.format!=="elyndra-save"||payload.formatVersion!==1||!payload.state?.world)throw new Error("不是有效的 Elyndra v1 存檔");await saveWorld(payload.state);return payload.state}
+export async function importWorld(file){const payload=JSON.parse(await file.text());if(payload.format!=="elyndra-save"||payload.formatVersion!==1||!payload.state?.world)throw new Error("不是有效的 Elyndra v1 存檔");assertSaveState(payload.state);await saveWorld(payload.state);return payload.state}
