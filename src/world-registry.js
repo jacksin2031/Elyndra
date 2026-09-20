@@ -36,7 +36,7 @@ export function npcInteractionMode(state,npc){if(!npc||npc.known!==true||npc.enc
 export function canInteractWithNpc(state,npc){return Boolean(npcInteractionMode(state,npc))}
 export function resolvePlayerLocation(state,raw,context={}){
  const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state),entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;
- const result=travelTo(state,entity,{roll:context.roll||null,actionKind:context.actionKind||context.roll?.profile?.kind||"",baseMinutes:Number(context.baseTravelMinutes)||45,force:context.force===true});
+ const internalSetup=Object.keys(context||{}).length===0,result=travelTo(state,entity,{roll:context.roll||null,actionKind:context.actionKind||context.roll?.profile?.kind||"",baseMinutes:Number(context.baseTravelMinutes)||45,force:context.force===true||internalSetup});
  if(!result.ok){state.events.push({id:uid("EV"),type:"TRAVEL_REJECTED",visibility:"INTERNAL",destinationId:entity.id,reason:result.reason,day:state.world.state.day,at:Date.now()});return null}
  return entity
 }
