@@ -12,7 +12,7 @@ import {directorTimelineSnapshot} from "./world-timeline.js?v=267";
 import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=267";
 import {recognitionSnapshot} from "./recognition-engine.js?v=267";
 import {checkProfileSnapshot,normalizeCheckBonuses} from "./check-engine.js?v=267";
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative,fallbackSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=267";
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative,fallbackSuggestions,sanitizeLocationName,sanitizeSceneTitle} from "./runtime-guard.js?v=267";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function buildSnapshot(state){
@@ -22,7 +22,7 @@ export function buildSnapshot(state){
 export function validateTurnCandidate(c){
  const errors=[];if(!c||typeof c!=="object"||Array.isArray(c))return {valid:false,errors:["CANDIDATE_INVALID"]};
  if(!text(c.narrative,1200))errors.push("NARRATIVE_REQUIRED");
- if(c.location!=null&&typeof c.location!=="string")errors.push("LOCATION_INVALID");
+ if(c.location!=null&&typeof c.location!=="string")errors.push("LOCATION_INVALID");if(c.sceneTitle!=null&&typeof c.sceneTitle!=="string")errors.push("SCENE_TITLE_INVALID");
  if(c.worldNameKnown!=null&&typeof c.worldNameKnown!=="boolean")errors.push("WORLD_NAME_KNOWLEDGE_INVALID");if(c.calendarKnown!=null&&typeof c.calendarKnown!=="boolean")errors.push("CALENDAR_KNOWLEDGE_INVALID");
  if(c.discoveries!=null&&!Array.isArray(c.discoveries))errors.push("DISCOVERIES_INVALID");
  if(c.items!=null&&!Array.isArray(c.items))errors.push("ITEMS_INVALID");
@@ -45,7 +45,7 @@ export function validateTurnCandidate(c){
 export function applyTurnCandidate(state,c,context={}){
  const v=validateTurnCandidate(c);if(!v.valid)throw new Error(v.errors.join(","));
  const previousSuggestions=[...(state.suggestions||[])];
- const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);
+ const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
  if(c.worldNameKnown===true)state.player.worldNameKnown=true;if(c.calendarKnown===true)state.player.calendarKnown=true;
  for(const d of (c.discoveries||[]).slice(0,2)){const title=sanitizePlayerText(d.title,100,""),body=sanitizePlayerText(d.text,500,"");if(title&&body&&!state.knowledge.some(k=>k.title===title)){state.knowledge.push({id:id(),title,status:"PARTIAL",text:body,sources:["AI_TURN"]});state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+2)}}
  for(const item of (c.items||[]).slice(0,1)){const name=sanitizePlayerText(item.name,100,"");if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:sanitizePlayerText(item.description,300,""),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false})}
