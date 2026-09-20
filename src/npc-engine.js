@@ -1,0 +1,6 @@
+import {ensureWorldRegistry} from "./world-registry.js";
+import {ensureClock} from "./world-clock.js";
+const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
+export function ensureNpcRuntime(state){const r=ensureWorldRegistry(state),now=ensureClock(state).totalMinutes;for(const n of r.npcs){n.personality??="對陌生人保持謹慎";n.goal??="維持自己的生活與安全";n.knowledgeScope??=[];n.memories??=[];n.trust??=0;n.lastActionMinute??=now}return r.npcs}
+export function tickNpcs(state){const now=ensureClock(state).totalMinutes,out=[];for(const npc of ensureNpcRuntime(state)){if(!npc.alive||now-npc.lastActionMinute<120)continue;npc.lastActionMinute=now;const summary=npc.name+" 為了「"+npc.goal+"」採取了自己的行動。";const ev={id:id(),type:"NPC_AUTONOMOUS_ACTION",npcId:npc.id,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),at:Date.now()};npc.memories.push({id:id(),type:"autonomous",summary,day:state.world.state.day});npc.memories=npc.memories.slice(-12);state.events.push(ev);out.push(ev)}return out.slice(0,4)}
+export function findNpc(state,idOrName){return ensureNpcRuntime(state).find(n=>n.id===idOrName||n.name===idOrName)||null}
