@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=262"></head>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=263"></head>
 <body><div class="noise"></div><header class="topbar"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div><span id="aiBadge" class="status">LOCAL</span><button id="aiSettingsBtn" class="ghost">AI 設定</button><button id="saveToolsBtn" class="ghost">存檔管理</button><button id="resetBtn" class="ghost">重置世界</button></header>
 <main id="app">
 <section id="landing" class="screen active"><div class="hero"><div class="eyebrow">AI × TRPG × WORLD DISCOVERY</div><h1>醒來時，你對這個世界一無所知。</h1><p>創造只屬於你的異世界。探索、擲骰、閱讀遺物、結識夥伴，直到你理解這個世界真正發生過甚麼。</p><div class="actions"><button id="newWorldBtn" class="primary">開始轉生</button><button id="continueBtn" class="secondary">繼續冒險</button></div></div><div class="feature-grid"><article><span>01</span><h3>世界不是說明書</h3><p>設定藏在人物、書本、武器、遺跡與事件之中。</p></article><article><span>02</span><h3>骰子決定命運</h3><p>Engine 決定成敗，AI 只能描述已發生的結果。</p></article><article><span>03</span><h3>AI 夥伴有記憶</h3><p>NPC 只知道自己應該知道的事，也會記住重要互動。</p></article><article><span>04</span><h3>世界屬於玩家</h3><p>IndexedDB 本地保存，並可匯出完整 .elyndra 世界。</p></article></div></section>
@@ -10,4 +10,4 @@
 <input id="importFile" type="file" accept=".elyndra,application/json" hidden><script>
 window.addEventListener("error",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=e.message||"JavaScript failed"}});
 window.addEventListener("unhandledrejection",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=String(e.reason?.message||e.reason||"Promise failed")}});
-</script><script type="module" src="app.js?v=262"></script></body></html>
+</script><script type="module" src="app.js?v=263"></script></body></html>
