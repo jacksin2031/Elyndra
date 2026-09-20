@@ -27,7 +27,7 @@ export function compileWorld(seed){
    {id:"F-magic",type:"rule",visibility:"hidden",text:`World Seed 規定魔法普及度為 ${seedContract.magic}/5；具體魔法制度由符合 Seed Contract 的世界 Canon 決定。`,canonical:true},
    {id:"F-politics",type:"rule",visibility:"hidden",text:`World Seed 規定政治複雜度為 ${seedContract.politics}/5；勢力與關係網必須符合此強度。`,canonical:true}
   ],relations:[]},
-  state:{day:1,location:"未知真實開局位置",clock:{day:1,hour:8,minute:0,totalMinutes:0},simulation:{tension:10,lastEventMinute:0,flags:{}},flags:{}}
+  state:{day:1,location:"未知真實開局位置",clock:{day:1,hour:8,minute:0,totalMinutes:0},simulation:{tension:10,lastEventMinute:0,lastTickMinute:0,npcCursor:0,factionCursor:0,flags:{}},flags:{}}
  };
  const report=validateWorld(world);if(!report.valid)throw new Error(report.errors.join("\n"));return {world,report}
 }
