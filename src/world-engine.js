@@ -15,7 +15,7 @@ export function compileWorld(seed){
    {id:"F-magic",type:"rule",visibility:"discoverable",text:`魔法普及度為 ${seed.magic}/5；施法需要代價，不能無條件改寫既定歷史。`,canonical:true},
    {id:"F-north",type:"geography",visibility:"public",text:"北境由大片霧林、舊石道與失落遺跡構成。",canonical:true}
   ],relations:[]},
-  state:{day:1,location:"霧森邊境 · 無名小徑",flags:{}}
+  state:{day:1,location:"霧森邊境 · 無名小徑",clock:{day:1,hour:8,minute:0,totalMinutes:0},simulation:{tension:10,lastEventMinute:0,flags:{}},flags:{}}
  };
  const report=validateWorld(world); if(!report.valid)throw new Error(report.errors.join("\n")); return {world,report};
 }
