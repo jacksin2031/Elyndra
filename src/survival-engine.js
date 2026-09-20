@@ -26,3 +26,10 @@ export function consumeSupply(state,itemName){
  const name=String(itemName||"").trim(),i=(state.inventory||[]).findIndex(x=>x.name===name);if(i<0)return false;state.inventory.splice(i,1);const s=ensureSurvival(state);s.hunger=clamp(s.hunger-25,0,100);s.exposure=clamp(s.exposure-5,0,100);refreshConditions(s);return true
 }
 export function survivalSnapshot(state){const s=ensureSurvival(state);return {hunger:Math.round(s.hunger),fatigue:Math.round(s.fatigue),exposure:Math.round(s.exposure),injury:Math.round(s.injury),conditions:[...s.conditions]}}
+
+export function resolveSurvivalAction(state,label,roll){
+ const q=String(label||"");if(roll?.success===false||!/食用|進食|吃|喝|飲用|eat|drink/i.test(q))return null;
+ const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),foods=new Set((loc?.culture?.food||[]).map(String));
+ const item=(state.inventory||[]).find(x=>q.includes(x.name)&&(foods.has(x.name)||x.consumable===true));if(!item)return {handled:true,ok:false,reason:"NO_EDIBLE_SUPPLY"};
+ const before=ensureSurvival(state).hunger,ok=consumeSupply(state,item.name);return {handled:true,ok,itemName:item.name,hungerBefore:before,hungerAfter:ensureSurvival(state).hunger}
+}
