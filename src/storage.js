@@ -6,8 +6,9 @@ function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open
 async function tx(mode,fn){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,mode),s=t.objectStore(STORE);let value;try{value=fn(s)}catch(e){reject(e);return}t.oncomplete=()=>resolve(value);t.onerror=()=>reject(t.error)})}
 export function migrateSave(input){
  if(!input||typeof input!=="object")throw new Error("SAVE_STATE_INVALID");
- const declared=Number(input.formatVersion||1);
- if(Number.isFinite(declared)&&declared>FORMAT_VERSION)throw new Error("SAVE_VERSION_TOO_NEW");
+ const declared=Number(input.formatVersion??1);
+ if(!Number.isInteger(declared)||declared<1)throw new Error("SAVE_VERSION_INVALID");
+ if(declared>FORMAT_VERSION)throw new Error("SAVE_VERSION_TOO_NEW");
  const s=structuredClone(input);let v=Number(s.formatVersion||1);
  if(v<2){s.world.registry??={locations:[],npcs:[],factions:[],sideQuests:[]};s.world.graph??={nodes:[],edges:[],expansions:[]};s.world.state.crisis??={stage:"DORMANT",pressure:0,lastStageDay:s.world.state.day,history:[]};s.world.state.simulation??={tension:10,lastEventMinute:0,flags:{}};s.player.level??=1;s.player.xp??=0;s.player.status??="ALIVE";for(const q of s.world.registry.sideQuests||[]){q.progress??=0;q.target??=3;q.evidence??=[]}v=2}
  if(v<3){s.player.name??="無名者";s.player.nameSource??="LEGACY";s.player.worldNameKnown??=true;s.suggestions??=[];v=3}
