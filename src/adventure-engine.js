@@ -50,8 +50,8 @@ export function applyTurnCandidate(state,c,context={}){
  for(const d of (c.discoveries||[]).slice(0,2)){const title=sanitizePlayerText(d.title,100,""),body=sanitizePlayerText(d.text,500,"");if(title&&body&&!state.knowledge.some(k=>k.title===title)){state.knowledge.push({id:id(),title,status:"PARTIAL",text:body,sources:["AI_TURN"]});state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+2)}}
  for(const item of (c.items||[]).slice(0,1)){const name=sanitizePlayerText(item.name,100,"");if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:sanitizePlayerText(item.description,300,""),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false})}
  canonizeGeneration(state,c.generation);
- revealRegistryEntities(state,c.entityReveals);
  const requestedLocation=sanitizeLocationName(c.location);if(requestedLocation&&!resolvePlayerLocation(state,requestedLocation)){state.events.push({id:id(),type:"LOCATION_CANDIDATE_REJECTED",visibility:"INTERNAL",day:state.world.state.day,summary:requestedLocation,at:Date.now()})}
+ revealRegistryEntities(state,c.entityReveals);
  for(const d of (c.discoveries||[]).slice(0,2))evaluateQuestEvidence(state,`${sanitizePlayerText(d.title,100,"")} ${sanitizePlayerText(d.text,500,"")}`);for(const item of (c.items||[]).slice(0,1))evaluateQuestEvidence(state,`${sanitizePlayerText(item.name,100,"")} ${sanitizePlayerText(item.description,300,"")}`);
  const registry=ensureWorldRegistry(state);
  for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId);if(canInteractWithNpc(state,npc))npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+n.trustDelta))}
