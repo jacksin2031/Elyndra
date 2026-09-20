@@ -61,19 +61,21 @@ export function validateTurnCandidate(c){
 }
 export function applyTurnCandidate(state,c,context={}){
  const v=validateTurnCandidate(c);if(!v.valid)throw new Error(v.errors.join(","));
- const previousSuggestions=[...(state.suggestions||[])];
+ const previousSuggestions=[...(state.suggestions||[])],rollSucceeded=context.roll?.success!==false;
  const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);
- if(c.worldNameKnown===true)state.player.worldNameKnown=true;if(c.calendarKnown===true)state.player.calendarKnown=true;
+ if(rollSucceeded&&c.worldNameKnown===true)state.player.worldNameKnown=true;if(rollSucceeded&&c.calendarKnown===true)state.player.calendarKnown=true;
  const verifiedDiscoveries=[];for(const d of (c.discoveries||[]).slice(0,2)){const entry=registerDiscovery(state,d,context);if(entry?.status==="VERIFIED")verifiedDiscoveries.push(entry)}
- for(const item of (c.items||[]).slice(0,1)){const name=sanitizePlayerText(item.name,100,"");if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:sanitizePlayerText(item.description,300,""),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false})}
- canonizeGeneration(state,c.generation);
+ for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,1)){const name=sanitizePlayerText(item.name,100,"");if(name&&!state.inventory.some(i=>i.name===name))state.inventory.push({id:id(),name,description:sanitizePlayerText(item.description,300,""),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false})}
+ const generation=c.generation?structuredClone(c.generation):c.generation;
+ if(!rollSucceeded&&generation)for(const key of ["locations","npcs","factions","sideQuests"])for(const x of generation[key]||[])x.known=false;
+ canonizeGeneration(state,generation);
  const requestedLocation=sanitizeLocationName(c.location);if(requestedLocation&&!resolvePlayerLocation(state,requestedLocation,{...context,actionKind:context.roll?.profile?.kind||""})){state.events.push({id:id(),type:"LOCATION_CANDIDATE_REJECTED",visibility:"INTERNAL",day:state.world.state.day,summary:requestedLocation,at:Date.now()})}
- revealRegistryEntities(state,c.entityReveals);
- for(const d of verifiedDiscoveries)evaluateQuestEvidence(state,d.title+" "+d.text,{factId:d.factId,source:"CANON_EVIDENCE"});for(const item of (c.items||[]).slice(0,1))evaluateQuestEvidence(state,sanitizePlayerText(item.name,100,"")+" "+sanitizePlayerText(item.description,300,""),{itemName:sanitizePlayerText(item.name,100,""),source:"ITEM"});
+ if(rollSucceeded)revealRegistryEntities(state,c.entityReveals);
+ for(const d of verifiedDiscoveries)evaluateQuestEvidence(state,d.title+" "+d.text,{factId:d.factId,source:"CANON_EVIDENCE"});for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,1))evaluateQuestEvidence(state,sanitizePlayerText(item.name,100,"")+" "+sanitizePlayerText(item.description,300,""),{itemName:sanitizePlayerText(item.name,100,""),source:"ITEM"});
  const registry=ensureWorldRegistry(state);
- for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId);if(canInteractWithNpc(state,npc))npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+n.trustDelta))}
- for(const f of (c.factionChanges||[]).slice(0,2)){if(registry.factions.some(x=>x.id===f.factionId&&x.known===true))changeReputation(state,f.factionId,f.reputationDelta)}
- for(const x of (c.companionChanges||[]).slice(0,2)){const npc=registry.npcs.find(n=>n.id===x.npcId);if(canInteractWithNpc(state,npc)||npc?.companion?.status==="ACTIVE")applyCompanionChange(state,x)}
+ for(const n of (c.npcChanges||[]).slice(0,3)){const npc=registry.npcs.find(x=>x.id===n.npcId),delta=Math.round(Number(n.trustDelta)||0);if(canInteractWithNpc(state,npc)&&(rollSucceeded||delta<0))npc.trust=Math.max(0,Math.min(100,(npc.trust??0)+delta))}
+ for(const f of (c.factionChanges||[]).slice(0,2)){const delta=Math.round(Number(f.reputationDelta)||0);if((rollSucceeded||delta<0)&&registry.factions.some(x=>x.id===f.factionId&&x.known===true))changeReputation(state,f.factionId,delta)}
+ for(const x of (c.companionChanges||[]).slice(0,2)){const npc=registry.npcs.find(n=>n.id===x.npcId),action=String(x.action||"").toUpperCase();if((rollSucceeded||action==="LEAVE")&&(canInteractWithNpc(state,npc)||npc?.companion?.status==="ACTIVE"))applyCompanionChange(state,x)}
  applyWorldImpacts(state,c.worldImpacts,context)
  if(c.quest&&state.quests?.main){const hint=sanitizePlayerText(c.quest.objective||c.quest.title,180,"");if(hint)state.quests.main.aiHint=hint}tickMainQuest(state)
  revealStoredLore(state);
