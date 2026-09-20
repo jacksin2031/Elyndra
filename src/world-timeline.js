@@ -51,6 +51,7 @@ export function applyTimelineImpact(state,effect){
  const id=clean(effect?.timelineId,120),action=String(effect?.action||"").toUpperCase(),timeline=(state.world?.timeline||[]).find(x=>x.id===id&&x.status==="SCHEDULED");if(!timeline||!["DELAY","ADVANCE","WEAKEN","STRENGTHEN"].includes(action))return null;
  timeline.baseTriggerDay??=timeline.triggerDay;timeline.impactOffsetDays??=0;timeline.intensityModifier??=0;timeline.impactHistory??=[];
  const earliest=Math.max(2,Number(timeline.earliestDay)||2),latest=Math.max(earliest,Number(timeline.latestDay)||earliest),current=Math.max(1,Number(state.world?.state?.day)||1),beforeDay=effectiveTriggerDay(timeline),beforePressure=effectiveTimelinePressure(timeline),base=Number(timeline.baseTriggerDay)||beforeDay;
+ if(["DELAY","ADVANCE"].includes(action)&&current>=latest)return null;
  if(action==="DELAY"){const days=clamp(Math.round(Number(effect?.days)||1),1,5),desired=clamp(beforeDay+days,Math.max(earliest,current+1),latest);timeline.impactOffsetDays=desired-base}
  if(action==="ADVANCE"){const days=clamp(Math.round(Number(effect?.days)||1),1,3),desired=clamp(beforeDay-days,Math.max(earliest,current+1),latest);timeline.impactOffsetDays=desired-base}
  if(action==="WEAKEN")timeline.intensityModifier=clamp(timeline.intensityModifier-clamp(Math.round(Number(effect?.amount)||1),1,5),-10,10);
