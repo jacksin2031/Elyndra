@@ -32,7 +32,7 @@ export function validateWorld(world){
 }
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
- return {formatVersion:3,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},integrity:report,
+ return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},integrity:report,
   player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,hp:100,maxHp:100,gold:12,knowledgeScore:0,location:"未知地點"},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
