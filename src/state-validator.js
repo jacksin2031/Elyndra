@@ -5,7 +5,7 @@ export function validateSaveState(s){
  if(!obj(s.world)||!s.world.id||!s.world.name)errors.push("WORLD_INVALID");
  if(!obj(s.world?.state)||!Number.isFinite(s.world?.state?.day)||s.world.state.day<1)errors.push("WORLD_STATE_INVALID");
  if(!Array.isArray(s.world?.canon?.facts))errors.push("CANON_INVALID");
- if(!obj(s.player)||!Number.isFinite(s.player.hp)||!Number.isFinite(s.player.maxHp)||!Number.isFinite(s.player.gold)||!Number.isFinite(s.player.knowledgeScore)||typeof s.player.location!=="string")errors.push("PLAYER_INVALID");
+ if(!obj(s.player)||typeof s.player.name!=="string"||!s.player.name.trim()||typeof s.player.worldNameKnown!=="boolean"||!Number.isFinite(s.player.hp)||!Number.isFinite(s.player.maxHp)||!Number.isFinite(s.player.gold)||!Number.isFinite(s.player.knowledgeScore)||typeof s.player.location!=="string")errors.push("PLAYER_INVALID");
  if(s.player?.hp<0||s.player?.hp>s.player?.maxHp)errors.push("PLAYER_HP_INVALID");if(s.player?.level!=null&&(!Number.isInteger(s.player.level)||s.player.level<1))errors.push("PLAYER_LEVEL_INVALID");if(!Array.isArray(s.inventory))errors.push("INVENTORY_INVALID");
  if(!Array.isArray(s.knowledge))errors.push("KNOWLEDGE_INVALID");
  if(!Array.isArray(s.events))errors.push("EVENTS_INVALID");
