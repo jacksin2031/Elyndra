@@ -1,9 +1,10 @@
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=267";
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=268";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 
 export function sceneTurnSnapshot(snapshot={}){
  return {
   world:snapshot.world,
+  weather:snapshot.weather,
   player:snapshot.player,
   knownFacts:snapshot.knownFacts,
   knowledge:snapshot.knowledge,
