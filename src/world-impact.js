@@ -13,6 +13,8 @@ const LOCATION_FIELDS=new Set(["safety","prosperity","supply","infrastructure","
 const FACTION_FIELDS=new Set(["resources","influence","stability"]);
 const NPC_FIELDS=new Set(["trust"]);
 const WORLD_FIELDS=new Set(["tension","crisisPressure"]);
+const STRUCTURE_STATES=new Set(["ACTIVE","OPEN","RESTORED","STABILIZED","DAMAGED","DESTROYED","CLOSED","FLOODED","ABANDONED","CORRUPTED","TRANSFORMED"]);
+const NEGATIVE_STRUCTURE_STATES=new Set(["DAMAGED","DESTROYED","CLOSED","FLOODED","ABANDONED","CORRUPTED"]);
 const TARGETS={
  PERSONAL:new Set(["npc"]),
  LOCAL:new Set(["location","npc","faction"]),
@@ -29,6 +31,7 @@ function defaultState(kind){
 function ensureEntityState(entity,kind){
  entity.worldState??=defaultState(kind);
  entity.worldState.statusTags=Array.isArray(entity.worldState.statusTags)?entity.worldState.statusTags.map(x=>clean(x,60)).filter(Boolean).slice(0,12):[];
+ entity.worldState.structures=Array.isArray(entity.worldState.structures)?entity.worldState.structures:[];
  if(kind==="location")for(const k of LOCATION_FIELDS)entity.worldState[k]=clamp(Number(entity.worldState[k]??50),0,100);
  if(kind==="faction")entity.worldState.stability=clamp(Number(entity.worldState.stability??50),0,100);
  return entity.worldState
@@ -38,6 +41,7 @@ export function ensureWorldImpact(state){
  const x=state.world.impact;x.version=2;x.influence??={personal:0,local:0,regional:0,faction:0,world:0};x.records=Array.isArray(x.records)?x.records:[];x.queue=Array.isArray(x.queue)?x.queue:[];
  for(const key of ["personal","local","regional","faction","world"])x.influence[key]=Math.max(0,Math.round(Number(x.influence[key])||0));
  state.world.state.statusTags=Array.isArray(state.world.state.statusTags)?state.world.state.statusTags.map(x=>clean(x,60)).filter(Boolean).slice(0,12):[];
+ state.world.state.structures=Array.isArray(state.world.state.structures)?state.world.state.structures:[];
  const r=state.world.registry||{};for(const e of r.locations||[])ensureEntityState(e,"location");for(const e of r.npcs||[])ensureEntityState(e,"npc");for(const e of r.factions||[])ensureEntityState(e,"faction");
  return x
 }
@@ -99,6 +103,9 @@ function authorizeTarget(state,scope,kind,target){
 function fieldSet(kind){return kind==="location"?LOCATION_FIELDS:kind==="npc"?NPC_FIELDS:kind==="faction"?FACTION_FIELDS:kind==="world"?WORLD_FIELDS:new Set()}
 function mutationSchemaValid(kind,mutation){
  const op=String(mutation?.op||"").toUpperCase(),field=clean(mutation?.field,50);
+ if(op==="STRUCTURE"){
+  const v=mutation?.value;return ["location","faction","world"].includes(kind)&&field==="structure"&&v&&typeof v==="object"&&!Array.isArray(v)&&Boolean(clean(v.id,80))&&Boolean(clean(v.label,120))&&STRUCTURE_STATES.has(String(v.state||"").toUpperCase())
+ }
  if(["ADD_TAG","REMOVE_TAG"].includes(op))return field==="statusTag"&&Boolean(clean(mutation?.value,60));
  if(op!=="DELTA"||!fieldSet(kind).has(field))return false;
  const n=Number(mutation?.value);return Number.isFinite(n)&&n!==0
@@ -106,6 +113,7 @@ function mutationSchemaValid(kind,mutation){
 function mutationAllowedForRoll(mutation,roll,outcome){
  if(!roll||roll.success!==false)return true;
  const op=String(mutation?.op||"").toUpperCase();
+ if(op==="STRUCTURE")return NEGATIVE_STRUCTURE_STATES.has(String(mutation?.value?.state||"").toUpperCase());
  if(op==="DELTA")return Number(mutation?.value)<0;
  if(op==="ADD_TAG")return ["COST","MIXED"].includes(String(outcome||"").toUpperCase());
  return false
@@ -119,6 +127,12 @@ function mutateTag(tags,op,value){
 function applyMutation(state,target,kind,mutation,limit){
  if(!mutationSchemaValid(kind,mutation))return {changed:false};
  const op=String(mutation?.op||"").toUpperCase(),field=clean(mutation?.field,50);
+ if(op==="STRUCTURE"){
+  const holder=kind==="world"?state.world.state:ensureEntityState(target,kind);holder.structures=Array.isArray(holder.structures)?holder.structures:[];
+  const v=mutation.value,sid=clean(v.id,80),label=clean(v.label,120),next=String(v.state||"").toUpperCase(),note=clean(v.description,220),existing=holder.structures.find(x=>x.id===sid),before=existing?existing.state:null;
+  if(existing){existing.label=label;existing.state=next;existing.description=note;existing.updatedDay=state.world.state.day}else holder.structures.push({id:sid,label,state:next,description:note,createdDay:state.world.state.day,updatedDay:state.world.state.day});
+  return {changed:before!==next,field:"structure",structureId:sid,label,before,after:next}
+ }
  if(["ADD_TAG","REMOVE_TAG"].includes(op)){
   const holder=kind==="world"?state.world.state:ensureEntityState(target,kind);holder.statusTags??=[];return mutateTag(holder.statusTags,op,mutation.value)
  }
