@@ -41,11 +41,12 @@ export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),tot
 export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score)}}
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
+ const bible=candidate.worldBible;if(bible!=null){if(typeof bible!=="object"||Array.isArray(bible))throw new Error("INVALID_WORLD_BIBLE");const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200)};}
  const existing=new Set(state.world.canon.facts.map(f=>f.text));let n=0;
  for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]]){
   for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
  }
- state.world.summary=String(candidate.summary).slice(0,1000);
+ state.world.summary=String(candidate.summary).slice(0,1000);if(candidate.worldBible?.startingRegion)state.world.state.region=String(candidate.worldBible.startingRegion).slice(0,120);
  if(candidate.openingHook)state.narrative=String(candidate.openingHook).slice(0,1000);
  state.world.version++;const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report;
 }
