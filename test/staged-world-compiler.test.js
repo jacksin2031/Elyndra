@@ -4,7 +4,8 @@ import {readFile} from "node:fs/promises";
 
 test("world creation uses four bounded direct-AI compiler stages",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- for(const stage of ["CORE","CHRONOLOGY","REGION","CAST"])assert.match(client,new RegExp(`WORLD_${stage}_FAILED`));
+ assert.match(client,/WORLD_\\$\\{stage\\}_FAILED/);
+ for(const stage of ["CORE","CHRONOLOGY","REGION","CAST"])assert.match(client,new RegExp(`worldStage\\("${stage}"`));
  assert.match(client,/timeoutMs:75000/);
  assert.match(client,/timeoutMs:65000/);
  assert.doesNotMatch(client,/timeoutMs:120000,[\s\S]{0,500}World Architect/);
