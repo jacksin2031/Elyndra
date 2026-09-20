@@ -7,4 +7,7 @@
 <section class="scene"><div class="scene-art"><div class="scene-copy"><span id="location" class="location"></span><h2 id="sceneTitle">陌生世界的第一天</h2><p id="narrative"></p></div></div>
 <div class="decision-panel"><div><div class="choices"><button data-action="forest">探索森林深處</button><button data-action="road">沿道路尋找人煙</button><button data-action="coin">研究陌生銅幣</button><button data-action="lia">向莉亞打聽北境</button></div><form id="freeActionForm" class="free-action"><input id="freeAction" maxlength="180" placeholder="自由行動：例如「我想檢查石碑背面有沒有刻字」"><button class="primary" type="submit">行動</button></form></div><div class="dice-box"><div class="d20" id="d20">20</div><div><span class="eyebrow">D20 CHECK</span><strong id="rollLabel">等待你的行動</strong><p id="rollResult">世界會記住重要結果。</p></div></div></div></section></div></section>
 <div id="modal" class="modal hidden"><div class="modal-card"><button id="closeModal" class="close">×</button><div id="modalContent"></div></div></div></main>
-<input id="importFile" type="file" accept=".elyndra,application/json" hidden><script type="module" src="app.js"></script></body></html>
+<input id="importFile" type="file" accept=".elyndra,application/json" hidden><script>
+window.addEventListener("error",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=e.message||"JavaScript failed"}});
+window.addEventListener("unhandledrejection",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=String(e.reason?.message||e.reason||"Promise failed")}});
+</script><script type="module" src="app-v090.js?v=090"></script></body></html>
