@@ -8,7 +8,7 @@ export function ensureMagicRuntime(state){
 }
 export function learnSpell(state,spell){
  ensureMagicRuntime(state);const source=String(spell?.sourceFactId||""),canon=(state.world?.canon?.facts||[]).some(f=>f.id===source);if(!canon)return null;
- const name=String(spell?.name||"").trim().slice(0,80);if(!name||state.player.magic.knownSpells.some(x=>x.name===name))return null;
+ const name=String(spell?.name||"").trim().slice(0,80);if(state.player.magic.knownSpells.some(x=>x.name===name))return null;
  const row={id:String(spell?.id||uid("SPL")).slice(0,100),name,school:String(spell?.school||"").slice(0,80),cost:clamp(Math.round(Number(spell?.cost)||10),1,40),effect:String(spell?.effect||"").slice(0,240),sourceFactId:source};state.player.magic.knownSpells.push(row);return row
 }
 export function magicActionModifier(state,label,kind){
