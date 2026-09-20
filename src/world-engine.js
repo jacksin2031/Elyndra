@@ -37,3 +37,13 @@ export function newGame(seed){
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
 export function discover(state,item,score=3){if(!state.knowledge.some(k=>k.id===item.id)){state.knowledge.push(item);state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+score)}}
+export function applyWorldCandidate(state,candidate){
+ if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");
+ const existing=new Set(state.world.canon.facts.map(f=>f.text));let n=0;
+ for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]]){
+  for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
+ }
+ state.world.summary=String(candidate.summary).slice(0,1000);
+ if(candidate.openingHook)state.narrative=String(candidate.openingHook).slice(0,1000);
+ state.world.version++;const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report;
+}
