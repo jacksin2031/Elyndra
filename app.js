@@ -17,7 +17,8 @@ async function refresh(){
 async function persist(){if(gameState)await saveWorld(gameState)}
 
 $("#newWorldBtn").onclick=()=>show("creator");
-$("#continueBtn").onclick=async()=>{gameState=await loadWorld();if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();\nawait refresh();show("game")};
+$("#continueBtn").onclick=async()=>{gameState=await loadWorld();if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();\naiStatus=await aiHealth();
+await refresh();show("game")};
 $$("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 
 $("#generateBtn").onclick=async()=>{
