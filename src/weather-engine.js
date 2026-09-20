@@ -73,7 +73,7 @@ function durationFor(state,p){
 export function initializeWeather(state,{force=false}={}){
  state.world.bible??={};const hadCanon=Boolean(state.world.bible.weatherSystem?.phenomena?.length);state.world.bible.weatherSystem=normalizeWeatherSystem(state.world.bible.weatherSystem,state.world.seedContract||state.world.seed||{});
  const clock=Number(state.world?.state?.clock?.totalMinutes)||0;
- state.world.weather??={version:1,currentId:"",startedMinute:clock,nextChangeMinute:clock,locationKey:"",sequence:0,history:[]};
+ state.world.weather??={version:1,currentId:"",startedMinute:clock,nextChangeMinute:clock,locationKey:"",sequence:0,history:[],legacyNeutral:false};
  const w=state.world.weather;w.history??=[];w.sequence=Number.isInteger(w.sequence)?w.sequence:0;
  const valid=state.world.bible.weatherSystem.phenomena.some(x=>x.id===w.currentId),key=locationKey(state);
  if(force||!valid){const p=!hadCanon&&!valid?state.world.bible.weatherSystem.phenomena[0]:choose(state,"");w.currentId=p.id;w.startedMinute=clock;w.nextChangeMinute=clock+durationFor(state,p);w.locationKey=key}
@@ -84,7 +84,7 @@ export function currentWeather(state){
  return sys.phenomena.find(x=>x.id===w.currentId)||sys.phenomena[0]
 }
 export function tickWeather(state,{force=false}={}){
- const w=initializeWeather(state),clock=Number(state.world?.state?.clock?.totalMinutes)||0,key=locationKey(state);
+ const w=initializeWeather(state);if(w.legacyNeutral===true)return null;const clock=Number(state.world?.state?.clock?.totalMinutes)||0,key=locationKey(state);
  if(!force&&w.locationKey===key&&clock<w.nextChangeMinute)return null;
  const prev=currentWeather(state),next=choose(state,prev?.id||"");w.sequence++;w.currentId=next.id;w.startedMinute=clock;w.nextChangeMinute=clock+durationFor(state,next);w.locationKey=key;
  const record={id:"WTH-EV-"+w.sequence+"-"+clock,type:"WEATHER_CHANGED",visibility:"OBSERVABLE",weatherId:next.id,summary:next.sensoryCue||("天氣轉為"+next.observableName),day:state.world?.state?.day||1,time:state.world?.state?.clock?String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"):"",at:Date.now()};
