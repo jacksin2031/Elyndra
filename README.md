@@ -209,3 +209,20 @@ V0.22.3 CI 已驗證：browser/API syntax gate + **55/55 tests passed**，GitHub
 - **Save Format v7**：舊世界自動補 impact ledger、entity mutable state 與 Timeline impact metadata。
 
 > The player becomes the protagonist by changing the world, not because the world says they are one.
+
+
+## V0.26.0 — Living Reputation & World Recognition
+
+玩家對世界造成改變之後，世界現在會進一步「記住玩家」：
+
+- **Earned Renown**：只有真正通過 Engine 並成功落地的 World Impact 才會增加名聲；無效 candidate 不會白賺 influence / renown。
+- **五級社會存在感**：UNKNOWN → LOCAL_NAME → REGIONAL_FIGURE → MAJOR_FIGURE → LEGEND。這不是劇情硬封主角，而是依玩家累積的實際事蹟上升。
+- **Rumor Propagation**：個人、地方、區域、勢力、世界級事蹟有不同傳播範圍與時間。NPC 不會因全局名聲高就自動知道玩家。
+- **NPC Recognition Boundary**：NPC 對話只會收到該 NPC 合理知道的 knownDeeds / titles；未傳到其所在地或勢力的傳聞不會被偷看。
+- **World-Culture Titles**：Adventure Director 可為已成立的 impact 提出符合當地文化的玩家稱呼；Engine 保存並重用，不會每回合重新改名。
+- **Legacy Marks**：真正留下紀念物、告示、傷痕、制度等持久可見結果時，可記錄為世界中的 legacy mark。
+- **Faction Attention**：勢力會根據真正傳到它們耳中的事蹟累積關注；配合玩家聲望關係，可主動要求接觸、監視，或公開把玩家視為威脅。
+- **Recognition UI**：側欄新增名聲等級；「我的影響」頁整合稱號、正在流傳的傳聞、legacy marks、勢力反應與歷史 impact。
+- **Save Format v8**：v0.25 已存在的 PLAYER_IMPACT 會回填成 deeds / rumors / renown，不會因升級而失去過往主角歷史。
+
+> The world does not declare you the protagonist. It gradually learns that you matter.
