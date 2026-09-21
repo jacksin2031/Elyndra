@@ -85,7 +85,7 @@ function setTurnSyncing(on,label="AI 正在背景同步必要世界狀態…"){
  updateAIStatusBadge()
 }
 function queueForegroundTask(task){
- if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE)foregroundQueue.shift();foregroundQueue.push(task);updateAIStatusBadge();
+ if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}foregroundQueue.push(task);updateAIStatusBadge();
  const free=$("#freeAction");if(free&&!gameState?.combat?.active)free.placeholder=`已排入下一步（${foregroundQueue.length}）：狀態同步完成後自動執行`;
  return true
 }
@@ -191,12 +191,11 @@ async function runAction(action,customText=""){
  await refresh();
  if(aiStatus.aiConfigured){
   setAIThinking(true,"AI 正在判斷本回合需要的處理方式…");
-  let syncing=false;
   try{
    const label=effective,routing=await routeAction(label,gameState);
    if(routing.needsGeneration){
     const turnWorldId=gameState.world?.id,turnSnapshot=buildSnapshot(gameState);
-    setTurnSyncing(true,"AI 正在背景同步敘事後的必要世界狀態；你可以繼續輸入下一步。");syncing=true;setAIThinking(false);
+    setTurnSyncing(true,"AI 正在背景同步敘事後的必要世界狀態；你可以繼續輸入下一步。");setAIThinking(false);
     const candidate=await generateTurn(label,roll,turnSnapshot,{onScene:scene=>{
      if(!gameState||gameState.world?.id!==turnWorldId)return;
      const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions});
@@ -209,7 +208,7 @@ async function runAction(action,customText=""){
    }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
   }
   catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,effective,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
-  finally{if(aiBusy)setAIThinking(false);if(syncing){}}
+  finally{if(aiBusy)setAIThinking(false)}
  }else gameState.suggestions=fallbackActionButtons(effective);
  if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
  await persist();await refresh();
