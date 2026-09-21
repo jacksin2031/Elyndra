@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=330";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=331";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=280";
