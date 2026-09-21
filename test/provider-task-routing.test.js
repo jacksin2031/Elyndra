@@ -9,23 +9,22 @@ test("world compiler routes descriptive stages fast and canon-critical stages de
  assert.match(client,/aiTask:args\?\.aiTask\|\|worldStageTask\(stage\)/)
 });
 
-test("runtime calls explicitly label latency-sensitive and balanced tasks",async()=>{
+test("runtime labels Player Action FAST DEFERRED and DEEP tasks",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  for(const task of ["narration","npc","helper","action","scene","turn_deferred"])assert.match(client,new RegExp('aiTask:"'+task+'"'));
- assert.match(client,/stateMode==="DEEP"\?"turn_state_deep":"turn_state_fast"/)
+ assert.match(client,/plan\.mode==="DEEP"\?"turn_state_deep":"turn_state_fast"/);
+ assert.match(client,/resolved\.mode==="DEEP"\?"turn_state_deep":resolved\.mode==="DEFERRED"\?"turn_deferred":"turn_state_fast"/)
 });
 
-test("shared turn director selects FAST DEFERRED and DEEP modes",()=>{
+test("shared turn director selects four modes",()=>{
+ assert.equal(turnDirectorMode("查看桌面",{profile:{kind:"OBSERVE"}},{}),"ENGINE_ONLY");
  assert.equal(turnDirectorMode("仔細觀察門上的痕跡",{profile:{kind:"OBSERVE"}},{}),"FAST");
  assert.equal(turnDirectorMode("說服守衛放我們通過",{profile:{kind:"SOCIAL"}},{}),"DEFERRED");
  assert.equal(turnDirectorMode("摧毀整座城的核心並推翻王國",{profile:{kind:"RISKY"}},{}),"DEEP")
 });
 
-test("ai-client consumes shared turnDirectorMode instead of owning duplicate routing logic",async()=>{
+test("ai-client consumes shared Engine planner and keeps compatibility mode export",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/turnDirectorMode as sharedTurnDirectorMode/);
- assert.match(client,/export const turnDirectorMode=sharedTurnDirectorMode/);
- assert.match(client,/directorMode=sharedTurnDirectorMode\(action,roll,snapshot\)/);
- assert.match(client,/startTurnAIJobs/);
- assert.match(client,/generateDeferredTurnEffects/)
+ assert.match(client,/turnDirectorMode as sharedTurnDirectorMode/);assert.match(client,/export const turnDirectorMode=sharedTurnDirectorMode/);
+ assert.match(client,/planStateSync/);assert.match(client,/statePatchDirectorSystem/);assert.match(client,/validateStatePatch/);assert.match(client,/export async function generateStatePatch/)
 });
