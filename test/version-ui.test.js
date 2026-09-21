@@ -30,6 +30,7 @@ test("v0.33.7 keeps unchanged scene assets independently cached",async()=>{
  assert.match(app,/\.\/src\/version\.js\?v=337/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=336/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=336/);
- assert.match(app,/\.\/src\/world-engine\.js\?v=320/);\n assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
+ assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
+ assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/)
 });
