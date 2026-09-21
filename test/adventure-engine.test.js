@@ -14,11 +14,18 @@ test("snapshot never exposes hidden canon",()=>{
 test("AI turn mutates any known NPC by id instead of a fixed companion key",()=>{
  const s=newGame(seed);s.world.registry.locations.push({id:"LOC-now",name:"目前地點",type:"道路",description:"測試",known:true});s.player.location="目前地點";s.world.state.location="目前地點";
  s.world.registry.npcs.push({id:"NPC-guide",name:"引路人",role:"旅人",description:"沉默的旅人",known:true,encountered:true,alive:true,trust:18,memories:[],knowledgeScope:[],locationId:"LOC-now"});
- applyTurnCandidate(s,{narrative:"對方接受了你的解釋。",npcChanges:[{npcId:"NPC-guide",trustDelta:2}],suggestions:["繼續交談"]});
+ applyTurnCandidate(s,{narrative:"對方接受了你的解釋。",npcChanges:[{npcId:"NPC-guide",trustEffect:"POSITIVE"}],suggestions:["繼續交談"]});
  assert.equal(s.world.registry.npcs[0].trust,20);
  assert.equal(s.suggestions.length,4);
  assert.ok(s.suggestionIntents.some(x=>x.progression===true));
  assert.ok(s.suggestionIntents.some(x=>["HIGH","EXTREME"].includes(x.risk)));
+});
+
+test("semantic relationship effects are Engine-mapped and numeric AI deltas remain only legacy input",()=>{
+ const s=newGame(seed);s.world.registry.locations.push({id:"LOC-rel",name:"會面處",type:"道路",description:"測試",known:true});s.player.location="會面處";s.world.state.location="會面處";s.world.registry.npcs.push({id:"NPC-rel",name:"聯絡人",role:"居民",description:"測試",known:true,encountered:true,alive:true,trust:10,memories:[],knowledgeScope:[],locationId:"LOC-rel"});
+ applyTurnCandidate(s,{narrative:"對方接受你的道歉。",npcChanges:[{npcId:"NPC-rel",trustEffect:"MAJOR_POSITIVE"}],suggestions:["繼續交談"]},{roll:{success:true,grade:"SUCCESS"}});
+ assert.equal(s.world.registry.npcs[0].trust,13);
+ assert.equal(validateTurnCandidate({narrative:"x",npcChanges:[{npcId:"NPC-rel",trustEffect:"PLUS_SEVENTEEN"}]}).valid,false)
 });
 
 test("invalid AI turn is rejected",()=>assert.equal(validateTurnCandidate({}).valid,false));
@@ -84,10 +91,10 @@ test("Adventure Director world impact candidate mutates durable current world st
  s.player.location="石橋村";s.world.state.location="石橋村";
  applyTurnCandidate(s,{
   narrative:"你和居民一起把倒塌的橋面重新固定。",
-  worldImpacts:[{scope:"LOCAL",targetKind:"location",targetId:"LOC-bridge",title:"修復石橋",summary:"主要通路重新可以安全使用，居民不再需要涉水過河。",mutations:[{field:"infrastructure",op:"DELTA",value:9},{field:"statusTag",op:"ADD_TAG",value:"橋樑已修復"}]}],
+  worldImpacts:[{scope:"LOCAL",targetKind:"location",targetId:"LOC-bridge",title:"修復石橋",summary:"主要通路重新可以安全使用，居民不再需要涉水過河。",mutations:[{field:"infrastructure",op:"DELTA",effect:"POSITIVE"},{field:"statusTag",op:"ADD_TAG",value:"橋樑已修復"}]}],
   suggestions:["向居民詢問河對岸的情況"]
  },{roll:{success:true}});
- assert.equal(s.world.registry.locations[0].worldState.infrastructure,59);
+ assert.equal(s.world.registry.locations[0].worldState.infrastructure,56);
  assert.ok(s.world.registry.locations[0].worldState.statusTags.includes("橋樑已修復"));
  assert.ok(s.world.impact.records.some(x=>x.type==="PLAYER_IMPACT"&&x.title==="修復石橋"));
 });
