@@ -1,13 +1,13 @@
 const KEY="elyndra:debug-telemetry:v1",MAX_ENTRIES=1600,SESSION_ID=globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2),SESSION_STARTED=Date.now();
 const safeStorage=()=>{try{return globalThis.localStorage||null}catch{return null}};
 function cloneSafe(value,depth=0,seen=new WeakSet()){
- if(depth>9)return "[MAX_DEPTH]";
+ if(depth>20)return "[MAX_DEPTH]";
  if(value==null||typeof value==="string"||typeof value==="number"||typeof value==="boolean")return value;
  if(typeof value==="bigint")return String(value);
  if(typeof value==="function")return "[FUNCTION]";
  if(typeof value!=="object")return String(value);
  if(seen.has(value))return "[CIRCULAR]";seen.add(value);
- if(Array.isArray(value))return value.slice(-500).map(x=>cloneSafe(x,depth+1,seen));
+ if(Array.isArray(value))return value.map(x=>cloneSafe(x,depth+1,seen));
  const out={};for(const [k,v] of Object.entries(value)){
   if(/api.?key|authorization|password|access.?token|refresh.?token|bearer|client.?secret/i.test(k)){out[k]="[REDACTED]";continue}
   out[k]=cloneSafe(v,depth+1,seen)
