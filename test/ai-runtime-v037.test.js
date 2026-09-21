@@ -80,7 +80,8 @@ test("shared AI contracts make player.origin authoritative and suggestions struc
  assert.match(sceneNarratorSystem(),/requirementsSatisfied=true/);
  assert.match(stateDirectorSystem("DEEP"),/knowledgeLayers\.directorKnowledge/);
  assert.match(stateDirectorSystem("DEEP"),/knowledgeLayers\.playerKnowledge/);
- assert.match(statePatchDirectorSystem({mode:"FAST",baseRevision:1,dirty:["knowledge"],capabilities:["DISCOVER_FACT"]}),/baseRevision/)\n});
+ assert.match(statePatchDirectorSystem({mode:"FAST",baseRevision:1,dirty:["knowledge"],capabilities:["DISCOVER_FACT"]}),/baseRevision/)
+});
 
 test("Direct and Server transports consume shared contracts through dedicated Player Action and State Sync paths",async()=>{
  const [client,serverAction,sceneApi,stateApi]=await Promise.all([
