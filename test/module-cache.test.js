@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.37.0 AI runtime dependency chain uses the 37000 cache generation",async()=>{
+test("v0.37.1 reloads changed world creation modules without invalidating unchanged runtime modules",async()=>{
  const [html,app,client,adventure,worldEngine,worldSimulation,worldImpact,gameEngine,npcConversation]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
