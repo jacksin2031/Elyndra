@@ -6,7 +6,7 @@ const scaleValue=v=>["小型","中型","大型"].includes(v)?v:"中型";
 const rowValue=(c,key)=>c?.[key]?.value;
 const evidence=(c,key)=>text(c?.[key]?.evidence,500);
 export function createWorldSeedContract(seed={}){
- const random=["ai","random"].includes(seed.worldviewMode),styled=applyWorldStyleBase(seed),preset=random?null:getWorldStylePreset(styled.genre);
+ const random=["ai","random"].includes(seed.worldviewMode),styled=applyWorldStyleBase(seed),preset=random?null:getWorldStylePreset(styled.genre),blueprintProfile=seed.blueprintProfile||seed.creationV2?.blueprintProfile||null;
  return {
   worldviewMode:random?"ai":"style",
   genre:random?"AI_DECIDES":text(styled.genre,80),
@@ -17,7 +17,8 @@ export function createWorldSeedContract(seed={}){
   politics:random?null:level(styled.politics),
   prompt:text(seed.prompt,800),
   targetPlayHours:createTimelinePacing(seed.playHours).targetPlayHours,
-  styleFoundation:random?"由 AI 自行建立完整世界觀基礎":text(preset?.foundation,500)
+  styleFoundation:random?"由 AI 自行建立完整世界觀基礎":text(preset?.foundation,500),
+  blueprintProfile:blueprintProfile?structuredClone(blueprintProfile):null
  }
 }
 function chosenValue(c,key,expected){
@@ -82,12 +83,14 @@ export function seedDirective(seed){
   contract:s,
   timelinePacing,
   styleFoundation:random?null:getWorldStylePreset(s.genre),
+  blueprintProfile:s.blueprintProfile,
   randomEntropy:text(seed.worldviewEntropy,120),
   rules:[
    random
     ?"AI 必須自行隨機決定 genre、theme、scale、danger、magic、politics，六項要互相形成有因果的世界觀；不要固定回到王道奇幻或常見模板"
     :`genre=${s.genre} 是世界基礎風格；必須遵守 styleFoundation，並在此基礎上創造獨特世界`,
    "theme 必須由 AI 自行創造，不可從 UI 固定清單選擇；theme 要成為 centralConflict、歷史、危機或世界真相的核心因果",
+   ...(s.blueprintProfile?["blueprintProfile 是 Engine 已解析並鎖定的 World Blueprint；USER / STYLE / RANDOM 的 resolved value 都不得被 AI 改寫，AI 只可補充具體世界表現"]:[]),
    "不得把現實地球的公曆年份、國家制度、現代法幣或全球通用金幣當作預設；世界必須有自己的時間稱呼與文明規則",
    "每個首次生成的城鎮、地區或勢力都要建立自己的 culture 與 trade；可以因政治或歷史共享制度，但必須有世界內因果，不能假設全世界同一貨幣與文化",
    `希望遊玩時間約 ${s.targetPlayHours} 小時；世界大事件必須依 timelinePacing 分布，短篇更密集、長篇保留更長伏筆與中後期轉折`,
