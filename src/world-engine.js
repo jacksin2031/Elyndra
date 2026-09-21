@@ -7,7 +7,7 @@ import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./commu
 import {validateWorldHistory} from "./world-history.js?v=276";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=276";
 import {modernEarthOriginProfile} from "./player-origin.js?v=320";
-import {applyOpeningExperience} from "./player-experience.js?v=35000";
+import {applyOpeningExperience} from "./player-experience.js?v=35000";\nimport {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=40000";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -51,7 +51,7 @@ export function validateWorld(world){
 }
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
- return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationDiagnostics:null,quality:null,evolution:{lastMinute:-9999,lastVersion:0,count:0,lastReason:""}},integrity:report,
+ const state={formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationDiagnostics:null,quality:null,evolution:{lastMinute:-9999,lastVersion:0,count:0,lastReason:""}},integrity:report,
   player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點",origin:modernEarthOriginProfile(),stats:{strength:2,agility:2,mind:2,presence:2,instinct:2},skills:{OBSERVE:1,SOCIAL:1,TRAVEL:0,RISKY:0,GENERAL:1},skillProgress:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0}},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
@@ -92,5 +92,5 @@ export function applyWorldCandidate(state,candidate){
  const opening=sanitizePlayerText(candidate.openingHook,1000,"你在陌生的環境中醒來，只能先從眼前可見的事物判斷身處何方。");
  const suggestions=sanitizeSuggestions(candidate.suggestions,[]);
  const openingExperience=applyOpeningExperience(state,opening,suggestions);state.narrative=openingExperience.narrative;if(openingExperience.suggestions.length)state.suggestions=openingExperience.suggestions;
- state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report
+ state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;registerCanonizedWorld(state);return report
 }
