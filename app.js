@@ -76,7 +76,7 @@ function recordGameplayStateChanges(state,reason="refresh"){
  const next=captureGameplayDebugState(state);if(!next)return;
  const prev=gameplayDebugSnapshot;
  if(!prev||prev.worldId!==next.worldId){gameplayDebugSnapshot=next;recordDebug("GAME_STATE_BASELINE",{worldId:next.worldId,location:next.location,clock:next.clock,reason});return}
- const meta={clock:next.clock,reason};
+ const latestEvent=Array.isArray(state.events)&&state.events.length?state.events[state.events.length-1]:null,meta={clock:next.clock,reason,sourceEventType:latestEvent?.type||"",sourceEventId:latestEvent?.id||null};
  if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});
  for(const [id,loc] of Object.entries(next.locations)){const before=prev.locations[id];if(loc.known&&(!before||!before.known))recordDebug("GAME_LOCATION_DISCOVERED",{...meta,locationId:id,name:loc.name,region:loc.region})}
  for(const [id,item] of Object.entries(next.inventory)){
@@ -358,7 +358,8 @@ function gameplayDebugDetail(entry){
  if(entry.type.startsWith("GAME_LOCATION_"))return d.name||d.to||d.locationId||"?";
  if(entry.type.startsWith("GAME_COMBAT_"))return d.enemyName||d.enemyId||"combat";
  if(entry.type==="GAME_MAIN_QUEST_UPDATED")return (d.title||"main")+" · stage "+d.fromStage+"→"+d.toStage;
- return d.reason||d.action||d.summary||""
+ if(entry.type==="GAME_STATE_BASELINE")return (d.location||"?")+" · baseline";
+ return d.reason||d.sourceEventType||d.action||d.summary||""
 }
 function openDebugPanel(){
  const entries=telemetryEntries(),summary=telemetrySummary(entries),tokens=summary.tokenTotals||{},ai=loadAISettings(),runtime=debugRuntimeSnapshot(),recentAI=entries.filter(x=>x.type==="AI_REQUEST").slice(-30).reverse(),recentGameplay=entries.filter(x=>x.type.startsWith("GAME_")).slice(-60).reverse(),recentEvents=(gameState?.events||[]).slice(-35).reverse();
