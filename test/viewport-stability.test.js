@@ -25,5 +25,5 @@ test("generated ornamental frames use 9-slice borders and scene artwork never st
  assert.match(css,/border-image-slice:18% 12%!important/);
  assert.match(css,/border-image-source:var\(--ely-frame-panel\)!important/);
  assert.match(css,/border-image-source:var\(--ely-frame-command\)!important/);
- assert.match(css,/background-size:100% 100%,cover!important/);
+ assert.match(css,/background-size:100% 100%,100% 100%,cover,cover!important/);
 });
