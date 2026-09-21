@@ -43,7 +43,8 @@ import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/not
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
 import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=320";
-const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,helperHistory=[],npcChatHistory=new Map();
+const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
+const foregroundQueue=[],MAX_FOREGROUND_QUEUE=3;
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false};
 function preemptBackgroundWorldEvolution(){
  const ctrl=worldBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
@@ -55,7 +56,7 @@ function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
 }
 async function runBackgroundWorldEvolution(){
  if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
- if(aiBusy||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
+ if(aiBusy||turnSyncBusy||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
  const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),ctrl=new AbortController();
@@ -72,7 +73,30 @@ async function runBackgroundWorldEvolution(){
   if(gameState&&aiStatus.aiConfigured){const next=worldEvolutionNeed(gameState);if(needsExpansion(gameState)||next.required)scheduleWorldEvolution(next.reason||reason,ctrl.signal.aborted?1800:6000)}
  }
 }
-function setAIThinking(on,label="AI 正在思考…"){if(on)preemptBackgroundWorldEvolution();aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
+function updateAIStatusBadge(label=""){
+ const badge=$("#aiBadge"),queued=foregroundQueue.length;if(!badge)return;
+ if(aiBusy){badge.textContent="AI THINKING";badge.classList.add("thinking");badge.title=label||"AI 正在處理目前行動…"}
+ else if(turnSyncBusy){badge.textContent=queued?`STATE SYNC · NEXT ${queued}`:"STATE SYNC";badge.classList.add("thinking");badge.title=turnSyncLabel||"世界狀態同步中；你仍可輸入下一步"}
+ else{badge.textContent=aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.remove("thinking");badge.title=""}
+}
+function setTurnSyncing(on,label="AI 正在背景同步必要世界狀態…"){
+ turnSyncBusy=Boolean(on);turnSyncLabel=turnSyncBusy?label:"";if(turnSyncBusy)preemptBackgroundWorldEvolution();
+ const n=$("#narrative");if(turnSyncBusy&&n)n.dataset.syncing=turnSyncLabel;else if(n)delete n.dataset.syncing;
+ updateAIStatusBadge()
+}
+function queueForegroundTask(task){
+ if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE)foregroundQueue.shift();foregroundQueue.push(task);updateAIStatusBadge();
+ const free=$("#freeAction");if(free&&!gameState?.combat?.active)free.placeholder=`已排入下一步（${foregroundQueue.length}）：狀態同步完成後自動執行`;
+ return true
+}
+async function drainForegroundQueue(){
+ if(aiBusy||turnSyncBusy||!gameState||!foregroundQueue.length)return;
+ const next=foregroundQueue.shift();updateAIStatusBadge();
+ if(next.type==="action")await runAction(next.action,next.customText);
+ else if(next.type==="npc")await submitNpcConversation(next.npcId,next.q);
+ else if(next.type==="combat")await runCombatAction(next.action)
+}
+function setAIThinking(on,label="AI 正在思考…"){if(on)preemptBackgroundWorldEvolution();aiBusy=on;updateAIStatusBadge(label);qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 function tradeLabel(entity){const t=entity?.trade;if(!t)return "";if(t.mode==="barter")return "以物易物"+(t.commonBarter?.length?" · "+t.commonBarter.slice(0,3).join("、"):"");const names=(t.currencies||[]).map(x=>x.name).filter(Boolean).join("、");return (names||"地方交易制度")+(t.mode&&t.mode!=="currency"?" · "+t.mode:"")}
 function worldStateLabel(entity){const s=entity?.worldState;if(!s)return "";const level=(v,low,mid,high)=>Number(v)<35?low:Number(v)<65?mid:high,parts=[];if(Number.isFinite(s.safety))parts.push("安全："+level(s.safety,"危險","不穩","穩定"));if(Number.isFinite(s.supply))parts.push("供應："+level(s.supply,"短缺","正常","充足"));if(Number.isFinite(s.prosperity))parts.push("景氣："+level(s.prosperity,"蕭條","普通","繁榮"));if(Number.isFinite(s.infrastructure))parts.push("設施："+level(s.infrastructure,"破損","可用","完善"));if(Number.isFinite(s.stability)&&!Number.isFinite(s.safety))parts.push("穩定："+level(s.stability,"動盪","不穩","穩定"));if(s.statusTags?.length)parts.push(s.statusTags.slice(-3).join("、"));return parts.join(" · ")}
@@ -104,7 +128,7 @@ async function refresh(){const exists=await hasWorld().catch(()=>false);$("#cont
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
  if($("#fatigueStat"))$("#fatigueStat").textContent=`${Math.round(survivalInfo.fatigue)} / 100`;
- if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy)scheduleWorldEvolution("gameplay_idle",1600)}
+ if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy&&!turnSyncBusy)scheduleWorldEvolution("gameplay_idle",1600)}
 async function persist(){if(gameState){maintainSession(gameState);await saveWorld(gameState)}}
 function fallbackActionButtons(action=""){const short=String(action||"").trim().slice(0,28),pool=[short?`換一種方法處理「${short}」`:"換一種方法處理眼前問題","仔細觀察剛才行動造成的變化","沿著目前可見的方向繼續探索","尋找附近可以直接交流的人","檢查周圍有沒有新的線索"],unique=[...new Set(pool)],offset=(Number(gameState?.world?.state?.clock?.totalMinutes)||0)+short.length;return Array.from({length:Math.min(4,unique.length)},(_,i)=>unique[(offset+i)%unique.length])}
 function renderSuggestions(){const box=$("#choices");if(!box)return;if(gameState?.combat?.active){box.innerHTML='<button type="button" data-combat-action="attack">攻擊</button><button type="button" data-combat-action="defend">防禦</button><button type="button" data-combat-action="retreat">撤退</button>';box.querySelectorAll("[data-combat-action]").forEach(b=>b.onclick=()=>runCombatAction(b.dataset.combatAction));return}const suggestions=(gameState?.suggestions||[]).slice(0,4);const shown=suggestions.length?suggestions:fallbackActionButtons();box.innerHTML=shown.map(s=>`<button type="button">${esc(s)}</button>`).join("");box.querySelectorAll("button").forEach(b=>b.onclick=()=>runAction("free",b.textContent))}
