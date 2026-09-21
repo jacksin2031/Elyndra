@@ -6,6 +6,7 @@ import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./run
 import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./communication-engine.js?v=276";
 import {validateWorldHistory} from "./world-history.js?v=276";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=276";
+import {modernEarthOriginProfile} from "./player-origin.js?v=320";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -15,7 +16,7 @@ export const WORLD_CONSTITUTION=[
  {id:"C-003",text:"NPC 只能使用其 knowledgeScope、親身記憶與明確取得的資訊"},
  {id:"C-004",text:"骰子與規則結果由 Game Engine 決定，AI 只能提出符合結果的候選變化"},
  {id:"C-005",text:"新生成內容必須通過 Canon、時間線與依賴驗證"},
- {id:"C-006",text:"玩家開局對世界知識為零；世界真相、地名與常識不等於玩家已知資訊"},
+ {id:"C-006",text:"玩家開局對異世界 Canon 知識為零；只保留現代地球普通人的一般常識與價值觀，任何地名、魔法、貨幣、文化或世界規則都必須由證據取得"},
  {id:"C-007",text:"Engine 不得硬編碼任何特定世界的地名、人物、勢力、貨幣或敵人"},
  {id:"C-008",text:"世界不得默認採用現實地球曆法、國家制度或全球通用貨幣；地方文化與交易制度必須由 Canon 定義"},
  {id:"C-009",text:"世界大事件時間線在創世時 Canonize，之後由 Engine 按內部時間觸發，不得提前向玩家洩漏 Director 真相"},
@@ -50,12 +51,12 @@ export function validateWorld(world){
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
  return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationDiagnostics:null,quality:null,evolution:{lastMinute:-9999,lastVersion:0,count:0,lastReason:""}},integrity:report,
-  player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點",stats:{strength:2,agility:2,mind:2,presence:2,instinct:2},skills:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0},skillProgress:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0}},
+  player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點",origin:modernEarthOriginProfile(),stats:{strength:2,agility:2,mind:2,presence:2,instinct:2},skills:{OBSERVE:1,SOCIAL:1,TRAVEL:0,RISKY:0,GENERAL:1},skillProgress:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0}},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
   discoveries:0,suggestions:[],
   events:[{id:uuid(),type:"WORLD_CREATED",visibility:"PLAYER_KNOWN",day:1,at:Date.now()}],
-  narrative:"你在陌生的環境中醒來。你不知道這是哪裡，也不知道這個世界叫甚麼；現在能依靠的只有眼前能直接感受到的事物。你身上沒有任何預設物品，也沒有任何預設同伴。"}
+  narrative:"你在陌生的環境中醒來。作為一個來自現代地球的普通人，你第一反應是確認自己有沒有受傷、附近有沒有危險，以及眼前環境是否能用熟悉的常識解釋。你不知道這是哪裡，也不知道這個世界叫甚麼；任何異世界名稱、魔法、制度與文化都必須重新觀察和學習。你身上沒有任何預設物品，也沒有任何預設同伴。"}
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
 export function discover(state,item,score=3){
