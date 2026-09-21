@@ -7,7 +7,7 @@ import {sceneTurnPreview} from "./src/turn-compiler.js?v=335";
 import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=335";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=320";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=341";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=34002";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=276";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
@@ -42,7 +42,7 @@ import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentIte
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=320";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=34002";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=340";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
