@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=330";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=331";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=280";
@@ -34,15 +34,16 @@ async function worldStage(stage,args){
  try{return await withWorldAiSlot(async()=>parseJSON(await directChat({...args,aiTask:args?.aiTask||worldStageTask(stage)}))) }
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
-function compilerRecoverable(err){return /AI_TIMEOUT|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|WORLD_[A-Z_]+_FAILED:\s*(AI_TIMEOUT|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d))/.test(String(err?.message||err||""))}
+function compilerRecoverable(err){return /AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|WORLD_[A-Z_]+_FAILED:\s*(AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d))/.test(String(err?.message||err||""))}
 let activeGenerationDiagnostics=null;
 function markWorldFallback(stage,reason){
  recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,fallbackUsed:true})
 }
-function compactRetryArgs(args={}){
- const timeoutMs=Math.max(30000,Math.min(45000,Number(args.timeoutMs)||45000));
- const maxOutputTokens=Math.max(350,Math.min(1200,Math.round((Number(args.maxOutputTokens)||900)*.78)));
- return {...args,timeoutMs,maxOutputTokens,temperature:Math.min(.35,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次請更精簡，只回傳 schema 要求的必要 JSON；不要 Markdown、解釋或額外欄位。"}
+function compactRetryArgs(args={},reason=""){
+ const base=Math.max(350,Number(args.maxOutputTokens)||900),empty=/EMPTY_AI_RESPONSE|INVALID_MODEL_JSON:\s*empty response/i.test(String(reason)),timedOut=/AI_TIMEOUT/i.test(String(reason));
+ const timeoutMs=empty?Math.max(45000,Math.min(70000,Number(args.timeoutMs)||50000)):Math.max(30000,Math.min(50000,Number(args.timeoutMs)||45000));
+ const maxOutputTokens=empty?Math.min(3200,Math.max(1200,Math.round(base*1.6))):timedOut?Math.max(500,Math.min(1600,Math.round(base*.85))):Math.min(2200,Math.max(base,Math.round(base*1.15)));
+ return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
 }
 async function resilientWorldStage(stage,args,fallback){
  const startedAt=Date.now();
@@ -57,7 +58,7 @@ async function resilientWorldStage(stage,args,fallback){
    throw err
   }
   try{
-   const value=await worldStage(stage,compactRetryArgs(args));
+   const value=await worldStage(stage,compactRetryArgs(args,firstReason));
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
    return value
   }catch(retryErr){

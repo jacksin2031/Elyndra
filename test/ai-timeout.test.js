@@ -15,7 +15,8 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  assert.doesNotMatch(client,/timeoutMs:95000/);
  assert.match(settings,/max_completion_tokens/);
  assert.match(settings,/maxOutputTokens/);
- assert.match(settings,/limit=requested\?Math\.max\(256/);
+ assert.match(settings,/providerTokenBudget/);
+ assert.match(settings,/Math\.max\(256,Math\.min\(8192/);
  assert.match(settings,/retryOnTimeout!==false/);
  assert.match(client,/retryOnTimeout:false/);
  assert.match(client,/compilerRecoverable/);

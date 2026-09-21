@@ -36,6 +36,9 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/weatherSystem/);
  assert.match(client,/weatherProfile/);
  assert.match(client,/compactRetryArgs/);
+ assert.match(client,/EMPTY_AI_RESPONSE/);
+ assert.match(client,/disableOptimization:true/);
+ assert.match(client,/compactRetryArgs\(args,firstReason\)/);
  assert.match(client,/WORLD_RECOVERY/);
  assert.match(client,/applyFallbackRecoveryPatch/);
  assert.match(client,/fallbackStages\.length<4/);
@@ -67,7 +70,7 @@ test("world creation progress represents real compiler boundaries instead of a f
 
 test("staged compiler loads timeout settings through current cache generation",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/ai-settings\.js\?v=330/);
+ assert.match(client,/ai-settings\.js\?v=331/);
  assert.match(client,/seed-contract\.js\?v=276/);
  assert.match(client,/recognition-engine\.js\?v=276/);
 });
