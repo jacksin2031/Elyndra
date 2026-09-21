@@ -65,7 +65,7 @@ test("in-game Debug UI exposes token accounting and JSON TXT export",async()=>{
  assert.match(app,/debugBundle\(\{appVersion:APP_VERSION,gameState/);
  assert.match(app,/匯出 Debug JSON/);
  assert.match(app,/匯出摘要 TXT/);
- assert.match(app,/reasoning\/thinking/i);
+ assert.match(app,/Reasoning-Thinking/i);
  assert.match(app,/Token I\/O\/R\/T/);
  assert.match(app,/PLAYER_ACTION_START/);
  assert.match(app,/ACTION_ASSESSMENT/);
