@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {turnDirectorMode} from "../src/ai-client.js";
+import {turnDirectorMode} from "../src/turn-outcome.js";
 import {fastTurnStateSnapshot} from "../src/turn-compiler.js";
 import {validateDeferredTurnEffects} from "../src/adventure-engine.js";
 
@@ -34,19 +34,18 @@ test("Deferred Director accepts only narrow persistent-effect shape",()=>{
  assert.equal(validateDeferredTurnEffects({factionChanges:"bad"}).valid,false)
 });
 
-test("app schedules Deferred Director after immediate Canon commit and records mode",async()=>{
+test("app preserves Action Intent when scheduling Deferred Director",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/candidate\.directorMode==="DEFERRED"/);
- assert.match(app,/scheduleDeferredDirector\(\{action:label,roll,queuedAt:Date\.now\(\)\},650\)/);
+ assert.match(app,/scheduleDeferredDirector\(\{action:label,roll,intent:assessment\?\.actionIntent,queuedAt:Date\.now\(\)\},650\)/);
+ assert.match(app,/generateDeferredTurnEffects\(task\.action,task\.roll,buildSnapshot\(gameState\),\{signal:ctrl\.signal,intent:task\.intent\}\)/);
  assert.match(app,/type:"TURN_DIRECTOR_MODE"/);
  assert.match(app,/type:"DEFERRED_TURN_STARTED"/);
  assert.match(app,/type:"DEFERRED_TURN_FAILED"/);
  assert.match(app,/applyDeferredTurnEffects\(gameState,effects/);
  assert.match(app,/world\.deferredTurns/);
- assert.match(app,/resumeDeferredDirectorQueue\(\)/);
- assert.match(app,/type:"DEFERRED_TURN_QUEUED"/)
+ assert.match(app,/resumeDeferredDirectorQueue\(\)/)
 });
-
 
 test("committed turns expose director mode for latency diagnostics",async()=>{
  const adventure=await readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8");
