@@ -82,16 +82,19 @@ test("shared AI contracts make player.origin authoritative and suggestions struc
  assert.match(stateDirectorSystem("DEEP"),/knowledgeLayers\.playerKnowledge/)
 });
 
-test("Direct and Server transports consume shared turn contracts instead of duplicated prompts",async()=>{
- const [client,serverAction,serverTurn]=await Promise.all([
+test("Direct and Server transports consume shared contracts through dedicated Player Action and State Sync paths",async()=>{
+ const [client,serverAction,sceneApi,stateApi]=await Promise.all([
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../api/action.js",import.meta.url),"utf8"),
-  readFile(new URL("../api/turn.js",import.meta.url),"utf8")
+  readFile(new URL("../api/turn-scene.js",import.meta.url),"utf8"),
+  readFile(new URL("../api/turn-state.js",import.meta.url),"utf8")
  ]);
  assert.match(client,/SHARED_ACTION_ASSESS_SYSTEM/);
  assert.match(client,/sceneNarratorSystem\(\)/);
- assert.match(client,/stateDirectorSystem\("FAST"\)/);
+ assert.match(client,/stateDirectorSystem\(stateMode\)/);
+ assert.match(client,/\/api\/turn-scene/);
+ assert.match(client,/\/api\/turn-state/);
  assert.match(serverAction,/ACTION_ASSESS_SYSTEM/);
- assert.match(serverTurn,/sceneNarratorSystem\(\)/);
- assert.match(serverTurn,/stateDirectorSystem\(serverStateMode\)/)
+ assert.match(sceneApi,/sceneNarratorSystem\(\)/);
+ assert.match(stateApi,/stateDirectorSystem\(stateMode\)/)
 });
