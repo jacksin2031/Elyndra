@@ -64,6 +64,20 @@ test("prevalidated suggested action skips AI feasibility while its scene seal re
  assert.ok(assessment.actionIntent)
 });
 
+
+test("internal background events do not invalidate a prevalidated action button",()=>{
+ const s=state(),row=buildContextualActionSet(s,[{
+  label:"沿著血跡繼續追查",action:"沿著眼前血跡追查下一個轉角",kind:"OBSERVE",risk:"LOW",approach:"STEADY",
+  progression:true,requirementsSatisfied:true,causalBasis:"玩家目前看得到血跡"
+ }]).all.find(x=>x.label==="沿著血跡繼續追查");
+ assert.ok(row);
+ assert.ok(trustedSuggestionAssessment(s,row));
+ s.events.push({id:"BG-1",type:"WORLD_EVOLUTION_BACKGROUND_STARTED",visibility:"INTERNAL"});
+ const assessment=trustedSuggestionAssessment(s,row);
+ assert.equal(assessment?.source,"AI_SUGGESTION_PREVALIDATED");
+ assert.equal(buildContextualActionSet(s,[row]).all.some(x=>x.label==="沿著血跡繼續追查"),true)
+});
+
 test("scene seal expires locally and refresh never renews the stale AI suggestion",()=>{
  const s=state(),row=buildContextualActionSet(s,[{
   label:"沿著血跡繼續追查",action:"沿著眼前血跡追查下一個轉角",kind:"OBSERVE",risk:"LOW",approach:"STEADY",

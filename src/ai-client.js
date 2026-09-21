@@ -387,13 +387,13 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
   const sceneInput={action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)};
   const stateInput={action,intent:actionIntent,kernel,snapshot:stateMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
   const playerAction=directChat({
-   aiTask:"scene",timeoutMs:35000,maxOutputTokens:760,temperature:.8,
+   aiTask:"scene",timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:760,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
   }).then(parseJSON);
   const stateSync=directChat({
    aiTask:stateMode==="DEEP"?"turn_state_deep":"turn_state_fast",
-   timeoutMs:stateMode==="DEEP"?45000:28000,
+   timeoutMs:stateMode==="DEEP"?45000:28000,retryOnTimeout:false,
    maxOutputTokens:stateMode==="DEEP"?1800:900,
    temperature:stateMode==="DEEP"?.4:.2,
    system:stateDirectorSystem(stateMode),

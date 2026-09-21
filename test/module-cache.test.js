@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.38.2 refreshes split turn orchestration while preserving stable modules",async()=>{
+test("v0.38.3 refreshes contextual action seal and dual-AI timeout modules",async()=>{
  const [html,app,client,adventure,contextual]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -18,17 +18,17 @@ test("v0.38.2 refreshes split turn orchestration while preserving stable modules
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=38002/);
+ assert.match(html,/app\.js\?v=38003/);
  assert.match(html,/styles\.css\?v=38001/);
- assert.match(app,/\.\/src\/version\.js\?v=38002/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=38002/);
+ assert.match(app,/\.\/src\/version\.js\?v=38003/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=38003/);
+ assert.match(app,/\.\/src\/adventure-engine\.js\?v=38003/);
+ assert.match(app,/\.\/src\/contextual-actions\.js\?v=38003/);
  assert.match(app,/\.\/src\/turn-compiler\.js\?v=38000/);
- assert.match(app,/\.\/src\/adventure-engine\.js\?v=38000/);
- assert.match(app,/\.\/src\/contextual-actions\.js\?v=38000/);
  assert.match(app,/\.\/src\/world-creation\.js\?v=37001/);
  assert.match(client,/\.\/world-compiler\.js\?v=38001/);
  assert.match(client,/\.\/turn-compiler\.js\?v=38000/);
  assert.match(client,/\.\/ai-runtime-contracts\.js\?v=38000/);
- assert.match(adventure,/\.\/contextual-actions\.js\?v=38000/);
+ assert.match(adventure,/\.\/contextual-actions\.js\?v=38003/);
  assert.match(contextual,/\.\/action-intent\.js\?v=38000/)
 });

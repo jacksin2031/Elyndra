@@ -27,6 +27,14 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  for(const legacy of ["CORE","CORE_REPAIR","CHRONOLOGY","REGION"])assert.doesNotMatch(client,new RegExp(`worldStage\\("${legacy}"`));
 });
 
+
+test("Player Action and State Sync do not retry provider timeouts",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const block=client.slice(client.indexOf("export function startTurnAIJobs"),client.indexOf("export function finalizeTurnAIJobs"));
+ assert.match(block,/aiTask:"scene",timeoutMs:35000,retryOnTimeout:false/);
+ assert.match(block,/timeoutMs:stateMode==="DEEP"\?45000:28000,retryOnTimeout:false/);
+});
+
 test("server world generation timeout is longer than ordinary narration",async()=>{
  const [core,world,turn,narrate,npc]=await Promise.all([
   readFile(new URL("../api/_ai.js",import.meta.url),"utf8"),
