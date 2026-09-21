@@ -13,3 +13,17 @@ test("Pages CI tests supported Node versions and pins every external action by c
  assert.match(yml,/actions\/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9/);
  assert.match(yml,/actions\/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346/)
 });
+
+test("Pages deploy is gated by pinned Playwright Chromium smoke coverage",async()=>{
+ const [yml,pkgText]=await Promise.all([
+  readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8"),
+  readFile(new URL("../package.json",import.meta.url),"utf8")
+ ]);
+ const pkg=JSON.parse(pkgText);
+ assert.equal(pkg.devDependencies?.["@playwright/test"],"1.63.0");
+ assert.equal(pkg.scripts?.["test:e2e"],"playwright test");
+ assert.match(yml,/browser-smoke:/);
+ assert.match(yml,/npx playwright install --with-deps chromium/);
+ assert.match(yml,/npm run test:e2e/);
+ assert.match(yml,/needs:\s*\[test, browser-smoke\]/)
+});
