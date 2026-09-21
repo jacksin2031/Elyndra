@@ -1,4 +1,4 @@
-import {assertSaveState} from "./state-validator.js?v=320";
+import {assertSaveState} from "./state-validator.js?v=41000";
 import {ensureItemRuntime} from "./item-engine.js?v=39000";
 import {ensureNotes} from "./notes-engine.js?v=320";
 import {ensurePlayerOrigin} from "./player-origin.js?v=320";
@@ -58,7 +58,7 @@ export function migrateSave(input){
   s.crafting??={version:1,recipes:[]};s.notes=Array.isArray(s.notes)?s.notes:[];
   ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);v=12
  }
- ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);ensureCausalWorldCore(s);
+ ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);ensureCausalWorldCore(s);s.stateSync??={revision:0,lastCommitAt:0,lastReason:"",history:[]};s.stateSync.revision=Math.max(0,Math.round(Number(s.stateSync.revision)||0));s.stateSync.history=Array.isArray(s.stateSync.history)?s.stateSync.history.slice(-40):[];
  s.formatVersion=FORMAT_VERSION;return s
 }
 async function putSave(state,id="autosave",label=""){const clean=migrateSave(state);assertSaveState(clean);if(id==="autosave")Object.assign(state,clean);const record={...structuredClone(clean),id,savedAt:new Date().toISOString(),saveLabel:String(label||"").slice(0,80),formatVersion:FORMAT_VERSION};await tx("readwrite",s=>s.put(record));return record}
