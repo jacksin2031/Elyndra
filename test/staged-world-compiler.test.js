@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 test("world creation uses linked waves with at most two AI requests in parallel",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
- for(const stage of ["CORE","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`worldStage\\("${stage}"`));
+ assert.match(client,/worldStage\("CORE"/);assert.match(client,/worldStage\("CORE_REPAIR"/);for(const stage of ["HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
  assert.match(client,/timeoutMs:95000/);
  assert.match(client,/timeoutMs:65000/);
  assert.match(client,/timeoutMs:50000/);
