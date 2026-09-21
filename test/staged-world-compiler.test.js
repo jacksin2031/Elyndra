@@ -35,6 +35,13 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/civilization/);
  assert.match(client,/weatherSystem/);
  assert.match(client,/weatherProfile/);
+ assert.match(client,/compactRetryArgs/);
+ assert.match(client,/WORLD_RECOVERY/);
+ assert.match(client,/applyFallbackRecoveryPatch/);
+ assert.match(client,/fallbackStages\.length<4/);
+ assert.match(client,/markWorldFallback\("FUTURE",reason\)/);
+ assert.match(client,/markWorldFallback\("CAST","CROSS_STAGE_LINK_INVALID:/);
+ assert.doesNotMatch(client,/\}\s*下維持生存與秩序/);
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/randomWorldBtn/);
  assert.match(app,/worldviewMode:"style"/);
