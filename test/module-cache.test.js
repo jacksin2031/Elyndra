@@ -12,21 +12,21 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.33.1 adaptive provider optimization cache-busts only AI modules",async()=>{
+test("v0.33.2 adaptive provider optimization cache-busts only AI modules",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=331/);
- assert.match(app,/\.\/src\/version\.js\?v=331/);
+ assert.match(html,/app\.js\?v=332/);
+ assert.match(app,/\.\/src\/version\.js\?v=332/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=331/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=331/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=332/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  for(const mod of ["world-engine","world-registry","adventure-engine","game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
  assert.match(app,/\.\/src\/world-quality\.js\?v=300/);
  assert.match(client,/\.\/ai-settings\.js\?v=331/);
- assert.match(client,/\.\/world-compiler\.js\?v=280/);
+ assert.match(client,/\.\/world-compiler\.js\?v=332/);
  assert.match(client,/\.\/turn-compiler\.js\?v=320/);
  assert.match(client,/\.\/helper-context\.js\?v=320/);
  assert.match(client,/\.\/world-quality\.js\?v=300/);
