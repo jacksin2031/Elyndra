@@ -11,7 +11,8 @@ test("world compiler routes descriptive stages fast and canon-critical stages de
 
 test("runtime calls explicitly label latency-sensitive and balanced tasks",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- for(const task of ["narration","npc","helper","action","scene","turn_deferred"])assert.match(client,new RegExp('aiTask:"'+task+'"'))\n assert.match(client,/stateMode==="DEEP"\?"turn_state_deep":"turn_state_fast"/)
+ for(const task of ["narration","npc","helper","action","scene","turn_deferred"])assert.match(client,new RegExp('aiTask:"'+task+'"'));
+ assert.match(client,/stateMode==="DEEP"\?"turn_state_deep":"turn_state_fast"/)
 });
 
 test("shared turn director selects FAST DEFERRED and DEEP modes",()=>{
@@ -25,5 +26,6 @@ test("ai-client consumes shared turnDirectorMode instead of owning duplicate rou
  assert.match(client,/turnDirectorMode as sharedTurnDirectorMode/);
  assert.match(client,/export const turnDirectorMode=sharedTurnDirectorMode/);
  assert.match(client,/directorMode=sharedTurnDirectorMode\(action,roll,snapshot\)/);
+ assert.match(client,/startTurnAIJobs/);
  assert.match(client,/generateDeferredTurnEffects/)
 });
