@@ -88,7 +88,7 @@ export function validateSaveState(s){
  const skills=s.player?.skills,skillProgress=s.player?.skillProgress;if(skills!=null&&(!obj(skills)||!["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].every(k=>Number.isInteger(skills[k])&&skills[k]>=0&&skills[k]<=5)))errors.push("PLAYER_SKILLS_INVALID");if(skillProgress!=null&&(!obj(skillProgress)||!["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].every(k=>finite(skillProgress[k])&&skillProgress[k]>=0)))errors.push("PLAYER_SKILL_PROGRESS_INVALID");
  if(!arr(s.inventory)||s.inventory.some(x=>!validItem(x)))errors.push("INVENTORY_INVALID");
  if(s.crafting!=null&&(!obj(s.crafting)||!arr(s.crafting.recipes)||s.crafting.recipes.some(x=>!validRecipe(x))))errors.push("CRAFTING_INVALID");
- if(s.notes!=null&&(!arr(s.notes)||s.notes.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string"))errors.push("NOTES_INVALID");
+ if(s.notes!=null&&(!arr(s.notes)||s.notes.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string")))errors.push("NOTES_INVALID");
  const origin=s.player?.origin;if(origin!=null&&(!obj(origin)||typeof origin.id!=="string"||!arr(origin.commonKnowledge)||!arr(origin.defaultValues)||!arr(origin.initialAssumptions)))errors.push("PLAYER_ORIGIN_INVALID");
  if(!arr(s.knowledge)||s.knowledge.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string"))errors.push("KNOWLEDGE_INVALID");
  if(!arr(s.events)||s.events.some(x=>!obj(x)||typeof x.type!=="string"))errors.push("EVENTS_INVALID");
