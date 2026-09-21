@@ -12,15 +12,15 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.34.3 hardening keeps save and AI cache generations explicit",async()=>{
+test("v0.34.4 hardening keeps save and AI cache generations explicit",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/styles\.css\?v=336/);
- assert.match(html,/app\.js\?v=34003/);
- assert.match(app,/\.\/src\/version\.js\?v=34003/);
+ assert.match(html,/app\.js\?v=34004/);
+ assert.match(app,/\.\/src\/version\.js\?v=34004/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
  assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/); 
