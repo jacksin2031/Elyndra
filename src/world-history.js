@@ -36,7 +36,7 @@ export function directorHistorySnapshot(state,limit=8){
  return (state.world?.history||[]).slice(-Math.max(1,limit)).map(x=>({id:x.id,order:x.order,era:x.era,title:x.title,category:x.category,summary:x.summary,causes:x.causes,legacies:x.legacies,regions:x.regions,factions:x.factions}));
 }
 export function knownHistorySnapshot(state,limit=12){
- const known=new Set((state.knowledge||[]).map(k=>k.historyId).filter(Boolean));
+ const known=new Set((state.knowledge||[]).filter(k=>k?.status==="VERIFIED").map(k=>k.historyId).filter(Boolean));
  return (state.world?.history||[]).filter(x=>known.has(x.id)).slice(-Math.max(1,limit));
 }
 

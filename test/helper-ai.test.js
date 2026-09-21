@@ -46,6 +46,7 @@ test("travel helper exposes only player-known and currently local NPC context",(
  assert.equal("directorTimeline" in snap,false);
  assert.equal(JSON.stringify(snap).includes("NEVER_EXPOSE"),false);
  assert.equal(JSON.stringify(snap).includes("玩家不知道的秘密"),false);
+ s.knowledge.push({id:"K-rumor",title:"酒館傳聞",text:"有人說北門下面埋著王室寶藏。",status:"TESTIMONY",score:0});const rumorSnap=helperSnapshot(s);assert.equal(rumorSnap.knowledge.facts.at(-1).status,"TESTIMONY");
 });
 
 test("travel helper UI and client path do not perform game mutations",async()=>{

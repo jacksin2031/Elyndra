@@ -87,9 +87,9 @@ test("future or malformed save versions are rejected and malformed impact state 
  assert.equal(validateSaveState(fresh).valid,false)
 });
 
-test("unverified knowledgeScore alone cannot unlock higher impact scopes",()=>{
+test("unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes",()=>{
  const {s}=world(),impact=ensureWorldImpact(s);impact.records.push(...Array.from({length:6},(_,i)=>({id:"seed-auth-"+i,type:"PLAYER_IMPACT",visibility:"PLAYER_KNOWN",scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,changes:[]})));s.world.state.crisis={stage:"CRISIS",pressure:90,history:[]};s.player.knowledgeScore=99;
- assert.equal(impactCapability(s).maxScope,"LOCAL");grantVerifiedKnowledge(s);assert.equal(impactCapability(s).maxScope,"WORLD")
+ assert.equal(impactCapability(s).maxScope,"LOCAL");s.world.canon.facts.push({id:"FACT-PARTIAL",type:"public",visibility:"public",text:"合法 Canon 但未完成驗證。",canonical:true});s.knowledge.push({id:"K-PARTIAL",title:"未確認",text:"仍然只是未確認情報。",factId:"FACT-PARTIAL",status:"PARTIAL",score:99});assert.equal(impactCapability(s).maxScope,"LOCAL");grantVerifiedKnowledge(s);assert.equal(impactCapability(s).maxScope,"WORLD")
 });
 
 test("FACTION consequence cannot jump from its parent faction to another faction",()=>{

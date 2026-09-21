@@ -72,7 +72,7 @@ test("save migration v8 normalizes simulation cursors, visibility and impact run
 
 test("crisis pressure alone cannot unlock ENDGAME before world knowledge",()=>{
  const s=newGame(seed);addCrisisPressure(s,100,"pressure only");assert.equal(ensureCrisis(s).stage,"CRISIS");
- s.world.canon.facts.push({id:"FACT-K1",type:"public",visibility:"public",text:"第一項足以理解危機的世界線索。",canonical:true},{id:"FACT-K2",type:"public",visibility:"public",text:"第二項足以理解危機的世界線索。",canonical:true},{id:"FACT-K3",type:"public",visibility:"public",text:"第三項足以理解危機的世界線索。",canonical:true});s.player.knowledgeScore=10;s.knowledge.push(
+ s.world.canon.facts.push({id:"FACT-K1",type:"public",visibility:"public",text:"第一項足以理解危機的世界線索。",canonical:true},{id:"FACT-K2",type:"public",visibility:"public",text:"第二項足以理解危機的世界線索。",canonical:true},{id:"FACT-K3",type:"public",visibility:"public",text:"第三項足以理解危機的世界線索。",canonical:true});s.player.knowledgeScore=99;s.knowledge.push({id:"K-partial",title:"未確認線索",text:"這條線索引用合法 Canon id，但仍未經驗證。",factId:"FACT-K1",status:"PARTIAL",score:99});addCrisisPressure(s,0,"unverified knowledge");assert.equal(ensureCrisis(s).stage,"CRISIS");s.player.knowledgeScore=10;s.knowledge.push(
   {id:"K1",title:"線索一",text:"第一項足以理解危機的世界線索。",factId:"FACT-K1",status:"VERIFIED",score:4},
   {id:"K2",title:"線索二",text:"第二項足以理解危機的世界線索。",factId:"FACT-K2",status:"VERIFIED",score:3},
   {id:"K3",title:"線索三",text:"第三項足以理解危機的世界線索。",factId:"FACT-K3",status:"VERIFIED",score:3}

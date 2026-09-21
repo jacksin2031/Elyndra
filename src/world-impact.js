@@ -48,7 +48,7 @@ export function ensureWorldImpact(state){
 function verifiedKnowledgeScore(state){
  const canon=new Set((state.world?.canon?.facts||[]).map(x=>x.id)),history=new Set((state.world?.history||[]).map(x=>x.id));
  return (state.knowledge||[]).reduce((sum,k)=>{
-  const valid=(k?.factId&&canon.has(k.factId))||(k?.historyId&&history.has(k.historyId));
+  const valid=k?.status==="VERIFIED"&&((k?.factId&&canon.has(k.factId))||(k?.historyId&&history.has(k.historyId)));
   return valid?sum+Math.max(1,Number(k.score)||(k.historyId?3:2)):sum
  },0)
 }

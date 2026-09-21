@@ -51,7 +51,7 @@ export function helperSnapshot(state){
    suggestions:(state.suggestions||[]).map(x=>safe(x,120)).filter(Boolean).slice(0,4)
   },
   knowledge:{
-   facts:(state.knowledge||[]).slice(-20).map(x=>({title:safe(x.title,100),text:safe(x.text,260)})).filter(x=>x.title&&x.text),
+   facts:(state.knowledge||[]).slice(-20).map(x=>({title:safe(x.title,100),text:safe(x.text,260),status:["VERIFIED","TESTIMONY","OBSERVATION","LORE"].includes(x.status)?x.status:"UNCONFIRMED"})).filter(x=>x.title&&x.text),
    knownLocations,
    nearbyNpcs,
    knownFactions,

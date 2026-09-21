@@ -15,7 +15,7 @@ export class OpenAICompatibleProvider extends AIProvider{
  }
 }
 export function buildNarratorContext(state,action,result){
- const visibleFacts=state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id));
+ const visibleFacts=state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.status==="VERIFIED"&&k.factId===f.id));
  return {system:`你是 Elyndra Narrator。不得修改骰子結果、Canon 或角色狀態。只能敘述 Game Engine 已決定的結果。世界憲法：${state.world.constitution.map(x=>x.text).join("；")}。可見 Canon：${visibleFacts.map(x=>x.text).join("；")}`,
  messages:[{role:"user",content:JSON.stringify({action,result,location:state.player.location,day:state.world.state.day})}]};
 }
