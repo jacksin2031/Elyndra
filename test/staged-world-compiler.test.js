@@ -16,7 +16,7 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("FUTURE"[\s\S]*resilientWorldStage\("SOCIETY"/);
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
  assert.match(client,/const WORLD_AI_CONCURRENCY=2/);
- assert.match(client,/withWorldAiSlot\(async\(\)=>parseJSON\(await directChat\(args\)\)\)/);
+ assert.match(client,/withWorldAiSlot\(async\(\)=>parseJSON\(await directChat\(\{\.\.\.args,aiTask:args\?\.aiTask\|\|worldStageTask\(stage\)\}\)\)\)/);
  assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);
  assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
  assert.match(client,/coreWaveIssues\(identity,rules,coreAnchor,core\)/);
@@ -67,7 +67,7 @@ test("world creation progress represents real compiler boundaries instead of a f
 
 test("staged compiler loads timeout settings through current cache generation",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/ai-settings\.js\?v=276/);
+ assert.match(client,/ai-settings\.js\?v=330/);
  assert.match(client,/seed-contract\.js\?v=276/);
  assert.match(client,/recognition-engine\.js\?v=276/);
 });
