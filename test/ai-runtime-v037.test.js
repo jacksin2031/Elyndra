@@ -74,7 +74,10 @@ test("future Timeline waits for activation and can be cancelled by player-caused
 test("shared AI contracts make player.origin authoritative and suggestions structured",()=>{
  assert.match(ACTION_ASSESS_SYSTEM,/player\.origin 是玩家起源的唯一權威/);
  assert.match(sceneNarratorSystem(),/不得自行假設玩家來自現代地球/);
- assert.match(sceneNarratorSystem(),/suggestions 必須是結構化物件/);
+ assert.match(sceneNarratorSystem(),/4 個高品質結構化候選/);
+ assert.match(sceneNarratorSystem(),/progression=true/);
+ assert.match(sceneNarratorSystem(),/causalBasis/);
+ assert.match(sceneNarratorSystem(),/requirementsSatisfied=true/);
  assert.match(stateDirectorSystem("DEEP"),/knowledgeLayers\.directorKnowledge/);
  assert.match(stateDirectorSystem("DEEP"),/knowledgeLayers\.playerKnowledge/)
 });
