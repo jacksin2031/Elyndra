@@ -20,7 +20,8 @@ test("v0.29 creator uses targeted cache generations",async()=>{
  ]);
  assert.match(html,/app\.js\?v=290/);
  assert.match(app,/\.\/src\/version\.js\?v=290/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=281/);\n assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=281/);
+ assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  for(const mod of ["world-engine","world-registry","world-quality"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
  for(const mod of ["world-compiler","world-quality"])assert.match(client,new RegExp("\\.\\/"+mod+"\\.js\\?v=280"));
  assert.match(client,/\.\/model-json\.js\?v=281/)
