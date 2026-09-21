@@ -39,6 +39,16 @@ export const WORLD_STYLE_PRESETS={
   environmentBias:["大型城市","工業帶","交通網","資源產地與廢墟"],
   narrativeRules:["技術必須有供應鏈與成本","交通與經濟應實際影響政治","不要把所有問題都交給超級發明解決"]
  },
+ "自訂世界":{
+  danger:3,magic:3,politics:3,scale:"中型",
+  foundation:"依玩家提供的自訂世界風格描述建立，不套用既有風格模板。",
+  tone:["由玩家描述決定"],
+  civilization:"由 World Blueprint 的文明、科技、政治與玩家自訂描述共同決定。",
+  supernatural:"由 World Blueprint 的魔法程度與玩家自訂描述共同決定。",
+  conflictBias:["由玩家故事傾向與 World Constitution 決定"],
+  environmentBias:["由玩家自訂世界描述與 World Compiler 決定"],
+  narrativeRules:["不得擅自回退成王道奇幻模板","未指定內容仍需服從 Blueprint 與 deterministic resolver"]
+ },
  "末日異世界":{
   danger:5,magic:2,politics:2,scale:"中型",
   foundation:"文明秩序已嚴重受損；資源、生存、遷徙、未知災變與失落資訊比完整國家政治更重要。",
@@ -54,6 +64,6 @@ export const WORLD_STYLE_NAMES=Object.freeze(Object.keys(WORLD_STYLE_PRESETS));
 export function getWorldStylePreset(name){return WORLD_STYLE_PRESETS[name]||WORLD_STYLE_PRESETS["王道奇幻"]}
 export function applyWorldStyleBase(seed={}){
  if(["ai","random"].includes(seed.worldviewMode))return {...seed,genre:"",scale:"",danger:null,magic:null,politics:null};
- const p=getWorldStylePreset(seed.genre);
- return {...seed,genre:WORLD_STYLE_PRESETS[seed.genre]?seed.genre:"王道奇幻",scale:seed.scale||p.scale,danger:Number.isFinite(Number(seed.danger))?Number(seed.danger):p.danger,magic:Number.isFinite(Number(seed.magic))?Number(seed.magic):p.magic,politics:Number.isFinite(Number(seed.politics))?Number(seed.politics):p.politics}
+ const p=getWorldStylePreset(seed.genre),genre=WORLD_STYLE_PRESETS[seed.genre]?seed.genre:"王道奇幻";
+ return {...seed,genre,scale:seed.scale||p.scale,danger:Number.isFinite(Number(seed.danger))?Number(seed.danger):p.danger,magic:Number.isFinite(Number(seed.magic))?Number(seed.magic):p.magic,politics:Number.isFinite(Number(seed.politics))?Number(seed.politics):p.politics}
 }
