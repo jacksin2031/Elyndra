@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.39.0 Engine authority dependency chain uses cache generation 39000",async()=>{
+test("v0.40.0 causal core refreshes changed browser entrypoints",async()=>{
  const [html,app,client,adventure,game,simulation,npcConversation,npcDialogue,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
