@@ -34,7 +34,7 @@ export function recordDebug(type,data={}){
 }
 export function recordAIUsage({provider,model,task,tier,status="SUCCESS",latencyMs=0,response={},inputText="",outputText="",attempt=1,error=""}={}){
  const usage=normalizeProviderUsage(provider,response,inputText,outputText);
- return recordDebug("AI_REQUEST",{provider,model,task,tier,status,latencyMs:Math.max(0,Math.round(Number(latencyMs)||0)),attempt,usage,requestChars:String(inputText||"").length,responseChars:String(outputText||"").length,error:String(error||"").slice(0,500)})
+ return recordDebug("AI_REQUEST",{provider,model,task,tier,status,latencyMs:Math.max(0,Math.round(Number(latencyMs)||0)),attempt,usage,requestChars:String(inputText||"").length,responseChars:String(outputText||"").length,responsePreview:String(outputText||"").slice(0,2000),error:String(error||"").slice(0,500)})
 }
 export function telemetryEntries(){return read().entries.slice()}
 export function clearDebugTelemetry(){write({entries:[]});recordDebug("DEBUG_CLEARED",{at:Date.now()})}
