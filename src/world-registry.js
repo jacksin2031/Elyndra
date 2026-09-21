@@ -2,7 +2,7 @@ import {normalizeLore} from "./lore-engine.js?v=276";
 import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=276";
 import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=276";
 import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=276";
-import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=276";
+import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=320";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
