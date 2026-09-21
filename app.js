@@ -80,18 +80,18 @@ async function runDeferredDirector(){
  if(!gameState||!aiStatus.aiConfigured||deferredDirector.running||!deferredDirector.queue.length)return;
  if(aiBusy||turnSyncBusy||document.hidden){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},1500);return}
  if(worldBackground.running){preemptBackgroundWorldEvolution();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
- const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=new AbortController();
+ const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=new AbortController(),debugStarted=Date.now();
  deferredDirector.running=true;deferredDirector.controller=ctrl;
- gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_STARTED",visibility:"INTERNAL",action:task.action,day:gameState.world?.state?.day||1,at:Date.now()});
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_STARTED",visibility:"INTERNAL",action:task.action,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("DEFERRED_TURN_STARTED",{action:task.action,queued:deferredDirector.queue.length});
  try{
   const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
   if(effects)applyDeferredTurnEffects(gameState,effects,{action:task.action,roll:task.roll});
-  deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);await persist();await refresh()
+  deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);recordDebug("DEFERRED_TURN_APPLIED",{action:task.action,elapsedMs:Date.now()-debugStarted,remaining:deferredDirector.queue.length});await persist();await refresh()
  }catch(e){
   if(!ctrl.signal.aborted){
    task.attempts=(Number(task.attempts)||0)+1;
-   gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_FAILED",visibility:"INTERNAL",action:task.action,reason:e?.message||String(e),attempt:task.attempts,day:gameState?.world?.state?.day||1,at:Date.now()});
+   gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_FAILED",visibility:"INTERNAL",action:task.action,reason:e?.message||String(e),attempt:task.attempts,day:gameState?.world?.state?.day||1,at:Date.now()});recordDebug("DEFERRED_TURN_FAILED",{action:task.action,attempt:task.attempts,elapsedMs:Date.now()-debugStarted,error:e?.message||String(e)});
    if(task.attempts>=2){deferredDirector.queue.shift();removePersistedDeferredTurn(task.id)}else{const saved=gameState?.world?.deferredTurns?.find(x=>x.id===task.id);if(saved)saved.attempts=task.attempts}
    await persist().catch(()=>{})
   }
@@ -111,15 +111,15 @@ async function runBackgroundWorldEvolution(){
  if(aiBusy||turnSyncBusy||deferredDirector.running||deferredDirector.queue.length||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
- const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),ctrl=new AbortController();
+ const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),ctrl=new AbortController(),debugStarted=Date.now();
  worldBackground.running=true;worldBackground.queued=false;worldBackground.controller=ctrl;
- gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_STARTED",visibility:"INTERNAL",reason,day:gameState.world?.state?.day||1,at:Date.now()});
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_STARTED",visibility:"INTERNAL",reason,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_STARTED",{reason});
  try{
   const ex=await generateRegionExpansion(gameState,reason,{signal:ctrl.signal});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
-  if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,day:gameState.world?.state?.day||1,at:Date.now()});await persist()}
+  if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist()}
  }catch(e){
-  if(!ctrl.signal.aborted){console.warn("background world evolution fallback",e);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_FAILED",visibility:"INTERNAL",reason:e?.message||String(e),day:gameState?.world?.state?.day||1,at:Date.now()})}
+  if(!ctrl.signal.aborted){console.warn("background world evolution fallback",e);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_FAILED",visibility:"INTERNAL",reason:e?.message||String(e),day:gameState?.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_FAILED",{reason,error:e?.message||String(e),elapsedMs:Date.now()-debugStarted})}
  }finally{
   if(worldBackground.controller===ctrl)worldBackground.controller=null;worldBackground.running=false;
   if(gameState&&aiStatus.aiConfigured){const next=worldEvolutionNeed(gameState);if(needsExpansion(gameState)||next.required)scheduleWorldEvolution(next.reason||reason,ctrl.signal.aborted?1800:6000)}
@@ -286,7 +286,7 @@ $("#freeActionForm").onsubmit=async e=>{e.preventDefault();const input=$("#freeA
 function debugRuntimeSnapshot(){
  return {screen:document.body.dataset.screen||"",aiBusy,turnSyncBusy,turnSyncLabel,foregroundQueue:foregroundQueue.length,foregroundDraining,deferredDirector:{running:deferredDirector.running,queued:deferredDirector.queue.length},worldBackground:{running:worldBackground.running,queued:worldBackground.queued,lastReason:worldBackground.lastReason},combatActive:Boolean(gameState?.combat?.active),worldId:gameState?.world?.id||null,worldDay:gameState?.world?.state?.day||null}
 }
-function currentDebugBundle(){const ai=loadAISettings();return debugBundle({appVersion:APP_VERSION,gameState,aiSettings:{provider:ai.provider,model:ai.model,endpoint:ai.endpoint,optimization:ai.optimization,apiKey:ai.apiKey},runtime:debugRuntimeSnapshot()})}
+function currentDebugBundle(){const ai=loadAISettings(),endpoint=String(ai.endpoint||"").replace(/([?&](?:key|api_key|token|access_token)=)[^&]+/gi,"$1[REDACTED]");return debugBundle({appVersion:APP_VERSION,gameState,aiSettings:{provider:ai.provider,model:ai.model,endpoint,optimization:ai.optimization,apiKey:ai.apiKey},runtime:debugRuntimeSnapshot()})}
 function downloadDebugFile(kind="json"){
  const bundle=currentDebugBundle(),json=kind==="json",body=json?JSON.stringify(bundle,null,2):debugBundleText(bundle),blob=new Blob([body],{type:json?"application/json;charset=utf-8":"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a"),stamp=new Date().toISOString().replace(/[:.]/g,"-");
  a.href=url;a.download="Elyndra-debug-v"+APP_VERSION+"-"+stamp+(json?".json":".txt");document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);recordDebug("DEBUG_EXPORTED",{format:kind,entries:bundle.summary?.entryCount||0,tokens:bundle.summary?.tokenTotals?.total||0})
