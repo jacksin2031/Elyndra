@@ -10,36 +10,37 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.41.0 refreshes State Sync dependency chain while preserving Causal World Core generation",async()=>{
- const [html,app,client,adventure,storage,turn,contracts]=await Promise.all([
+test("v0.42.0 refreshes the causal Future dependency chain without invalidating StatePatch",async()=>{
+ const [html,app,simulation,game,combat,adventure,npc,npcDialogue,futureRuntime,historyFuture,client,storage]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/turn-outcome.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-runtime-contracts.js",import.meta.url),"utf8")
+  readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/future-runtime.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/history-future.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/storage.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=41000/);
- assert.match(html,/styles\.css\?v=38001/);
- assert.match(app,/\.\/src\/version\.js\?v=41000/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=41000/);
- assert.match(app,/\.\/src\/adventure-engine\.js\?v=41000/);
- assert.match(app,/\.\/src\/storage\.js\?v=41000/);
- assert.match(app,/\.\/src\/state-sync\.js\?v=41000/);
- assert.match(app,/\.\/src\/world-engine\.js\?v=40000/);
- assert.match(app,/\.\/src\/game-engine\.js\?v=40000/);
- assert.match(app,/\.\/src\/combat-engine\.js\?v=40000/);
- assert.match(app,/\.\/src\/progression-ui\.js\?v=41000/);
- assert.match(client,/\.\/turn-outcome\.js\?v=41000/);
- assert.match(client,/\.\/ai-runtime-contracts\.js\?v=41000/);
+ assert.match(html,/app\.js\?v=42000/);
+ assert.match(app,/\.\/src\/version\.js\?v=42000/);
+ assert.match(app,/\.\/src\/world-simulation\.js\?v=42000/);
+ assert.match(app,/\.\/src\/game-engine\.js\?v=42000/);
+ assert.match(app,/\.\/src\/combat-engine\.js\?v=42000/);
+ assert.match(app,/\.\/src\/adventure-engine\.js\?v=42000/);
+ assert.match(app,/\.\/src\/npc-conversation\.js\?v=42000/);
+ assert.match(simulation,/\.\/future-runtime\.js\?v=42000/);
+ assert.match(game,/\.\/world-simulation\.js\?v=42000/);
+ assert.match(combat,/\.\/world-simulation\.js\?v=42000/);
+ assert.match(adventure,/\.\/combat-engine\.js\?v=42000/);
+ assert.match(npc,/\.\/world-simulation\.js\?v=42000/);
+ assert.match(npcDialogue,/\.\/world-simulation\.js\?v=42000/);
+ assert.match(futureRuntime,/\.\/history-future\.js\?v=42000/);
+ assert.match(futureRuntime,/\.\/future-engine\.js\?v=40000/);
+ assert.match(historyFuture,/\.\/future-engine\.js\?v=40000/);
  assert.match(client,/\.\/state-sync\.js\?v=41000/);
- assert.match(adventure,/\.\/state-sync\.js\?v=41000/);
- assert.match(adventure,/\.\/combat-engine\.js\?v=40000/);
- assert.match(storage,/\.\/state-validator\.js\?v=41000/);
  assert.match(storage,/\.\/causal-world-core\.js\?v=40000/);
- assert.match(turn,/\.\/state-sync\.js\?v=41000/);
- assert.match(contracts,/\.\/state-sync\.js\?v=41000/);
- assert.match(app,/\.\/src\/world-creation\.js\?v=37001/);
- assert.match(app,/\.\/src\/contextual-actions\.js\?v=38003/)
 });
