@@ -1,5 +1,5 @@
 import {assertSaveState} from "./state-validator.js?v=320";
-import {ensureItemRuntime} from "./item-engine.js?v=320";
+import {ensureItemRuntime} from "./item-engine.js?v=39000";
 import {ensureNotes} from "./notes-engine.js?v=320";
 import {ensurePlayerOrigin} from "./player-origin.js?v=320";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=12;
