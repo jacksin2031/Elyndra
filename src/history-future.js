@@ -61,9 +61,15 @@ export function ensureHistoryFutureLinks(state){
   normalizeSolutions(future)
  }
  for(const history of state.world.history){
-  history.clues=Array.isArray(history.clues)&&history.clues.length?history.clues.slice(0,8).map((x,i)=>({
-   id:clean(x?.id,140)||("CLUE-"+history.id+"-"+(i+1)),hint:clean(x?.hint||x?.text,180),status:["UNDISCOVERED","DISCOVERED","CORROBORATED","VERIFIED"].includes(String(x?.status||"").toUpperCase())?String(x.status).toUpperCase():"UNDISCOVERED",evidenceRefs:uniq(x?.evidenceRefs,10)
-  })).filter(x=>x.hint):seedClues(history);
+  if(!Array.isArray(history.clues)||!history.clues.length)history.clues=seedClues(history);
+  else{
+   const normalized=[];for(const [i,x] of history.clues.slice(0,8).entries()){
+    if(!x||typeof x!=="object")continue;const hint=clean(x.hint||x.text,180);if(!hint)continue;
+    x.id=clean(x.id,140)||("CLUE-"+history.id+"-"+(i+1));x.hint=hint;
+    x.status=["UNDISCOVERED","DISCOVERED","CORROBORATED","VERIFIED"].includes(String(x.status||"").toUpperCase())?String(x.status).toUpperCase():"UNDISCOVERED";
+    x.evidenceRefs=uniq(x.evidenceRefs,10);normalized.push(x)
+   }history.clues=normalized
+  }
   history.futureRefs=futures.filter(f=>f.historicalLinks?.includes(history.id)).map(f=>f.id).slice(0,8)
  }
  return {history:state.world.history,futures}
