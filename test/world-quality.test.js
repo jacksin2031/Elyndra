@@ -167,3 +167,13 @@ test("fallback recovery may rename fallback-owned anchor faction and npc while s
  assert.deepEqual(out.worldTimeline[0].links.locationRefs,["沉燈澤","渡魂石階"]);
  assert.deepEqual(out.generation.npcs[0].historyRefs,["HIST-1"])
 });
+
+
+test("quality normalization fills omitted dimensions from the supplied overall score",()=>{
+ const q=normalizeWorldEvaluation({overall:82,dimensions:{futureEvents:74},findings:[]});
+ assert.equal(q.overall,82);
+ assert.equal(q.dimensions.futureEvents,74);
+ assert.equal(q.dimensions.internalConsistency,82);
+ assert.equal(q.dimensions.knowledgeBoundary,82);
+ assert.equal(q.status,"PASS");
+});
