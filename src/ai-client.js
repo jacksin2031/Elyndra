@@ -379,35 +379,43 @@ export async function assessPlayerAction(state,action){
  }
 }
 
-export async function generateTurn(action,roll,snapshot,options={}){
+export function startTurnAIJobs(action,roll,snapshot,options={}){
  const actionIntent=normalizeActionIntent(options?.intent||{},action,roll?.profile?.kind||"",snapshot);
  const kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot}),directorMode=sharedTurnDirectorMode(action,roll,snapshot);
+ const stateMode=directorMode==="DEEP"?"DEEP":"FAST";
  if(hasDirectAI()){
   const sceneInput={action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)};
-  const stateInput={action,intent:actionIntent,kernel,snapshot:directorMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
-  const scenePromise=directChat({
+  const stateInput={action,intent:actionIntent,kernel,snapshot:stateMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
+  const playerAction=directChat({
    aiTask:"scene",timeoutMs:35000,maxOutputTokens:760,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
-  }).then(parseJSON).then(scene=>{try{options?.onScene?.(scene)}catch{}return scene});
-  const fastStatePromise=()=>directChat({
-   aiTask:"turn_state_fast",timeoutMs:28000,maxOutputTokens:900,temperature:.2,
-   system:stateDirectorSystem("FAST"),
+  }).then(parseJSON);
+  const stateSync=directChat({
+   aiTask:stateMode==="DEEP"?"turn_state_deep":"turn_state_fast",
+   timeoutMs:stateMode==="DEEP"?45000:28000,
+   maxOutputTokens:stateMode==="DEEP"?1800:900,
+   temperature:stateMode==="DEEP"?.4:.2,
+   system:stateDirectorSystem(stateMode),
    user:JSON.stringify(stateInput)
   }).then(parseJSON);
-  const deepStatePromise=()=>directChat({
-   aiTask:"turn_state_deep",timeoutMs:45000,maxOutputTokens:1800,temperature:.4,
-   system:stateDirectorSystem("DEEP"),
-   user:JSON.stringify(stateInput)
-  }).then(parseJSON);
-  const statePromise=directorMode==="DEEP"?deepStatePromise():fastStatePromise();
-  const [sceneResult,stateResult]=await Promise.allSettled([scenePromise,statePromise]);
-  if(stateResult.status!=="fulfilled")throw stateResult.reason;
-  const boundary=validateKernelBoundaries(stateResult.value,kernel);if(!boundary.valid)throw new Error("TURN_OUTCOME_KERNEL_VIOLATION:"+boundary.errors.join(","));
-  const scene=sceneResult.status==="fulfilled"?sceneResult.value:null;
-  return {...mergeTurnCandidates(scene,stateResult.value,roll,{action,kernel,priorSuggestions:snapshot?.priorSuggestions||[],priorSuggestionIntents:snapshot?.priorSuggestionIntents||[]}),directorMode,actionIntent,kernel}
+  return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,transport:"direct"}
  }
- return (await post("/api/turn",{action,intent:actionIntent,roll,snapshot})).candidate
+ const payload={action,intent:actionIntent,roll,snapshot,directorMode,stateMode};
+ const playerAction=post("/api/turn-scene",payload).then(x=>x.scene);
+ const stateSync=post("/api/turn-state",payload).then(x=>x.state);
+ return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,transport:"server"}
+}
+export function finalizeTurnAIJobs(jobs,scene,state,roll,snapshot,action){
+ const boundary=validateKernelBoundaries(state,jobs.kernel);if(!boundary.valid)throw new Error("TURN_OUTCOME_KERNEL_VIOLATION:"+boundary.errors.join(","));
+ return {...mergeTurnCandidates(scene,state,roll,{action,kernel:jobs.kernel,priorSuggestions:snapshot?.priorSuggestions||[],priorSuggestionIntents:snapshot?.priorSuggestionIntents||[]}),directorMode:jobs.directorMode,actionIntent:jobs.actionIntent,kernel:jobs.kernel}
+}
+export async function generateTurn(action,roll,snapshot,options={}){
+ const jobs=startTurnAIJobs(action,roll,snapshot,options),[sceneResult,stateResult]=await Promise.allSettled([jobs.playerAction,jobs.stateSync]);
+ if(stateResult.status!=="fulfilled")throw stateResult.reason;
+ const scene=sceneResult.status==="fulfilled"?sceneResult.value:null;
+ try{if(scene)options?.onScene?.(scene)}catch{}
+ return finalizeTurnAIJobs(jobs,scene,stateResult.value,roll,snapshot,action)
 }
 
 export async function generateDeferredTurnEffects(action,roll,snapshot,options={}){

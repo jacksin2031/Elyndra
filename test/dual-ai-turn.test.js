@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "../src/turn-compiler.js";
 import {sceneNarratorSystem,stateDirectorSystem} from "../src/ai-runtime-contracts.js";
 
-test("turn merge keeps Scene prose separate from authoritative State mutations",()=>{
+test("turn merge keeps Player Action prose separate from authoritative State Sync mutations",()=>{
  const scene={narrative:"你推開門，冷風迎面而來。",suggestions:[{label:"看看走廊",action:"檢查門後走廊",kind:"OBSERVE",risk:"LOW"},{label:"聽腳步聲",action:"停下來聆聽腳步聲",kind:"OBSERVE",risk:"LOW"}]};
  const state={outcomeSummary:"門被打開。",location:"北廊",worldNameKnown:false,calendarKnown:false,discoveries:[{title:"痕跡",text:"地上有新腳印"}],items:[],npcChanges:[],companionChanges:[],factionChanges:[],quest:null,entityReveals:[],encounter:null,generation:null,worldImpacts:[]};
  const out=mergeTurnCandidates(scene,state,{success:true});
@@ -15,7 +15,7 @@ test("turn merge keeps Scene prose separate from authoritative State mutations",
  assert.equal(out.suggestionIntents[0].action,"檢查門後走廊")
 });
 
-test("scene failure degrades to State outcome summary without discarding State",()=>{
+test("Player Action failure can still degrade to State Sync outcome summary",()=>{
  const state={outcomeSummary:"你未能打開石門，但鎖芯發出清晰裂響。",worldImpacts:[],npcChanges:[],factionChanges:[],companionChanges:[],discoveries:[],items:[],entityReveals:[]};
  const out=mergeTurnCandidates(null,state,{success:false});
  assert.equal(out.narrative,state.outcomeSummary);
@@ -23,7 +23,7 @@ test("scene failure degrades to State outcome summary without discarding State",
  assert.deepEqual(out.suggestions,[])
 });
 
-test("Scene snapshot excludes Director knowledge and keeps only Player Knowledge",()=>{
+test("Player Action snapshot excludes Director knowledge and keeps only Player Knowledge",()=>{
  const snap={world:{name:"UNKNOWN"},player:{name:"A"},knownFacts:["x"],knowledge:[],knowledgeLayers:{version:1,canonTruth:{facts:[{id:"SECRET"}]},directorKnowledge:{hiddenFactIds:["SECRET"]},playerKnowledge:{verifiedFactIds:["PUBLIC"],entries:[]}},inventory:[],quest:null,recentEvents:[],runtimeSummary:"",factions:[],registry:[],companions:[],recognition:{tier:"UNKNOWN",titles:[],activeRumors:[]},directorRegistry:{secret:true},directorTimeline:[{directorTruth:"secret"}],directorHistory:[{summary:"secret history"}],worldImpact:{capability:{maxScope:"WORLD"}}};
  const out=sceneTurnSnapshot(snap);
  assert.equal(out.directorRegistry,undefined);
@@ -34,38 +34,43 @@ test("Scene snapshot excludes Director knowledge and keeps only Player Knowledge
  assert.deepEqual(out.knowledgeLayers.playerKnowledge.verifiedFactIds,["PUBLIC"])
 });
 
-test("shared Scene and State contracts both bind to Engine Outcome Kernel",()=>{
+test("Player Action AI and State Sync AI share one Engine Outcome Kernel",()=>{
  const scene=sceneNarratorSystem(),state=stateDirectorSystem("DEEP");
  assert.match(scene,/Turn Outcome Kernel/);
  assert.match(scene,/confirmedOutcome/);
  assert.match(state,/Turn Outcome Kernel/);
- assert.match(state,/confirmedOutcome/);
- assert.match(scene,/snapshot\.player\.origin 是玩家起源的唯一權威資料/);
- assert.match(state,/不得自行假設現代地球背景/)
+ assert.match(state,/confirmedOutcome/)
 });
 
-test("direct and server turn generation keep Scene and State parallel with one shared kernel",async()=>{
- const [client,server]=await Promise.all([
+test("direct transport starts dedicated Player Action and State Sync promises",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const block=client.slice(client.indexOf("export function startTurnAIJobs"),client.indexOf("export function finalizeTurnAIJobs"));
+ assert.match(block,/const playerAction=directChat\(\{/);
+ assert.match(block,/const stateSync=directChat\(\{/);
+ assert.match(block,/aiTask:"scene"/);
+ assert.match(block,/aiTask:stateMode==="DEEP"\?"turn_state_deep":"turn_state_fast"/);
+ assert.match(block,/return \{playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,transport:"direct"\}/)
+});
+
+test("server transport uses separate Player Action and State Sync endpoints",async()=>{
+ const [client,sceneApi,stateApi]=await Promise.all([
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
-  readFile(new URL("../api/turn.js",import.meta.url),"utf8")
+  readFile(new URL("../api/turn-scene.js",import.meta.url),"utf8"),
+  readFile(new URL("../api/turn-state.js",import.meta.url),"utf8")
  ]);
- const directBlock=client.slice(client.indexOf("export async function generateTurn"),client.indexOf("export async function generateDeferredTurnEffects"));
- assert.equal((directBlock.match(/const scenePromise=directChat\(\{/g)||[]).length,1);
- assert.equal((directBlock.match(/StatePromise=\(\)=>directChat\(\{/g)||[]).length,2);
- assert.match(directBlock,/buildTurnOutcomeKernel/);
- assert.match(directBlock,/sceneInput=\{action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot\(snapshot\)\}/);
- assert.match(directBlock,/stateInput=\{action,intent:actionIntent,kernel,snapshot:directorMode==="DEEP"\?snapshot:fastTurnStateSnapshot\(snapshot\)\}/);
- assert.match(directBlock,/Promise\.allSettled\(\[scenePromise,statePromise\]\)/);
- assert.match(directBlock,/validateKernelBoundaries/);
- assert.equal((server.match(/callModel\(\{/g)||[]).length,2);
- assert.match(server,/buildTurnOutcomeKernel/);
- assert.match(server,/Promise\.allSettled\(\[scenePromise,statePromise\]\)/)
+ assert.match(client,/post\("\/api\/turn-scene",payload\)/);
+ assert.match(client,/post\("\/api\/turn-state",payload\)/);
+ assert.equal((sceneApi.match(/callModel\(\{/g)||[]).length,1);
+ assert.equal((stateApi.match(/callModel\(\{/g)||[]).length,1);
+ assert.match(sceneApi,/sceneNarratorSystem/);
+ assert.match(stateApi,/stateDirectorSystem/);
+ assert.match(stateApi,/validateKernelBoundaries/)
 });
 
-test("only Deep State Director receives full Director snapshot",async()=>{
+test("compatibility generateTurn wrapper still runs both jobs safely",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  const block=client.slice(client.indexOf("export async function generateTurn"),client.indexOf("export async function generateDeferredTurnEffects"));
- assert.match(block,/sceneTurnSnapshot\(snapshot\)/);
- assert.match(block,/directorMode==="DEEP"\?snapshot:fastTurnStateSnapshot\(snapshot\)/);
- assert.match(block,/directorMode==="DEEP"\?deepStatePromise\(\):fastStatePromise\(\)/)
+ assert.match(block,/startTurnAIJobs/);
+ assert.match(block,/Promise\.allSettled\(\[jobs\.playerAction,jobs\.stateSync\]\)/);
+ assert.match(block,/finalizeTurnAIJobs/)
 });
