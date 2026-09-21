@@ -1,13 +1,15 @@
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
-const DIRTY_KEYS=["location","knowledge","inventory","npcRelation","faction","quest","worldImpact","generation","timeline","entityReveal","magicLearning","recipe","companion","encounter"];
+const DIRTY_KEYS=["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","npcRelation","faction","quest","worldImpact","generation","timeline","entityReveal","magicLearning","recipe","companion","encounter"];
 const EFFECTS=new Set(["MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
 const IMPACT_SCALE=new Set(["MINOR","STANDARD","MAJOR"]);
-const PATCH_OPS=new Set(["DISCOVER_FACT","SET_KNOWLEDGE_FLAG","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);
+const PATCH_OPS=new Set(["DISCOVER_FACT","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);
 const REBASE_SAFE=new Set(["NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL"]);
-const IMMEDIATE_KEYS=new Set(["location","knowledge","inventory","quest","entityReveal","generation","encounter"]);
+const IMMEDIATE_KEYS=new Set(["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","quest","entityReveal","generation","encounter"]);
 const PERSISTENT_KEYS=new Set(["npcRelation","faction","worldImpact","timeline","magicLearning","recipe","companion"]);
 const MAJOR=/摧毀|炸毀|燒毀|殺死|處決|征服|佔領|推翻|宣戰|大型儀式|封印|解除封印|改寫|改變世界|城市核心|未知傳送門|destroy|conquer|overthrow|declare war|ritual/i;
-const GREETING=/^(?:打招呼|問候|點頭|揮手|致意|say hello|greet)\b|打個招呼|向.+問好/i;
+const GREETING=/^(?:打招呼|問候|點頭|揮手|致意|say hello|greet)\b|打個招呼|向.+(?:問好|打招呼)/i;
+const WORLD_NAME_QUERY=/世界(?:叫|名|名稱)|這(?:個|裡|裏).*(?:世界|地方).*(?:叫|名)|哪個世界|what world|world name/i;
+const CALENDAR_QUERY=/日期|今天.*(?:幾|哪)|曆法|日曆|calendar|what date|current date/i;
 const PASSIVE_KNOWN=/查看桌面|看看桌面|檢查桌面|重讀|再次閱讀|已知內容|已讀文件|reread|read again/i;
 const UNKNOWN_TRAVEL=/未知|未探索|邊境|荒野|傳送門|裂縫|深處|陌生|unknown|unexplored|frontier|portal/i;
 const QUEST_WORD=/任務|目標|線索|證據|委託|quest|objective|clue|evidence/i;
@@ -26,7 +28,7 @@ function repeatedSameAction(snapshot,action){
 }
 function capabilitiesFor(flags,keys=null){
  const allowed=keys?new Set(keys):null,out=[],add=(flag,...ops)=>{if(flags?.[flag]&&(!allowed||allowed.has(flag)))for(const op of ops)if(!out.includes(op))out.push(op)};
- add("knowledge","DISCOVER_FACT","SET_KNOWLEDGE_FLAG");add("entityReveal","REVEAL_ENTITY");add("location","MOVE_PLAYER");add("inventory","ACQUIRE_ITEM");add("encounter","START_ENCOUNTER");
+ add("knowledge","DISCOVER_FACT");add("worldNameKnowledge","SET_WORLD_NAME_KNOWN");add("calendarKnowledge","SET_CALENDAR_KNOWN");add("entityReveal","REVEAL_ENTITY");add("location","MOVE_PLAYER");add("inventory","ACQUIRE_ITEM");add("encounter","START_ENCOUNTER");
  add("npcRelation","NPC_RELATIONSHIP_SIGNAL");add("faction","FACTION_REPUTATION_SIGNAL");add("quest","QUEST_HINT");add("companion","COMPANION_SIGNAL");
  add("recipe","LEARN_RECIPE");add("magicLearning","LEARN_MAGIC");add("generation","GENERATE_CONTENT");add("worldImpact","WORLD_IMPACT_SIGNAL");add("timeline","TIMELINE_SIGNAL");
  return out
@@ -52,6 +54,8 @@ export function deriveDirtyFlags({action="",intent={},roll={},snapshot={},ruleEf
  if(FACTION_WORD.test(q))flags.faction=true;
  if(COMPANION_WORD.test(q))flags.companion=true;
  if(MAJOR.test(q)){flags.worldImpact=true;flags.timeline=true;if(/傳送門|未知|新區域|portal|unknown region/i.test(q))flags.generation=true}
+ if(WORLD_NAME_QUERY.test(q))flags.worldNameKnowledge=true;
+ if(CALENDAR_QUERY.test(q))flags.calendarKnowledge=true;
  return flags
 }
 export function planStateSync({action="",intent={},roll={},snapshot={},kernel=null,ruleEffects=null}={}){
@@ -79,7 +83,8 @@ export function bumpStateRevision(state,reason="ENGINE"){
 export function statePatchSchema(plan={}){
  const allowed=new Set(plan.capabilities||[]),rows=[];
  if(allowed.has("DISCOVER_FACT"))rows.push('{"op":"DISCOVER_FACT","title":"...","text":"...","factId":"","evidenceType":"OBSERVED|HEARD|READ|EXAMINED"}');
- if(allowed.has("SET_KNOWLEDGE_FLAG"))rows.push('{"op":"SET_KNOWLEDGE_FLAG","flag":"WORLD_NAME|CALENDAR"}');
+ if(allowed.has("SET_WORLD_NAME_KNOWN"))rows.push('{"op":"SET_WORLD_NAME_KNOWN"}');
+ if(allowed.has("SET_CALENDAR_KNOWN"))rows.push('{"op":"SET_CALENDAR_KNOWN"}');
  if(allowed.has("REVEAL_ENTITY"))rows.push('{"op":"REVEAL_ENTITY","kind":"location|npc|faction|sideQuest","id":"既有 id"}');
  if(allowed.has("MOVE_PLAYER"))rows.push('{"op":"MOVE_PLAYER","location":"既有或本回合生成地點名"}');
  if(allowed.has("ACQUIRE_ITEM"))rows.push('{"op":"ACQUIRE_ITEM","item":{"name":"...","description":"...","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|KEY|QUEST|ARTIFACT","quantity":1,"identified":true,"evidenceFactId":"","historyRefs":[],"craftingTags":[],"useEffects":[],"checkBonuses":{}}}');
@@ -104,7 +109,6 @@ export function validateStatePatch(patch,plan={}){
  for(const raw of (patch.operations||[]).slice(0,10)){
   const type=String(raw?.op||"").toUpperCase();if(!PATCH_OPS.has(type)||!allowed.has(type)){errors.push("STATE_PATCH_OPERATION_NOT_ALLOWED:"+type);continue}
   if(type==="DISCOVER_FACT"&&(!clean(raw.title,100)||!clean(raw.text,500)))errors.push("STATE_PATCH_DISCOVERY_INVALID");
-  if(type==="SET_KNOWLEDGE_FLAG"&&!["WORLD_NAME","CALENDAR"].includes(String(raw.flag||"").toUpperCase()))errors.push("STATE_PATCH_KNOWLEDGE_FLAG_INVALID");
   if(type==="REVEAL_ENTITY"&&(!["location","npc","faction","sideQuest"].includes(raw.kind)||!clean(raw.id,120)))errors.push("STATE_PATCH_REVEAL_INVALID");
   if(type==="MOVE_PLAYER"&&!clean(raw.location,120))errors.push("STATE_PATCH_MOVE_INVALID");
   if(type==="ACQUIRE_ITEM"&&!clean(raw.item?.name,100))errors.push("STATE_PATCH_ITEM_INVALID");
@@ -132,7 +136,8 @@ export function statePatchToCandidate(patch,state){
  for(const raw of patch?.operations||[]){
   const type=String(raw?.op||"").toUpperCase();
   if(type==="DISCOVER_FACT")c.discoveries.push({title:clean(raw.title,100),text:clean(raw.text,500),factId:clean(raw.factId,120),evidenceType:String(raw.evidenceType||"OBSERVED").toUpperCase()});
-  else if(type==="SET_KNOWLEDGE_FLAG"){const flag=String(raw.flag||"").toUpperCase();if(flag==="WORLD_NAME")c.worldNameKnown=true;if(flag==="CALENDAR")c.calendarKnown=true}
+  else if(type==="SET_WORLD_NAME_KNOWN")c.worldNameKnown=true;
+  else if(type==="SET_CALENDAR_KNOWN")c.calendarKnown=true;
   else if(type==="REVEAL_ENTITY")c.entityReveals.push({kind:raw.kind,id:clean(raw.id,120)});
   else if(type==="MOVE_PLAYER")c.location=clean(raw.location,120);
   else if(type==="ACQUIRE_ITEM")c.items.push(structuredClone(raw.item));
