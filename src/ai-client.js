@@ -13,7 +13,7 @@ import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=37000";
 import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode,validateKernelBoundaries} from "./turn-outcome.js?v=37000";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem} from "./ai-runtime-contracts.js?v=38000";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem} from "./ai-runtime-contracts.js?v=39000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -346,13 +346,16 @@ export function fastLocalActionAssessment(state,label){
  const simpleObserve=kind==="OBSERVE"&&!consequential.test(q);
  const simpleSocial=kind==="SOCIAL"&&!consequential.test(q)&&/問|詢問|打招呼|說|交談|聊|talk|ask|greet|say/i.test(q);
  const inventoryOnly=/^(?:查看|打開|檢查)?(?:我的)?(?:背包|物品|inventory)$/i.test(q);
- const rest=/休息|睡眠|紮營|露營|rest|sleep|camp/i.test(q);
+ const utilityOnly=/^(?:查看|打開|檢查)?(?:我的|目前|世界)?(?:角色狀態|狀態|能力狀態|任務|任務列表|地圖|已知地點|character status|status|quest|quests|map)$/i.test(q);
+ const rest=/休息|睡眠|睡覺|紮營|露營|rest|sleep|camp/i.test(q);
  const eat=/食用|進食|吃|喝|飲用|eat|drink/i.test(q)&&(state.inventory||[]).some(x=>x?.name&&q.includes(x.name));
+ const equipment=/裝備|穿上|卸下|脫下|equip|unequip|put on|take off/i.test(q)&&(state.inventory||[]).some(x=>x?.name&&q.includes(x.name));
  const knownLocation=(state.world?.registry?.locations||[]).find(x=>x?.known===true&&x?.name&&q.includes(x.name));
  const simpleTravel=kind==="TRAVEL"&&Boolean(knownLocation)&&!/闖|突破|潛入|偷渡|break in|sneak/i.test(q);
- if(!simpleObserve&&!simpleSocial&&!inventoryOnly&&!rest&&!eat&&!simpleTravel)return null;
- const resolvedKind=inventoryOnly||rest||eat?"GENERAL":kind,snapshot=actionFeasibilitySnapshot(state);
- return {verdict:"ALLOW",kind:resolvedKind,normalizedAction:q,reason:"這是 Engine 可以直接確認前提的基本行動，由 Fast Path 放行；實際結果仍由規則與骰子決定。",requirements:[],confidence:99,source:"ENGINE_FASTPATH",actionIntent:normalizeActionIntent({},q,resolvedKind,snapshot)}
+ const currentLoc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),knownTrade=/購買|買下|出售|賣掉|賣出|兌換|換錢|buy|sell|exchange/i.test(q)&&Boolean((currentLoc?.market?.goods||[]).some(x=>x?.name&&q.includes(x.name))||(state.inventory||[]).some(x=>x?.name&&q.includes(x.name)));
+ if(!simpleObserve&&!simpleSocial&&!inventoryOnly&&!utilityOnly&&!rest&&!eat&&!equipment&&!simpleTravel&&!knownTrade)return null;
+ const resolvedKind=inventoryOnly||utilityOnly||rest||eat||equipment||knownTrade?"GENERAL":kind,snapshot=actionFeasibilitySnapshot(state);
+ return {verdict:"ALLOW",kind:resolvedKind,normalizedAction:q,reason:"這是 Engine 可以直接確認前提的基本行動，由 Fast Path 放行；若屬 deterministic utility，整個回合不會喚醒 AI。",requirements:[],confidence:99,source:"ENGINE_FASTPATH",actionIntent:normalizeActionIntent({},q,resolvedKind,snapshot)}
 }
 function degradedActionAssessment(state,label,error){
  const inv=state.inventory||[],q=String(label||""),kind=localActionKind(q),requirements=[];
@@ -393,7 +396,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
   }).then(parseJSON);
   const stateSync=directChat({
    aiTask:stateMode==="DEEP"?"turn_state_deep":"turn_state_fast",
-   timeoutMs:stateMode==="DEEP"?45000:28000,retryOnTimeout:false,
+   timeoutMs:stateMode==="DEEP"?45000:28000,
    maxOutputTokens:stateMode==="DEEP"?1800:900,
    temperature:stateMode==="DEEP"?.4:.2,
    system:stateDirectorSystem(stateMode),
