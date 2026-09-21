@@ -23,7 +23,8 @@ test("actions entered during State Director sync are queued FIFO",async()=>{
  const start=app.indexOf("async function runAction");
  const end=app.indexOf('$("#newWorldBtn")',start);
  const run=app.slice(start,end);
- assert.match(run,/if\(turnSyncBusy\)\{queueForegroundTask\(\{type:"action",action,customText\}\);return\}/);
+ assert.match(run,/if\(turnSyncBusy\)\{queueForegroundTask\(\{type:"action",action,customText,options\}\);return\}/);
+ assert.match(app,/runAction\(next\.action,next\.customText,next\.options\|\|\{\}\)/);
  assert.match(app,/async function submitNpcConversation\(npcId,q\).*turnSyncBusy/s);
  assert.match(app,/async function runCombatAction\(action\).*turnSyncBusy/s);
  assert.match(run,/void drainForegroundQueue\(\)/);

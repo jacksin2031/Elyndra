@@ -16,7 +16,9 @@ test("AI turn mutates any known NPC by id instead of a fixed companion key",()=>
  s.world.registry.npcs.push({id:"NPC-guide",name:"引路人",role:"旅人",description:"沉默的旅人",known:true,encountered:true,alive:true,trust:18,memories:[],knowledgeScope:[],locationId:"LOC-now"});
  applyTurnCandidate(s,{narrative:"對方接受了你的解釋。",npcChanges:[{npcId:"NPC-guide",trustDelta:2}],suggestions:["繼續交談"]});
  assert.equal(s.world.registry.npcs[0].trust,20);
- assert.equal(s.suggestions[0],"繼續交談");
+ assert.equal(s.suggestions.length,4);
+ assert.ok(s.suggestionIntents.some(x=>x.progression===true));
+ assert.ok(s.suggestionIntents.some(x=>["HIGH","EXTREME"].includes(x.risk)));
 });
 
 test("invalid AI turn is rejected",()=>assert.equal(validateTurnCandidate({}).valid,false));

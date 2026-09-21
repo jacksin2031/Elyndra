@@ -24,8 +24,9 @@ import {pacingSnapshot} from "./world-pacing.js?v=276";
 import {talentSnapshot} from "./talent-engine.js?v=276";
 import {playerWeatherSnapshot,directorWeatherSnapshot} from "./weather-engine.js?v=276";
 import {playerOriginSnapshot} from "./player-origin.js?v=320";
-import {normalizeSuggestionIntents} from "./turn-compiler.js?v=37000";
+import {normalizeSuggestionIntents} from "./turn-compiler.js?v=38000";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=37000";
+import {buildContextualActionSet} from "./contextual-actions.js?v=38000";
 import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=320";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
@@ -118,7 +119,7 @@ export function applyTurnCandidate(state,c,context={}){
  if(c.quest&&state.quests?.main){const hint=sanitizePlayerText(c.quest.objective||c.quest.title,180,"");if(hint)state.quests.main.aiHint=hint}tickMainQuest(state)
  revealStoredLore(state);
  if(c.encounter?.type==="combat"&&!state.combat?.active){if(canStartEncounter(state,c.encounter.enemy,{...context,actionKind:context.roll?.profile?.kind||""}))startCombat(state,c.encounter.enemy,{...context,enforceCausality:true,actionKind:context.roll?.profile?.kind||""});else state.events.push({id:id(),type:"ENCOUNTER_CANDIDATE_REJECTED",visibility:"INTERNAL",summary:sanitizePlayerText(c.encounter.enemy?.name,80,""),day:state.world.state.day,at:Date.now()})}state.sceneTitle=sanitizeSceneTitle(c.sceneTitle,state,context.action);
- const freshIntents=normalizeSuggestionIntents(c.suggestionIntents?.length?c.suggestionIntents:c.suggestions,state.suggestionIntents?.length?state.suggestionIntents:previousSuggestions),fresh=freshIntents.length?freshIntents.map(x=>x.label):sanitizeSuggestions(c.suggestions,previousSuggestions);state.suggestionIntents=freshIntents;state.suggestions=fresh.length?fresh:fallbackSuggestions(state,context);if(!fresh.length)state.suggestionIntents=[];
+ const freshIntents=normalizeSuggestionIntents(c.suggestionIntents?.length?c.suggestionIntents:c.suggestions,state.suggestionIntents?.length?state.suggestionIntents:previousSuggestions),fresh=freshIntents.length?freshIntents:sanitizeSuggestions(c.suggestions,previousSuggestions);const contextual=buildContextualActionSet(state,fresh.length?fresh:fallbackSuggestions(state,context));state.suggestionIntents=contextual.all;state.suggestions=contextual.all.map(x=>x.label);
  state.events.push({id:id(),type:"AI_TURN_APPLIED",visibility:"INTERNAL",directorMode:c.directorMode||"DEEP",day:state.world.state.day,at:Date.now()});
  return state
 }
