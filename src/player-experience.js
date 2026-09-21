@@ -141,7 +141,7 @@ export function applyOpeningExperience(state,narrative="",suggestions=[]){
   next=(base?base+"\n\n":"")+intrusion
  }
  const roleplay=openingSuggestions(next),incoming=uniq(suggestions,4),generic=/觀察四周|繼續探索|確認自己|目前目標|查看周圍|探索周圍/;
- const merged=uniq([...roleplay,...incoming.filter(x=>!generic.test(x))],4);
+ const merged=uniq([...incoming.filter(x=>!generic.test(x)),...roleplay],4);
  if(x&&!x.opening.hookPresented){
   const hookId=uid("HOOK");x.opening={...x.opening,hookPresented:true,hookId,presentedDay:Number(state.world?.state?.day)||1};
   state.events??=[];state.events.push({id:uid("EV"),type:"OPENING_HOOK_PRESENTED",visibility:"INTERNAL",hookId,summary:"開局事件已進入玩家可直接感知的場景。",day:Number(state.world?.state?.day)||1,at:Date.now()})
@@ -179,7 +179,7 @@ export function projectObservableWorldChanges(state,narrative=""){
  const events=Array.isArray(state.events)?state.events:[],start=Math.max(0,Math.min(events.length,Number(x.projection.cursor)||0)),fresh=events.slice(start);
  x.projection.cursor=events.length;
  const seen=new Set(x.projection.projectedEventIds||[]),eligible=fresh.filter(e=>e?.id&&!seen.has(e.id)&&e.visibility!=="INTERNAL"&&OBSERVABLE_EVENT_TYPES.has(e.type)&&clean(e.summary,400)).slice(-2);
- if(!eligible.length)return {narrative:clean(narrative,1600),projected:[]};
+ if(!eligible.length)return {narrative:typeof narrative==="string"?narrative.normalize("NFC").replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/g,"").trim().slice(0,1600):"",projected:[]};
  const parts=[];
  for(const e of eligible){
   seen.add(e.id);const summary=clean(e.summary,360);
@@ -189,7 +189,7 @@ export function projectObservableWorldChanges(state,narrative=""){
   else parts.push("眼前已出現一項可以直接確認的改變："+summary)
  }
  x.projection.projectedEventIds=[...seen].slice(-120);
- const base=clean(narrative,1600),append=parts.join("\n\n");
+ const base=typeof narrative==="string"?narrative.normalize("NFC").replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/g,"").trim().slice(0,1600):"",append=parts.join("\n\n");
  return {narrative:(base?base+"\n\n":"")+append,projected:eligible.map(e=>({id:e.id,type:e.type,summary:clean(e.summary,360)}))}
 }
 
