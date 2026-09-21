@@ -52,6 +52,62 @@ window.addEventListener("unhandledrejection",e=>recordDebug("UNHANDLED_REJECTION
 const foregroundQueue=[],MAX_FOREGROUND_QUEUE=3;let foregroundDraining=false;
 const deferredDirector={timer:0,running:false,controller:null,queue:[]};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false};
+let gameplayDebugSnapshot=null;
+function gameplayDebugClock(state){
+ const clock=state?.world?.state?.clock||{};
+ return {day:Number(state?.world?.state?.day||clock.day)||1,time:String(clock.hour??0).padStart(2,"0")+":"+String(clock.minute??0).padStart(2,"0"),totalMinutes:Number(clock.totalMinutes)||0}
+}
+function captureGameplayDebugState(state){
+ if(!state)return null;
+ const registry=state.world?.registry||{},inventory=Array.isArray(state.inventory)?state.inventory:[],knowledge=Array.isArray(state.knowledge)?state.knowledge:[],sideQuests=Array.isArray(registry.sideQuests)?registry.sideQuests:[],npcs=Array.isArray(registry.npcs)?registry.npcs:[],locations=Array.isArray(registry.locations)?registry.locations:[];
+ const map=(rows,project)=>Object.fromEntries(rows.filter(Boolean).map(row=>[String(row.id||row.name||row.title||""),project(row)]).filter(([id])=>id));
+ return {
+  worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),
+  inventory:map(inventory,x=>({id:x.id||"",name:x.name||"",quantity:Math.max(0,Number(x.quantity)||1),category:x.category||"",equipped:Boolean(x.equipped)})),
+  knowledge:map(knowledge,x=>({id:x.id||"",title:x.title||"",status:x.status||"",score:Number(x.score)||0,factId:x.factId||null,historyId:x.historyId||null,sources:Array.isArray(x.sources)?x.sources.slice(0,6):[]})),
+  sideQuests:map(sideQuests,x=>({id:x.id||"",title:x.title||"",objective:x.objective||"",known:x.known===true,status:x.status||"",progress:Number(x.progress)||0,target:Number(x.target)||0})),
+  npcs:map(npcs,x=>({id:x.id||"",name:x.name||"",role:x.role||"",known:x.known===true,encountered:x.encountered===true,trust:Number(x.trust)||0,locationId:x.locationId||null,companionStatus:x.companion?.status||"NONE"})),
+  locations:map(locations,x=>({id:x.id||"",name:x.name||"",region:x.region||"",known:x.known===true})),
+  mainQuest:{id:state.quests?.main?.id||"Q-main",title:state.quests?.main?.title||"",stage:Number(state.quests?.main?.stage)||0,status:state.quests?.main?.status||"",objective:state.quests?.main?.objectives?.[0]||""},
+  combat:state.combat?.active?{active:true,enemyId:state.combat.enemy?.id||null,enemyName:state.combat.enemy?.name||"未知敵人",enemyHp:Number(state.combat.enemy?.hp)||0}:{active:false,enemyId:null,enemyName:"",enemyHp:0}
+ }
+}
+function recordGameplayStateChanges(state,reason="refresh"){
+ const next=captureGameplayDebugState(state);if(!next)return;
+ const prev=gameplayDebugSnapshot;
+ if(!prev||prev.worldId!==next.worldId){gameplayDebugSnapshot=next;recordDebug("GAME_STATE_BASELINE",{worldId:next.worldId,location:next.location,clock:next.clock,reason});return}
+ const meta={clock:next.clock,reason};
+ if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});
+ for(const [id,loc] of Object.entries(next.locations)){const before=prev.locations[id];if(loc.known&&(!before||!before.known))recordDebug("GAME_LOCATION_DISCOVERED",{...meta,locationId:id,name:loc.name,region:loc.region})}
+ for(const [id,item] of Object.entries(next.inventory)){
+  const before=prev.inventory[id],delta=item.quantity-(before?.quantity||0);
+  if(delta>0)recordDebug("GAME_ITEM_GAINED",{...meta,itemId:id,name:item.name,category:item.category,quantityDelta:delta,totalQuantity:item.quantity});
+  else if(delta<0)recordDebug("GAME_ITEM_LOST",{...meta,itemId:id,name:item.name,category:item.category,quantityDelta:delta,totalQuantity:item.quantity})
+ }
+ for(const [id,item] of Object.entries(prev.inventory))if(!next.inventory[id]&&item.quantity>0)recordDebug("GAME_ITEM_LOST",{...meta,itemId:id,name:item.name,category:item.category,quantityDelta:-item.quantity,totalQuantity:0});
+ for(const [id,k] of Object.entries(next.knowledge)){
+  const before=prev.knowledge[id];
+  if(!before)recordDebug("GAME_KNOWLEDGE_GAINED",{...meta,knowledgeId:id,title:k.title,status:k.status,score:k.score,factId:k.factId,historyId:k.historyId,sources:k.sources});
+  else if(before.status!==k.status||before.score!==k.score)recordDebug("GAME_KNOWLEDGE_UPDATED",{...meta,knowledgeId:id,title:k.title,fromStatus:before.status,toStatus:k.status,fromScore:before.score,toScore:k.score,factId:k.factId})
+ }
+ for(const [id,q] of Object.entries(next.sideQuests)){
+  const before=prev.sideQuests[id];
+  if(q.known&&(!before||!before.known))recordDebug("GAME_SIDE_QUEST_ACQUIRED",{...meta,questId:id,title:q.title,objective:q.objective,status:q.status,target:q.target});
+  if(before&&q.progress!==before.progress)recordDebug("GAME_SIDE_QUEST_PROGRESS",{...meta,questId:id,title:q.title,from:before.progress,to:q.progress,target:q.target,status:q.status});
+  if(before&&before.status!=="COMPLETED"&&q.status==="COMPLETED")recordDebug("GAME_SIDE_QUEST_COMPLETED",{...meta,questId:id,title:q.title,progress:q.progress,target:q.target})
+ }
+ for(const [id,npc] of Object.entries(next.npcs)){
+  const before=prev.npcs[id];
+  if(npc.known&&(!before||!before.known))recordDebug("GAME_NPC_DISCOVERED",{...meta,npcId:id,name:npc.name,role:npc.role,locationId:npc.locationId});
+  if(npc.encountered&&(!before||!before.encountered))recordDebug("GAME_NPC_ENCOUNTERED",{...meta,npcId:id,name:npc.name,role:npc.role,locationId:npc.locationId,trust:npc.trust});
+  if(before&&before.trust!==npc.trust)recordDebug("GAME_NPC_TRUST_CHANGED",{...meta,npcId:id,name:npc.name,from:before.trust,to:npc.trust,delta:npc.trust-before.trust});
+  if(before&&before.companionStatus!==npc.companionStatus)recordDebug("GAME_COMPANION_STATUS_CHANGED",{...meta,npcId:id,name:npc.name,from:before.companionStatus,to:npc.companionStatus})
+ }
+ if(prev.mainQuest.stage!==next.mainQuest.stage||prev.mainQuest.status!==next.mainQuest.status||prev.mainQuest.objective!==next.mainQuest.objective)recordDebug("GAME_MAIN_QUEST_UPDATED",{...meta,questId:next.mainQuest.id,title:next.mainQuest.title,fromStage:prev.mainQuest.stage,toStage:next.mainQuest.stage,fromStatus:prev.mainQuest.status,toStatus:next.mainQuest.status,objective:next.mainQuest.objective});
+ if(!prev.combat.active&&next.combat.active)recordDebug("GAME_COMBAT_STARTED",{...meta,enemyId:next.combat.enemyId,enemyName:next.combat.enemyName,enemyHp:next.combat.enemyHp});
+ else if(prev.combat.active&&!next.combat.active)recordDebug("GAME_COMBAT_ENDED",{...meta,enemyId:prev.combat.enemyId,enemyName:prev.combat.enemyName});
+ gameplayDebugSnapshot=next
+}
 function preemptBackgroundWorldEvolution(){
  const ctrl=worldBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Higher-priority gameplay has priority","AbortError"))
 }
@@ -182,7 +238,7 @@ function scheduleGameStageFit(){
 }
 function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));resumeDeferredDirectorQueue();scheduleWorldEvolution("gameplay_idle",1800)}}
 function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
-async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;updateAIStatusBadge();if(!gameState)return;migrate(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
+async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;updateAIStatusBadge();if(!gameState)return;migrate(gameState);recordGameplayStateChanges(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
  if($("#fatigueStat"))$("#fatigueStat").textContent=`${Math.round(survivalInfo.fatigue)} / 100`;
