@@ -19,6 +19,8 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("HISTORY"[\s\S]*resilientWorldStage\("GEOGRAPHY"/);
  assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("FUTURE"[\s\S]*resilientWorldStage\("SOCIETY"/);
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
+ assert.match(client,/const WORLD_AI_CONCURRENCY=2/);
+ assert.match(client,/withWorldAiSlot\(async\(\)=>parseJSON\(await directChat\(args\)\)\)/);
  assert.match(client,/timelineAuthoringSlots\(directive\.timelinePacing\)/);
  assert.match(client,/bindTimelineAuthoringSlots\(futureRaw\?\.worldTimeline,directive\.timelinePacing\)/);
  assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);
