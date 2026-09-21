@@ -12,16 +12,19 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.33.6 Fast Deferred Director cache-busts turn pipeline modules",async()=>{
+test("v0.33.6 Debug telemetry cache-busts diagnostics and AI transport",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/styles\.css\?v=336/);\n assert.match(html,/app\.js\?v=336/);
+ assert.match(html,/styles\.css\?v=336/);
+ assert.match(html,/app\.js\?v=336/);
  assert.match(app,/\.\/src\/version\.js\?v=336/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=336/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=336/);\n assert.match(app,/\.\/src\/debug-telemetry\.js\?v=336/);\n assert.match(client,/\.\/ai-settings\.js\?v=336/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=336/);
+ assert.match(app,/\.\/src\/debug-telemetry\.js\?v=336/);
+ assert.match(client,/\.\/ai-settings\.js\?v=336/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  for(const mod of ["world-engine","world-registry","game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
  assert.match(app,/\.\/src\/adventure-engine\.js\?v=335/);
