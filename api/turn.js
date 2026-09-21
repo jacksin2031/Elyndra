@@ -20,7 +20,7 @@ export default async function handler(req,res){
   const scene=sceneResult.status==="fulfilled"?sceneResult.value:null;
   return json(res,200,{candidate:mergeTurnCandidates(scene,stateResult.value,roll,{action,priorSuggestions:snapshot?.priorSuggestions||[]})})
  }catch(e){
-  const status=e.code==="AI_NOT_CONFIGURED"?503:e.code==="INVALID_MODEL_JSON"?422:502;
+  const status=e.statusCode||(e.code==="AI_NOT_CONFIGURED"?503:e.code==="INVALID_MODEL_JSON"?422:502);
   return json(res,status,{error:e.code||e.message})
  }
 }
