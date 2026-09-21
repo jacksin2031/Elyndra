@@ -1,10 +1,10 @@
-import {playerVisibleEvents} from "./event-visibility.js?v=273";
-import {sanitizePlayerText} from "./runtime-guard.js?v=273";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=273";
-import {survivalSnapshot} from "./survival-engine.js?v=273";
-import {travelSnapshot} from "./travel-engine.js?v=273";
-import {marketSnapshot} from "./economy-engine.js?v=273";
-import {dungeonSnapshot} from "./dungeon-engine.js?v=273";
+import {playerVisibleEvents} from "./event-visibility.js?v=274";
+import {sanitizePlayerText} from "./runtime-guard.js?v=274";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=274";
+import {survivalSnapshot} from "./survival-engine.js?v=274";
+import {travelSnapshot} from "./travel-engine.js?v=274";
+import {marketSnapshot} from "./economy-engine.js?v=274";
+import {dungeonSnapshot} from "./dungeon-engine.js?v=274";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
