@@ -2,7 +2,7 @@ import {hasDirectAI,directChat} from "./ai-settings.js?v=340";
 import {seedDirective} from "./seed-contract.js?v=37000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=37000";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=37000";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=38000";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=35000";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
@@ -13,7 +13,7 @@ import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=37000";
 import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode,validateKernelBoundaries} from "./turn-outcome.js?v=37000";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem} from "./ai-runtime-contracts.js?v=37000";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem} from "./ai-runtime-contracts.js?v=38000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
