@@ -20,7 +20,7 @@ test("main UI exposes a fixed bottom-right version badge from APP_VERSION",async
  assert.match(app,/versionBadge\.textContent=\`v\$\{APP_VERSION\}\`/);
 });
 
-test("v0.32.0 raster scene UI assets are cache-busted independently from Agnes and recovery modules",async()=>{
+test("v0.33.0 adaptive AI keeps raster scene assets independently cached",async()=>{
  const [html,app]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
