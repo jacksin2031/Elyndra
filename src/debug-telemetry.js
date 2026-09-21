@@ -1,9 +1,9 @@
 const KEY="elyndra:debug-telemetry:v1",MAX_ENTRIES=1600,SESSION_ID=globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2),SESSION_STARTED=Date.now();
 const safeStorage=()=>{try{return globalThis.localStorage||null}catch{return null}};
 const SECRET_STRING_PATTERNS=[
- [/(\bBearer\s+)[A-Za-z0-9._~+\\/=-]{6,}/gi,"$1[REDACTED]"],
- [/(\b(?:authorization|x-api-key|api-key)\s*[:=]\s*)[^\\s,;]+/gi,"$1[REDACTED]"],
- [/([?&](?:key|api_key|apikey|token|access_token|auth|authorization)=)[^&#\\s]+/gi,"$1[REDACTED]"],
+ [/(\bBearer\s+)[A-Za-z0-9._~+\/=-]{6,}/gi,"$1[REDACTED]"],
+ [/(\b(?:authorization|x-api-key|api-key)\s*[:=]\s*)[^\s,;]+/gi,"$1[REDACTED]"],
+ [/([?&](?:key|api_key|apikey|token|access_token|auth|authorization)=)[^&#\s]+/gi,"$1[REDACTED]"],
  [/\bsk-[A-Za-z0-9_-]{12,}\b/g,"[REDACTED_API_KEY]"],
  [/\bAIza[0-9A-Za-z_-]{20,}\b/g,"[REDACTED_API_KEY]"]
 ];
