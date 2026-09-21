@@ -27,10 +27,11 @@ test("world generation stays blocked until a Provider is configured",async({page
  await page.goto("/");
  await page.locator("#newWorldBtn").click();
  const dialogPromise=page.waitForEvent("dialog");
- await page.locator("#generateBtn").click();
+ const clickPromise=page.locator("#generateBtn").click();
  const dialog=await dialogPromise;
  expect(dialog.message()).toContain("需要先在 AI 設定連接 Provider");
  await dialog.accept();
+ await clickPromise;
  await expect(page.locator("#creator")).toHaveClass(/active/)
 });
 
