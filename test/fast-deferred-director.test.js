@@ -41,5 +41,14 @@ test("app schedules Deferred Director after immediate Canon commit and records m
  assert.match(app,/type:"TURN_DIRECTOR_MODE"/);
  assert.match(app,/type:"DEFERRED_TURN_STARTED"/);
  assert.match(app,/type:"DEFERRED_TURN_FAILED"/);
- assert.match(app,/applyDeferredTurnEffects\(gameState,effects/)
+ assert.match(app,/applyDeferredTurnEffects\(gameState,effects/);
+ assert.match(app,/world\.deferredTurns/);
+ assert.match(app,/resumeDeferredDirectorQueue\(\)/);
+ assert.match(app,/type:"DEFERRED_TURN_QUEUED"/)
+});
+
+
+test("committed turns expose director mode for latency diagnostics",async()=>{
+ const adventure=await readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8");
+ assert.match(adventure,/type:"AI_TURN_APPLIED".*directorMode:c\.directorMode\|\|"DEEP"/s)
 });
