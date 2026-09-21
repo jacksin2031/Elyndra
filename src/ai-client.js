@@ -300,7 +300,7 @@ function normalizeActionAssessment(raw,action){
 export async function assessPlayerAction(state,action){
  const label=String(action||"").trim().slice(0,180);if(!label)throw new Error("ACTION_REQUIRED");
  const snapshot=buildSnapshot(state),payload={action:label,snapshot};
- if(!hasDirectAI())return {verdict:"ALLOW",kind:"GENERAL",normalizedAction:label,reason:"AI feasibility review unavailable; Engine hard rules still apply.",requirements:[],confidence:0,source:"LOCAL_FALLBACK"};
+ if(!hasDirectAI()){const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label),source:"SERVER_AI"}}
  const raw=parseJSON(await directChat({
   timeoutMs:28000,maxOutputTokens:650,temperature:.15,
   system:`你是 Elyndra Action Feasibility Judge。你只判斷玩家提出的行動「目前是否可以合理嘗試」，不決定成功或失敗，不擲骰，不改任何狀態，也不創造 Canon。
