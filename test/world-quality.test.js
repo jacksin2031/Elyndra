@@ -4,7 +4,7 @@ import {newGame} from "../src/world-engine.js";
 import {canonizeGeneration} from "../src/world-registry.js";
 import {
  createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,
- normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,
+ normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,
  validateExpansionProvenance,worldEvolutionNeed,markWorldEvolution
 } from "../src/world-quality.js";
 
@@ -99,4 +99,71 @@ test("canonization persists valid historyRefs on locations npcs factions and que
  assert.deepEqual(s.world.registry.factions[0].historyRefs,["HIST-1"]);
  assert.deepEqual(s.world.registry.npcs[0].historyRefs,["HIST-1"]);
  assert.deepEqual(s.world.registry.sideQuests[0].historyRefs,["HIST-1"])
+});
+
+
+test("fallback critic always creates actionable findings for unresolved fallback stages",()=>{
+ const d=createGenerationDiagnostics();
+ for(const stage of ["CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY"])recordGenerationStage(d,stage,{source:"FALLBACK",reason:"AI_TIMEOUT",fallbackUsed:true});
+ const q=fallbackWorldEvaluation({
+  worldName:"淵燈國",worldTheme:"亡靈債務與燈火權衡",openingHook:"冷風掠過石面。",
+  worldBible:{startingLocation:"燈骨渡口",magicCost:"每次點燃魂燈都會把施術者一段近期記憶轉移到債冊，債務未清前無法恢復。"},
+  worldTimeline:[{observableEffect:"港口熄滅三盞公燈"},{observableEffect:"債冊所開始封存無主魂燈"}],
+  generation:{locations:[{name:"燈骨渡口",historyRefs:["HIST-1"]}],npcs:[{name:"守燈人",historyRefs:["HIST-1"]}],factions:[{name:"償燈司",historyRefs:["HIST-2"]}]}
+ },d);
+ assert.ok(q.overall<80);
+ assert.ok(q.findings.length>=4);
+ assert.ok(q.repairTargets.includes("MAGIC_SYSTEM"));
+ assert.ok(q.repairTargets.includes("HISTORY_INTEGRATION"))
+});
+
+test("successful recovery suppresses stage fallback findings but preserves diagnostics history",()=>{
+ const d=createGenerationDiagnostics();
+ recordGenerationStage(d,"HISTORY",{source:"FALLBACK",reason:"AI_TIMEOUT",fallbackUsed:true});
+ d.recovery={attempted:true,succeeded:true,recoveredStages:["HISTORY"]};
+ const q=fallbackWorldEvaluation({
+  worldName:"淵燈國",worldTheme:"亡靈債務",openingHook:"冷風掠過石面。",
+  worldBible:{startingLocation:"燈骨渡口",magicCost:"點燃魂燈會把近期記憶登記為可追討債務，直到完成償付儀式才停止惡化。"},
+  worldTimeline:[],generation:{locations:[],npcs:[],factions:[]}
+ },d);
+ assert.ok(!q.findings.some(x=>x.targetType==="HISTORY_INTEGRATION"));
+ const final=finalizeGenerationDiagnostics(d);
+ assert.equal(final.summary.fallbackCount,1);
+ assert.equal(final.summary.recoveredFallbackCount,1);
+ assert.equal(final.summary.unrecoveredFallbackCount,0);
+ assert.equal(final.quality,"RECOVERED")
+});
+
+test("fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references",()=>{
+ const d=createGenerationDiagnostics();
+ for(const stage of ["CORE_ANCHOR","SOCIETY","CAST"])recordGenerationStage(d,stage,{source:"FALLBACK",reason:"STRUCTURE_INVALID",fallbackUsed:true});
+ const base={
+  worldName:"淵燈國",worldTheme:"亡靈債務",seedCompliance:{theme:{value:"亡靈債務"}},
+  worldBible:{startingRegion:"淵燈國邊境域",startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{}},
+  worldTimeline:[{id:"TL-1",links:{locationRefs:["淵燈國邊境域","異界醒轉地"]}}],
+  generation:{
+   locations:[{name:"異界醒轉地",region:"淵燈國邊境域",historyRefs:["HIST-1"],culture:{},trade:{}}],
+   factions:[{name:"淵燈國邊境域在地共同體",locationName:"異界醒轉地",historyRefs:["HIST-1"]}],
+   npcs:[{name:"當地引路人",locationName:"異界醒轉地",factionName:"淵燈國邊境域在地共同體",historyRefs:["HIST-1"]}],
+   sideQuests:[{title:"舊任務",locationName:"異界醒轉地",npcName:"當地引路人",factionName:"淵燈國邊境域在地共同體",historyRefs:["HIST-1"]}]
+  }
+ };
+ const out=applyFallbackRecoveryPatch(base,{patch:{
+  worldBible:{startingRegion:"沉燈澤",startingSettlement:"借火埠",startingLocation:"渡魂石階"},
+  generation:{
+   factions:[{name:"償燈司",goal:"追討亡魂燈債"}],
+   npcs:[{name:"簿燈吏阿禾",role:"燈債記錄吏"}]
+  }
+ }},d);
+ assert.equal(out.worldName,"淵燈國");
+ assert.equal(out.worldBible.startingLocation,"渡魂石階");
+ assert.equal(out.generation.locations[0].name,"渡魂石階");
+ assert.equal(out.generation.locations[0].region,"沉燈澤");
+ assert.equal(out.generation.factions[0].name,"償燈司");
+ assert.equal(out.generation.npcs[0].factionName,"償燈司");
+ assert.equal(out.generation.sideQuests[0].factionName,"償燈司");
+ assert.equal(out.generation.npcs[0].name,"簿燈吏阿禾");
+ assert.equal(out.generation.sideQuests[0].npcName,"簿燈吏阿禾");
+ assert.deepEqual(out.worldTimeline[0].links.locationRefs,["沉燈澤","渡魂石階"]);
+ assert.deepEqual(out.generation.npcs[0].historyRefs,["HIST-1"])
 });
