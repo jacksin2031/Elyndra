@@ -2,6 +2,7 @@ import {json,methodGuard,safeBody,callModel} from "./_ai.js";
 import {seedDirective} from "../src/seed-contract.js";
 import {normalizeWorldCoreCandidate} from "../src/world-compiler.js";
 import {normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch} from "../src/world-quality.js";
+import {parseModelJSON} from "../src/model-json.js";
 export default async function handler(req,res){
  if(!methodGuard(req,res))return;
  try{
@@ -23,19 +24,19 @@ export default async function handler(req,res){
    publicFacts:["string"],hiddenFacts:["string"],openingHook:"string",suggestions:["3-4 AI-generated immediate actions based only on visible scene"],
    generation:{locations:[{name:"string",type:"string",region:"string",description:"string",historyRefs:["HIST-1"],known:false,culture:{identity:"string",etiquette:[],taboos:[],food:[],beliefs:[],architecture:[],clothing:[],hospitality:[],namingStyle:"string",languageNotes:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"stable id",name:"string",symbol:"",issuer:"string",description:"string"}],commonBarter:[],foreignAcceptance:[],priceCulture:"string",questReward:0,combatReward:0},weatherProfile:{zone:"當地天候區域",affinities:["WTH id"],suppressions:["WTH id"]},lore:{story:"generated once",unlockKeywords:["clue"],minMatches:1}}],npcs:[{name:"string",role:"string",description:"string",historyRefs:["HIST-1"],knowledgeScope:["public fact full text or fact id"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:[],boundaries:[]},lore:{story:"generated once",unlockKeywords:["clue"],minMatches:1}}],factions:[{name:"string",goal:"string",description:"string",historyRefs:["HIST-1"],known:false,culture:{identity:"string"},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"string",questReward:0,combatReward:0},lore:{story:"generated once",unlockKeywords:["clue"],minMatches:1}}],sideQuests:[{title:"string",objective:"string",historyRefs:["HIST-1"],known:false,evidenceKeywords:["2-5 concrete clue keywords"],target:3}]}
   }});
-  const raw=await callModel({system,user,temperature:.8,timeoutMs:120000});let candidate;try{candidate=normalizeWorldCoreCandidate(JSON.parse(raw))}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}
+  const raw=await callModel({system,user,temperature:.8,timeoutMs:120000});let candidate;try{candidate=normalizeWorldCoreCandidate(parseModelJSON(raw))}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}
   if(!candidate.summary||!candidate.seedCompliance||!candidate.worldTheme||!candidate.worldBible?.weatherSystem||!Array.isArray(candidate.worldBible.weatherSystem.phenomena)||candidate.worldBible.weatherSystem.phenomena.length<4||!Array.isArray(candidate.worldHistory)||candidate.worldHistory.length<3||!candidate.worldCalendar||!Array.isArray(candidate.worldTimeline)||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts)||!candidate.openingHook||!Array.isArray(candidate.suggestions)||candidate.suggestions.length<2)return json(res,422,{error:"INVALID_WORLD_CANDIDATE"});
   const diagnostics={version:1,startedAt:Date.now(),finishedAt:Date.now(),quality:"HEALTHY",stages:{WORLD_ARCHITECT:{source:"AI",reason:"",latencyMs:0,attempts:1,fallbackUsed:false}},summary:{stageCount:1,aiSucceeded:1,fallbackCount:0,failedCount:0}};
   const evaluate=async current=>{
    try{
     const reviewRaw=await callModel({system:"你是 Elyndra World Critic。評分 internalConsistency、originality、worldDepth、historyIntegration、geography、societyCulture、magicSystem、factions、characters、futureEvents、playability、knowledgeBoundary 與 overall 0-100，列出最多8個 structured findings。特別檢查 opening knowledge leak、模板化、事件性、魔法規則與 Location/NPC/Faction historyRefs。只輸出 JSON。",user:JSON.stringify({candidate:current,generationDiagnostics:diagnostics}),temperature:.2,timeoutMs:50000});
-    return normalizeWorldEvaluation(JSON.parse(reviewRaw),{source:"AI"})
+    return normalizeWorldEvaluation(parseModelJSON(reviewRaw),{source:"AI"})
    }catch(e){return fallbackWorldEvaluation(current,diagnostics,e?.message||String(e))}
   };
   let evaluation=await evaluate(candidate),repairHistory=[];
   for(let pass=1;pass<=2&&evaluation.overall<80&&evaluation.findings.some(x=>x.requiresRegeneration);pass++){
    try{
-    const repair=JSON.parse(await callModel({system:"你是 Elyndra World Repair Architect。只修補 Critic 指出的弱點；禁止改 worldName/worldTheme/seedCompliance/worldHistory/worldCalendar/startingRegion/startingSettlement/startingLocation；Timeline 日期窗口與 links 不得改；不可新增或重新命名 generation 實體，historyRefs 必須保留。只輸出 {patch:{...},changedTargets:[...]}.",user:JSON.stringify({candidate,evaluation}),temperature:.4,timeoutMs:65000}));
+    const repair=parseModelJSON(await callModel({system:"你是 Elyndra World Repair Architect。只修補 Critic 指出的弱點；禁止改 worldName/worldTheme/seedCompliance/worldHistory/worldCalendar/startingRegion/startingSettlement/startingLocation；Timeline 日期窗口與 links 不得改；不可新增或重新命名 generation 實體，historyRefs 必須保留。只輸出 {patch:{...},changedTargets:[...]}.",user:JSON.stringify({candidate,evaluation}),temperature:.4,timeoutMs:65000}));
     const before=evaluation.overall;candidate=applyWorldRepairPatch(candidate,repair);evaluation=await evaluate(candidate);repairHistory.push({pass,before,after:evaluation.overall,targets:repair.changedTargets||evaluation.repairTargets,at:Date.now()})
    }catch{break}
   }
