@@ -58,6 +58,15 @@ test("corrupted saved locations repair to a canonical known location",()=>{
  assert.equal(s.player.location,s.world.state.location);
 });
 
+test("unknown player location adopts the canonical world-state location",()=>{
+ const s=world();s.player.location="未知地點";s.world.state.location="河岸小徑";
+ const fixed=repairPlayerLocation(s);
+ assert.equal(fixed?.name,"河岸小徑");
+ assert.equal(s.player.location,"河岸小徑");
+ assert.equal(s.world.state.location,"河岸小徑");
+ assert.equal(s.world.state.region,"中央");
+});
+
 test("turn location changes accept only canonical registry locations",()=>{
  const s=world(),before=s.player.location;
  applyTurnCandidate(s,{narrative:"你向前走了幾步，重新確認周圍環境。",location:"\uFFFD{broken}",suggestions:["看看左邊","看看右邊"]},{action:"向前走",roll:{success:true}});
