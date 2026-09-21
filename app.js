@@ -43,7 +43,12 @@ import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/not
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
 import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=320";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=336";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
+installDebugConsoleCapture();
+recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
+window.addEventListener("error",e=>recordDebug("WINDOW_ERROR",{message:e.message,filename:e.filename,line:e.lineno,column:e.colno}));
+window.addEventListener("unhandledrejection",e=>recordDebug("UNHANDLED_REJECTION",{message:String(e.reason?.message||e.reason||"Promise failed")}));
 const foregroundQueue=[],MAX_FOREGROUND_QUEUE=3;let foregroundDraining=false;
 const deferredDirector={timer:0,running:false,controller:null,queue:[]};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false};
