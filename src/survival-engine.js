@@ -1,4 +1,4 @@
-import {currentWeather} from "./weather-engine.js?v=274";
+import {currentWeather} from "./weather-engine.js?v=276";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function currentLocation(state){const name=String(state.player?.location||"");return (state.world?.registry?.locations||[]).find(x=>x.name===name)||null}
 export function ensureSurvival(state){

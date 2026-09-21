@@ -1,14 +1,14 @@
-import {d20} from "./world-engine.js?v=274";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=274";
-import {advanceTime,ensureClock} from "./world-clock.js?v=274";
-import {tickWorld} from "./world-simulation.js?v=274";
-import {tickSurvival,resolveSurvivalAction} from "./survival-engine.js?v=274";
-import {applyCultureAction} from "./culture-engine.js?v=274";
-import {resolveEconomyAction} from "./economy-engine.js?v=274";
-import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=274";
-import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=274";
-import {exploreDungeon} from "./dungeon-engine.js?v=274";
-import {resolveTalentAction} from "./talent-engine.js?v=274";
+import {d20} from "./world-engine.js?v=276";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=276";
+import {advanceTime,ensureClock} from "./world-clock.js?v=276";
+import {tickWorld} from "./world-simulation.js?v=276";
+import {tickSurvival,resolveSurvivalAction} from "./survival-engine.js?v=276";
+import {applyCultureAction} from "./culture-engine.js?v=276";
+import {resolveEconomyAction} from "./economy-engine.js?v=276";
+import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=276";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=276";
+import {exploreDungeon} from "./dungeon-engine.js?v=276";
+import {resolveTalentAction} from "./talent-engine.js?v=276";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
