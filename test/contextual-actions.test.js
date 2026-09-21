@@ -37,6 +37,24 @@ test("AI progression suggestion is preserved and Engine does not add a generic r
  assert.ok(set.primary.some(x=>x.label==="沿著血跡找失蹤者"&&x.progression));
 });
 
+
+test("high-risk progression never replaces the required primary progression route",()=>{
+ const s=state(),set=buildContextualActionSet(s,[
+  {label:"直接闖入禁區找人",action:"直接闖入禁區追查失蹤者",kind:"RISKY",risk:"HIGH",approach:"BOLD",progression:true,requirementsSatisfied:true,causalBasis:"禁區入口就在眼前"},
+  {label:"先看入口有誰值守",action:"觀察禁區入口值守與人流",kind:"OBSERVE",risk:"LOW",approach:"STEADY",requirementsSatisfied:true,causalBasis:"入口可見"}
+ ]);
+ assert.ok(set.primary.some(x=>x.progression===true));
+ assert.ok(set.primary.every(x=>!["HIGH","EXTREME"].includes(x.risk)));
+ assert.ok(set.highRisk.some(x=>x.label==="直接闖入禁區找人"))
+});
+
+test("legacy string suggestions are not trusted as AI causal validation",()=>{
+ const s=state(),set=buildContextualActionSet(s,["探索","對話","繼續"]);
+ assert.equal(set.primary.length,3);
+ assert.ok(set.all.every(x=>x.source==="ENGINE"));
+ assert.ok(set.all.every(x=>x.prevalidated===true))
+});
+
 test("prevalidated suggested action skips AI feasibility while its scene seal remains current",()=>{
  const s=state(),row=buildContextualActionSet(s,[{label:"問守衛昨晚發生甚麼",action:"向守衛詢問昨晚巷子發生的異常",kind:"SOCIAL",risk:"LOW",approach:"SOCIAL",requirementsSatisfied:true,causalBasis:"守衛就在現場"}]).all[0];
  const assessment=trustedSuggestionAssessment(s,row);
