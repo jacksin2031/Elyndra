@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=273";
 import {seedDirective} from "./seed-contract.js?v=273";
 import {recognitionForNpc} from "./recognition-engine.js?v=273";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=273";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=273";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=273";
 import {sanitizePlayerText} from "./runtime-guard.js?v=273";
 import {helperSnapshot} from "./helper-context.js?v=273";
@@ -29,10 +29,25 @@ async function worldStage(stage,args){
  try{return await withWorldAiSlot(async()=>parseJSON(await directChat(args)))}
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
-function compilerTimedOut(err){return /AI_TIMEOUT|WORLD_[A-Z_]+_FAILED:\s*AI_TIMEOUT/.test(String(err?.message||err||""))}
+function compilerRecoverable(err){return /AI_TIMEOUT|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|WORLD_[A-Z_]+_FAILED:\s*(AI_TIMEOUT|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d))/.test(String(err?.message||err||""))}
 async function resilientWorldStage(stage,args,fallback){
  try{return await worldStage(stage,args)}
- catch(err){if(compilerTimedOut(err))return structuredClone(typeof fallback==="function"?fallback():fallback);throw err}
+ catch(err){if(compilerRecoverable(err))return structuredClone(typeof fallback==="function"?fallback():fallback);throw err}
+}
+function identityFallback(expected,seed){
+ return normalizeWorldIdentity({},expected,seed)
+}
+function coreRulesFallback(identity){
+ const highMagic=identity.magic>=4,highCiv=identity.danger>=0&&identity.politics>=0&&identity.scale&&identity.magic>=0;
+ const civLevel=Math.max(1,Math.min(5,Math.round((identity.magic+identity.politics+2)/2)));
+ let communication;
+ if(highMagic)communication={name:"共鳴信標",medium:"刻印水晶與共鳴節點",description:"以本世界力量規則驅動的有限遠距聯絡網，只能聯絡已建立關係的人或節點。",latency:"NEAR_INSTANT",range:civLevel>=4?"WORLD":"REGIONAL",accessRule:"ENCOUNTERED",constraints:"需要穩定節點與能量，危機或異常天候會干擾"};
+ else if(civLevel>=4)communication={name:"驛塔訊鏈",medium:"固定驛塔與信號中繼",description:"依賴成熟基建逐站傳遞訊息，速度快但不是即時通訊。",latency:"DELAYED",range:"REGIONAL",accessRule:"ENCOUNTERED",constraints:"只覆蓋主要聚落與道路，斷路時失效"};
+ else communication={name:"行旅信使",medium:"信使、商隊與地方驛點",description:"訊息必須跟隨實際旅程移動，符合較低文明的交通條件。",latency:"DELAYED",range:"LOCAL",accessRule:"ENCOUNTERED",constraints:"受道路、天候與危險地區影響"};
+ return {worldBible:{era:"現世紀",centralConflict:`「${identity.worldTheme}」造成的資源、制度與生存方式衝突正逐步失衡。`,magicCost:`任何超常力量都必須支付與「${identity.worldTheme}」直接相關的可觀察代價，無法無限免費使用。`,ancientTruth:`現代社會對「${identity.worldTheme}」的理解只掌握表層，真正起源仍被歷史斷層掩埋。`,currentCrisis:`維持現有秩序的機制正在失效，使「${identity.worldTheme}」由背景規則變成迫近所有人的危機。`,tone:"陌生、探索、因果明確且帶有生存壓力",civilization:{level:civLevel,stage:civLevel<=2?"地方聚落文明":civLevel<=4?"區域網絡文明":"高度組織文明",infrastructure:civLevel<=2?"道路與地方設施有限":civLevel<=4?"主要聚落間有穩定交通與公共設施":"跨區域基建成熟但仍受世界規則限制",literacy:civLevel<=2?"知識主要由口述、宗教或少數書記保存":"多數聚落具有制度化記錄與教育",mobility:civLevel<=2?"主要依靠步行、獸力與商隊":"主要區域之間存在固定交通網"},communication}}
+}
+function coreAnchorFallback(identity){
+ return {summary:`「${identity.worldTheme}」不只是傳說，而係會直接改變文明生活、地理環境與危機走向的世界規則。`,worldBible:{startingRegion:`${identity.worldName}邊境域`,startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{identity:`天候會受到「${identity.worldTheme}」直接影響，出現現實世界不存在的異常現象。`,source:identity.worldTheme,cycle:"隨地區、世界狀態與危機程度變化",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆相風",observableName:"風向與落物方向短暫相反",description:"局部空間規則出現偏移，風與輕物會違反平常方向。",sensoryCue:"衣角與塵埃同時逆向飄動",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"界鳴霧",observableName:"霧中遠近聲音次序混亂",description:"霧層令聲音傳播次序失常，使距離判斷變得不可靠。",sensoryCue:"近處聲音延遲、遠處聲音反而清晰",rarity:"RARE",danger:2}]},},publicFacts:[`居民普遍知道「${identity.worldTheme}」會影響日常生活與出行。`,"不同地區會用各自方法適應異常環境，沒有全世界通用的制度。"],hiddenFacts:[`「${identity.worldTheme}」目前的表現並非世界最初狀態。`,"當前危機與被遺忘的舊世界機制存在直接因果關係。"]}
 }
 function historyFallback(anchor){
  return [
