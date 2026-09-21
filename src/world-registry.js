@@ -20,11 +20,16 @@ export function ensureWorldRegistry(state){
 export function repairPlayerLocation(state){
  const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
  const player=String(state.player?.location||"").trim(),worldLoc=String(state.world?.state?.location||"").trim(),unknown=!player||player==="未知地點";
- if(unknown)return r.locations.find(x=>x.name===worldLoc)||null;
- let entity=r.locations.find(x=>x.name===player);
- if(!entity)entity=[...r.locations].reverse().find(x=>x.known===true)||null;
- if(entity){state.player.location=entity.name;state.world.state.location=entity.name}
- else state.player.location="未知地點";
+ const playerEntity=r.locations.find(x=>x.name===player)||null,worldEntity=r.locations.find(x=>x.name===worldLoc)||null;
+ let entity=unknown?(worldEntity||[...r.locations].reverse().find(x=>x.known===true)||r.locations[0]||null):(playerEntity||worldEntity||[...r.locations].reverse().find(x=>x.known===true)||null);
+ if(entity){
+  state.player.location=entity.name;
+  state.world.state.location=entity.name;
+  if(entity.region)state.world.state.region=entity.region
+ }else{
+  state.player.location="未知地點";
+  state.world.state.location="未知地點"
+ }
  return entity||null
 }
 export function currentLocationRecord(state){
