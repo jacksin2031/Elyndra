@@ -120,19 +120,12 @@ npm test
 
 Serverless endpoints：
 
-- `GET /api/health` — API / gateway 配置狀態
+- `GET /api/health` — API 配置狀態
 - `POST /api/world` — AI World candidate
 - `POST /api/narrate` — 根據 Engine 已確定結果生成場景敘事
 - `POST /api/npc` — 受 Knowledge Scope 限制的 NPC 對話
-- `POST /api/helper` — player-visible 唯讀旅途助手
-- `POST /api/action` — 行動可行性判定
-- `POST /api/turn` — Scene / State turn candidate
 
-Server AI gateway 採 **fail-closed**：即使已配置 `AI_API_KEY`，只要未明確設定 `ELYNDRA_SERVER_AI_ENABLED=true`，endpoint 仍會拒絕付費推理請求；啟用後亦必須配置 `ELYNDRA_GATEWAY_TOKEN`。Gateway token 只適合由可信任 server / reverse proxy 注入，**不可直接寫入 browser JavaScript**。目前公開 GitHub Pages 仍以 Browser Direct/BYOK 為主要路徑。
-
-Gateway 亦會限制 request body、檢查 browser Origin，並提供每 instance / IP 的短期 rate limit。這個記憶體 rate limit 只是額外防護，**不是持久 quota 或 billing accounting**；真正公開 server-side AI 前仍應接入持久 rate-limit / usage store、身份或 session authorization，以及每日 cost quota。
-
-環境變數參考 `.env.example`。
+環境變數參考 `.env.example`。未設定 API 時遊戲自動使用 deterministic local fallback。
 
 ## V0.8 Endless AI Adventure
 

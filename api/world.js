@@ -42,5 +42,5 @@ export default async function handler(req,res){
   }
   candidate.generationDiagnostics=diagnostics;candidate.worldQuality={...evaluation,repairHistory};
   return json(res,200,{candidate});
- }catch(e){return json(res,e.statusCode||(e.code==="AI_NOT_CONFIGURED"?503:502),{error:e.code||e.message})}
+ }catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message})}
 }
