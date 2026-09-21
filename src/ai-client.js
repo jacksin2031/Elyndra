@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=272";
 import {seedDirective} from "./seed-contract.js?v=272";
 import {recognitionForNpc} from "./recognition-engine.js?v=272";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates} from "./world-compiler.js?v=272";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=272";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=272";
 import {sanitizePlayerText} from "./runtime-guard.js?v=272";
 import {helperSnapshot} from "./helper-context.js?v=272";
@@ -21,6 +21,35 @@ async function worldStage(stage,args){
  try{return parseJSON(await directChat(args))}
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
+function compilerTimedOut(err){return /AI_TIMEOUT|WORLD_[A-Z_]+_FAILED:\s*AI_TIMEOUT/.test(String(err?.message||err||""))}
+async function resilientWorldStage(stage,args,fallback){
+ try{return await worldStage(stage,args)}
+ catch(err){if(compilerTimedOut(err))return structuredClone(typeof fallback==="function"?fallback():fallback);throw err}
+}
+function historyFallback(anchor){
+ return [
+  {id:"HIST-1",order:1,era:anchor.era||"古紀",title:"舊世界秩序的形成",category:"改革",summary:(anchor.centralConflict||anchor.worldTheme)+" 的前身在此時形成，並留下直到現在仍影響制度與生活的結構。",causes:[anchor.worldTheme],legacies:[anchor.centralConflict||"舊秩序仍在"],discoverKeywords:["舊紀錄"]},
+  {id:"HIST-2",order:2,era:anchor.era||"中紀",title:"世界規則的代價浮現",category:"魔法",summary:(anchor.magicCost||"世界力量需要付出代價")+"，不同群體因如何承擔代價而產生長期分歧。",causes:[anchor.magicCost||anchor.centralConflict],legacies:["現代文化仍保留對力量代價的禁忌"],discoverKeywords:["古老禁忌"]},
+  {id:"HIST-3",order:3,era:anchor.era||"今紀",title:"當前危機的前兆",category:"災難",summary:(anchor.currentCrisis||anchor.centralConflict)+" 並非突然發生，而是過去矛盾累積到今天的結果。",causes:[anchor.centralConflict],legacies:[anchor.currentCrisis||"危機仍在發展"],discoverKeywords:["危機前兆"]}
+ ]
+}
+function geographyFallback(anchor){
+ const firstWeather=anchor.weatherPhenomena?.[0]?.id||"";
+ return {openingHook:`你在「${anchor.startingLocation}」恢復意識。眼前環境明顯受「${anchor.worldTheme}」影響，但你目前只知道能直接感受到的景象與聲音。`,location:{name:anchor.startingLocation,type:"開局地點",region:anchor.startingRegion,description:`位於${anchor.startingRegion}的開局地點，其地貌與${anchor.worldTheme}直接相關。`,known:false,weatherProfile:{zone:anchor.startingRegion,affinities:firstWeather?[firstWeather]:[],suppressions:[]},lore:{story:`這個地方留下了與${anchor.centralConflict}有關的痕跡。`,unlockKeywords:["舊痕跡"],minMatches:1}}}
+}
+function societyFallback(anchor,history,geography){
+ const href=history?.[0]?.id||"HIST-1",location=geography?.location?.name||anchor.startingLocation;
+ return {locationRef:location,historyRefs:[href],locationCulture:{identity:`在${anchor.worldTheme}與本地環境下形成的生活文化`,etiquette:["先觀察當地人的做法再行動"],taboos:["不要公開輕視本地維生方式"],food:["以本地可取得物資為主"],beliefs:[anchor.centralConflict||anchor.worldTheme],architecture:["配合本地環境與天候"],clothing:["適應當地環境"],hospitality:["對陌生人先保持觀望"],namingStyle:"地方化命名",languageNotes:[]},locationTrade:{mode:"barter",currencies:[],commonBarter:["食物","工具"],foreignAcceptance:[],priceCulture:"價值取決於本地稀缺程度",questReward:0,combatReward:0},faction:{name:`${anchor.startingRegion}在地共同體`,goal:`在${anchor.currentCrisis||anchor.centralConflict}下維持生存與秩序`,description:`扎根於${location}附近，制度受${history?.[0]?.title||"舊歷史"}影響。`,known:false,locationName:location,historyRefs:[href],culture:{identity:"重視地方生存與互助",etiquette:["尊重地方規矩"],taboos:["破壞共同生存資源"],beliefs:[anchor.worldTheme]},trade:{mode:"barter",currencies:[],commonBarter:["食物","工具"],foreignAcceptance:[],priceCulture:"按稀缺程度交換",questReward:0,combatReward:0},lore:{story:`共同體的形成與「${history?.[0]?.title||"舊歷史"}」直接相關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}}
+}
+function futureFallback(anchor,history,pacing){
+ const slots=timelineAuthoringSlots(pacing);
+ return {worldCalendar:{name:`${anchor.worldName}紀`,epochName:anchor.era||"現紀",dayTerm:"日",cycleTerm:"旬",longCycleTerm:"輪",daysPerCycle:10,cyclesPerLongCycle:10,cycles:["初旬","中旬","末旬"],periods:[{name:"前段",fromMinute:0,toMinute:479},{name:"中段",fromMinute:480,toMinute:959},{name:"後段",fromMinute:960,toMinute:1439}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:i===slots.length-1?(anchor.currentCrisis||"危機轉折"):`${anchor.centralConflict||anchor.worldTheme}的第${i+1}次波動`,category:"WORLD_EVENT",directorTruth:`此事件延續自${history?.[i%Math.max(1,history.length)]?.title||"既有歷史"}。`,observableEffect:`${anchor.startingRegion}及其周邊逐步出現可被居民察覺的變化。`,pressure:Math.min(15,3+i),links:{historyRefs:[history?.[i%Math.max(1,history.length)]?.id||"HIST-1"],locationRefs:["STARTING_REGION"]}}))}
+}
+function castFallback(anchor,history,region,society){
+ const location=anchor.startingLocation,faction=society?.faction?.name||"";
+ return {npcs:[{name:"當地引路人",role:"居民",description:`生活在${location}、熟悉最基本地方規矩的人。`,personality:"對陌生人謹慎但願意回答眼前問題",goal:"確保自己與聚落安全",locationName:location,factionName:faction,knowledgeScope:(anchor.publicFacts||[]).slice(0,2),historyRefs:[history?.[0]?.id||"HIST-1"],known:false,companionProfile:{joinThreshold:45,leaveThreshold:10,motives:["保護自己的生活圈"],boundaries:["不會為陌生人無條件冒險"]},lore:{story:`家族記憶與「${history?.[0]?.title||"舊歷史"}」有關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}],sideQuests:[],suggestions:["觀察四周","確認自己身上的物品","嘗試與附近的人打招呼"]}
+}
+
 export async function generateWorldCandidate(seed,constitution,onProgress){
  let progressFloor=0;const report=(progress,label,detail)=>{if(progress<progressFloor)return;progressFloor=progress;emitWorldProgress(onProgress,progress,label,detail)};
  const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract;
@@ -62,72 +91,59 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   }
   if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);
 
-  report(58,"平行編譯世界","歷史 Canon、未來 Timeline 與開局地區會分流編譯，避免單一重型請求超時");
-  const chronologyPromise=(async()=>{
-   const history=await worldStage("HISTORY",{
-    timeoutMs:70000,
-    retryOnTimeout:false,
-    maxOutputTokens:1300,
-    system:`你是 Elyndra History Compiler。根據固定世界核心，只生成「不可改寫的過去歷史 World History」。歷史必須解釋文明、制度、衝突、魔法／技術與現代世界為何變成現在這樣；它是已發生 Canon，之後不可被玩家或 AI 改寫。只需 3 個最重要的歷史節點，每個保持精簡；regions/factions 可空，不要生成曆法、未來 Timeline、地點、NPC 或任務。只輸出 JSON，不要 Markdown。`,
-    user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:{era:core.worldBible.era,centralConflict:core.worldBible.centralConflict,magicCost:core.worldBible.magicCost,ancientTruth:core.worldBible.ancientTruth,currentCrisis:core.worldBible.currentCrisis,civilization:core.worldBible.civilization}},required:{
-     worldHistory:Array.from({length:3},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內歷史時代名稱",title:`重大歷史事件${i+1}`,category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革等",summary:"40-90字，已發生且不可改寫",causes:["最多1項"],legacies:["1-2項直到現在仍存在的影響"],discoverKeywords:["1-2個日後可從遺跡／文獻／NPC發現的線索詞"]}))
-    }})
-   });
-   const historyReport=validateWorldHistory(history?.worldHistory);
-   if(!historyReport.valid)throw new Error("WORLD_HISTORY_INVALID:"+historyReport.errors.join(","));
-   report(62,"世界歷史完成","正在根據歷史遺產編排未來事件");
+  const anchor=buildWorldAnchorContract(core,directive.timelinePacing);
+  report(56,"雙 AI 編譯 Wave 1","最多兩個 AI 同時生成：過去歷史與開局地理；兩者共享同一 World Anchor Contract");
 
-   const slots=timelineAuthoringSlots(directive.timelinePacing);
-   const future=await worldStage("FUTURE",{
-    timeoutMs:70000,
-    retryOnTimeout:false,
-    maxOutputTokens:1600,
-    system:`你是 Elyndra Future Compiler。根據固定世界核心、已 Canonize 的過去歷史與 Engine 提供的 timelineSlots，生成自訂曆法與未來 Timeline。你不得自己計算或改寫事件日期：只按 slot 順序生成事件內容，Engine 會套用 earliestDay/latestDay。Timeline 是未來可能發生的事件，可被玩家影響結果；directorTruth 永遠不可向玩家洩漏。只輸出 JSON，不要 Markdown。`,
-    user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:{era:core.worldBible.era,centralConflict:core.worldBible.centralConflict,currentCrisis:core.worldBible.currentCrisis,tone:core.worldBible.tone}},history:historyReport.history.map(x=>({era:x.era,title:x.title,summary:x.summary,legacies:x.legacies})),timelinePacing:directive.timelinePacing,timelineSlots:slots,required:{
-     worldCalendar:{name:"曆法名",epochName:"紀元名",dayTerm:"日序稱呼",cycleTerm:"短週期稱呼",longCycleTerm:"長週期稱呼",daysPerCycle:"3-60整數，可省略",cyclesPerLongCycle:"3-30整數，可省略",cycles:["3-6個週期名"],periods:[{name:"時段名",fromMinute:0,toMinute:359}]},
-     worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`大事件${i+1}`,category:"事件類型",directorTruth:"20-60字隱藏因果",observableEffect:"20-60字可觀察影響",pressure:"0-15整數"}))
-    }})
-   });
-   if(!future?.worldCalendar||!Array.isArray(future?.worldTimeline))throw new Error("WORLD_FUTURE_INVALID:SHAPE");
-   const authoredTimeline=bindTimelineAuthoringSlots(future.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
-   if(!timelineReport.valid)throw new Error("WORLD_FUTURE_INVALID:"+timelineReport.errors.join(","));
-   report(64,"時間線完成","開局內容仍在同步編譯");
-   return {worldHistory:historyReport.history,worldCalendar:future.worldCalendar,worldTimeline:timelineReport.timeline}
-  })();
+  const [historyRaw,geography]=await Promise.all([
+   resilientWorldStage("HISTORY",{
+    timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1200,
+    system:`你是 Elyndra History Compiler。只生成 3 個不可改寫的過去歷史 Canon。所有內容必須直接解釋 anchor 的 centralConflict、magicCost、civilization 或 currentCrisis 如何形成。每個事件使用指定 HIST-1..3 id。不要生成未來 Timeline、地點、勢力、NPC 或任務。只輸出 JSON。`,
+    user:JSON.stringify({anchor,required:{worldHistory:Array.from({length:3},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內時代",title:"重大歷史事件",category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革",summary:"40-80字",causes:["最多1項"],legacies:["1-2項現代仍存在影響"],discoverKeywords:["1-2線索"]}))}})
+   },()=>({worldHistory:historyFallback(anchor)})),
+   resilientWorldStage("GEOGRAPHY",{
+    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:800,
+    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。只輸出 JSON。`,
+    user:JSON.stringify({anchor,required:{openingHook:"60-120字，只寫零知識感官開場",location:{name:anchor.startingLocation,type:"地點類型",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
+   },()=>geographyFallback(anchor))
+  ]);
+  const historyReport=validateWorldHistory(historyRaw?.worldHistory),history=historyReport.valid?historyReport.history:historyFallback(anchor);
+  report(64,"雙 AI 編譯 Wave 2","歷史與地理已鎖定；最多兩個 AI 同時生成未來 Timeline 與地方社會，兩者必須引用 Wave 1");
 
-  const openingPromise=(async()=>{
-   const region=await worldStage("REGION",{
-    timeoutMs:65000,
-    retryOnTimeout:false,
-    maxOutputTokens:1500,
-    system:`你是 Elyndra Opening Region Compiler。根據固定世界核心，只生成最小可玩開局：1個出生地點、最多1個勢力與零知識 openingHook。不得生成 NPC、任務或 suggestions。location.name 必須與 worldBible.startingLocation 完全一致。地點／勢力要有簡潔但具辨識度的 culture 與 trade；不可假設世界共用貨幣。每個地點要有 weatherProfile，affinities / suppressions 只能引用 worldBible.weatherSystem.phenomena 的 id，令不同地區有不同天氣分布。openingHook 不可洩漏未知專有資訊。只輸出 JSON，不要 Markdown。`,
-    user:JSON.stringify({core:{worldTheme:core.worldTheme,worldBible:core.worldBible,publicFacts:core.publicFacts},required:{
-     openingHook:"60-140字感官開場",
-     locations:[{name:"必須等於 startingLocation",type:"...",region:core.worldBible.startingRegion,description:"40-100字",known:false,culture:{identity:"核心文化",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"簡短",languageNotes:["0-1項"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"簡短"}],commonBarter:["0-2項"],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},weatherProfile:{zone:"當地天候區域描述",affinities:["WTH id，0-3項"],suppressions:["WTH id，0-2項"]},lore:{story:"40-100字，只生成一次",unlockKeywords:["1-3線索"],minMatches:1}}],
-     factions:[{name:"...",goal:"簡短",description:"40-100字",known:false,culture:{identity:"核心文化",etiquette:["1項"],taboos:["1項"],beliefs:["1項"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-100字，只生成一次",unlockKeywords:["1-3線索"],minMatches:1}}]
-    }})
-   });
-   if(!region?.openingHook||!Array.isArray(region?.locations)||!region.locations.length||!Array.isArray(region?.factions))throw new Error("WORLD_REGION_INVALID");
-   report(68,"開局地區完成","正在生成第一名附近人物與開局行動");
-   const cast=await worldStage("CAST",{
-    timeoutMs:60000,
-    retryOnTimeout:false,
-    maxOutputTokens:1100,
-    system:`你是 Elyndra Opening Cast Compiler。只根據既有 core 與 region 生成1個附近 NPC、最多1個支線與3-4個開局 suggestions。NPC knowledgeScope 只能引用 core.publicFacts 完整文字；suggestions 只能使用 openingHook 中可感知資訊。內容保持精簡。只輸出 JSON，不要 Markdown。`,
-    user:JSON.stringify({core:{worldTheme:core.worldTheme,publicFacts:core.publicFacts},region:{openingHook:region.openingHook,locations:region.locations,factions:region.factions},required:{
-     npcs:[{name:"...",role:"...",description:"40-100字",personality:"簡短",goal:"簡短",locationName:"引用 region.locations",factionName:"可空或引用 region.factions",knowledgeScope:["core.publicFacts 完整文字"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1-2項"],boundaries:["1-2項"]},lore:{story:"40-100字，只生成一次",unlockKeywords:["1-3線索"],minMatches:1}}],
-     sideQuests:[{title:"...",objective:"簡短",known:false,evidenceKeywords:["2-3個只對應實體證據的線索"],conditions:[{type:"FACT_KNOWN|ITEM_OWNED|ENTITY_KNOWN|EVENT_OCCURRED|LOCATION_STATE|NPC_STATE|FACTION_STATE",id:"Canon/entity/event id",field:"可選",op:"GTE|LTE|EQ|NEQ",value:"可選"}],target:3}],
-     suggestions:["3-4個短行動"]
-    }})
-   });
-   if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2)throw new Error("WORLD_CAST_INVALID");
-   report(78,"人物與支線完成","等待另一條編譯分支完成後整合世界");
-   return {openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}}
-  })();
+  const slots=timelineAuthoringSlots(directive.timelinePacing);
+  const [futureRaw,society]=await Promise.all([
+   resilientWorldStage("FUTURE",{
+    timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1450,
+    system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history 與 geography 生成世界曆法及未來 Timeline。每個未來事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要計日數。只輸出 JSON。`,
+    user:JSON.stringify({anchor,history,geography,timelineSlots:slots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`事件${i+1}`,category:"類型",directorTruth:"20-50字隱藏因果",observableEffect:"20-50字可觀察影響",pressure:"0-15",links:{historyRefs:["至少1個 HIST id"],locationRefs:["STARTING_LOCATION|STARTING_REGION 或 anchor 名稱"]}}))}})
+   },()=>futureFallback(anchor,history,directive.timelinePacing)),
+   resilientWorldStage("SOCIETY",{
+    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:950,
+    system:`你是 Elyndra Society Compiler。只生成開局地點的 culture、trade 與最多1個地方 faction。你必須以已鎖定 geography 作生活環境，以 history 作制度／禁忌／信仰來源。locationRef 必須等於 anchor.startingLocation，historyRefs 必須引用既有 HIST id。禁止重新命名地點或創造第二個地點。只輸出 JSON。`,
+    user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"簡短",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"可空或穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"簡短"}],commonBarter:["0-2項"],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與 currentCrisis/歷史遺產有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化",etiquette:["1項"],taboos:["1項"],beliefs:["1項"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
+   },()=>societyFallback(anchor,history,geography))
+  ]);
 
-  const [chronology,opening]=await Promise.all([chronologyPromise,openingPromise]);
-  report(84,"整合世界","平行編譯完成，正在合併並交由 Engine 驗證");
-  return {...core,...chronology,...opening}
+  const region=mergeOpeningRegion(anchor,geography,society);
+  const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
+  const future=timelineReport.valid?{worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline}:futureFallback(anchor,history,directive.timelinePacing);
+  if(!future?.worldCalendar||!Array.isArray(future.worldTimeline))throw new Error("WORLD_FUTURE_INVALID");
+  let linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});
+  if(linkIssues.length){const safeSociety=societyFallback(anchor,history,geography),safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(society,safeSociety);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
+  if(linkIssues.length)throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
+
+  report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
+  const cast=await resilientWorldStage("CAST",{
+   timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:950,
+   system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。不得新增新地點／勢力。只輸出 JSON。`,
+   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"角色",description:"40-80字",personality:"簡短",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"簡短",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個只基於 openingHook 的短行動"]}})
+  },()=>castFallback(anchor,history,region,society));
+  if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2)throw new Error("WORLD_CAST_INVALID");
+  linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
+  if(linkIssues.length)throw new Error("WORLD_CAST_LINK_INVALID:"+linkIssues.join(","));
+
+  report(84,"整合世界","三個 Wave 完成；任何時候最多兩個 AI 並行，Engine 正在驗證跨階段引用");
+  return {...core,worldHistory:history,worldCalendar:future.worldCalendar,worldTimeline:future.worldTimeline,openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}}
+
  }
  report(42,"世界核心","正在透過伺服器建立世界");
  const candidate=(await post("/api/world",{seed,constitution,seedDirective:directive})).candidate;
