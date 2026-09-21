@@ -18,10 +18,17 @@ test("action judge separates feasibility from dice success",async()=>{
  const start=client.indexOf("export async function assessPlayerAction");
  const end=client.indexOf("export async function generateTurn",start);
  const block=client.slice(start,end);
- assert.match(block,/不決定成功或失敗/);
- assert.match(block,/技能低、疲勞高、受傷或環境惡劣通常不是 BLOCK/);
+ assert.match(block,/不要判斷成功率/);
+ assert.match(block,/技能低、疲勞高或受傷通常仍可 ALLOW/);
  assert.match(block,/ALLOW\|ADJUST\|BLOCK/);
  assert.match(block,/\/api\/action/);
+ assert.match(block,/actionFeasibilitySnapshot/);
+ assert.match(block,/helperSnapshot\(state\)/);
+ assert.match(block,/disableOptimization:compact/);
+ assert.match(block,/AI_RETRY/);
+ assert.match(block,/ENGINE_DEGRADED/);
+ assert.match(block,/degradedActionAssessment/);
+ assert.doesNotMatch(block,/const snapshot=buildSnapshot\(state\)/);
 });
 
 test("server action assessment endpoint exists and never rolls dice",async()=>{
@@ -30,4 +37,17 @@ test("server action assessment endpoint exists and never rolls dice",async()=>{
  assert.match(api,/不擲骰/);
  assert.doesNotMatch(api,/Math\.random|d20\(/);
  assert.match(api,/ALLOW\|ADJUST\|BLOCK/)
+});
+
+
+test("action feasibility has two AI attempts before conservative Engine degradation",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const start=client.indexOf("export async function assessPlayerAction");
+ const end=client.indexOf("export async function generateTurn",start);
+ const block=client.slice(start,end);
+ assert.match(block,/directActionAssessment\(payload,label,false\)/);
+ assert.match(block,/directActionAssessment\(\{action:label,snapshot\},label,true\)/);
+ assert.match(block,/return degradedActionAssessment\(state,label,e\)/);
+ assert.match(client,/目前背包中找不到這個行動所指定的物品/);
+ assert.match(client,/你目前沒有已知能力支持這種超常移動/)
 });
