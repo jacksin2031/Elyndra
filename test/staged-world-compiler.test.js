@@ -22,6 +22,10 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/coreWaveIssues\(identity,rules,coreAnchor,core\)/);
  assert.match(client,/buildWorldAnchorContract\(core,directive\.timelinePacing\)/);
  assert.match(client,/worldGenerationLinkIssues\(/);
+ assert.match(client,/normalizeFutureLinksToAnchor\(/);
+ assert.match(client,/societyIssues=linkIssues\.filter\(x=>x\.startsWith\("SOCIETY_"\)\)/);
+ assert.match(client,/futureIssues=linkIssues\.filter\(x=>x\.startsWith\("FUTURE_"\)\)/);
+ assert.doesNotMatch(client,/markWorldFallback\("SOCIETY",reason\);markWorldFallback\("FUTURE",reason\)/);
  assert.match(client,/timelineAuthoringSlots\(directive\.timelinePacing\)/);
  assert.match(client,/bindTimelineAuthoringSlots\(futureRaw\?\.worldTimeline,directive\.timelinePacing\)/);
  for(const legacy of ["CORE","CORE_REPAIR","CHRONOLOGY","REGION"])assert.doesNotMatch(client,new RegExp(`worldStage\\("${legacy}"`));
