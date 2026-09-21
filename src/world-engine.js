@@ -2,11 +2,12 @@ import {revealStoredLore} from "./lore-engine.js?v=276";
 import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=276";
 import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=276";
 import {normalizeCalendar} from "./world-locality.js?v=276";
-import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=276";
+import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=35000";
 import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./communication-engine.js?v=276";
 import {validateWorldHistory} from "./world-history.js?v=276";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=276";
 import {modernEarthOriginProfile} from "./player-origin.js?v=320";
+import {applyOpeningExperience} from "./player-experience.js?v=35000";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -88,7 +89,8 @@ export function applyWorldCandidate(state,candidate){
  state.world.evolution??={lastMinute:-9999,lastVersion:0,count:0,lastReason:""};
  if(candidate.worldBible?.startingRegion)state.world.state.region=clean(candidate.worldBible.startingRegion,120);
  const trueStart=sanitizeLocationName(candidate.generation?.locations?.[0]?.name)||sanitizeLocationName(candidate.worldBible?.startingLocation);if(trueStart)state.world.state.location=trueStart;state.world.weather.legacyNeutral=false;initializeWeather(state,{force:true})
- const opening=sanitizePlayerText(candidate.openingHook,1000,"你在陌生的環境中醒來，只能先從眼前可見的事物判斷身處何方。");if(opening)state.narrative=opening;
- const suggestions=sanitizeSuggestions(candidate.suggestions,[]);if(suggestions.length)state.suggestions=suggestions;
+ const opening=sanitizePlayerText(candidate.openingHook,1000,"你在陌生的環境中醒來，只能先從眼前可見的事物判斷身處何方。");
+ const suggestions=sanitizeSuggestions(candidate.suggestions,[]);
+ const openingExperience=applyOpeningExperience(state,opening,suggestions);state.narrative=openingExperience.narrative;if(openingExperience.suggestions.length)state.suggestions=openingExperience.suggestions;
  state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report
 }

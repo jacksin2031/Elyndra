@@ -1,9 +1,10 @@
 import {advanceTime} from "./world-clock.js?v=276";
-import {tickWorld} from "./world-simulation.js?v=276";
+import {tickWorld} from "./world-simulation.js?v=35000";
 import {evaluateQuestEvidence} from "./quest-engine.js?v=276";
-import {npcInteractionMode} from "./world-registry.js?v=276";
+import {npcInteractionMode} from "./world-registry.js?v=35000";
 import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=276";
-import {deriveSceneTitle} from "./runtime-guard.js?v=276";
+import {deriveSceneTitle} from "./runtime-guard.js?v=35000";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=35000";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
@@ -21,7 +22,8 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  const worldEvent=tickWorld(state);
  state.narrative=String(answer||"").slice(0,900);
  state.sceneTitle=deriveSceneTitle(state,"與"+npc.name+"交談");
- const comm=worldCommunication(state),contactLabel=mode==="REMOTE"?"透過"+comm.name+"繼續聯絡":"繼續與"+npc.name+"交談";
- state.suggestions=[contactLabel,"整理剛才得到的情報","根據對話內容採取下一步行動","暫時結束對話並觀察周圍"];
+ const comm=worldCommunication(state),contactLabel=mode==="REMOTE"?"透過"+comm.name+"追問剛才沒有說清楚的細節":"追問"+npc.name+"剛才刻意略過的細節";
+ const contextual=roleplayFallbackSuggestions(state,{action:"與"+npc.name+"交談"}).filter(x=>!x.includes("整理")&&!x.includes("確認目前"));
+ state.suggestions=[contactLabel,...contextual].filter((x,i,a)=>x&&a.indexOf(x)===i).slice(0,4);
  return {mode,minutes,elapsed:(state.world.state.clock?.totalMinutes||0)-before,progressed,worldEvent,event};
 }

@@ -55,7 +55,7 @@ test("telemetry sums token usage and redacts credentials without hiding gameplay
   assert.equal(summary.tokenTotals.reasoning,4);
   assert.equal(summary.aiLatencyMsAverage,200);
   assert.equal(summary.gameplayEvents,1);
-  const bundle=debugBundle({appVersion:"0.34.4",aiSettings:{apiKey:"secret-key",authorization:"Bearer xx",model:"m"},gameState:{world:{secretLore:"KEEP_ME"},events:[{type:"PLAYER_ACTION"}]},runtime:{turnSyncBusy:true}});
+  const bundle=debugBundle({appVersion:"0.35.0",aiSettings:{apiKey:"secret-key",authorization:"Bearer xx",model:"m"},gameState:{world:{secretLore:"KEEP_ME"},events:[{type:"PLAYER_ACTION"}]},runtime:{turnSyncBusy:true}});
   assert.equal(bundle.aiSettings.apiKey,"[REDACTED]");
   assert.equal(bundle.aiSettings.authorization,"[REDACTED]");
   assert.equal(bundle.gameState.world.secretLore,"KEEP_ME");
@@ -81,6 +81,9 @@ test("in-game Debug UI exposes token accounting and JSON TXT export",async()=>{
  assert.match(app,/ACTION_ASSESSMENT/);
  assert.match(app,/ENGINE_ACTION_RESULT/);
  assert.match(app,/TURN_COMMIT/);
+ assert.match(app,/OPENING_HOOK_ENGAGED/);
+ assert.match(app,/WORLD_IMPACT_PROJECTED/);
+ assert.match(app,/SESSION_CHECKPOINT/);
  assert.match(app,/GAME_ITEM_GAINED/);
  assert.match(app,/GAME_KNOWLEDGE_GAINED/);
  assert.match(app,/GAME_SIDE_QUEST_ACQUIRED/);

@@ -12,31 +12,33 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.34.4 hardening keeps save and AI cache generations explicit",async()=>{
+test("v0.35.0 player experience keeps dependency cache generations explicit",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/styles\.css\?v=336/);
- assert.match(html,/app\.js\?v=34004/);
- assert.match(app,/\.\/src\/version\.js\?v=34004/);
+ assert.match(html,/app\.js\?v=35000/);
+ assert.match(app,/\.\/src\/version\.js\?v=35000/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
- assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/); 
+ assert.match(app,/\.\/src\/ai-client\.js\?v=35000/);
+ assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);
+ assert.match(app,/\.\/src\/player-experience\.js\?v=35000/); 
  assert.match(app,/\.\/src\/storage\.js\?v=34004/);
  assert.match(app,/\.\/src\/progression-ui\.js\?v=34004/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
- assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
+ assert.match(app,/\.\/src\/world-engine\.js\?v=35000/);
  assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
- for(const mod of ["game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
- assert.match(app,/\.\/src\/adventure-engine\.js\?v=335/);
+ assert.match(app,/\.\/src\/game-engine\.js\?v=35000/);
+ assert.match(app,/\.\/src\/check-engine\.js\?v=320/);
+ assert.match(app,/\.\/src\/adventure-engine\.js\?v=35000/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(client,/\.\/world-compiler\.js\?v=332/);
- assert.match(client,/\.\/turn-compiler\.js\?v=335/);
- assert.match(client,/\.\/helper-context\.js\?v=320/);
+ assert.match(client,/\.\/turn-compiler\.js\?v=35000/);
+ assert.match(client,/\.\/helper-context\.js\?v=35000/);
  assert.match(client,/\.\/world-quality\.js\?v=300/);
  assert.match(client,/\.\/model-json\.js\?v=281/)
 });
