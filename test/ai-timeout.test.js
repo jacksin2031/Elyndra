@@ -28,11 +28,14 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
 });
 
 
-test("Player Action and State Sync do not retry provider timeouts",async()=>{
+test("Player Action and StatePatch do not retry provider timeouts",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- const block=client.slice(client.indexOf("export function startTurnAIJobs"),client.indexOf("export function finalizeTurnAIJobs"));
- assert.match(block,/aiTask:"scene",timeoutMs:35000,retryOnTimeout:false/);
- assert.match(block,/timeoutMs:stateMode==="DEEP"\?45000:28000,retryOnTimeout:false/);
+ const block=client.slice(client.indexOf("export function startTurnAIJobs"),client.indexOf("export async function generateStatePatch"));
+ assert.match(block,/aiTask:"scene",signal:options\?\.signal,timeoutMs:35000,retryOnTimeout:false/);
+ assert.match(block,/timeoutMs:plan\.mode==="DEEP"\?45000:22000,retryOnTimeout:false/);
+ const deferred=client.slice(client.indexOf("export async function generateStatePatch"),client.indexOf("export function finalizeTurnAIJobs"));
+ assert.match(deferred,/resolved\.mode==="DEEP"\?45000:resolved\.mode==="DEFERRED"\?35000:22000/);
+ assert.match(deferred,/retryOnTimeout:false/)
 });
 
 test("server world generation timeout is longer than ordinary narration",async()=>{
@@ -47,7 +50,7 @@ test("server world generation timeout is longer than ordinary narration",async()
  assert.match(core,/AI_TIMEOUT: upstream provider exceeded/);
  assert.match(world,/timeoutMs:120000/);
  assert.match(turn,/timeoutMs:35000/);
- assert.match(turn,/serverStateMode==="FAST"\?30000:50000/);
+ assert.match(turn,/plan\.mode==="DEEP"\?50000:25000/);
  assert.doesNotMatch(turn,/timeoutMs:60000/);
  assert.match(narrate,/timeoutMs:45000/);
  assert.match(npc,/timeoutMs:45000/);
