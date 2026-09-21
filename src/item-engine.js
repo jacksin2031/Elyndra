@@ -180,12 +180,20 @@ export function presentItemToNpc(state,itemId,npcId,{give=false}={}){
  state.events??=[];state.events.push({id:uid("EV"),type:action,visibility:"PLAYER_KNOWN",npcId:npc.id,npcName:npc.name,itemId:item.id,itemName:item.name,special,trustDelta,summary,day:state.world?.state?.day||1,at:Date.now()});
  return {ok:true,action,itemName:item.name,npcId:npc.id,npcName:npc.name,special,trustDelta,summary}
 }
+export function setItemEquipped(state,itemId,equipped=true){
+ ensureItemRuntime(state);const item=state.inventory.find(x=>x.id===itemId||x.name===itemId);if(!item)return {ok:false,reason:"ITEM_NOT_OWNED"};
+ if(!["TOOL","EQUIPMENT"].includes(item.category))return {ok:false,reason:"ITEM_NOT_EQUIPPABLE",item};
+ item.equipped=equipped===true;state.events??=[];state.events.push({id:uid("EV"),type:item.equipped?"ITEM_EQUIPPED":"ITEM_UNEQUIPPED",visibility:"PLAYER_KNOWN",itemId:item.id,itemName:item.name,day:state.world?.state?.day||1,at:Date.now()});
+ return {ok:true,itemId:item.id,itemName:item.name,equipped:item.equipped,summary:item.equipped?`你裝備了「${item.name}」。`:`你卸下了「${item.name}」。`}
+}
 export function craftingSnapshot(state){
  ensureItemRuntime(state);return {recipes:state.crafting.recipes.map(r=>{const status=recipeStatus(state,r);return {id:r.id,name:r.name,description:r.description,inputs:r.inputs,output:{name:r.output.name,category:r.output.category,quantity:r.output.quantity,useEffects:r.output.useEffects,checkBonuses:r.output.checkBonuses},minutes:r.minutes,craftable:status.craftable,missing:status.missing}})}
 }
 export function resolveItemAction(state,label,roll){
  const q=String(label||"");if(roll?.success===false)return null;ensureItemRuntime(state);
  const mentionedItem=state.inventory.find(x=>x.name&&q.includes(x.name)),mentionedNpc=(state.world?.registry?.npcs||[]).find(x=>x.name&&q.includes(x.name));
+ if(/卸下|脫下|unequip|take off/i.test(q)&&mentionedItem)return {handled:true,...setItemEquipped(state,mentionedItem.id,false)};
+ if(/裝備|穿上|equip|put on/i.test(q)&&mentionedItem)return {handled:true,...setItemEquipped(state,mentionedItem.id,true)};
  if(/交給|交出|贈送|送給|give|hand over/i.test(q)&&mentionedItem&&mentionedNpc)return {handled:true,...presentItemToNpc(state,mentionedItem.id,mentionedNpc.id,{give:true})};
  if(/展示|出示|拿給.*看|show|present/i.test(q)&&mentionedItem&&mentionedNpc)return {handled:true,...presentItemToNpc(state,mentionedItem.id,mentionedNpc.id,{give:false})};
  if(/使用|食用|進食|吃|喝|飲用|服用|use|eat|drink/i.test(q)){

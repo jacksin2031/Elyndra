@@ -92,13 +92,33 @@ test("canonical location access can require a specific owned item",()=>{
  assert.equal(locationAccessStatus(s,locked).allowed,true)
 });
 
-test("AI BLOCK verdict prevents dice, time and action execution",()=>{
+test("Engine independently confirms impossible movement even when AI proposes BLOCK",()=>{
  const s=state(),before=s.world.state.clock.totalMinutes;
  const r=performAction(s,"free","徒手飛上天空",{verdict:"BLOCK",kind:"RISKY",reason:"你沒有飛行能力。",requirements:["飛行能力"],confidence:99});
  assert.equal(r.blocked,true);
  assert.equal(r.roll,null);
  assert.equal(s.world.state.clock.totalMinutes,before);
- assert.ok(s.events.some(e=>e.type==="PLAYER_ACTION_REJECTED"))
+ assert.ok(s.events.some(e=>e.type==="PLAYER_ACTION_REJECTED"&&e.authority==="ENGINE"))
+});
+
+test("AI BLOCK proposal cannot veto a harmless action without an Engine reason",()=>{
+ const s=state(),before=s.world.state.clock.totalMinutes;
+ const r=performAction(s,"free","觀察天空",{verdict:"BLOCK",kind:"OBSERVE",reason:"AI 建議阻止",requirements:[],confidence:99,actionIntent:{intent:"OBSERVE"}});
+ assert.equal(Boolean(r.feasibilityBlocked),false);
+ assert.ok(r.roll);
+ assert.ok(s.world.state.clock.totalMinutes>before)
+});
+
+test("inventory status rest equipment and safe known travel complete without AI turn",()=>{
+ const s=state(),item=addInventoryItem(s,{name:"旅人外套",category:"EQUIPMENT"});
+ let before=s.world.state.clock.totalMinutes,r=performAction(s,"free","查看背包");
+ assert.equal(r.deterministic,true);assert.equal(r.roll,null);assert.equal(s.world.state.clock.totalMinutes,before);assert.match(r.text,/旅人外套/);
+ r=performAction(s,"free","裝備旅人外套");assert.equal(r.deterministic,true);assert.equal(s.inventory.find(x=>x.id===item.id).equipped,true);
+ ensureSurvival(s).fatigue=80;before=s.world.state.clock.totalMinutes;r=performAction(s,"free","睡覺");
+ assert.equal(r.deterministic,true);assert.equal(r.roll,null);assert.equal(s.world.state.clock.totalMinutes,before+480);assert.ok(ensureSurvival(s).fatigue<80);
+ s.world.registry.locations.push({id:"LOC-2",name:"河岸村",type:"村",region:"城區",description:"河邊小村",known:true,worldState:{safety:70,prosperity:50,supply:50,infrastructure:60,stability:60,statusTags:[]}});
+ before=s.world.state.clock.totalMinutes;r=performAction(s,"free","前往河岸村");
+ assert.equal(r.deterministic,true);assert.equal(r.roll,null);assert.equal(s.player.location,"河岸村");assert.ok(s.world.state.clock.totalMinutes>before)
 });
 
 test("new protagonist is an ordinary modern-Earth person with zero isekai knowledge",()=>{

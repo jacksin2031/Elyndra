@@ -1,6 +1,6 @@
 import {d20} from "./world-engine.js?v=37000";
 import {advanceTime} from "./world-clock.js?v=276";
-import {tickWorld} from "./world-simulation.js?v=37000";
+import {tickWorld} from "./world-simulation.js?v=39000";
 import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=276";
 import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=35000";
 import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=276";

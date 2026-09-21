@@ -26,6 +26,14 @@ test("local player impact mutates current state and appends immutable impact his
  assert.equal(ensureWorldImpact(s).records[0].type,"PLAYER_IMPACT");assert.ok(s.events.some(e=>e.type==="WORLD_IMPACT"));
 });
 
+test("semantic impact effects are converted into scope-bounded Engine numbers",()=>{
+ const s=localWorld(),loc=s.world.registry.locations[0];
+ const out=applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"location",targetId:"CURRENT_LOCATION",title:"補給受阻",summary:"道路受阻令地方補給明顯下降。",outcome:"COST",mutations:[{field:"supply",op:"DELTA",effect:"MAJOR_NEGATIVE"},{field:"infrastructure",op:"DELTA",effect:"MINOR_POSITIVE"}]}],{roll:{success:true}});
+ assert.equal(out.length,1);
+ assert.equal(loc.worldState.supply,40);
+ assert.equal(loc.worldState.infrastructure,53)
+});
+
 test("impact engine refuses unknown targets and excessive early-game scope",()=>{
  const s=localWorld();
  assert.equal(applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"faction",targetId:"FAC-NOT-KNOWN",title:"不存在",summary:"這個改變不應該被接受進世界狀態。",mutations:[{field:"influence",op:"DELTA",value:-10}]}],{roll:{success:true}}).length,0);

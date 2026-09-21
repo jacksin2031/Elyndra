@@ -9,6 +9,16 @@ const SCOPES=["PERSONAL","LOCAL","REGIONAL","FACTION","WORLD"];
 const RANK=Object.fromEntries(SCOPES.map((x,i)=>[x,i]));
 const POINTS={PERSONAL:1,LOCAL:2,REGIONAL:4,FACTION:6,WORLD:10};
 const LIMITS={PERSONAL:5,LOCAL:12,REGIONAL:20,FACTION:25,WORLD:35};
+const SEMANTIC_EFFECTS=new Set(["NONE","MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
+function semanticDelta(effect,limit){
+ const e=String(effect||"").toUpperCase();if(!SEMANTIC_EFFECTS.has(e)||e==="NONE")return 0;const negative=e.includes("NEGATIVE"),ratio=e.startsWith("MAJOR_")?.8:e.startsWith("MINOR_")?.25:.5,amount=Math.max(1,Math.round(limit*ratio));return negative?-amount:amount
+}
+function mutationDelta(mutation,limit){
+ const e=String(mutation?.effect||"").toUpperCase();if(SEMANTIC_EFFECTS.has(e))return semanticDelta(e,limit);
+ const n=Number(mutation?.value);return Number.isFinite(n)?clamp(Math.round(n),-limit,limit):0
+}
+function mutationDirection(mutation){const e=String(mutation?.effect||"").toUpperCase();if(SEMANTIC_EFFECTS.has(e))return Math.sign(semanticDelta(e,100));return Math.sign(Number(mutation?.value)||0)}
+
 const LOCATION_FIELDS=new Set(["safety","prosperity","supply","infrastructure","stability"]);
 const FACTION_FIELDS=new Set(["resources","influence","stability"]);
 const NPC_FIELDS=new Set(["trust"]);
@@ -145,14 +155,14 @@ function mutationSchemaValid(kind,mutation){
  }
  if(["ADD_TAG","REMOVE_TAG"].includes(op))return field==="statusTag"&&Boolean(clean(mutation?.value,60));
  if(op!=="DELTA"||!fieldSet(kind).has(field))return false;
- const n=Number(mutation?.value);return Number.isFinite(n)&&n!==0
+ const e=String(mutation?.effect||"").toUpperCase();if(SEMANTIC_EFFECTS.has(e))return e!=="NONE";const n=Number(mutation?.value);return Number.isFinite(n)&&n!==0
 }
 function mutationAllowedForRoll(mutation,roll,outcome){
  if(!roll||roll.success!==false)return true;
  if(!["COST","MIXED"].includes(String(outcome||"").toUpperCase()))return false;
  const op=String(mutation?.op||"").toUpperCase();
  if(op==="STRUCTURE")return NEGATIVE_STRUCTURE_STATES.has(String(mutation?.value?.state||"").toUpperCase());
- if(op==="DELTA")return Number(mutation?.value)<0;
+ if(op==="DELTA")return mutationDirection(mutation)<0;
  if(op==="ADD_TAG")return ["COST","MIXED"].includes(String(outcome||"").toUpperCase());
  return false
 }
@@ -174,7 +184,7 @@ function applyMutation(state,target,kind,mutation,limit){
  if(["ADD_TAG","REMOVE_TAG"].includes(op)){
   const holder=kind==="world"?state.world.state:ensureEntityState(target,kind);holder.statusTags??=[];return mutateTag(holder.statusTags,op,mutation.value)
  }
- let delta=clamp(Math.round(Number(mutation.value)),-limit,limit);
+ let delta=mutationDelta(mutation,limit);if(!delta)return {changed:false};
  if(kind==="location"){const ws=ensureEntityState(target,"location"),before=ws[field],after=clamp(before+delta,0,100);ws[field]=after;return {changed:before!==after,field,before,after,delta:after-before}}
  if(kind==="npc"){const before=Number(target[field]??0),after=clamp(before+delta,0,100);target[field]=after;return {changed:before!==after,field,before,after,delta:after-before}}
  if(kind==="faction"){
