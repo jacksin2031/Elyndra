@@ -12,7 +12,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.34.0 hardening keeps one AI telemetry module generation",async()=>{
+test("v0.34.1 hardening keeps save and AI cache generations explicit",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -23,7 +23,7 @@ test("v0.34.0 hardening keeps one AI telemetry module generation",async()=>{
  assert.match(app,/\.\/src\/version\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
- assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);
+ assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);\n assert.match(app,/\.\/src\/storage\.js\?v=341/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
