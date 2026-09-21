@@ -1,8 +1,8 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=280";
+import {APP_VERSION} from "./src/version.js?v=281";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=276";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=280";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=280";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=281";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=276";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=276";
