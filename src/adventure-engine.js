@@ -65,6 +65,34 @@ export function validateTurnCandidate(c){
  for(const x of c.entityReveals||[])if(!x||!["location","npc","faction","sideQuest"].includes(x.kind)||typeof x.id!=="string")errors.push("ENTITY_REVEAL_SHAPE_INVALID");
  return {valid:!errors.length,errors:[...new Set(errors)]}
 }
+export function validateDeferredTurnEffects(c){
+ const errors=[];if(!c||typeof c!=="object"||Array.isArray(c))return {valid:false,errors:["DEFERRED_INVALID"]};
+ if(c.recipes!=null&&!Array.isArray(c.recipes))errors.push("RECIPES_INVALID");
+ if(c.magicLearning!=null&&!Array.isArray(c.magicLearning))errors.push("MAGIC_LEARNING_INVALID");
+ if(c.factionChanges!=null&&!Array.isArray(c.factionChanges))errors.push("FACTION_CHANGES_INVALID");
+ if(c.companionChanges!=null&&!Array.isArray(c.companionChanges))errors.push("COMPANION_CHANGES_INVALID");
+ const iv=validateImpactCandidate(c.worldImpacts);if(!iv.valid)errors.push(...iv.errors);
+ const gv=validateGeneration(c.generation);if(!gv.valid)errors.push(...gv.errors);
+ for(const r of c.recipes||[])if(!r||typeof r.name!=="string"||!Array.isArray(r.inputs)||!r.output||typeof r.output.name!=="string")errors.push("RECIPE_SHAPE_INVALID");
+ for(const m of c.magicLearning||[])if(!m||typeof m.name!=="string"||typeof m.sourceFactId!=="string"||!m.sourceFactId)errors.push("MAGIC_LEARNING_SHAPE_INVALID");
+ for(const f of c.factionChanges||[])if(!f||typeof f.factionId!=="string"||!Number.isInteger(f.reputationDelta)||f.reputationDelta < -5||f.reputationDelta > 5)errors.push("FACTION_CHANGE_SHAPE_INVALID");
+ for(const x of c.companionChanges||[])if(!x||typeof x.npcId!=="string"||!["OFFER","LEAVE"].includes(String(x.action||"").toUpperCase()))errors.push("COMPANION_CHANGE_SHAPE_INVALID");
+ return {valid:!errors.length,errors:[...new Set(errors)]}
+}
+export function applyDeferredTurnEffects(state,c,context={}){
+ const v=validateDeferredTurnEffects(c);if(!v.valid)throw new Error(v.errors.join(","));
+ const rollSucceeded=context.roll?.success!==false,registry=ensureWorldRegistry(state);
+ if(rollSucceeded)for(const recipe of (c.recipes||[]).slice(0,2))learnRecipe(state,recipe,{source:"DEFERRED_TURN"});
+ if(rollSucceeded)for(const spell of (c.magicLearning||[]).slice(0,1))learnSpell(state,spell);
+ for(const f of (c.factionChanges||[]).slice(0,2)){const delta=Math.round(Number(f.reputationDelta)||0);if((rollSucceeded||delta<0)&&registry.factions.some(x=>x.id===f.factionId&&x.known===true))changeReputation(state,f.factionId,delta)}
+ for(const x of (c.companionChanges||[]).slice(0,2)){const npc=registry.npcs.find(n=>n.id===x.npcId),action=String(x.action||"").toUpperCase();if((rollSucceeded||action==="LEAVE")&&(canInteractWithNpc(state,npc)||npc?.companion?.status==="ACTIVE"))applyCompanionChange(state,x)}
+ const generation=c.generation?structuredClone(c.generation):c.generation;
+ if(!rollSucceeded&&generation)for(const key of ["locations","npcs","factions","sideQuests"])for(const x of generation[key]||[])x.known=false;
+ canonizeGeneration(state,generation);
+ applyWorldImpacts(state,c.worldImpacts,context);
+ state.events??=[];state.events.push({id:id(),type:"DEFERRED_TURN_APPLIED",visibility:"INTERNAL",action:sanitizePlayerText(context.action,180,""),day:state.world.state.day,at:Date.now()});
+ return state
+}
 export function applyTurnCandidate(state,c,context={}){
  const v=validateTurnCandidate(c);if(!v.valid)throw new Error(v.errors.join(","));
  const previousSuggestions=[...(state.suggestions||[])],rollSucceeded=context.roll?.success!==false;
