@@ -23,7 +23,8 @@ test("v0.35.0 player experience keeps dependency cache generations explicit",asy
  assert.match(app,/\.\/src\/version\.js\?v=35000/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=35000/);
- assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);\n assert.match(app,/\.\/src\/player-experience\.js\?v=35000/); 
+ assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);
+ assert.match(app,/\.\/src\/player-experience\.js\?v=35000/); 
  assert.match(app,/\.\/src\/storage\.js\?v=34004/);
  assert.match(app,/\.\/src\/progression-ui\.js\?v=34004/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
