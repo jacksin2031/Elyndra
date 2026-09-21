@@ -12,26 +12,26 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.33.7 runtime diagnostics cache-bust changed modules",async()=>{
+test("v0.34.0 hardening keeps one AI telemetry module generation",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/styles\.css\?v=336/);
- assert.match(html,/app\.js\?v=337/);
- assert.match(app,/\.\/src\/version\.js\?v=337/);
- assert.match(app,/\.\/src\/ai-settings\.js\?v=336/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=336/);
- assert.match(app,/\.\/src\/debug-telemetry\.js\?v=337/);
- assert.match(client,/\.\/ai-settings\.js\?v=336/);
+ assert.match(html,/app\.js\?v=340/);
+ assert.match(app,/\.\/src\/version\.js\?v=340/);
+ assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
+ assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);
+ assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
  assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
  for(const mod of ["game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
  assert.match(app,/\.\/src\/adventure-engine\.js\?v=335/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/);
- assert.match(client,/\.\/ai-settings\.js\?v=336/);
+ assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(client,/\.\/world-compiler\.js\?v=332/);
  assert.match(client,/\.\/turn-compiler\.js\?v=335/);
  assert.match(client,/\.\/helper-context\.js\?v=320/);

@@ -16,20 +16,20 @@ test("main UI exposes a fixed bottom-right version badge from APP_VERSION",async
  assert.match(html,/id="versionBadge" class="version-badge"/);
  assert.match(css,/\.version-badge\{position:fixed;right:/);
  assert.match(css,/bottom:/);
- assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=337"/);
+ assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=340"/);
  assert.match(app,/versionBadge\.textContent=\`v\$\{APP_VERSION\}\`/);
 });
 
-test("v0.33.7 keeps unchanged scene assets independently cached",async()=>{
+test("v0.34.0 keeps unchanged scene assets independently cached",async()=>{
  const [html,app]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/styles\.css\?v=336/);
- assert.match(html,/app\.js\?v=337/);
- assert.match(app,/\.\/src\/version\.js\?v=337/);
- assert.match(app,/\.\/src\/ai-settings\.js\?v=336/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=336/);
+ assert.match(html,/app\.js\?v=340/);
+ assert.match(app,/\.\/src\/version\.js\?v=340/);
+ assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
  assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
  assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/)

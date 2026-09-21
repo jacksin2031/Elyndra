@@ -13,7 +13,7 @@ kind 只可 OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL。只輸出 JSON：{"verdict":"A
   const raw=await callModel({system,user:JSON.stringify({action:String(action).slice(0,180),snapshot}),temperature:.15,timeoutMs:28000,maxOutputTokens:650});
   return json(res,200,{assessment:parseModelJSON(raw)})
  }catch(e){
-  const status=e.code==="AI_NOT_CONFIGURED"?503:e.message?.startsWith("INVALID_MODEL_JSON")?422:502;
+  const status=e.statusCode||(e.code==="AI_NOT_CONFIGURED"?503:e.message?.startsWith("INVALID_MODEL_JSON")?422:502);
   return json(res,status,{error:e.code||e.message})
  }
 }
