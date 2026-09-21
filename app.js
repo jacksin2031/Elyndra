@@ -43,7 +43,7 @@ import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/not
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
 import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=320";
-import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=336";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=337";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -349,12 +349,24 @@ function downloadDebugFile(kind="json"){
  const bundle=currentDebugBundle(),json=kind==="json",body=json?JSON.stringify(bundle,null,2):debugBundleText(bundle),blob=new Blob([body],{type:json?"application/json;charset=utf-8":"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a"),stamp=new Date().toISOString().replace(/[:.]/g,"-");
  a.href=url;a.download="Elyndra-debug-v"+APP_VERSION+"-"+stamp+(json?".json":".txt");document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);recordDebug("DEBUG_EXPORTED",{format:kind,entries:bundle.summary?.entryCount||0,tokens:bundle.summary?.tokenTotals?.total||0})
 }
+function gameplayDebugDetail(entry){
+ const d=entry?.data||{};
+ if(entry.type==="GAME_ITEM_GAINED"||entry.type==="GAME_ITEM_LOST")return (d.name||d.itemId||"?")+" · "+(d.quantityDelta>0?"+":"")+String(d.quantityDelta??0)+" → "+String(d.totalQuantity??0);
+ if(entry.type==="GAME_KNOWLEDGE_GAINED"||entry.type==="GAME_KNOWLEDGE_UPDATED")return (d.title||d.knowledgeId||"?")+" · "+(d.status||d.toStatus||"");
+ if(entry.type.startsWith("GAME_SIDE_QUEST_"))return (d.title||d.questId||"?")+(d.to!=null?" · "+d.to+"/"+(d.target||"?"):"");
+ if(entry.type.startsWith("GAME_NPC_")||entry.type==="GAME_COMPANION_STATUS_CHANGED")return (d.name||d.npcId||"?")+(d.delta!=null?" · trust "+(d.delta>0?"+":"")+d.delta:"");
+ if(entry.type.startsWith("GAME_LOCATION_"))return d.name||d.to||d.locationId||"?";
+ if(entry.type.startsWith("GAME_COMBAT_"))return d.enemyName||d.enemyId||"combat";
+ if(entry.type==="GAME_MAIN_QUEST_UPDATED")return (d.title||"main")+" · stage "+d.fromStage+"→"+d.toStage;
+ return d.reason||d.action||d.summary||""
+}
 function openDebugPanel(){
- const entries=telemetryEntries(),summary=telemetrySummary(entries),tokens=summary.tokenTotals||{},ai=loadAISettings(),runtime=debugRuntimeSnapshot(),recentAI=entries.filter(x=>x.type==="AI_REQUEST").slice(-30).reverse(),recentEvents=(gameState?.events||[]).slice(-35).reverse();
+ const entries=telemetryEntries(),summary=telemetrySummary(entries),tokens=summary.tokenTotals||{},ai=loadAISettings(),runtime=debugRuntimeSnapshot(),recentAI=entries.filter(x=>x.type==="AI_REQUEST").slice(-30).reverse(),recentGameplay=entries.filter(x=>x.type.startsWith("GAME_")).slice(-60).reverse(),recentEvents=(gameState?.events||[]).slice(-35).reverse();
  const usageLabel=(tokens.api||0)+" API / "+(tokens.estimated||0)+" estimated";
  const aiRows=recentAI.map(x=>{const d=x.data||{},u=d.usage||{};return "<tr><td>"+esc(new Date(x.at).toLocaleTimeString())+"</td><td>"+esc(d.task||"?")+"</td><td>"+esc(d.tier||"?")+"</td><td>"+esc(d.provider||"?")+"</td><td>"+esc(d.status||"?")+"</td><td>"+Number(d.latencyMs||0)+"ms</td><td>"+Number(u.input||0)+" / "+Number(u.output||0)+" / "+Number(u.reasoning||0)+" / "+Number(u.total||0)+"</td><td>"+esc(u.source||"?")+"</td></tr>"}).join("");
+ const gameplayRows=recentGameplay.map(x=>{const d=x.data||{},clock=d.clock||{};return "<tr><td>"+esc(new Date(x.at).toLocaleTimeString())+"</td><td>"+esc(clock.day?"D"+clock.day+" "+(clock.time||""):"")+"</td><td>"+esc(x.type||"?")+"</td><td>"+esc(gameplayDebugDetail(x))+"</td></tr>"}).join("");
  const eventRows=recentEvents.map(e=>"<tr><td>"+esc(e.at?new Date(e.at).toLocaleTimeString():"")+"</td><td>"+esc(e.type||"?")+"</td><td>"+esc(e.action||e.reason||e.summary||e.mode||"")+"</td></tr>").join("");
- openModal("<div class=\"eyebrow\">ELYNDRA DEBUG</div><h2>遊玩診斷</h2><p class=\"muted\">持續收集本機遊玩、AI、排隊、背景處理與錯誤資訊。匯出時會包含目前完整遊戲狀態；API Key、Authorization、Password 等敏感欄位會自動遮罩。</p>"+
+ openModal("<div class=\"eyebrow\">ELYNDRA DEBUG</div><h2>遊玩診斷</h2><p class=\"muted\">持續收集本機遊玩、AI、排隊、背景處理、角色狀態變化與錯誤資訊。取得物品、知識、支線、NPC 遭遇、地點、信任、戰鬥等會以 GAME_* telemetry 記錄。匯出時會包含目前完整遊戲狀態；API Key、Authorization、Password 等敏感欄位會自動遮罩。</p>"+
  "<div class=\"debug-card-grid\"><div class=\"debug-stat\"><small>VERSION</small><strong>v"+esc(APP_VERSION)+"</strong><span>"+esc(gameState?.world?.name||"No world")+"</span></div>"+
  "<div class=\"debug-stat\"><small>AI</small><strong>"+esc(ai.provider||"?")+" · "+esc(ai.model||"?")+"</strong><span>"+esc(ai.optimization||"standard")+"</span></div>"+
  "<div class=\"debug-stat\"><small>TOKENS</small><strong>"+Number(tokens.total||0).toLocaleString()+"</strong><span>In "+Number(tokens.input||0).toLocaleString()+" · Out "+Number(tokens.output||0).toLocaleString()+" · Think "+Number(tokens.reasoning||0).toLocaleString()+"</span></div>"+
@@ -364,6 +376,7 @@ function openDebugPanel(){
  "<div class=\"settings-actions debug-actions\"><button id=\"debugExportJson\" class=\"primary\">匯出 Debug JSON</button><button id=\"debugExportTxt\" class=\"secondary\">匯出摘要 TXT</button><button id=\"debugRefresh\" class=\"ghost\">重新整理</button><button id=\"debugClear\" class=\"ghost danger-ghost\">清除 Debug 紀錄</button></div>"+
  "<p class=\"muted\">Token 顯示次序：Input / Output / Reasoning-Thinking / Total。API response 有 usage 時使用實際數字；沒有 usage 才標示 ESTIMATED。</p>"+
  "<div class=\"debug-section\"><h3>最近 AI Requests</h3><div class=\"debug-table-wrap\"><table class=\"debug-table\"><thead><tr><th>Time</th><th>Task</th><th>Tier</th><th>Provider</th><th>Status</th><th>Latency</th><th>Token I/O/R/T</th><th>Source</th></tr></thead><tbody>"+(aiRows||"<tr><td colspan=\"8\">尚未有 AI request telemetry</td></tr>")+"</tbody></table></div></div>"+
+ "<div class=\"debug-section\"><h3>Gameplay State Changes</h3><div class=\"debug-table-wrap\"><table class=\"debug-table\"><thead><tr><th>Recorded</th><th>World Time</th><th>Type</th><th>Detail</th></tr></thead><tbody>"+(gameplayRows||"<tr><td colspan=\"4\">尚未有 gameplay state telemetry</td></tr>")+"</tbody></table></div></div>"+
  "<div class=\"debug-section\"><h3>最近遊戲事件</h3><div class=\"debug-table-wrap\"><table class=\"debug-table\"><thead><tr><th>Time</th><th>Event</th><th>Detail</th></tr></thead><tbody>"+(eventRows||"<tr><td colspan=\"3\">尚未有事件</td></tr>")+"</tbody></table></div></div>");
  $("#debugExportJson").onclick=()=>downloadDebugFile("json");$("#debugExportTxt").onclick=()=>downloadDebugFile("txt");$("#debugRefresh").onclick=openDebugPanel;$("#debugClear").onclick=()=>{if(confirm("清除目前瀏覽器內的 Debug telemetry？遊戲存檔不會被刪除。")){clearDebugTelemetry();openDebugPanel()}}
 }
