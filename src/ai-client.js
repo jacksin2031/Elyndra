@@ -12,11 +12,12 @@ import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiag
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=37000";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode,validateKernelBoundaries} from "./turn-outcome.js?v=37000";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem} from "./ai-runtime-contracts.js?v=39000";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=41000";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=41000";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=41000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
-async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
+async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
 
 export async function aiHealth(){if(hasDirectAI())return {ok:true,aiConfigured:true,mode:"direct"};try{const r=await fetch(apiPath("/api/health"));return r.ok?await r.json():{ok:false,aiConfigured:false}}catch{return {ok:false,aiConfigured:false}}}
 export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text)}
@@ -384,34 +385,52 @@ export async function assessPlayerAction(state,action){
 
 export function startTurnAIJobs(action,roll,snapshot,options={}){
  const actionIntent=normalizeActionIntent(options?.intent||{},action,roll?.profile?.kind||"",snapshot);
- const kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot}),directorMode=sharedTurnDirectorMode(action,roll,snapshot);
- const stateMode=directorMode==="DEEP"?"DEEP":"FAST";
+ const kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot});
+ const basePlan=options?.stateSyncPlan||planStateSync({action,intent:actionIntent,roll,snapshot,kernel,ruleEffects:options?.ruleEffects});
+ kernel.dirtyFlags={...(basePlan.dirtyFlags||kernel.dirtyFlags||{})};
+ const plan={...basePlan,baseRevision:Number(options?.baseRevision??snapshot?.stateRevision)||0},directorMode=plan.mode,stateMode=plan.mode,immediateStateAI=plan.mode==="FAST"||plan.mode==="DEEP";
  if(hasDirectAI()){
   const sceneInput={action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)};
-  const stateInput={action,intent:actionIntent,kernel,snapshot:stateMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
   const playerAction=directChat({
-   aiTask:"scene",timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:760,temperature:.8,
+   aiTask:"scene",signal:options?.signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:760,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
   }).then(parseJSON);
-  const stateSync=directChat({
-   aiTask:stateMode==="DEEP"?"turn_state_deep":"turn_state_fast",
-   timeoutMs:stateMode==="DEEP"?45000:28000,retryOnTimeout:false,
-   maxOutputTokens:stateMode==="DEEP"?1800:900,
-   temperature:stateMode==="DEEP"?.4:.2,
-   system:stateDirectorSystem(stateMode),
-   user:JSON.stringify(stateInput)
-  }).then(parseJSON);
-  return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,transport:"direct"}
+  const stateSync=immediateStateAI?directChat({
+   aiTask:plan.mode==="DEEP"?"turn_state_deep":"turn_state_fast",signal:options?.signal,
+   timeoutMs:plan.mode==="DEEP"?45000:22000,retryOnTimeout:false,
+   maxOutputTokens:plan.mode==="DEEP"?1300:650,
+   temperature:plan.mode==="DEEP"?.3:.15,
+   system:statePatchDirectorSystem(plan),
+   user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)})
+  }).then(parseJSON).then(patch=>{const v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
+  return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"direct"}
  }
- const payload={action,intent:actionIntent,roll,snapshot,directorMode,stateMode};
- const playerAction=post("/api/turn-scene",payload).then(x=>x.scene);
- const stateSync=post("/api/turn-state",payload).then(x=>x.state);
- return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,transport:"server"}
+ const payload={action,intent:actionIntent,roll,snapshot,plan};
+ const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>x.scene);
+ const stateSync=immediateStateAI?post("/api/turn-state",payload,{signal:options?.signal}).then(x=>x.patch):Promise.resolve(null);
+ return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"server"}
 }
-export function finalizeTurnAIJobs(jobs,scene,state,roll,snapshot,action){
- const boundary=validateKernelBoundaries(state,jobs.kernel);if(!boundary.valid)throw new Error("TURN_OUTCOME_KERNEL_VIOLATION:"+boundary.errors.join(","));
- return {...mergeTurnCandidates(scene,state,roll,{action,kernel:jobs.kernel,priorSuggestions:snapshot?.priorSuggestions||[],priorSuggestionIntents:snapshot?.priorSuggestionIntents||[]}),directorMode:jobs.directorMode,actionIntent:jobs.actionIntent,kernel:jobs.kernel}
+export async function generateStatePatch(action,roll,snapshot,plan,options={}){
+ if(!plan?.requiresStateAI)return null;
+ const actionIntent=normalizeActionIntent(options?.intent||{},action,roll?.profile?.kind||"",snapshot),kernel=options?.kernel||buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot});
+ const resolved={...plan,baseRevision:Number(plan.baseRevision??snapshot?.stateRevision)||0};kernel.dirtyFlags={...(resolved.dirtyFlags||kernel.dirtyFlags||{})};
+ if(hasDirectAI()){
+  const raw=await directChat({
+   aiTask:resolved.mode==="DEEP"?"turn_state_deep":resolved.mode==="DEFERRED"?"turn_deferred":"turn_state_fast",
+   signal:options?.signal,timeoutMs:resolved.mode==="DEEP"?45000:resolved.mode==="DEFERRED"?35000:22000,retryOnTimeout:false,
+   maxOutputTokens:resolved.mode==="DEEP"?1300:resolved.mode==="DEFERRED"?900:650,temperature:resolved.mode==="DEEP"?.3:.15,
+   system:statePatchDirectorSystem(resolved),
+   user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)})
+  });
+  const patch=parseJSON(raw),v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
+ }
+ const response=await post("/api/turn-state",{action,intent:actionIntent,roll,snapshot,plan:resolved},{signal:options?.signal});
+ return response.patch
+}
+export function finalizeTurnAIJobs(jobs,scene,statePatch,roll,snapshot,action){
+ if(statePatch){const v=validateStatePatch(statePatch,jobs.plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","))}
+ return {...mergeTurnCandidates(scene,{},roll,{action,kernel:jobs.kernel,priorSuggestions:snapshot?.priorSuggestions||[],priorSuggestionIntents:snapshot?.priorSuggestionIntents||[]}),statePatch,directorMode:jobs.directorMode,actionIntent:jobs.actionIntent,kernel:jobs.kernel,plan:jobs.plan}
 }
 export async function generateTurn(action,roll,snapshot,options={}){
  const jobs=startTurnAIJobs(action,roll,snapshot,options),[sceneResult,stateResult]=await Promise.allSettled([jobs.playerAction,jobs.stateSync]);
