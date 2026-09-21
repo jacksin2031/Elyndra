@@ -79,3 +79,17 @@ test("two-agent waves share one anchor and Engine validates cross-stage referenc
  const broken={...society,historyRefs:["HIST-NOPE"]};
  assert.ok(worldGenerationLinkIssues({anchor,history,geography,society:broken,future,cast}).includes("SOCIETY_HISTORY_REF_INVALID"))
 });
+
+
+test("link validation rejects disconnected future events and cast content",()=>{
+ const anchor={startingLocation:"潮門",startingRegion:"灰岸"};
+ const history=[{id:"HIST-1"},{id:"HIST-2"},{id:"HIST-3"}];
+ const geography={location:{name:"潮門",region:"灰岸"}};
+ const society={locationRef:"潮門",historyRefs:["HIST-1"],faction:{name:"燈港會",locationName:"潮門"}};
+ const future={worldTimeline:[{title:"無來源事件",links:{historyRefs:[],locationRefs:[]}}]};
+ const cast={npcs:[{name:"米拉",locationName:"其他地方",historyRefs:[]}],sideQuests:[{title:"無關支線",historyRefs:[]}]};
+ const issues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
+ assert.ok(issues.includes("FUTURE_0_LINK_REQUIRED"));
+ assert.ok(issues.includes("CAST_NPC_0_LOCATION_INVALID"));
+ assert.ok(issues.includes("CAST_QUEST_0_LINK_REQUIRED"))
+});
