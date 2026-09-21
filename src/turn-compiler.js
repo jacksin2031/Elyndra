@@ -1,7 +1,7 @@
 import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=35000";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 const SUGGESTION_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
-const SUGGESTION_RISKS=new Set(["LOW","MEDIUM","HIGH","UNKNOWN"]);
+const SUGGESTION_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 export function normalizeSuggestionIntent(raw){
  if(typeof raw==="string"){const label=sanitizeSuggestion(raw);return label?{label,action:label,kind:"GENERAL",risk:"UNKNOWN",targetId:null,skillHint:null}:null}
  if(!raw||typeof raw!=="object"||Array.isArray(raw))return null;
@@ -9,10 +9,10 @@ export function normalizeSuggestionIntent(raw){
  if(!label||!action)return null;
  const kind=SUGGESTION_KINDS.has(String(raw.kind||"").toUpperCase())?String(raw.kind).toUpperCase():"GENERAL";
  const risk=SUGGESTION_RISKS.has(String(raw.risk||"").toUpperCase())?String(raw.risk).toUpperCase():"UNKNOWN";
- return {label,action,kind,risk,targetId:text(raw.targetId,100)||null,skillHint:sanitizePlayerText(raw.skillHint,60,"")||null}
+ return {label,action,kind,risk,targetId:text(raw.targetId,100)||null,skillHint:sanitizePlayerText(raw.skillHint,70,"")||null,consequenceHint:sanitizePlayerText(raw.consequenceHint,90,"")||null,causalBasis:sanitizePlayerText(raw.causalBasis,180,"")||null,approach:["STEADY","SOCIAL","BOLD","CREATIVE"].includes(String(raw.approach||"").toUpperCase())?String(raw.approach).toUpperCase():"STEADY",progression:raw.progression===true,requirementsSatisfied:raw.requirementsSatisfied!==false}
 }
 export function normalizeSuggestionIntents(input,previous=[]){
- const out=[];for(const raw of Array.isArray(input)?input:[]){const x=normalizeSuggestionIntent(raw);if(x&&!out.some(y=>y.action===x.action)){out.push(x);if(out.length>=4)break}}
+ const out=[];for(const raw of Array.isArray(input)?input:[]){const x=normalizeSuggestionIntent(raw);if(x&&!out.some(y=>y.action===x.action)){out.push(x);if(out.length>=5)break}}
  const before=(Array.isArray(previous)?previous:[]).map(normalizeSuggestionIntent).filter(Boolean);
  const same=out.length===before.length&&out.length>0&&out.every((x,i)=>x.action===before[i]?.action&&x.label===before[i]?.label);
  return same?[]:out
@@ -26,6 +26,10 @@ export function sceneTurnSnapshot(snapshot={}){
   knownFacts:snapshot.knownFacts,
   knowledge:snapshot.knowledge,
   inventory:snapshot.inventory,
+  magic:snapshot.magic||null,
+  talents:snapshot.talents||null,
+  crafting:snapshot.crafting||null,
+  survival:snapshot.survival||null,
   quest:snapshot.quest,
   recentEvents:snapshot.recentEvents,
   runtimeSummary:snapshot.runtimeSummary,
