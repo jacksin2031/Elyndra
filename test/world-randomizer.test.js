@@ -23,22 +23,26 @@ test("random world settings rejects missing option sets",()=>{
 });
 
 
-test("creator random world button only fills settings and waits for explicit generation",async()=>{
+test("World Creation 2.0 rerolls only creator settings and waits for explicit generation",async()=>{
  const {readFile}=await import("node:fs/promises");
  const [html,app]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/id="randomWorldBtn"[^>]*>🎲 隨機世界<\/button>/);
- assert.doesNotMatch(html,/aiWorldviewBtn|交給 AI 決定世界觀/);
+ assert.match(html,/id="randomWorldBtn"[^>]*>🎲 重抽未鎖定設定<\/button>/);
+ assert.match(html,/WORLD CREATION 2\.0/);
+ assert.match(html,/data-creator-step="5"/);
  const start=app.indexOf('$("#randomWorldBtn")?.addEventListener');
  const end=app.indexOf('$("#genre")?.addEventListener',start);
  const randomHandler=app.slice(start,end);
  assert.ok(start>=0&&end>start);
- assert.match(randomHandler,/randomWorldSettings/);
+ assert.match(randomHandler,/randomizeUnlockedCreator/);
  assert.doesNotMatch(randomHandler,/generateWorldCandidate|newGame|persist\(/);
  const generateBlock=app.slice(app.indexOf('$("#generateBtn").onclick'),app.indexOf('$("#freeActionForm").onsubmit'));
- assert.match(generateBlock,/worldviewMode:"style"/);
- assert.match(generateBlock,/generateWorldCandidate/);
- assert.doesNotMatch(generateBlock,/worldviewMode:"ai"/)
+ assert.match(generateBlock,/createWorldCreationDraft/);
+ assert.match(generateBlock,/compileWorldCreation/);
+ assert.match(generateBlock,/validateWorldCreationCandidate/);
+ assert.match(generateBlock,/buildWorldContract/);
+ assert.match(generateBlock,/confirmWorldContract/);
+ assert.match(generateBlock,/generateWorldCandidate/)
 });
