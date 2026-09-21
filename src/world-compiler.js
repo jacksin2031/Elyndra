@@ -139,17 +139,18 @@ export function buildSeedComplianceFromIdentity(identity,expected={}){
  return out
 }
 export function mergeCoreWave(identity,expected,rules,anchor){
- const r=obj(rules)?rules:{},a=obj(anchor)?anchor:{};
+ const r=obj(rules?.worldBible)?rules.worldBible:{},a=obj(anchor?.worldBible)?anchor.worldBible:{};
  return normalizeWorldCoreCandidate({
   worldName:identity.worldName,worldTheme:identity.worldTheme,playerName:identity.playerName,
-  summary:text(a.summary)||text(r.summary)||identity.premise,
+  summary:text(anchor?.summary)||identity.premise,
   seedCompliance:buildSeedComplianceFromIdentity(identity,expected),
-  worldBible:{...(obj(r.worldBible)?r.worldBible:{}),...(obj(a.worldBible)?a.worldBible:{}),
-   civilization:obj(r.worldBible?.civilization)?r.worldBible.civilization:{},
-   communication:obj(r.worldBible?.communication)?r.worldBible.communication:{},
-   weatherSystem:obj(a.worldBible?.weatherSystem)?a.worldBible.weatherSystem:{}
+  worldBible:{
+   era:text(r.era),centralConflict:text(r.centralConflict),magicCost:text(r.magicCost),ancientTruth:text(r.ancientTruth),currentCrisis:text(r.currentCrisis),tone:text(r.tone),
+   civilization:obj(r.civilization)?structuredClone(r.civilization):{},communication:obj(r.communication)?structuredClone(r.communication):{},
+   startingRegion:text(a.startingRegion),startingSettlement:text(a.startingSettlement),startingLocation:text(a.startingLocation),
+   weatherSystem:obj(a.weatherSystem)?structuredClone(a.weatherSystem):{}
   },
-  publicFacts:list(a.publicFacts),hiddenFacts:list(a.hiddenFacts)
+  publicFacts:list(anchor?.publicFacts),hiddenFacts:list(anchor?.hiddenFacts)
  })
 }
 export function coreWaveIssues(identity,rules,anchor,core){
