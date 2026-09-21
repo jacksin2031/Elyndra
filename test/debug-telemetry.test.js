@@ -80,7 +80,10 @@ test("in-game Debug UI exposes token accounting and JSON TXT export",async()=>{
  assert.match(app,/PLAYER_ACTION_START/);
  assert.match(app,/ACTION_ASSESSMENT/);
  assert.match(app,/ENGINE_ACTION_RESULT/);
- assert.match(app,/TURN_COMMIT/);\n assert.match(app,/OPENING_HOOK_ENGAGED/);\n assert.match(app,/WORLD_IMPACT_PROJECTED/);\n assert.match(app,/SESSION_CHECKPOINT/);
+ assert.match(app,/TURN_COMMIT/);
+ assert.match(app,/OPENING_HOOK_ENGAGED/);
+ assert.match(app,/WORLD_IMPACT_PROJECTED/);
+ assert.match(app,/SESSION_CHECKPOINT/);
  assert.match(app,/GAME_ITEM_GAINED/);
  assert.match(app,/GAME_KNOWLEDGE_GAINED/);
  assert.match(app,/GAME_SIDE_QUEST_ACQUIRED/);
