@@ -108,7 +108,7 @@ npm test
 
 - **OpenAI** — 獨立保存 OpenAI API Key、Endpoint、Model
 - **Gemini** — 獨立保存 Gemini API Key、Endpoint、Model
-- **Agnes** — 獨立保存 Agnes / OpenAI-compatible API Key、Endpoint、Model
+- **Agnes 3.0 Flash** — 內建 `https://apihub.agnes-ai.com/v1/chat/completions` + `agnes-3.0-flash` 預設；通常只需輸入 Agnes API Key，仍可手動覆寫 Endpoint / Model
 
 每間公司的設定彼此分離。當你由 OpenAI 切換到 Gemini，介面會自動保存 OpenAI 當前設定，再載入 Gemini 自己的 API Key / Endpoint / Model；切回 OpenAI 時會恢復原本 OpenAI 設定，不需要重新輸入。
 
