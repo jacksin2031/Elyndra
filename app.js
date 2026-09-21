@@ -1,15 +1,15 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=276";
+import {APP_VERSION} from "./src/version.js?v=280";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=276";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=276";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=276";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=280";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=280";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=276";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=276";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld} from "./src/storage.js?v=276";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=276";
-import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=276";
+import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=280";
 import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=276";
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=276";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=276";
@@ -35,7 +35,7 @@ import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276"
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=276";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=280";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,aiWorldviewAuto=false,helperHistory=[],npcChatHistory=new Map();
 function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
