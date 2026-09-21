@@ -35,6 +35,11 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/civilization/);
  assert.match(client,/weatherSystem/);
  assert.match(client,/weatherProfile/);
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ assert.match(app,/randomWorldBtn/);
+ assert.match(app,/worldviewMode:"style"/);
+ assert.doesNotMatch(app,/aiWorldviewAuto/);
+ assert.doesNotMatch(app,/aiWorldviewBtn/);
 });
 
 test("world creation progress represents real compiler boundaries instead of a fake 72 percent pulse",async()=>{
