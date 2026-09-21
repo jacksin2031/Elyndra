@@ -103,7 +103,8 @@ async function runAction(action,customText=""){
   gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
   await persist();await refresh();return
  }finally{setAIThinking(false)}
- const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
+ if(assessment?.source==="ENGINE_DEGRADED"){gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_DEGRADED",visibility:"INTERNAL",action:requested,reason:assessment.aiError||assessment.reason,day:gameState.world?.state?.day||1,at:Date.now()})}
+  const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
  const previousSuggestions=[...(gameState.suggestions||[])],impactBefore=ensureWorldImpact(gameState).records.length;
  if(assessment?.verdict!=="BLOCK"){
   const localLore=resolveLocalLoreAction(gameState,effective);
