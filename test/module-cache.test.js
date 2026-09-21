@@ -12,14 +12,14 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.29.0 random world creator keeps compiler cache generations intact",async()=>{
+test("v0.29.1 UI entry keeps compiler cache generations intact",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=290/);
- assert.match(app,/\.\/src\/version\.js\?v=290/);
+ assert.match(html,/app\.js\?v=291/);
+ assert.match(app,/\.\/src\/version\.js\?v=291/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=281/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  for(const mod of ["world-engine","world-registry","world-quality"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
