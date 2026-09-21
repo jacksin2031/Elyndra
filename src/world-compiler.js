@@ -21,6 +21,13 @@ export function normalizeWorldCoreCandidate(core){
  return core
 }
 
+function mergeValue(base,patch){
+ if(Array.isArray(patch))return patch.length?structuredClone(patch):structuredClone(Array.isArray(base)?base:patch);
+ if(obj(base)&&obj(patch)){const out=structuredClone(base);for(const [k,v] of Object.entries(patch))out[k]=mergeValue(base[k],v);return out}
+ return patch==null||patch===""?structuredClone(base):structuredClone(patch)
+}
+export function mergeWorldCoreCandidates(base,patch){return normalizeWorldCoreCandidate(mergeValue(obj(base)?base:{},obj(patch)?patch:{}))}
+
 export function worldCoreIssues(core){
  const c=normalizeWorldCoreCandidate(core),issues=[];
  if(!obj(c))return ["core"];
@@ -29,14 +36,18 @@ export function worldCoreIssues(core){
  if(!text(c.summary))issues.push("summary");
  if(!obj(c.seedCompliance))issues.push("seedCompliance");
  if(!obj(c.worldBible))issues.push("worldBible");
+ else{
+  if(!obj(c.worldBible.civilization))issues.push("worldBible.civilization");
+  if(!obj(c.worldBible.communication))issues.push("worldBible.communication");
+ }
  const weather=c.worldBible?.weatherSystem;
  if(!obj(weather))issues.push("worldBible.weatherSystem");
  else{
   if(!text(weather.identity))issues.push("worldBible.weatherSystem.identity");
   if(!Array.isArray(weather.phenomena)||weather.phenomena.length<4)issues.push("worldBible.weatherSystem.phenomena>=4")
  }
- if(!Array.isArray(c.publicFacts))issues.push("publicFacts");
- if(!Array.isArray(c.hiddenFacts))issues.push("hiddenFacts");
+ if(!Array.isArray(c.publicFacts)||c.publicFacts.filter(x=>text(x)).length<2)issues.push("publicFacts>=2");
+ if(!Array.isArray(c.hiddenFacts)||c.hiddenFacts.filter(x=>text(x)).length<2)issues.push("hiddenFacts>=2");
  return [...new Set(issues)]
 }
 
