@@ -51,7 +51,7 @@ export function debugBundle({appVersion="",gameState=null,aiSettings=null,runtim
 export function debugBundleText(bundle){
  const s=bundle.summary||{},t=s.tokenTotals||{},lines=[
   "ELYNDRA DEBUG REPORT","App: v"+(bundle.meta?.appVersion||"?"),"Exported: "+(bundle.meta?.exportedAt||""),"Session: "+(bundle.meta?.sessionId||""),
-  "","AI requests: "+(s.aiRequests||0)+" (success "+(s.aiSuccess||0)+")","AI latency avg: "+(s.aiLatencyMsAverage||0)+" ms","Errors: "+(s.errorCount||0),
+  "","Gameplay changes: "+(s.gameplayEvents||0),"AI requests: "+(s.aiRequests||0)+" (success "+(s.aiSuccess||0)+")","AI latency avg: "+(s.aiLatencyMsAverage||0)+" ms","Errors: "+(s.errorCount||0),
   "Tokens total: "+(t.total||0),"  input: "+(t.input||0),"  output: "+(t.output||0),"  reasoning/thinking: "+(t.reasoning||0),"  cached: "+(t.cached||0),"Usage source: API "+(t.api||0)+" / estimated "+(t.estimated||0),
   "","RECENT TELEMETRY"
  ];for(const e of (bundle.telemetry||[]).slice(-250))lines.push(new Date(e.at).toISOString()+" ["+e.type+"] "+JSON.stringify(e.data));
