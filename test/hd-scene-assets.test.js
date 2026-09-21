@@ -1,30 +1,43 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFile} from "node:fs/promises";
+import {readFile,stat} from "node:fs/promises";
 
-const scenes=[
- "royal-fantasy-2560x1440.svg",
- "dark-fantasy-2560x1440.svg",
- "eastern-fantasy-2560x1440.svg",
- "steam-magic-2560x1440.svg",
- "apocalypse-2560x1440.svg"
+const sceneNames=[
+ "royal-fantasy-2560x1440",
+ "dark-fantasy-2560x1440",
+ "eastern-fantasy-2560x1440",
+ "steam-magic-2560x1440",
+ "apocalypse-2560x1440"
 ];
 
-test("every live scene master is at least 1920x1080",async()=>{
- for(const file of scenes){
-  const source=await readFile(new URL("../assets/ui/backgrounds/"+file,import.meta.url),"utf8");
-  const width=Number(source.match(/width="(\d+)"/)?.[1]||0);
-  const height=Number(source.match(/height="(\d+)"/)?.[1]||0);
-  assert.ok(width>=1920,file+" width must be at least 1920");
-  assert.ok(height>=1080,file+" height must be at least 1080");
-  assert.match(source,/viewBox="0 0 2560 1440"/);
+function avifDimensions(buffer){
+ const marker=Buffer.from("ispe");
+ const i=buffer.indexOf(marker);
+ if(i<0)return {width:0,height:0};
+ return {width:buffer.readUInt32BE(i+8),height:buffer.readUInt32BE(i+12)};
+}
+
+test("every live raster scene master is a real 2560x1440 AVIF",async()=>{
+ for(const name of sceneNames){
+  const url=new URL("../assets/ui/backgrounds/"+name+".avif",import.meta.url);
+  const [buffer,info]=await Promise.all([readFile(url),stat(url)]);
+  const dims=avifDimensions(buffer);
+  assert.equal(dims.width,2560,name+" AVIF width");
+  assert.equal(dims.height,1440,name+" AVIF height");
+  assert.ok(info.size>60000,name+" should contain detailed raster artwork");
+  assert.equal(buffer.subarray(4,8).toString("ascii"),"ftyp");
+  assert.equal(buffer.subarray(8,12).toString("ascii"),"avif");
  }
 });
 
-test("live scene CSS selects HD masters by world genre",async()=>{
+test("SVG scene masters remain as fallback while AVIF is the live primary layer",async()=>{
  const css=await readFile(new URL("../styles.css",import.meta.url),"utf8");
- for(const file of scenes)assert.ok(css.includes(file),file+" should be referenced by live CSS");
- assert.match(css,/--ely-scene-bg:/);
- assert.match(css,/background-size:100% 100%,cover!important/);
- assert.doesNotMatch(css,/var\(--ely-scene-bg\).*500%/);
+ for(const name of sceneNames){
+  assert.ok(css.includes(name+".avif"),name+" AVIF should be referenced");
+  assert.ok(css.includes(name+".svg"),name+" SVG fallback should remain");
+ }
+ assert.match(css,/--ely-scene-raster:/);
+ assert.match(css,/--ely-scene-fallback:/);
+ assert.match(css,/var\(--ely-scene-raster\),\s*\n\s*var\(--ely-scene-fallback\)/);
+ assert.match(css,/background-size:100% 100%,100% 100%,cover,cover!important/);
 });
