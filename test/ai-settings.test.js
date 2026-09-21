@@ -73,11 +73,12 @@ test("provider models are fixed presets even when legacy or save input tries to 
 
 test("adaptive optimization raises reasoning with task importance for every provider",()=>{
  assert.equal(optimizationTier("action"),"FAST");
- assert.equal(optimizationTier("identity"),"BALANCED");
+ assert.equal(optimizationTier("identity"),"FAST");
  assert.equal(optimizationTier("core_rules"),"IMPORTANT");
  assert.equal(optimizationTier("quality"),"CRITICAL");
  assert.deepEqual(providerOptimization("openai","adaptive","action"),{reasoning_effort:"low"});
- assert.deepEqual(providerOptimization("openai","adaptive","identity"),{reasoning_effort:"medium"});
+ assert.deepEqual(providerOptimization("openai","adaptive","identity"),{reasoning_effort:"low"});
+ assert.deepEqual(providerOptimization("openai","adaptive","core_anchor"),{reasoning_effort:"medium"});
  assert.deepEqual(providerOptimization("openai","adaptive","core_rules"),{reasoning_effort:"high"});
  assert.deepEqual(providerOptimization("gemini","adaptive","action"),{thinkingConfig:{thinkingLevel:"LOW"}});
  assert.deepEqual(providerOptimization("gemini","adaptive","history"),{thinkingConfig:{thinkingLevel:"HIGH"}});
