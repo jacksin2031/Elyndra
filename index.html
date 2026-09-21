@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=336"></head>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=336"><link rel="stylesheet" href="creator.css?v=36000"></head>
 <body data-screen="landing"><div class="noise"></div><header class="topbar">
 <div class="brand-wrap"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div></div>
 <div class="topbar-context" aria-live="polite"><span id="topLocation">未知之地</span><span class="topbar-dot">◆</span><span id="topTime">時序未知</span></div>
@@ -8,7 +8,71 @@
 </header>
 <main id="app">
 <section id="landing" class="screen active"><div class="hero"><div class="eyebrow">AI × TRPG × WORLD DISCOVERY</div><h1>醒來時，你對這個世界一無所知。</h1><p>創造只屬於你的異世界。探索、擲骰、閱讀遺物、結識夥伴，直到你理解這個世界真正發生過甚麼。</p><div class="actions"><button id="newWorldBtn" class="primary">開始轉生</button><button id="continueBtn" class="secondary">繼續冒險</button></div></div><div class="feature-grid"><article><span>01</span><h3>世界不是說明書</h3><p>設定藏在人物、書本、武器、遺跡與事件之中。</p></article><article><span>02</span><h3>骰子決定命運</h3><p>Engine 決定成敗，AI 只能描述已發生的結果。</p></article><article><span>03</span><h3>AI 夥伴有記憶</h3><p>NPC 只知道自己應該知道的事，也會記住重要互動。</p></article><article><span>04</span><h3>世界屬於玩家</h3><p>IndexedDB 本地保存，並可匯出完整 .elyndra 世界。</p></article></div></section>
-<section id="creator" class="screen"><div class="panel wide"><div class="panel-head"><div><div class="eyebrow">WORLD SEED</div><h2>創造你的異世界</h2></div><button class="ghost" data-go="landing">返回</button></div><div class="form-grid"><label>角色名稱<input id="playerName" type="text" maxlength="40" placeholder="留空則交給 AI 決定"></label><div class="worldview-ai-toggle"><span>世界觀設定</span><button id="randomWorldBtn" type="button" class="secondary">🎲 隨機世界</button></div><label>世界風格<select id="genre"><option>王道奇幻</option><option>黑暗奇幻</option><option>東方幻想</option><option>蒸汽魔法</option><option>末日異世界</option></select></label><label>危險度 <output id="dangerValue">3</output><input id="danger" type="range" min="1" max="5" value="3"></label><label>魔法普及度 <output id="magicValue">4</output><input id="magic" type="range" min="1" max="5" value="4"></label><label>政治複雜度 <output id="politicsValue">3</output><input id="politics" type="range" min="1" max="5" value="3"></label><label>世界規模<select id="scale"><option>小型</option><option selected>中型</option><option>大型</option></select></label><label>希望遊玩時間（小時）<input id="playHours" type="number" min="2" max="100" step="1" value="15"><small>會影響世界時間線長度、大事件數量與事件間距</small></label></div><div id="styleHint" class="world-style-hint">可自行設定，或按「隨機世界」快速抽一組參數；確認後再生成世界。世界核心主題仍由 AI 根據你最後確認的設定創造。</div><label class="full">你想要這個世界有甚麼感覺？<textarea id="prompt" placeholder="例如：表面是一個和平的魔法王國，但古老遺跡暗示這個世界已經毀滅過很多次。"></textarea></label><button id="generateBtn" class="primary big">生成世界並轉生</button><div id="worldGenProgress" class="world-gen-progress hidden" aria-live="polite"><div class="world-gen-head"><strong id="worldGenText">準備生成世界</strong><span id="worldGenPct">0%</span></div><div class="world-gen-track"><div id="worldGenBar" class="world-gen-bar"></div></div><small id="worldGenDetail">等待開始</small></div></div></section>
+<section id="creator" class="screen">
+<div class="panel wide creator-panel">
+ <div class="panel-head"><div><div class="eyebrow">WORLD CREATION 2.0</div><h2>訂製你的異世界</h2><p class="muted">你決定想玩甚麼樣的故事；世界仍會保留未知真相與自主發展。</p></div><button class="ghost" data-go="landing">返回</button></div>
+ <div class="creator-stepper" aria-label="世界建立步驟">
+  <button type="button" class="active" data-step-target="1"><span>1</span>世界</button>
+  <button type="button" data-step-target="2"><span>2</span>你</button>
+  <button type="button" data-step-target="3"><span>3</span>偏好</button>
+  <button type="button" data-step-target="4"><span>4</span>進階</button>
+  <button type="button" data-step-target="5"><span>5</span>確認</button>
+ </div>
+
+ <section class="creator-step active" data-creator-step="1">
+  <div class="creator-step-head"><small>STEP 01</small><h3>先決定世界的大方向</h3><p>只設定必要項目也可以開始，其餘由世界風格與 Seed 合理補完。</p></div>
+  <div class="form-grid">
+   <label>世界風格<select id="genre"><option>王道奇幻</option><option>黑暗奇幻</option><option>東方幻想</option><option>蒸汽魔法</option><option>末日異世界</option></select><span class="creator-lock"><input id="worldStyleLocked" type="checkbox"> 鎖定</span></label>
+   <label>世界規模<select id="scale"><option>小型</option><option selected>中型</option><option>大型</option></select><span class="creator-lock"><input id="worldScaleLocked" type="checkbox"> 鎖定</span></label>
+   <label>希望遊玩時間（小時）<input id="playHours" type="number" min="2" max="100" step="1" value="15"><small>影響 Timeline horizon、事件密度與伏筆長度</small></label>
+   <label>遊戲難度<select id="difficulty"><option value="easy">簡單 · 故事體驗</option><option value="normal" selected>普通 · 完整 RPG</option><option value="hard">困難 · 生存與語言障礙</option><option value="realistic">現實 · 持續性後果</option></select></label>
+  </div>
+  <div class="creator-inline"><button id="randomWorldBtn" type="button" class="secondary">🎲 重抽未鎖定設定</button><span id="styleHint" class="world-style-hint">沒有指定的細節會由世界風格或 Seed 決定。</span></div>
+  <div class="creator-nav"><span></span><button type="button" class="primary" data-step-next="2">下一步：你的起源</button></div>
+ </section>
+
+ <section class="creator-step" data-creator-step="2">
+  <div class="creator-step-head"><small>STEP 02</small><h3>你如何來到這個世界？</h3><p>起源會進入正式 World Blueprint，影響身份、知識、語言與開局事件，而不只是背景文字。</p></div>
+  <div class="form-grid">
+   <label>角色名稱<input id="playerName" type="text" maxlength="40" placeholder="留空則交給 AI 決定"></label>
+   <label>玩家起源<select id="originType"><option value="crossing">穿越</option><option value="reincarnation">轉生</option><option value="summoned">被召喚</option><option value="possession">附身</option><option value="native">原住民</option><option value="amnesia">失憶</option><option value="custom">完全自訂</option></select></label>
+   <label>世界中的定位<select id="playerRole"><option value="ordinary">普通人</option><option value="adventurer">冒險者</option><option value="hero_candidate">英雄候選人</option><option value="merchant">商人</option><option value="noble">貴族</option><option value="researcher">研究者</option><option value="antagonist">反派陣營</option><option value="random">完全隨機</option><option value="custom">完全自訂</option></select></label>
+  </div>
+  <label class="full">自訂起源細節<textarea id="originCustom" maxlength="400" placeholder="例如：被一個已經衰敗的王國秘密召喚，但召喚儀式似乎出了問題。"></textarea></label>
+  <label class="full">自訂角色定位<textarea id="roleCustom" maxlength="300" placeholder="例如：想當普通研究者，對古代文明特別有興趣，但不保證會成為主角。"></textarea></label>
+  <div class="creator-nav"><button type="button" class="ghost" data-step-prev="1">返回</button><button type="button" class="primary" data-step-next="3">下一步：故事偏好</button></div>
+ </section>
+
+ <section class="creator-step" data-creator-step="3">
+  <div class="creator-step-head"><small>STEP 03</small><h3>描述你想去的異世界</h3><p>自然語言會保存進 Blueprint；故事偏好只形成 Destiny Tendencies，不會預先寫死事件。</p></div>
+  <label class="full">自訂異世界<textarea id="prompt" maxlength="1200" placeholder="例如：魔法學院＋多王國＋高魔法＋慢慢成長。希望世界表面繁榮，但古代文明留下很多未解之謎。"></textarea></label>
+  <div class="form-grid">
+   <label>故事偏好<textarea id="storyPreferences" maxlength="900" placeholder="每行一項，例如：&#10;後期可能爆發戰爭&#10;希望有魔法學院篇&#10;穿越可能不是偶然"></textarea></label>
+   <label>必須存在<textarea id="requiredElements" maxlength="700" placeholder="魔法學院&#10;龍&#10;冒險者公會"></textarea></label>
+   <label>可以存在<textarea id="allowedElements" maxlength="700" placeholder="魔王&#10;宗教戰爭"></textarea></label>
+   <label>禁止出現<textarea id="forbiddenElements" maxlength="700" placeholder="槍械&#10;科幻文明&#10;開局無敵"></textarea></label>
+  </div>
+  <div class="creator-nav"><button type="button" class="ghost" data-step-prev="2">返回</button><button type="button" class="primary" data-step-next="4">下一步：進階世界設定</button></div>
+ </section>
+
+ <section class="creator-step" data-creator-step="4">
+  <div class="creator-step-head"><small>STEP 04</small><h3>進階世界設定</h3><p>每項都可以「依世界風格／指定／隨機」。鎖定後，重抽世界時不會修改該欄。</p></div>
+  <div class="advanced-world-grid">
+   <div class="advanced-setting"><label>文明程度<input id="civilizationLevel" type="number" min="1" max="5" value="3"></label><select id="civilizationLevelMode" aria-label="文明程度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="civilizationLevelLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>科技程度<input id="technologyLevel" type="number" min="1" max="5" value="2"></label><select id="technologyLevelMode" aria-label="科技程度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="technologyLevelLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>魔法普及程度<input id="magicLevel" type="number" min="1" max="5" value="4"></label><select id="magicLevelMode" aria-label="魔法普及程度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="magicLevelLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>文明／部落數量<input id="civilizationCount" type="number" min="1" max="12" value="4"></label><select id="civilizationCountMode" aria-label="文明／部落數量生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="civilizationCountLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>智慧種族數量<input id="speciesCount" type="number" min="1" max="12" value="4"></label><select id="speciesCountMode" aria-label="智慧種族數量生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="speciesCountLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>語言數量<input id="languageCount" type="number" min="1" max="16" value="5"></label><select id="languageCountMode" aria-label="語言數量生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="languageCountLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>政治統一程度<input id="politicalUnity" type="number" min="1" max="5" value="2"></label><select id="politicalUnityMode" aria-label="政治統一程度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="politicalUnityLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>宗教影響力<input id="religionInfluence" type="number" min="1" max="5" value="3"></label><select id="religionInfluenceMode" aria-label="宗教影響力生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="religionInfluenceLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>資源豐富度<input id="resourceAbundance" type="number" min="1" max="5" value="3"></label><select id="resourceAbundanceMode" aria-label="資源豐富度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="resourceAbundanceLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>世界危險程度<input id="worldDanger" type="number" min="1" max="5" value="3"></label><select id="worldDangerMode" aria-label="世界危險程度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="worldDangerLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>未知區域比例 %<input id="unknownRatio" type="number" min="10" max="95" value="60"></label><select id="unknownRatioMode" aria-label="未知區域比例 %生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="unknownRatioLocked" type="checkbox"> 鎖定</label></div><div class="advanced-setting"><label>生存系統強度<input id="survivalIntensity" type="number" min="1" max="5" value="3"></label><select id="survivalIntensityMode" aria-label="生存系統強度生成方式"><option value="style" selected>依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="survivalIntensityLocked" type="checkbox"> 鎖定</label></div>
+   <div class="advanced-setting"><label>戰爭狀態<select id="warState"><option value="PEACE">和平</option><option value="TENSION" selected>緊張</option><option value="WAR">戰爭</option></select></label><select id="warStateMode"><option value="style">依世界風格</option><option value="fixed">指定</option><option value="random">隨機</option></select><label class="creator-lock"><input id="warStateLocked" type="checkbox"> 鎖定</label></div>
+  </div>
+  <div class="creator-nav"><button type="button" class="ghost" data-step-prev="3">返回</button><button type="button" class="primary" data-step-next="5">下一步：生成確認</button></div>
+ </section>
+
+ <section class="creator-step" data-creator-step="5">
+  <div class="creator-step-head"><small>STEP 05</small><h3>準備編譯世界</h3><p>系統會先建立 World Blueprint → World Constitution → World Seed，再交給現有分階段 World Compiler。完整世界不會一次生成，未探索部分繼續使用 Lazy Generation。</p></div>
+  <div id="creatorReview" class="creator-review"></div>
+  <button id="generateBtn" class="primary big">生成世界契約</button>
+  <div id="worldGenProgress" class="world-gen-progress hidden" aria-live="polite"><div class="world-gen-head"><strong id="worldGenText">準備生成世界</strong><span id="worldGenPct">0%</span></div><div class="world-gen-track"><div id="worldGenBar" class="world-gen-bar"></div></div><small id="worldGenDetail">等待開始</small></div>
+  <div class="creator-nav"><button type="button" class="ghost" data-step-prev="4">返回修改</button><span></span></div>
+ </section>
+</div>
+</section>
 <section id="game" class="screen" data-ui="asset-layered-v4"><div class="game-shell"><aside class="sidebar">
 <div class="world-title"><span class="eyebrow">WORLD</span><h2 id="worldName"></h2><small id="worldMeta"></small></div>
 <div class="player-summary"><div id="playerInitial" class="player-sigil">?</div><div><small>旅人</small><strong id="playerNameStat">無名者</strong><span id="levelStat">Lv.1</span></div></div>
@@ -54,4 +118,4 @@
 <input id="importFile" type="file" accept=".elyndra,application/json" hidden><script>
 window.addEventListener("error",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=e.message||"JavaScript failed"}});
 window.addEventListener("unhandledrejection",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=String(e.reason?.message||e.reason||"Promise failed")}});
-</script><script type="module" src="app.js?v=35000"></script></body></html>
+</script><script type="module" src="app.js?v=36000"></script></body></html>

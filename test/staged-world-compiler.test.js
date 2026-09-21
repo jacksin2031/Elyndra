@@ -51,7 +51,7 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.doesNotMatch(client,/\}\s*下維持生存與秩序/);
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/randomWorldBtn/);
- assert.match(app,/worldviewMode:"style"/);
+ assert.match(app,/compileWorldCreation/);
  assert.doesNotMatch(app,/aiWorldviewAuto/);
  assert.doesNotMatch(app,/aiWorldviewBtn/);
 });
@@ -64,12 +64,13 @@ test("world creation progress represents real compiler boundaries instead of a f
  for(const p of [42,47,52,56,64,74,84])assert.match(client,new RegExp(`report\\(${p},`));
  assert.doesNotMatch(app,/let pulse=38/);
  assert.doesNotMatch(app,/setInterval\(\(\)=>\{pulse=/);
- assert.match(app,/generateWorldCandidate\(seed,WORLD_CONSTITUTION,p=>worldProgress\(p\.progress,p\.label,p\.detail\)\)/);
+ assert.match(app,/generateWorldCandidate\(seed,gameState\.world\.constitution,p=>worldProgress\(Math\.max\(28,p\.progress\),p\.label,p\.detail\)\)/);
  const appProgress=[...app.matchAll(/worldProgress\((\d+),/g)].map(x=>Number(x[1]));
  assert.ok(appProgress.includes(86));
  assert.ok(appProgress.includes(90));
- assert.ok(appProgress.includes(94));
- assert.ok(appProgress.includes(97));
+ assert.ok(appProgress.includes(93));
+ assert.ok(appProgress.includes(96));
+ assert.ok(appProgress.includes(98));
 });
 
 test("staged compiler loads timeout settings through current cache generation",async()=>{
