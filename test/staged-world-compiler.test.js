@@ -27,6 +27,11 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  for(const legacy of ["CORE","CORE_REPAIR","CHRONOLOGY","REGION"])assert.doesNotMatch(client,new RegExp(`worldStage\\("${legacy}"`));
  assert.match(client,/resilientWorldStage\("CAST"/);
  assert.match(client,/worldHistory/);
+ assert.match(client,/QUALITY_CRITIC/);
+ assert.match(client,/QUALITY_REPAIR/);
+ assert.match(client,/RUNTIME_QUALITY_CRITIC/);
+ assert.match(client,/generationDiagnostics/);
+ assert.match(client,/worldQuality/);
  assert.match(client,/civilization/);
  assert.match(client,/weatherSystem/);
  assert.match(client,/weatherProfile/);

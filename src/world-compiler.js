@@ -74,6 +74,7 @@ export function mergeOpeningRegion(anchor,geography,society){
    ...location,
    name:text(location.name)||anchor.startingLocation,
    region:text(location.region)||anchor.startingRegion,
+   historyRefs:uniq([...(Array.isArray(location.historyRefs)?location.historyRefs:[]),...(Array.isArray(s.historyRefs)?s.historyRefs:[])]),
    culture:obj(s.locationCulture)?s.locationCulture:{},
    trade:obj(s.locationTrade)?s.locationTrade:{}
   }],
