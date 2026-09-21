@@ -95,7 +95,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const anchor=buildWorldAnchorContract(core,directive.timelinePacing);
   report(56,"雙 AI 編譯 Wave 1","最多兩個 AI 同時生成：過去歷史與開局地理；兩者共享同一 World Anchor Contract");
 
-  const [historyRaw,geography]=await Promise.all([
+  const [historyRaw,geographyRaw]=await Promise.all([
    resilientWorldStage("HISTORY",{
     timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1200,
     system:`你是 Elyndra History Compiler。只生成 3 個不可改寫的過去歷史 Canon。所有內容必須直接解釋 anchor 的 centralConflict、magicCost、civilization 或 currentCrisis 如何形成。每個事件使用指定 HIST-1..3 id。不要生成未來 Timeline、地點、勢力、NPC 或任務。只輸出 JSON。`,
@@ -108,10 +108,12 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>geographyFallback(anchor))
   ]);
   const historyReport=validateWorldHistory(historyRaw?.worldHistory),history=historyReport.valid?historyReport.history:historyFallback(anchor);
+  let geography=geographyRaw;
+  if(!geography?.openingHook||!geography?.location||geography.location.name!==anchor.startingLocation||geography.location.region!==anchor.startingRegion)geography=geographyFallback(anchor);
   report(64,"雙 AI 編譯 Wave 2","歷史與地理已鎖定；最多兩個 AI 同時生成未來 Timeline 與地方社會，兩者必須引用 Wave 1");
 
   const slots=timelineAuthoringSlots(directive.timelinePacing);
-  const [futureRaw,society]=await Promise.all([
+  const [futureRaw,societyRaw]=await Promise.all([
    resilientWorldStage("FUTURE",{
     timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1450,
     system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history 與 geography 生成世界曆法及未來 Timeline。每個未來事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要計日數。只輸出 JSON。`,
@@ -124,22 +126,25 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>societyFallback(anchor,history,geography))
   ]);
 
-  const region=mergeOpeningRegion(anchor,geography,society);
+  let society=societyRaw;
+  if(!society||typeof society!=="object"||Array.isArray(society))society=societyFallback(anchor,history,geography);
+  let region=mergeOpeningRegion(anchor,geography,society);
   const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
   const future=timelineReport.valid?{worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline}:futureFallback(anchor,history,directive.timelinePacing);
   if(!future?.worldCalendar||!Array.isArray(future.worldTimeline))throw new Error("WORLD_FUTURE_INVALID");
   let linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});
-  if(linkIssues.length){const safeSociety=societyFallback(anchor,history,geography),safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(society,safeSociety);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
+  if(linkIssues.length){society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society);const safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
   if(linkIssues.length)throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
 
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
-  const cast=await resilientWorldStage("CAST",{
+  let cast=await resilientWorldStage("CAST",{
    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:950,
    system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。不得新增新地點／勢力。只輸出 JSON。`,
    user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"角色",description:"40-80字",personality:"簡短",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"簡短",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個只基於 openingHook 的短行動"]}})
   },()=>castFallback(anchor,history,region,society));
-  if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2)throw new Error("WORLD_CAST_INVALID");
+  if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2)cast=castFallback(anchor,history,region,society);
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
+  if(linkIssues.length){cast=castFallback(anchor,history,region,society);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast})}
   if(linkIssues.length)throw new Error("WORLD_CAST_LINK_INVALID:"+linkIssues.join(","));
 
   report(84,"整合世界","三個 Wave 完成；任何時候最多兩個 AI 並行，Engine 正在驗證跨階段引用");
