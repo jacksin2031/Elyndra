@@ -25,7 +25,7 @@ test("v0.29.1 generated UI assets are cache-busted independently from compiler m
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/styles\.css\?v=282/);
+ assert.match(html,/styles\.css\?v=291/);
  assert.match(html,/app\.js\?v=291/);
  assert.match(app,/\.\/src\/version\.js\?v=291/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=281/);
