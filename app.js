@@ -54,11 +54,22 @@ function preemptDeferredDirector(){
  const ctrl=deferredDirector.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
 }
 function preemptBackgroundAI(){preemptBackgroundWorldEvolution();preemptDeferredDirector()}
-function scheduleDeferredDirector(task,delay=900){
+function removePersistedDeferredTurn(taskId){
+ if(!gameState?.world?.deferredTurns||!taskId)return;
+ gameState.world.deferredTurns=gameState.world.deferredTurns.filter(x=>x.id!==taskId)
+}
+function scheduleDeferredDirector(task,delay=900,{persistTask=true}={}){
  if(!task||!gameState||!aiStatus.aiConfigured)return;
- deferredDirector.queue.push({...task,attempts:Number(task.attempts)||0,queuedAt:task.queuedAt||Date.now()});
+ const queued={...task,id:task.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2),attempts:Number(task.attempts)||0,queuedAt:task.queuedAt||Date.now()};
+ if(!deferredDirector.queue.some(x=>x.id===queued.id))deferredDirector.queue.push(queued);
+ if(persistTask){gameState.world.deferredTurns??=[];if(!gameState.world.deferredTurns.some(x=>x.id===queued.id))gameState.world.deferredTurns.push(structuredClone(queued))}
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_QUEUED",visibility:"INTERNAL",action:queued.action,taskId:queued.id,day:gameState.world?.state?.day||1,at:Date.now()});
  if(deferredDirector.timer)clearTimeout(deferredDirector.timer);
  deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},Math.max(250,Number(delay)||900))
+}
+function resumeDeferredDirectorQueue(){
+ if(!gameState||!aiStatus.aiConfigured)return;
+ for(const task of gameState.world?.deferredTurns||[])scheduleDeferredDirector(task,500,{persistTask:false})
 }
 async function runDeferredDirector(){
  if(!gameState||!aiStatus.aiConfigured||deferredDirector.running||!deferredDirector.queue.length)return;
@@ -71,12 +82,12 @@ async function runDeferredDirector(){
   const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
   if(effects)applyDeferredTurnEffects(gameState,effects,{action:task.action,roll:task.roll});
-  deferredDirector.queue.shift();await persist();await refresh()
+  deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);await persist();await refresh()
  }catch(e){
   if(!ctrl.signal.aborted){
    task.attempts=(Number(task.attempts)||0)+1;
    gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_FAILED",visibility:"INTERNAL",action:task.action,reason:e?.message||String(e),attempt:task.attempts,day:gameState?.world?.state?.day||1,at:Date.now()});
-   if(task.attempts>=2)deferredDirector.queue.shift()
+   if(task.attempts>=2){deferredDirector.queue.shift();removePersistedDeferredTurn(task.id)}else{const saved=gameState?.world?.deferredTurns?.find(x=>x.id===task.id);if(saved)saved.attempts=task.attempts}
   }
  }finally{
   if(deferredDirector.controller===ctrl)deferredDirector.controller=null;deferredDirector.running=false;
@@ -163,8 +174,8 @@ function scheduleGameStageFit(){
  cancelAnimationFrame(gameStageFitFrame);
  gameStageFitFrame=requestAnimationFrame(fitGameStage)
 }
-function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));scheduleWorldEvolution("gameplay_idle",1800)}}
-function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
+function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));resumeDeferredDirectorQueue();scheduleWorldEvolution("gameplay_idle",1800)}}
+function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
 async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;updateAIStatusBadge();if(!gameState)return;migrate(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
