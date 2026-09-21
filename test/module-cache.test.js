@@ -31,7 +31,8 @@ test("v0.35.0 player experience keeps dependency cache generations explicit",asy
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  assert.match(app,/\.\/src\/world-engine\.js\?v=35000/);
  assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
- for(const mod of ["game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
+ assert.match(app,/\.\/src\/game-engine\.js\?v=35000/);
+ assert.match(app,/\.\/src\/check-engine\.js\?v=320/);
  assert.match(app,/\.\/src\/adventure-engine\.js\?v=35000/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
