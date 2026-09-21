@@ -406,3 +406,112 @@ body[data-weather-danger="4"] .scene-atmosphere,body[data-weather-danger="5"] .s
     #game .scene-copy h2{font-size:clamp(38px,5vw,58px)}
   }
 }
+
+
+/* Generated UI asset layers v0.28.2 */
+:root{
+  --ely-frame-scene:url("./assets/ui/frames/scene-frame.webp");
+  --ely-frame-panel:url("./assets/ui/frames/panel-frame.webp");
+  --ely-frame-command:url("./assets/ui/frames/command-frame.webp");
+  --ely-scene-atlas:url("./assets/ui/backgrounds/scene-bg-atlas.webp");
+  --ely-nav-icons:url("./assets/ui/icons/nav-icons.webp");
+  --ely-scene-position:0%;
+}
+
+/* Generated artwork is composited as independent background/frame/content layers. */
+#game .scene-art{
+  background-image:
+    linear-gradient(180deg,rgba(3,6,10,.03) 0%,rgba(3,6,10,.16) 42%,rgba(2,4,8,.88) 100%),
+    var(--ely-scene-atlas)!important;
+  background-size:100% 100%,500% 100%!important;
+  background-position:center,var(--ely-scene-position) center!important;
+  background-repeat:no-repeat!important;
+}
+body[data-world-genre="黑暗奇幻"]{--ely-scene-position:25%}
+body[data-world-genre="東方幻想"]{--ely-scene-position:50%}
+body[data-world-genre="蒸汽魔法"]{--ely-scene-position:75%}
+body[data-world-genre="末日異世界"]{--ely-scene-position:100%}
+
+#game .scene-art::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:3;
+  pointer-events:none;
+  opacity:.78;
+  border-radius:inherit;
+  background-image:var(--ely-frame-scene)!important;
+  background-repeat:no-repeat!important;
+  background-position:center!important;
+  background-size:100% 100%!important;
+  box-shadow:inset 0 0 120px rgba(0,0,0,.20)!important;
+}
+#game .scene-copy{z-index:5}
+#game .scene-atmosphere{z-index:2}
+
+#game .sidebar{isolation:isolate}
+#game .sidebar::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:4;
+  pointer-events:none;
+  border-radius:inherit;
+  background:var(--ely-frame-panel) center/100% 100% no-repeat;
+  opacity:.67;
+}
+#game .sidebar>*{position:relative;z-index:5}
+
+#game .action-zone,#game .dice-box{
+  position:relative;
+  isolation:isolate;
+  border-color:transparent!important;
+  overflow:hidden;
+}
+#game .action-zone::after,#game .dice-box::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  background:var(--ely-frame-command) center/100% 100% no-repeat;
+  opacity:.60;
+}
+#game .action-zone>*,#game .dice-box>*{position:relative;z-index:1}
+
+#game .primary-nav .navbtn>span,
+#game .mobile-bottom-nav button>span{
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+  display:inline-block;
+  font-size:0!important;
+  color:transparent!important;
+  background-image:var(--ely-nav-icons);
+  background-size:600% 100%;
+  background-repeat:no-repeat;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.45));
+}
+#game .primary-nav .navbtn:nth-child(1)>span,
+#game .mobile-bottom-nav button:nth-child(1)>span{background-position:0% center}
+#game .primary-nav .navbtn:nth-child(2)>span,
+#game .mobile-bottom-nav button:nth-child(2)>span{background-position:20% center}
+#game .primary-nav .navbtn:nth-child(3)>span,
+#game .mobile-bottom-nav button:nth-child(3)>span{background-position:40% center}
+#game .primary-nav .navbtn:nth-child(4)>span,
+#game .mobile-bottom-nav button:nth-child(4)>span{background-position:60% center}
+#game .primary-nav .navbtn:nth-child(5)>span,
+#game .mobile-bottom-nav button:nth-child(5)>span{background-position:80% center}
+#game .primary-nav .navbtn:nth-child(6)>span{background-position:100% center}
+#game .primary-nav .navbtn.active>span,
+#game .mobile-bottom-nav button.active>span{
+  filter:drop-shadow(0 0 8px rgba(215,179,106,.58));
+  transform:scale(1.07);
+}
+
+@media(max-width:720px){
+  #game .scene-art::after{opacity:.58}
+  #game .sidebar::after{display:none}
+  #game .action-zone::after,#game .dice-box::after{opacity:.42}
+  #game .mobile-bottom-nav button>span{width:25px;height:25px;flex-basis:25px}
+}
