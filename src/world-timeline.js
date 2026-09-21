@@ -9,12 +9,28 @@ export function createTimelinePacing(playHours=15){
  else if(targetPlayHours<=25){majorEventCount=6;horizonDays=Math.max(7,Math.round(targetPlayHours*.65))}
  else if(targetPlayHours<=50){majorEventCount=7;horizonDays=Math.max(12,Math.round(targetPlayHours*.6))}
  else{majorEventCount=8;horizonDays=Math.min(90,Math.max(24,Math.round(targetPlayHours*.55)))}
- const averageGapDays=Math.max(1,Math.round(horizonDays/(majorEventCount+1)));
+ const averageGapDays=Math.max(1,Math.round(horizonDays/(majorEventCount+1))),span=Math.max(0,horizonDays-2);
+ const earlyTo=clamp(Math.round(2+span*.25),2,horizonDays),middleFrom=clamp(Math.round(2+span*.25),2,horizonDays),middleTo=clamp(Math.round(2+span*.7),middleFrom,horizonDays),lateFrom=clamp(Math.round(2+span*.65),2,horizonDays);
  return {targetPlayHours,majorEventCount,horizonDays,averageGapDays,phases:{
-  early:{fromDay:2,toDay:Math.max(3,Math.round(horizonDays*.25))},
-  middle:{fromDay:Math.max(4,Math.round(horizonDays*.25)),toDay:Math.max(5,Math.round(horizonDays*.7))},
-  late:{fromDay:Math.max(6,Math.round(horizonDays*.65)),toDay:horizonDays}
+  early:{fromDay:2,toDay:earlyTo},
+  middle:{fromDay:middleFrom,toDay:middleTo},
+  late:{fromDay:lateFrom,toDay:horizonDays}
  }}
+}
+export function timelineAuthoringSlots(pacing=createTimelinePacing()){
+ const count=Math.max(1,Math.round(Number(pacing.majorEventCount)||1)),horizon=Math.max(2,Math.round(Number(pacing.horizonDays)||2)),gap=Math.max(1,Math.round(Number(pacing.averageGapDays)||1)),out=[];
+ let previous=2;
+ for(let i=0;i<count;i++){
+  const ratio=count===1?0:i/(count-1),target=Math.round(2+Math.max(0,horizon-2)*ratio),radius=Math.max(0,Math.floor(gap/2));
+  let earliest=clamp(target-radius,2,horizon),latest=clamp(target+radius,earliest,horizon);
+  earliest=Math.max(previous,earliest);latest=Math.max(earliest,latest);if(i===0)earliest=2;if(i===count-1)latest=horizon;
+  previous=earliest;out.push({slot:i+1,earliestDay:earliest,latestDay:latest})
+ }
+ return out
+}
+export function bindTimelineAuthoringSlots(input=[],pacing=createTimelinePacing()){
+ const slots=timelineAuthoringSlots(pacing),rows=Array.isArray(input)?input:[];
+ return slots.map((slot,i)=>({...((rows[i]&&typeof rows[i]==="object")?rows[i]:{}),earliestDay:slot.earliestDay,latestDay:slot.latestDay}))
 }
 export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
  const out=[];
