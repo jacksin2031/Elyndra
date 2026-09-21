@@ -6,7 +6,7 @@ import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,ge
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=276";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=276";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld} from "./src/storage.js?v=276";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=320";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=276";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=280";
@@ -15,7 +15,7 @@ import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCom
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=276";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=276";
 import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=276";
-import {ensureQuestProgress,ensureMainQuest} from "./src/quest-engine.js?v=276";
+import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=320";
 import {ensureCrisis} from "./src/crisis-engine.js?v=276";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=276";
 import {playerVisibleEvents} from "./src/event-visibility.js?v=276";
@@ -29,14 +29,18 @@ import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=2
 import {deriveSceneTitle} from "./src/runtime-guard.js?v=276";
 import {worldCommunication} from "./src/communication-engine.js?v=276";
 import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=276";
-import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=276";
+import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=320";
 import {ensureMagicRuntime} from "./src/magic-engine.js?v=276";
-import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=276";
+import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=320";
 import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276";
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
 import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=300";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=320";
+import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
+import {worldMapSnapshot} from "./src/world-map.js?v=320";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,helperHistory=[],npcChatHistory=new Map();
 function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -65,9 +69,11 @@ function scheduleGameStageFit(){
  gameStageFitFrame=requestAnimationFrame(fitGameStage)
 }
 function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}))}}
-function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
+function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
 async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;$("#aiBadge").textContent=aiStatus.aiConfigured?"AI ONLINE":"LOCAL";if(!gameState)return;migrate(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
+ if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
+ if($("#fatigueStat"))$("#fatigueStat").textContent=`${Math.round(survivalInfo.fatigue)} / 100`;
  if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":"自由行動：例如「我想仔細檢查眼前可見的物件」"}}
 async function persist(){if(gameState){maintainSession(gameState);await saveWorld(gameState)}}
 function fallbackActionButtons(action=""){const short=String(action||"").trim().slice(0,28),pool=[short?`換一種方法處理「${short}」`:"換一種方法處理眼前問題","仔細觀察剛才行動造成的變化","沿著目前可見的方向繼續探索","尋找附近可以直接交流的人","檢查周圍有沒有新的線索"],unique=[...new Set(pool)],offset=(Number(gameState?.world?.state?.clock?.totalMinutes)||0)+short.length;return Array.from({length:Math.min(4,unique.length)},(_,i)=>unique[(offset+i)%unique.length])}
