@@ -64,11 +64,20 @@ test("prevalidated suggested action skips AI feasibility while its scene seal re
  assert.ok(assessment.actionIntent)
 });
 
-test("scene seal expires locally after world context changes without calling AI",()=>{
- const s=state(),row=buildContextualActionSet(s,[]).all[0];
+test("scene seal expires locally and refresh never renews the stale AI suggestion",()=>{
+ const s=state(),row=buildContextualActionSet(s,[{
+  label:"沿著血跡繼續追查",action:"沿著眼前血跡追查下一個轉角",kind:"OBSERVE",risk:"LOW",approach:"STEADY",
+  progression:true,requirementsSatisfied:true,causalBasis:"玩家目前看得到血跡"
+ }]).all.find(x=>x.label==="沿著血跡繼續追查");
+ assert.ok(row);
  assert.ok(trustedSuggestionAssessment(s,row));
+ const originalSeal=structuredClone(row.validatedContext);
  s.events.push({id:"E1",type:"WORLD_EVENT"});
- assert.equal(trustedSuggestionAssessment(s,row),null)
+ assert.equal(trustedSuggestionAssessment(s,row),null);
+ const refreshed=buildContextualActionSet(s,[row]);
+ assert.equal(refreshed.all.some(x=>x.label==="沿著血跡繼續追查"),false);
+ assert.ok(refreshed.all.every(x=>x.source==="ENGINE"));
+ assert.deepEqual(row.validatedContext,originalSeal)
 });
 
 test("requirementsSatisfied false candidates are never exposed as buttons",()=>{
