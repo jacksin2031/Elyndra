@@ -24,9 +24,9 @@ test("State Sync rejects repeated player clicks instead of queueing them",async(
 
 test("Player Action AI is awaited before State Sync commit while both start together",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- const start=app.indexOf("startTurnAIJobs");
- const end=app.indexOf("if(!aiStatus.aiConfigured)",start);
- const block=app.slice(start,end);
+ const runStart=app.indexOf("async function runAction");
+ const runEnd=app.indexOf('$("#newWorldBtn")',runStart);
+ const block=app.slice(runStart,runEnd);
  const playerAwait=block.indexOf("await playerActionResult");
  const stateAwait=block.indexOf("await stateSyncResult");
  const commit=block.indexOf("applyTurnCandidate");
