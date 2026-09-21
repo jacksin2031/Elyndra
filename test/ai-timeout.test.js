@@ -21,7 +21,10 @@ test("world generation receives a long direct-AI timeout and clear timeout error
  assert.match(settings,/limit=requested\?Math\.max\(256/);
  assert.match(settings,/retryOnTimeout!==false/);
  assert.match(client,/retryOnTimeout:false/);
- assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);\n assert.doesNotMatch(client,/worldStage\("REGION"/);\n assert.match(client,/resilientWorldStage\("GEOGRAPHY"/);\n assert.match(client,/resilientWorldStage\("SOCIETY"/);
+ assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);
+ assert.doesNotMatch(client,/worldStage\("REGION"/);
+ assert.match(client,/resilientWorldStage\("GEOGRAPHY"/);
+ assert.match(client,/resilientWorldStage\("SOCIETY"/);
 });
 
 test("server world generation timeout is longer than ordinary narration",async()=>{
