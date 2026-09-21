@@ -11,8 +11,8 @@ test("world generation receives a long direct-AI timeout and clear timeout error
  assert.match(settings,/AI_TIMEOUT: Provider/);
  assert.doesNotMatch(client,/timeoutMs:120000[\s\S]*World Architect/);
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
- assert.match(client,/worldStage\("CORE"/);assert.match(client,/worldStage\("CORE_REPAIR"/);for(const stage of ["HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
- assert.match(client,/timeoutMs:95000/);
+ for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
+ assert.match(client,/timeoutMs:35000/);
  assert.match(client,/timeoutMs:65000/);
  assert.match(client,/timeoutMs:50000/);
  assert.match(client,/timeoutMs:55000/);
@@ -21,7 +21,7 @@ test("world generation receives a long direct-AI timeout and clear timeout error
  assert.match(settings,/limit=requested\?Math\.max\(256/);
  assert.match(settings,/retryOnTimeout!==false/);
  assert.match(client,/retryOnTimeout:false/);
- assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);
+ assert.doesNotMatch(client,/worldStage\("CORE"/);\n assert.doesNotMatch(client,/worldStage\("CORE_REPAIR"/);\n assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);
  assert.doesNotMatch(client,/worldStage\("REGION"/);
  assert.match(client,/resilientWorldStage\("GEOGRAPHY"/);
  assert.match(client,/resilientWorldStage\("SOCIETY"/);
