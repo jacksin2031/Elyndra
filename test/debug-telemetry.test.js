@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {normalizeProviderUsage,estimateTextTokens,recordAIUsage,recordDebug,telemetryEntries,telemetrySummary,debugBundle,clearDebugTelemetry} from "../src/debug-telemetry.js";
+import {normalizeProviderUsage,estimateTextTokens,recordAIUsage,recordDebug,telemetryEntries,telemetrySummary,debugBundle,clearDebugTelemetry,scrubDebugText} from "../src/debug-telemetry.js";
 import {PROVIDERS,saveAISettings,clearAISettings,directChat} from "../src/ai-settings.js";
 
 function memoryStorage(){
@@ -22,6 +22,14 @@ test("OpenAI-compatible usage captures prompt output reasoning cached and total 
 test("Gemini usage captures prompt candidates thoughts cached and total tokens",()=>{
  const u=normalizeProviderUsage("gemini",{usageMetadata:{promptTokenCount:140,candidatesTokenCount:65,thoughtsTokenCount:42,cachedContentTokenCount:30,totalTokenCount:247}});
  assert.deepEqual(u,{source:"API",input:140,output:65,reasoning:42,cached:30,total:247})
+});
+
+test("debug string scrub removes embedded bearer, query and provider API keys",()=>{
+ const sample="Provider error: Authorization: Bearer abcdef123456 https://example.test?q=1&api_key=secretvalue sk-abcdefghijklmnop AIza1234567890abcdefghijklmnop";
+ const clean=scrubDebugText(sample);
+ assert.doesNotMatch(clean,/abcdef123456|secretvalue|sk-abcdefghijklmnop|AIza1234567890abcdefghijklmnop/);
+ assert.match(clean,/Bearer \[REDACTED\]/);
+ assert.match(clean,/api_key=\[REDACTED\]/)
 });
 
 test("missing provider usage is clearly marked estimated",()=>{
