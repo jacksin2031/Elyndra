@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=331";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=280";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=332";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=320";
 import {sanitizePlayerText} from "./runtime-guard.js?v=276";
 import {helperSnapshot} from "./helper-context.js?v=320";
@@ -256,11 +256,15 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   if(!society||typeof society!=="object"||Array.isArray(society)){markWorldFallback("SOCIETY","STRUCTURE_INVALID");society=societyFallback(anchor,history,geography)};
   let region=mergeOpeningRegion(anchor,geography,society);
   const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
-  if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));const future=timelineReport.valid?{worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline}:futureFallback(anchor,history,directive.timelinePacing);
+  if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));
+  let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);
   if(!future?.worldCalendar||!Array.isArray(future.worldTimeline))throw new Error("WORLD_FUTURE_INVALID");
   let linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});
-  if(linkIssues.length){const reason="CROSS_STAGE_LINK_INVALID:"+linkIssues.join(",");markWorldFallback("SOCIETY",reason);markWorldFallback("FUTURE",reason);society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society);const safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
-  if(linkIssues.length)throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
+  let societyIssues=linkIssues.filter(x=>x.startsWith("SOCIETY_")),futureIssues=linkIssues.filter(x=>x.startsWith("FUTURE_")),sharedIssues=linkIssues.filter(x=>!x.startsWith("SOCIETY_")&&!x.startsWith("FUTURE_"));
+  if(societyIssues.length){markWorldFallback("SOCIETY","CROSS_STAGE_LINK_INVALID:"+societyIssues.join(","));society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society)}
+  if(futureIssues.length){markWorldFallback("FUTURE","CROSS_STAGE_LINK_INVALID:"+futureIssues.join(","));future=futureFallback(anchor,history,directive.timelinePacing)}
+  linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});sharedIssues=linkIssues.filter(x=>!x.startsWith("SOCIETY_")&&!x.startsWith("FUTURE_"));
+  if(sharedIssues.length||linkIssues.some(x=>x.startsWith("SOCIETY_")||x.startsWith("FUTURE_")))throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
 
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
   let cast=await resilientWorldStage("CAST",{
