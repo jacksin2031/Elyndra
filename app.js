@@ -2,9 +2,9 @@ window.__ELYNDRA_BOOTED__=true;
 import {APP_VERSION} from "./src/version.js?v=36000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=35000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=35000";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=35000";
-import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=35000";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=37000";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=37000";
+import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=37000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=35000";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=34004";
@@ -142,7 +142,7 @@ async function runDeferredDirector(){
  deferredDirector.running=true;deferredDirector.controller=ctrl;
  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_STARTED",visibility:"INTERNAL",action:task.action,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("DEFERRED_TURN_STARTED",{action:task.action,queued:deferredDirector.queue.length});
  try{
-  const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal});
+  const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal,intent:task.intent});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
   if(effects)applyDeferredTurnEffects(gameState,effects,{action:task.action,roll:task.roll});
   deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);recordDebug("DEFERRED_TURN_APPLIED",{action:task.action,elapsedMs:Date.now()-debugStarted,remaining:deferredDirector.queue.length});await persist();await refresh()
@@ -252,7 +252,7 @@ async function persist(){if(gameState){
  maintainSession(gameState);await saveWorld(gameState)
 }}
 function fallbackActionButtons(action=""){const contextual=roleplayFallbackSuggestions(gameState||{},{action});if(contextual.length)return contextual.slice(0,4);return ["檢查地面與附近物件上最新留下的痕跡","找一個正在避開人群的人，問他剛才看見了甚麼","沿著最明顯的新鮮痕跡走一小段，確認它通往哪裡","找一個能看見出入口的位置觀察人流"]}
-function renderSuggestions(){const box=$("#choices");if(!box)return;if(gameState?.combat?.active){box.innerHTML='<button type="button" data-combat-action="attack">攻擊</button><button type="button" data-combat-action="defend">防禦</button><button type="button" data-combat-action="retreat">撤退</button>';box.querySelectorAll("[data-combat-action]").forEach(b=>b.onclick=()=>runCombatAction(b.dataset.combatAction));return}const suggestions=(gameState?.suggestions||[]).slice(0,4);const shown=suggestions.length?suggestions:fallbackActionButtons();box.innerHTML=shown.map(s=>`<button type="button">${esc(s)}</button>`).join("");box.querySelectorAll("button").forEach(b=>b.onclick=()=>runAction("free",b.textContent))}
+function renderSuggestions(){const box=$("#choices");if(!box)return;if(gameState?.combat?.active){box.innerHTML='<button type="button" data-combat-action="attack">攻擊</button><button type="button" data-combat-action="defend">防禦</button><button type="button" data-combat-action="retreat">撤退</button>';box.querySelectorAll("[data-combat-action]").forEach(b=>b.onclick=()=>runCombatAction(b.dataset.combatAction));return}const intents=(gameState?.suggestionIntents||[]).slice(0,4),suggestions=(gameState?.suggestions||[]).slice(0,4),shown=intents.length?intents:(suggestions.length?suggestions:fallbackActionButtons()).map(x=>({label:x,action:x,kind:"GENERAL",risk:"UNKNOWN"}));box.innerHTML=shown.map(x=>`<button type="button" data-suggested-action="${esc(x.action||x.label)}" title="${esc([x.kind,x.risk!=="UNKNOWN"?x.risk:"",x.skillHint||""].filter(Boolean).join(" · "))}">${esc(x.label||x.action)}</button>`).join("");box.querySelectorAll("[data-suggested-action]").forEach(b=>b.onclick=()=>runAction("free",b.dataset.suggestedAction||b.textContent))}
 function renderKnownNpcs(){const dock=$("#npcDock"),box=$("#knownNpcList");if(!dock||!box||!gameState)return;const npcs=ensureWorldRegistry(gameState).npcs.filter(x=>canInteractWithNpc(gameState,x)).slice(-6),comm=worldCommunication(gameState);dock.classList.toggle("hidden",!npcs.length);box.innerHTML=npcs.map(n=>{const tag=companionLabel(n),mode=npcInteractionMode(gameState,n),where=mode==="REMOTE"?`遠距 · ${comm.name}`:"附近";return `<button type="button" class="npc-mini" data-npc-id="${esc(n.id)}"><span>${esc((n.name||"?").slice(0,1))}</span><div><strong>${esc(n.name)}</strong><small>${esc(n.role||"")} · ${esc(where)}${tag?` · ${esc(tag)}`:""}</small></div></button>`}).join("");box.querySelectorAll("[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
 function openNpcPanel(npcId,answer=""){const npc=findNpc(gameState,npcId);if(!npc||npc.known!==true)return;const status=npc.companion?.status||"NONE",mode=npcInteractionMode(gameState,npc),interactive=Boolean(mode),local=isNpcPresent(gameState,npc),comm=worldCommunication(gameState),actions=interactive?[`<button class="primary" data-npc-chat="${esc(npc.id)}">${mode==="REMOTE"?`透過 ${esc(comm.name)} 聯絡`:"對話"}</button>`]:[`<span class="muted">目前沒有可用的聯絡方式。</span>`];if(local&&status==="OFFERED")actions.push(`<button class="secondary" data-companion="accept" data-npc-id="${esc(npc.id)}">接受同行</button>`);else if(local&&status==="ACTIVE")actions.push(`<button class="ghost" data-companion="leave" data-npc-id="${esc(npc.id)}">請求暫時離隊</button>`);else if(local)actions.push(`<button class="secondary" data-companion="invite" data-npc-id="${esc(npc.id)}">邀請同行</button>`);openModal(`<div class="eyebrow">NPC · ${esc(companionLabel(npc)||"未同行")}</div><h2>${esc(npc.name)}</h2><p>${esc(answer||npc.description||npc.role||"")}</p><div class="settings-actions">${actions.join("")}</div>`);$("#modalContent [data-npc-chat]")?.addEventListener("click",()=>openNpcConversation(npc.id));$("#modalContent [data-companion]")?.addEventListener("click",async e=>{const action=e.currentTarget.dataset.companion;let message="";if(action==="invite"){const r=inviteCompanion(gameState,npc.id);message=r.accepted?npc.name+" 接受了同行邀請。":npc.name+" 暫時沒有接受同行邀請。"}else if(action==="accept"){message=acceptCompanionOffer(gameState,npc.id)?npc.name+" 正式加入旅程。":"這個同行提議已經失效。"}else if(action==="leave"){message=dismissCompanion(gameState,npc.id)?npc.name+" 暫時離開了隊伍。":"目前無法離隊。"}await persist();await refresh();openNpcPanel(npc.id,message)})}
 function npcConversationMessages(npcId){if(!npcChatHistory.has(npcId))npcChatHistory.set(npcId,[]);return npcChatHistory.get(npcId)}
@@ -269,22 +269,25 @@ async function runAction(action,customText=""){
  if(gameState.combat?.active){gameState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}
  if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}
  const requested=String(customText||action||"").trim()||"觀察目前環境",debugTurnStarted=Date.now();recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});if(markOpeningEngaged(gameState,requested))recordDebug("OPENING_HOOK_ENGAGED",{action:requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});
- if(!aiStatus.aiConfigured){gameState.narrative="目前沒有可用的 AI Provider，無法先判定這個行動是否符合角色狀態與場景條件。請先在 AI 設定連線。";await refresh();return}
- let assessment;
- setAIThinking(true,"AI 正在根據角色狀態、物品與場景判定行動是否合理…");
- try{assessment=await assessPlayerAction(gameState,requested);recordDebug("ACTION_ASSESSMENT",{action:requested,verdict:assessment?.verdict,kind:assessment?.kind,source:assessment?.source,confidence:assessment?.confidence,reason:assessment?.reason,latencyFromTurnStartMs:Date.now()-debugTurnStarted})}
- catch(e){
-  console.warn("action feasibility failed",e);
-  gameState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
-  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
-  await persist();await refresh();return
- }finally{setAIThinking(false)}
+ let assessment=fastLocalActionAssessment(gameState,requested);
+ if(!assessment){
+  if(!aiStatus.aiConfigured){gameState.narrative="這個行動需要語義判斷，但目前沒有可用的 AI Provider。基本觀察、查看背包、休息、使用明確物品與前往已知地點仍可由 Engine 直接處理。";await refresh();return}
+  setAIThinking(true,"AI 正在解析 Action Intent 並判斷必要前提…");
+  try{assessment=await assessPlayerAction(gameState,requested)}
+  catch(e){
+   console.warn("action feasibility failed",e);
+   gameState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
+   gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
+   await persist();await refresh();return
+  }finally{setAIThinking(false)}
+ }
+ recordDebug("ACTION_ASSESSMENT",{action:requested,verdict:assessment?.verdict,kind:assessment?.kind,intent:assessment?.actionIntent?.intent,targetId:assessment?.actionIntent?.targetId,source:assessment?.source,confidence:assessment?.confidence,reason:assessment?.reason,latencyFromTurnStartMs:Date.now()-debugTurnStarted});
  if(assessment?.source==="ENGINE_DEGRADED"){gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_DEGRADED",visibility:"INTERNAL",action:requested,reason:assessment.aiError||assessment.reason,day:gameState.world?.state?.day||1,at:Date.now()})}
   const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
- const previousSuggestions=[...(gameState.suggestions||[])],impactBefore=ensureWorldImpact(gameState).records.length;
+ const previousSuggestions=[...(gameState.suggestions||[])],previousSuggestionIntents=[...(gameState.suggestionIntents||[])],impactBefore=ensureWorldImpact(gameState).records.length;
  if(assessment?.verdict!=="BLOCK"){
   const localLore=resolveLocalLoreAction(gameState,effective);
-  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
+  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
  }
  const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;recordDebug("ENGINE_ACTION_RESULT",{action:effective,blocked:Boolean(actionResult.blocked),deterministic:Boolean(actionResult.deterministic),roll:roll?{natural:roll.natural,total:roll.total,dc:roll.dc,grade:roll.grade,success:roll.success,kind:roll.profile?.kind}:null,elapsedMs:Date.now()-debugTurnStarted});
  if(actionResult.blocked||actionResult.deterministic){
@@ -300,10 +303,10 @@ async function runAction(action,customText=""){
     }catch(e){console.warn("item npc reaction fallback",e)}finally{setAIThinking(false)}
    }
   }
-  gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);await persist();await refresh();return
+  gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];await persist();await refresh();return
  }
  renderRoll(roll);
- gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);
+ gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];
  await refresh();
  if(aiStatus.aiConfigured){
   setAIThinking(true,"AI 正在判斷本回合需要的處理方式…");
@@ -312,24 +315,24 @@ async function runAction(action,customText=""){
    if(routing.needsGeneration){
     const turnWorldId=gameState.world?.id,turnSnapshot=buildSnapshot(gameState);
     setTurnSyncing(true,"AI 正在背景同步敘事後的必要世界狀態；你可以繼續輸入下一步。");setAIThinking(false);
-    const candidate=await generateTurn(label,roll,turnSnapshot,{onScene:scene=>{
+    const candidate=await generateTurn(label,roll,turnSnapshot,{intent:assessment?.actionIntent,onScene:scene=>{
      if(!gameState||gameState.world?.id!==turnWorldId)return;
-     const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions});
+     const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents});
      if(preview.narrative)gameState.narrative=preview.narrative;
      if(preview.sceneTitle)gameState.sceneTitle=preview.sceneTitle;
-     if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;
+     if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;if(preview.suggestionIntents?.length)gameState.suggestionIntents=preview.suggestionIntents;
      void refresh()
     }});
     if(gameState?.world?.id===turnWorldId){
      applyTurnCandidate(gameState,candidate,{action:label,roll});
      gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("TURN_COMMIT",{action:label,directorMode:candidate.directorMode||"DEEP",elapsedMs:Date.now()-debugTurnStarted,foregroundQueue:foregroundQueue.length,deferredQueue:deferredDirector.queue.length});
-     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,queuedAt:Date.now()},650)
+     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,intent:assessment?.actionIntent,queuedAt:Date.now()},650)
     }
-   }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
+   }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label);gameState.suggestionIntents=[]}
   }
   catch(e){console.warn("AI turn state fallback",e);recordDebug("TURN_SYNC_DEGRADED",{action:effective,error:e?.message||String(e),elapsedMs:Date.now()-debugTurnStarted});if(!String(gameState.narrative||"").trim())gameState.narrative=localText;if(!String(gameState.sceneTitle||"").trim())gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
   finally{if(aiBusy)setAIThinking(false)}
- }else gameState.suggestions=fallbackActionButtons(effective);
+ }else gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];
  if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
  try{await persist();await refresh()}
  finally{
