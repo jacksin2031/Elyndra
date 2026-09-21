@@ -1,8 +1,8 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=331";
+import {APP_VERSION} from "./src/version.js?v=332";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=331";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=320";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=331";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=332";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=320";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=320";
@@ -103,7 +103,8 @@ async function runAction(action,customText=""){
   gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
   await persist();await refresh();return
  }finally{setAIThinking(false)}
- const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
+ if(assessment?.source==="ENGINE_DEGRADED"){gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_DEGRADED",visibility:"INTERNAL",action:requested,reason:assessment.aiError||assessment.reason,day:gameState.world?.state?.day||1,at:Date.now()})}
+  const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
  const previousSuggestions=[...(gameState.suggestions||[])],impactBefore=ensureWorldImpact(gameState).records.length;
  if(assessment?.verdict!=="BLOCK"){
   const localLore=resolveLocalLoreAction(gameState,effective);

@@ -22,6 +22,10 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/coreWaveIssues\(identity,rules,coreAnchor,core\)/);
  assert.match(client,/buildWorldAnchorContract\(core,directive\.timelinePacing\)/);
  assert.match(client,/worldGenerationLinkIssues\(/);
+ assert.match(client,/normalizeFutureLinksToAnchor\(/);
+ assert.match(client,/societyIssues=linkIssues\.filter\(x=>x\.startsWith\("SOCIETY_"\)\)/);
+ assert.match(client,/futureIssues=linkIssues\.filter\(x=>x\.startsWith\("FUTURE_"\)\)/);
+ assert.doesNotMatch(client,/markWorldFallback\("SOCIETY",reason\);markWorldFallback\("FUTURE",reason\)/);
  assert.match(client,/timelineAuthoringSlots\(directive\.timelinePacing\)/);
  assert.match(client,/bindTimelineAuthoringSlots\(futureRaw\?\.worldTimeline,directive\.timelinePacing\)/);
  for(const legacy of ["CORE","CORE_REPAIR","CHRONOLOGY","REGION"])assert.doesNotMatch(client,new RegExp(`worldStage\\("${legacy}"`));
@@ -42,7 +46,7 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/WORLD_RECOVERY/);
  assert.match(client,/applyFallbackRecoveryPatch/);
  assert.match(client,/fallbackStages\.length<4/);
- assert.match(client,/markWorldFallback\("FUTURE",reason\)/);
+ assert.match(client,/markWorldFallback\("FUTURE","CROSS_STAGE_LINK_INVALID:"\+futureIssues\.join\(","\)\)/);
  assert.match(client,/markWorldFallback\("CAST","CROSS_STAGE_LINK_INVALID:/);
  assert.doesNotMatch(client,/\}\s*下維持生存與秩序/);
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");

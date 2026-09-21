@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=331";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=280";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=332";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=320";
 import {sanitizePlayerText} from "./runtime-guard.js?v=276";
 import {helperSnapshot} from "./helper-context.js?v=320";
@@ -256,11 +256,15 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   if(!society||typeof society!=="object"||Array.isArray(society)){markWorldFallback("SOCIETY","STRUCTURE_INVALID");society=societyFallback(anchor,history,geography)};
   let region=mergeOpeningRegion(anchor,geography,society);
   const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
-  if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));const future=timelineReport.valid?{worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline}:futureFallback(anchor,history,directive.timelinePacing);
+  if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));
+  let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);
   if(!future?.worldCalendar||!Array.isArray(future.worldTimeline))throw new Error("WORLD_FUTURE_INVALID");
   let linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});
-  if(linkIssues.length){const reason="CROSS_STAGE_LINK_INVALID:"+linkIssues.join(",");markWorldFallback("SOCIETY",reason);markWorldFallback("FUTURE",reason);society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society);const safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
-  if(linkIssues.length)throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
+  let societyIssues=linkIssues.filter(x=>x.startsWith("SOCIETY_")),futureIssues=linkIssues.filter(x=>x.startsWith("FUTURE_")),sharedIssues=linkIssues.filter(x=>!x.startsWith("SOCIETY_")&&!x.startsWith("FUTURE_"));
+  if(societyIssues.length){markWorldFallback("SOCIETY","CROSS_STAGE_LINK_INVALID:"+societyIssues.join(","));society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society)}
+  if(futureIssues.length){markWorldFallback("FUTURE","CROSS_STAGE_LINK_INVALID:"+futureIssues.join(","));future=futureFallback(anchor,history,directive.timelinePacing)}
+  linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});sharedIssues=linkIssues.filter(x=>!x.startsWith("SOCIETY_")&&!x.startsWith("FUTURE_"));
+  if(sharedIssues.length||linkIssues.some(x=>x.startsWith("SOCIETY_")||x.startsWith("FUTURE_")))throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
 
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
   let cast=await resilientWorldStage("CAST",{
@@ -301,24 +305,36 @@ function normalizeActionAssessment(raw,action){
  const r=raw&&typeof raw==="object"?raw:{},verdict=["ALLOW","ADJUST","BLOCK"].includes(String(r.verdict||"").toUpperCase())?String(r.verdict).toUpperCase():"ALLOW",kind=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].includes(String(r.kind||"").toUpperCase())?String(r.kind).toUpperCase():"GENERAL";
  return {verdict,kind,normalizedAction:sanitizePlayerText(r.normalizedAction,180,action)||action,reason:sanitizePlayerText(r.reason,320,""),requirements:Array.isArray(r.requirements)?r.requirements.map(x=>sanitizePlayerText(x,120,"")).filter(Boolean).slice(0,4):[],confidence:Math.max(0,Math.min(100,Math.round(Number(r.confidence)||70)))}
 }
+function actionFeasibilitySnapshot(state){
+ const h=helperSnapshot(state),inventory=(state.inventory||[]).slice(-30).map(x=>({name:x.name,category:x.category,quantity:Number(x.quantity)||1,equipped:x.equipped===true,identified:x.identified!==false,useEffects:(x.useEffects||[]).map(e=>e.type)})),recipes=(state.crafting?.recipes||[]).slice(-20).map(r=>({name:r.name,inputs:(r.inputs||[]).map(i=>({name:i.name,quantity:i.quantity})),output:r.output?.name||""}));
+ return {player:{...h.player,origin:state.player?.origin?{label:state.player.origin.label,background:state.player.origin.background,worldKnowledgeBoundary:state.player.origin.worldKnowledgeBoundary}:null,stats:state.player?.stats||{},skills:state.player?.skills||{}},world:h.world,objective:h.objective,knowledge:{knownLocations:h.knowledge?.knownLocations||[],nearbyNpcs:h.knowledge?.nearbyNpcs||[],facts:(h.knowledge?.facts||[]).slice(-12),recentEvents:(h.knowledge?.recentEvents||[]).slice(-6)},inventory,crafting:{recipes},combat:h.combat}
+}
+function localActionKind(label){
+ const q=String(label||"");if(/觀察|查看|檢查|搜尋|調查|observe|inspect|search/i.test(q))return "OBSERVE";if(/說|問|交談|展示|交給|贈送|talk|ask|show|give/i.test(q))return "SOCIAL";if(/前往|走到|離開|移動|旅行|travel|go to|walk/i.test(q))return "TRAVEL";if(/攀|跳|破壞|偷|闖|攻擊|爬|risk|climb|break|steal/i.test(q))return "RISKY";return "GENERAL"
+}
+function degradedActionAssessment(state,label,error){
+ const inv=state.inventory||[],q=String(label||""),kind=localActionKind(q),requirements=[];
+ if(state.player?.status==="DOWNED")return {verdict:"BLOCK",kind,normalizedAction:q,reason:"你目前失去行動能力。",requirements:["先恢復可行動狀態"],confidence:100,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")};
+ if(/使用|食用|喝|飲用|服用|展示|出示|交給|交出|贈送|give|show|use|eat|drink/i.test(q)&&!inv.some(x=>x?.name&&q.includes(x.name))){requirements.push("背包中需要有你指定的物品");return {verdict:"BLOCK",kind,normalizedAction:q,reason:"目前背包中找不到這個行動所指定的物品。",requirements,confidence:92,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")}}
+ if(/飛上天空|直接飛行|瞬間移動|teleport|fly into the sky/i.test(q)&&!(state.player?.magic?.knownSpells||[]).some(s=>/飛|傳送|移動|teleport|flight/i.test(String(s?.name||"")+" "+String(s?.effect||""))))return {verdict:"BLOCK",kind:"RISKY",normalizedAction:q,reason:"你目前沒有已知能力支持這種超常移動。",requirements:["需要相應能力、魔法或工具"],confidence:90,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")};
+ return {verdict:"ALLOW",kind,normalizedAction:q,reason:"AI 可行性判定暫時不可用；已改用保守 Engine 條件檢查，成功與否仍由正常判定處理。",requirements:[],confidence:35,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")}
+}
+const ACTION_ASSESS_SYSTEM=`你是 Elyndra Action Feasibility Judge。只判斷玩家目前「能否合理嘗試」這個行動；不要判斷成功率、不要擲骰、不要修改狀態、不要創造世界設定。只根據 payload 內玩家可知／可用資料。技能低、疲勞高或受傷通常仍可 ALLOW，之後交由 Engine DC 處理。只有缺少必要物品／能力、目標不在場、未知且不可到達地點、或物理上明顯不可能時才 BLOCK。含糊但可最小修正時用 ADJUST。kind 只可 OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL。只輸出單一 JSON：{"verdict":"ALLOW|ADJUST|BLOCK","kind":"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL","normalizedAction":"...","reason":"...","requirements":[],"confidence":0-100}。`;
+async function directActionAssessment(payload,label,compact=false){
+ const raw=await directChat({aiTask:"action",disableOptimization:compact,timeoutMs:compact?35000:28000,maxOutputTokens:compact?700:650,temperature:0,system:compact?ACTION_ASSESS_SYSTEM+" 不要解釋，只回 JSON。":ACTION_ASSESS_SYSTEM,user:JSON.stringify(payload)});
+ return {...normalizeActionAssessment(parseJSON(raw),label),source:compact?"AI_RETRY":"AI"}
+}
 export async function assessPlayerAction(state,action){
  const label=String(action||"").trim().slice(0,180);if(!label)throw new Error("ACTION_REQUIRED");
- const snapshot=buildSnapshot(state),payload={action:label,snapshot};
- if(!hasDirectAI()){const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label),source:"SERVER_AI"}}
- const raw=parseJSON(await directChat({
-  aiTask:"action",timeoutMs:28000,maxOutputTokens:650,temperature:.15,
-  system:`你是 Elyndra Action Feasibility Judge。你只判斷玩家提出的行動「目前是否可以合理嘗試」，不決定成功或失敗，不擲骰，不改任何狀態，也不創造 Canon。
-你必須根據 snapshot.player（HP、origin、checks）、snapshot.survival（satiety 100=完全飽、0=極度飢餓；fatigue 0=精神充足、100=極度疲勞；injury/exposure）、inventory、crafting、registry、travel、magic、knownFacts、knowledge、目前位置與附近可互動 NPC 判定。
-規則：
-1. 普通現代人可以嘗試合理的日常行動；技能低、疲勞高、受傷或環境惡劣通常不是 BLOCK，而應 ALLOW，之後由 Engine 的 DC/修正決定結果。
-2. 只有明確不可能或缺少必要前提時 BLOCK，例如使用不存在的物品、展示/交付未持有物品、對不在場且無遠距手段的 NPC 直接互動、前往完全未知/不存在地點、施展未學會能力、在沒有工具/能力下完成明顯超越普通人的事情。
-3. 玩家描述含糊但可合理解讀時用 ADJUST，normalizedAction 改寫成最接近原意而且可執行的版本，不得替玩家增加重大新意圖。
-4. 不可因現代地球常識而認定任何異世界專有知識為已知。不可使用 director-only 資訊替玩家判定。
-5. kind 只可 OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL。高危攀爬、破壞、偷竊、闖入、戰鬥外危險動作應 RISKY；單純移動為 TRAVEL。
-只輸出 JSON：{"verdict":"ALLOW|ADJUST|BLOCK","kind":"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL","normalizedAction":"可執行行動","reason":"簡短繁體中文理由","requirements":["若 BLOCK，列出玩家已知的缺少前提"],"confidence":0-100}。`,
-  user:JSON.stringify(payload)
- }));
- return {...normalizeActionAssessment(raw,label),source:"AI"}
+ const snapshot=actionFeasibilitySnapshot(state),payload={action:label,snapshot};
+ if(!hasDirectAI()){
+  try{const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label),source:"SERVER_AI"}}catch(e){return degradedActionAssessment(state,label,e)}
+ }
+ try{return await directActionAssessment(payload,label,false)}
+ catch(firstError){
+  try{return await directActionAssessment({action:label,snapshot},label,true)}
+  catch(secondError){const e=new Error((firstError?.message||String(firstError))+" | RETRY: "+(secondError?.message||String(secondError)));return degradedActionAssessment(state,label,e)}
+ }
 }
 
 export async function generateTurn(action,roll,snapshot){
