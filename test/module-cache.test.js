@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.38.0 refreshes contextual action modules while preserving v0.37.1 World Creation cache",async()=>{
+test("v0.38.1 refreshes world generation fixes without invalidating unrelated v0.38 modules",async()=>{
  const [html,app,client,adventure,contextual]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -18,15 +18,16 @@ test("v0.38.0 refreshes contextual action modules while preserving v0.37.1 World
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=38000/);
- assert.match(html,/styles\.css\?v=38000/);
+ assert.match(html,/app\.js\?v=38001/);
+ assert.match(html,/styles\.css\?v=38001/);
  assert.match(html,/creator\.css\?v=37000/);
- assert.match(app,/\.\/src\/version\.js\?v=38000/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=38000/);
+ assert.match(app,/\.\/src\/version\.js\?v=38001/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=38001/);
  assert.match(app,/\.\/src\/turn-compiler\.js\?v=38000/);
  assert.match(app,/\.\/src\/adventure-engine\.js\?v=38000/);
  assert.match(app,/\.\/src\/contextual-actions\.js\?v=38000/);
  assert.match(app,/\.\/src\/world-creation\.js\?v=37001/);
+ assert.match(client,/\.\/world-compiler\.js\?v=38001/);
  assert.match(client,/\.\/turn-compiler\.js\?v=38000/);
  assert.match(client,/\.\/ai-runtime-contracts\.js\?v=38000/);
  assert.match(client,/blueprintProfile\.mustExist 是硬性世界要素/);

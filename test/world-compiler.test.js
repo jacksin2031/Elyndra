@@ -110,6 +110,19 @@ test("linked core agents cannot drift from the Engine-owned world identity",()=>
  assert.deepEqual(coreWaveIssues(identity,rules,anchor,core),[])
 });
 
+
+test("identity fallback never turns World Constitution labels into worldName or worldTheme",()=>{
+ const expected={worldviewMode:"style",genre:"蒸汽魔法",scale:"中型",danger:3,magic:3,politics:3,prompt:"硬性必須存在：人工智慧、網絡通訊、機器人",blueprintProfile:{mustExist:["人工智慧","網絡通訊","機器人"]}};
+ const seed={worldCreationSeed:"wc-debug-seed",prompt:"硬性必須存在：人工智慧、網絡通訊、機器人"};
+ const fallback=normalizeWorldIdentity({},expected,seed);
+ assert.doesNotMatch(fallback.worldName,/硬性|必須存在|禁止出現|可以存在/);
+ assert.doesNotMatch(fallback.worldTheme,/^硬性必須存在[:：]/);
+ assert.match(fallback.worldTheme,/人工智慧|網絡通訊|機器人/);
+ const poisoned=normalizeWorldIdentity({worldName:"硬性必須存在界",worldTheme:"硬性必須存在：人工智慧、網絡通訊"},expected,seed);
+ assert.doesNotMatch(poisoned.worldName,/硬性必須存在/);
+ assert.doesNotMatch(poisoned.worldTheme,/^硬性必須存在[:：]/)
+});
+
 test("identity fallback construction always produces complete seed compliance rows",()=>{
  const expected={worldviewMode:"ai",genre:"AI_DECIDES",scale:"AI_DECIDES",danger:null,magic:null,politics:null,prompt:""};
  const identity=normalizeWorldIdentity({},expected,{});

@@ -125,6 +125,28 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
 
 const lvl=v=>Math.max(1,Math.min(5,Math.round(Number(v)||3)));
 const scale=v=>["小型","中型","大型"].includes(v)?v:"中型";
+const constraintMarker=/^(?:硬性)?(?:必須存在|可以存在|禁止出現|必須|禁止|REQUIRE|ALLOW|FORBID)\s*[:：]/i;
+const constraintLeak=v=>constraintMarker.test(text(v))||/(?:硬性)?必須存在界|禁止出現界|可以存在界/.test(text(v));
+function stableHash(value){let h=2166136261;for(const ch of String(value||"")){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function fallbackWorldName(genre,seed={}){
+ const pools={
+  "王道奇幻":["艾爾諾","維爾莎","拉米爾","索恩提亞"],
+  "黑暗奇幻":["灰燼環","烏夜界","斷誓域","暮痕界"],
+  "東方幻想":["玄霄","雲荒","瀾洲","曜川"],
+  "蒸汽魔法":["銅霧聯域","齒輪穹界","蒸星境","鐵虹環"],
+  "末日異世界":["餘燼地平","斷日界","灰潮域","殘光環"],
+  "自訂世界":["遠序界","歧光域","裂穹環","萬象境"]
+ };
+ const pool=pools[genre]||pools["自訂世界"],key=seed.worldCreationSeed||seed.masterSeed||seed.prompt||genre;
+ return pool[stableHash(key)%pool.length]
+}
+function fallbackWorldTheme(genre,expected={},seed={}){
+ const profile=expected.blueprintProfile||seed.blueprintProfile||seed.creationV2?.blueprintProfile||{},custom=text(profile.customStyleDescription,180);
+ if(custom&&!constraintLeak(custom))return custom;
+ const req=(Array.isArray(profile.mustExist)?profile.mustExist:[]).map(x=>text(x,40)).filter(Boolean);
+ if(req.length)return `${req.slice(0,3).join("、")}共同塑造文明運作、衝突與生存規則`;
+ return `${genre}世界中失序法則下的文明生存`
+}
 export function normalizeWorldIdentity(identity,expected={},seed={}){
  const raw=obj(identity)?identity:{},auto=expected.worldviewMode==="ai";
  const genre=auto?(text(raw.genre)||"奇幻異世界"):text(expected.genre)||"奇幻異世界";
@@ -132,8 +154,8 @@ export function normalizeWorldIdentity(identity,expected={},seed={}){
  const danger=auto?lvl(raw.danger):lvl(expected.danger);
  const magic=auto?lvl(raw.magic):lvl(expected.magic);
  const politics=auto?lvl(raw.politics):lvl(expected.politics);
- const worldTheme=text(raw.worldTheme)||text(seed.prompt)||`${genre}世界中失序法則下的文明生存`;
- const worldName=text(raw.worldName)||`${worldTheme.slice(0,6)}界`;
+ const rawTheme=text(raw.worldTheme),worldTheme=rawTheme&&!constraintLeak(rawTheme)?rawTheme:fallbackWorldTheme(genre,expected,seed);
+ const rawName=text(raw.worldName),worldName=rawName&&!constraintLeak(rawName)?rawName:fallbackWorldName(genre,seed);
  return {worldName,worldTheme,playerName:text(raw.playerName)||text(seed.playerName),genre,scale:resolvedScale,danger,magic,politics,premise:text(raw.premise)||`「${worldTheme}」塑造文明、危機與日常生存規則。`}
 }
 export function buildSeedComplianceFromIdentity(identity,expected={}){

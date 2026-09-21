@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=340";
 import {seedDirective} from "./seed-contract.js?v=37000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=37000";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=38001";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=38000";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=35000";
@@ -49,26 +49,47 @@ function compactRetryArgs(args={},reason=""){
  const maxOutputTokens=empty?Math.min(3200,Math.max(1200,Math.round(base*1.6))):timedOut?Math.max(500,Math.min(1600,Math.round(base*.85))):Math.min(2200,Math.max(base,Math.round(base*1.15)));
  return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
 }
+function generationCircuit(diagnostics=activeGenerationDiagnostics){
+ if(!diagnostics)return {timeoutCount:0,open:false,openedAt:0,stage:""};
+ diagnostics.providerCircuit??={timeoutCount:0,open:false,openedAt:0,stage:""};
+ return diagnostics.providerCircuit
+}
+function noteGenerationTimeout(stage,reason){
+ if(!/AI_TIMEOUT/.test(String(reason||"")))return;
+ const circuit=generationCircuit();circuit.timeoutCount+=1;
+ if(circuit.timeoutCount>=2&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=stage}
+}
+function generationCircuitOpen(diagnostics=activeGenerationDiagnostics){return diagnostics?.providerCircuit?.open===true}
+function worldStageFallback(fallback){return structuredClone(typeof fallback==="function"?fallback():fallback)}
 async function resilientWorldStage(stage,args,fallback){
  const startedAt=Date.now();
+ if(generationCircuitOpen()&&fallback!==undefined){
+  recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason:"PROVIDER_TIMEOUT_CIRCUIT_OPEN",latencyMs:0,attempts:1,fallbackUsed:true});
+  return worldStageFallback(fallback)
+ }
  try{
   const value=await worldStage(stage,args);
   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",latencyMs:Date.now()-startedAt,attempts:1});
   return value
  }catch(err){
-  const firstReason=err?.message||String(err);
+  const firstReason=err?.message||String(err);noteGenerationTimeout(stage,firstReason);
   if(!compilerRecoverable(err)){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FAILED",reason:firstReason,latencyMs:Date.now()-startedAt,attempts:1});
    throw err
+  }
+  const noTimeoutRetry=args?.retryOnTimeout===false&&/AI_TIMEOUT/.test(firstReason);
+  if(noTimeoutRetry||generationCircuitOpen()){
+   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason:firstReason+(generationCircuitOpen()?" | PROVIDER_TIMEOUT_CIRCUIT_OPEN":""),latencyMs:Date.now()-startedAt,attempts:1,fallbackUsed:true});
+   return worldStageFallback(fallback)
   }
   try{
    const value=await worldStage(stage,compactRetryArgs(args,firstReason));
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
    return value
   }catch(retryErr){
-   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;
+   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;noteGenerationTimeout(stage,retryReason);
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,latencyMs:Date.now()-startedAt,attempts:2,fallbackUsed:true});
-   return structuredClone(typeof fallback==="function"?fallback():fallback)
+   return worldStageFallback(fallback)
   }
  }
 }
@@ -124,6 +145,7 @@ function castFallback(anchor,history,region,society){
 }
 
 async function recoverFallbackWorldCandidate(candidate,diagnostics,report){
+ if(generationCircuitOpen(diagnostics)){diagnostics.recovery={attempted:false,succeeded:false,reason:"PROVIDER_TIMEOUT_CIRCUIT_OPEN",finishedAt:Date.now()};return candidate}
  const before=finalizeGenerationDiagnostics(diagnostics);
  const stageRows=Object.entries(before.stages||{}),fallbackStages=stageRows.filter(([,row])=>row?.source==="FALLBACK").map(([stage])=>stage);
  if(fallbackStages.length<4||fallbackStages.length*2<Math.max(1,stageRows.length))return candidate;
@@ -145,6 +167,7 @@ async function recoverFallbackWorldCandidate(candidate,diagnostics,report){
 }
 
 async function evaluateWorldQuality(candidate,diagnostics){
+ if(generationCircuitOpen(diagnostics))return fallbackWorldEvaluation(candidate,diagnostics,"PROVIDER_TIMEOUT_CIRCUIT_OPEN");
  try{
   const raw=await worldStage("QUALITY_CRITIC",{
    timeoutMs:50000,maxOutputTokens:1500,temperature:.25,
@@ -158,6 +181,7 @@ async function evaluateWorldQuality(candidate,diagnostics){
 }
 async function reviewAndRepairWorldCandidate(candidate,diagnostics,report){
  let current=structuredClone(candidate),evaluation=await evaluateWorldQuality(current,diagnostics),repairHistory=[];
+ if(generationCircuitOpen(diagnostics)){current.generationDiagnostics=finalizeGenerationDiagnostics(diagnostics);current.worldQuality={...evaluation,repairHistory,skippedAIRepair:true};return current}
  for(let pass=1;pass<=2&&evaluation.overall<80&&evaluation.findings.some(x=>x.requiresRegeneration);pass++){
   report(85,"AI 世界評審與修復",`世界品質 ${evaluation.overall}/100；正在定點修復第 ${pass} 輪，不重寫已鎖定歷史、Seed Contract 或 Timeline 時間窗口`);
   let repair;
@@ -403,14 +427,14 @@ export async function generateRegionExpansion(state,reason="player_exploration",
  const payload=regionExpansionPayload(state,reason);if(!hasDirectAI())return null;
  const signal=options?.signal;
  const expansion=await worldStage("RUNTIME_EXPANSION",{
-  signal,timeoutMs:90000,maxOutputTokens:1800,temperature:.65,
+  signal,timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1800,temperature:.65,
   system:'你是 Elyndra Progressive World Architect。world.seedContract 是不可違反的玩家世界設定；新內容必須保持同一世界因果。每個新 Location、NPC、Faction 都必須提供至少1個有效 historyRefs，且只能引用 directorHistory 中存在的 HIST id；不得只在 prose 提到歷史。每個新地點／勢力要有 culture 與 trade；每個地點要有 weatherProfile，affinities / suppressions 只可引用既有 Weather id。需要鑰匙、通行證、證據或先前事件才能進入的地點，可加入 accessRequirements，type 只可 ITEM_OWNED|ITEM_USED|ITEM_SHOWN|ITEM_GIVEN|FACT_KNOWN|EVENT_OCCURRED，id 必須是具體物品名稱／既有 fact id／既有 event type，hint 要用玩家可理解但不洩漏秘密的提示；不要為普通地點硬加門檻。不得假設全世界通用貨幣或同一文化。任何新 NPC 都要有 companionProfile。只輸出 JSON：{"region":"新區域名稱","reason":"與既有世界的因果連接","generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","historyRefs":["HIST-1"],"known":true或false,"accessRequirements":[{"type":"ITEM_OWNED","id":"具體物品名稱","hint":"需要相應通行物"}],"weatherProfile":{"zone":"...","affinities":["既有WTH id"],"suppressions":[]},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","historyRefs":["HIST-1"],"knowledgeScope":["既有 public fact"],"known":true或false,"companionProfile":{"joinThreshold":35,"leaveThreshold":10,"motives":[],"boundaries":[]},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","historyRefs":["HIST-1"],"known":false,"culture":{"identity":"..."},"trade":{"mode":"barter","currencies":[],"commonBarter":[],"foreignAcceptance":[],"priceCulture":"...","questReward":0,"combatReward":0},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","historyRefs":["HIST-1"],"known":true或false,"evidenceKeywords":["線索"],"conditions":[],"target":2}]}}。最多2地點、2 NPC、1勢力、1支線。不得重建 existing、不得改寫 World Bible、不得洩漏 hidden secrets。',
   user:JSON.stringify(payload)
  });
  let provenance=validateExpansionProvenance(state,expansion?.generation),quality;
  try{
   quality=normalizeWorldEvaluation(await worldStage("RUNTIME_QUALITY_CRITIC",{
-   signal,timeoutMs:40000,maxOutputTokens:900,temperature:.2,
+   signal,timeoutMs:25000,retryOnTimeout:false,maxOutputTokens:900,temperature:.2,
    system:"你是 Elyndra Runtime World Critic。評估今次 expansion 與既有世界的因果一致性、歷史連結、文化差異、可玩性與模板化程度。overall 0-100；findings 最多5項。historyRefs 缺失或無效必須列 HIGH。只輸出與 World Critic 相同 JSON 格式。",
    user:JSON.stringify({payload,expansion,provenance})
   }),{source:"AI"})
@@ -421,7 +445,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
  if(!provenance.valid||quality.overall<75){
   try{
    const repaired=await worldStage("RUNTIME_REPAIR",{
-    signal,timeoutMs:55000,maxOutputTokens:1500,temperature:.4,
+    signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1500,temperature:.4,
     system:"你是 Elyndra Runtime Repair Architect。只修正這次 expansion，不可改既有 Canon。保留既有實體名稱與 region，補足有效 historyRefs、文化／交易／lore 深度及具體內容。不得創造 directorHistory 以外的 history id。只輸出完整 {generation:{...}} 修正版。",
     user:JSON.stringify({payload,expansion,quality,provenance})
    });
