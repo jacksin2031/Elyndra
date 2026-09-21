@@ -16,18 +16,18 @@ test("main UI exposes a fixed bottom-right version badge from APP_VERSION",async
  assert.match(html,/id="versionBadge" class="version-badge"/);
  assert.match(css,/\.version-badge\{position:fixed;right:/);
  assert.match(css,/bottom:/);
- assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=310"/);
+ assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=311"/);
  assert.match(app,/versionBadge\.textContent=\`v\$\{APP_VERSION\}\`/);
 });
 
-test("v0.31.0 generated UI assets are cache-busted independently from compiler modules",async()=>{
+test("v0.31.1 HD UI assets are cache-busted independently from Agnes and recovery modules",async()=>{
  const [html,app]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/styles\.css\?v=292/);
- assert.match(html,/app\.js\?v=310/);
- assert.match(app,/\.\/src\/version\.js\?v=310/);
+ assert.match(html,/styles\.css\?v=311/);
+ assert.match(html,/app\.js\?v=311/);
+ assert.match(app,/\.\/src\/version\.js\?v=311/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=310/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=300/);
  for(const mod of ["world-engine","world-registry"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
