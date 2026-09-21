@@ -8,8 +8,8 @@ import {stateDirectorSystem} from "../src/ai-runtime-contracts.js";
 export default async function handler(req,res){
  if(!methodGuard(req,res))return;
  try{
-  const {action,intent,roll,snapshot,directorMode:requestedMode}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
-  const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot}),directorMode=requestedMode||turnDirectorMode(action,roll,snapshot),stateMode=directorMode==="DEEP"?"DEEP":"FAST";
+  const {action,intent,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
+  const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot}),directorMode=turnDirectorMode(action,roll,snapshot),stateMode=directorMode==="DEEP"?"DEEP":"FAST";
   const input={action,intent:actionIntent,kernel,snapshot:stateMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
   const raw=await callModel({system:stateDirectorSystem(stateMode),user:JSON.stringify(input),temperature:stateMode==="FAST"?.2:.4,timeoutMs:stateMode==="FAST"?30000:50000,maxOutputTokens:stateMode==="FAST"?900:1800});
   const state=parseModelJSON(raw),boundary=validateKernelBoundaries(state,kernel);if(!boundary.valid)return json(res,422,{error:"TURN_OUTCOME_KERNEL_VIOLATION",details:boundary.errors});
