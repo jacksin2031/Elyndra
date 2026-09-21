@@ -74,7 +74,7 @@ function seal(state,row){
  return {...x,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:Array.isArray(state.events)?state.events.length:0,targetId:x.targetId||null}}
 }
 export function buildContextualActionSet(state,input=[]){
- const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&x.requirementsSatisfied!==false),8);
+ const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&x.requirementsSatisfied!==false&&(x.source!=="AI"||Boolean(x.causalBasis))),8);
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))||progressionSuggestion(state);
  const personalized=personalizedSuggestion(state);
  const main=[];
