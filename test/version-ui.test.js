@@ -28,7 +28,7 @@ test("v0.40.0 refreshes causal-world runtime without invalidating stable creatio
  assert.match(html,/app\.js\?v=40000/);
  assert.match(app,/\.\/src\/version\.js\?v=40000/);
  assert.match(app,/\.\/src\/world-engine\.js\?v=40000/);
- for(const path of ["ai-client","adventure-engine","game-engine","world-simulation","npc-conversation","world-impact","item-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=39000"),path);
+ for(const path of ["adventure-engine","game-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=40000"),path);\n for(const path of ["ai-client","world-simulation","npc-conversation","world-impact","item-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=39000"),path);\n assert.match(app,/\.\/src\/combat-engine\.js\?v=40000/);
  assert.match(app,/\.\/src\/world-creation\.js\?v=37001/);
  assert.match(app,/\.\/src\/contextual-actions\.js\?v=38003/)
 });
