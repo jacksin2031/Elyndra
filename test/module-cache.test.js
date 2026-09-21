@@ -11,11 +11,13 @@ test("every browser module import is explicitly cache-versioned",async()=>{
 });
 
 test("v0.42.0 refreshes the causal Future dependency chain without invalidating StatePatch",async()=>{
- const [html,app,simulation,game,npc,npcDialogue,futureRuntime,historyFuture,client,storage]=await Promise.all([
+ const [html,app,simulation,game,combat,adventure,npc,npcDialogue,futureRuntime,historyFuture,client,storage]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),
   readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),
   readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/future-runtime.js",import.meta.url),"utf8"),
@@ -27,9 +29,13 @@ test("v0.42.0 refreshes the causal Future dependency chain without invalidating 
  assert.match(app,/\.\/src\/version\.js\?v=42000/);
  assert.match(app,/\.\/src\/world-simulation\.js\?v=42000/);
  assert.match(app,/\.\/src\/game-engine\.js\?v=42000/);
+ assert.match(app,/\.\/src\/combat-engine\.js\?v=42000/);
+ assert.match(app,/\.\/src\/adventure-engine\.js\?v=42000/);
  assert.match(app,/\.\/src\/npc-conversation\.js\?v=42000/);
  assert.match(simulation,/\.\/future-runtime\.js\?v=42000/);
  assert.match(game,/\.\/world-simulation\.js\?v=42000/);
+ assert.match(combat,/\.\/world-simulation\.js\?v=42000/);
+ assert.match(adventure,/\.\/combat-engine\.js\?v=42000/);
  assert.match(npc,/\.\/world-simulation\.js\?v=42000/);
  assert.match(npcDialogue,/\.\/world-simulation\.js\?v=42000/);
  assert.match(futureRuntime,/\.\/history-future\.js\?v=42000/);
