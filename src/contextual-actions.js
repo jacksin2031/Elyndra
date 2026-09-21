@@ -77,7 +77,9 @@ function fallbackByApproach(state,approach){
  if(approach==="BOLD")return normalizeContextualSuggestion({label:"冒險靠近最明顯的危險源",action:`直接靠近${loc}目前最明顯的危險或阻礙，嘗試在被迫撤退前確認它後面是否有可利用的通路或線索`,kind:"RISKY",risk:"HIGH",skillHint:"敏捷 / 體能",approach:"BOLD",consequenceHint:"可能受傷或暴露位置",causalBasis:"玩家可以選擇主動承擔場景風險",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`先觀察${loc}的出入口與新痕跡`,action:`保持可撤退距離，觀察${loc}的出入口、人流與最新痕跡，先確認哪個方向最值得行動`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前位置可直接觀察",requirementsSatisfied:true,source:"ENGINE"})
 }
-function sceneEventCount(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL").length}\nfunction contextSealCurrent(state,v){\n if(!v)return false;
+function sceneEventCount(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL").length}
+function contextSealCurrent(state,v){
+ if(!v)return false;
  return String(v.worldId||"")===String(state.world?.id||"")
   &&String(v.location||"")===String(state.player?.location||"")
   &&Number(v.day)===(Number(state.world?.state?.day)||1)
