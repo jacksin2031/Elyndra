@@ -396,7 +396,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
   }).then(parseJSON);
   const stateSync=directChat({
    aiTask:stateMode==="DEEP"?"turn_state_deep":"turn_state_fast",
-   timeoutMs:stateMode==="DEEP"?45000:28000,
+   timeoutMs:stateMode==="DEEP"?45000:28000,retryOnTimeout:false,
    maxOutputTokens:stateMode==="DEEP"?1800:900,
    temperature:stateMode==="DEEP"?.4:.2,
    system:stateDirectorSystem(stateMode),
