@@ -45,6 +45,7 @@ export function validateSaveState(s){
  const errors=[];
  if(!obj(s))return {valid:false,errors:["STATE_INVALID"]};
  if(!obj(s.world)||!s.world.id||!s.world.name)errors.push("WORLD_INVALID");
+ const sync=s.stateSync;if(sync!=null&&(!obj(sync)||!Number.isInteger(Number(sync.revision))||Number(sync.revision)<0||!arr(sync.history||[])))errors.push("STATE_SYNC_RUNTIME_INVALID");
  if(!obj(s.world?.state)||!finite(s.world?.state?.day)||s.world.state.day<1)errors.push("WORLD_STATE_INVALID");
  const clock=s.world?.state?.clock;if(clock!=null&&(!obj(clock)||!finite(clock.totalMinutes)||clock.totalMinutes<0||!Number.isInteger(clock.day)||clock.day<1||!Number.isInteger(clock.hour)||clock.hour<0||clock.hour>23||!Number.isInteger(clock.minute)||clock.minute<0||clock.minute>59))errors.push("CLOCK_INVALID");
  const sim=s.world?.state?.simulation;if(sim!=null&&(!obj(sim)||!bounded(sim.tension)||!finite(sim.lastEventMinute)||!finite(sim.lastTickMinute??0)||!Number.isInteger(sim.npcCursor??0)||!Number.isInteger(sim.factionCursor??0)||!obj(sim.flags||{})))errors.push("SIMULATION_INVALID");

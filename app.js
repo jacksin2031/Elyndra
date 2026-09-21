@@ -1,13 +1,13 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=40000";
+import {APP_VERSION} from "./src/version.js?v=41000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=40000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,finalizeTurnAIJobs,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=39000";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=38000";
-import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=40000";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=41000";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=41000";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=41000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=40000";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=40000";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=41000";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=39000";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
@@ -43,17 +43,18 @@ import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentIte
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=40000";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=41000";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=340";
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions,sessionCheckpoint} from "./src/player-experience.js?v=35000";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38003";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=41000";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
 window.addEventListener("error",e=>recordDebug("WINDOW_ERROR",{message:e.message,filename:e.filename,line:e.lineno,column:e.colno}));
 window.addEventListener("unhandledrejection",e=>recordDebug("UNHANDLED_REJECTION",{message:String(e.reason?.message||e.reason||"Promise failed")}));
-const foregroundQueue=[],MAX_FOREGROUND_QUEUE=3;let foregroundDraining=false;
 const deferredDirector={timer:0,running:false,controller:null,queue:[]};
+const nonblockingScene={controller:null,revision:null,worldId:null};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false,failures:0,cooldownUntil:0};
 let gameplayDebugSnapshot=null;
 function gameplayDebugClock(state){
@@ -117,7 +118,38 @@ function preemptBackgroundWorldEvolution(){
 function preemptDeferredDirector(){
  const ctrl=deferredDirector.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
 }
-function preemptBackgroundAI(){preemptBackgroundWorldEvolution();preemptDeferredDirector()}
+function preemptNonblockingScene(){
+ const ctrl=nonblockingScene.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Newer player action has priority","AbortError"));
+ nonblockingScene.controller=null;nonblockingScene.revision=null;nonblockingScene.worldId=null
+}
+function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptDeferredDirector()}
+function commitStatePatch(state,patch,plan,context={}){
+ const valid=validateStatePatch(patch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
+ if(!Array.isArray(patch.operations)||!patch.operations.length)return {applied:false,empty:true,revision:currentStateRevision(state)};
+ const revision=assessPatchRevision(state,patch,plan);if(!revision.ok)return {applied:false,stale:true,...revision};
+ const candidate=statePatchToCandidate(patch,state);applyTurnCandidate(state,candidate,{...context,directorMode:plan.mode});
+ const next=bumpStateRevision(state,"STATE_PATCH_"+plan.mode);
+ return {applied:true,rebased:revision.rebased===true,rebasedFrom:revision.rebasedFrom??null,revision:next,operations:patch.operations.length}
+}
+function applyPlayerActionScene(scene,{worldId,baseRevision,roll,action,previousSuggestions=[],previousSuggestionIntents=[]}={}){
+ if(!scene||!gameState||gameState.world?.id!==worldId||currentStateRevision(gameState)!==baseRevision)return false;
+ const preview=sceneTurnPreview(scene,roll,{action,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents});
+ if(preview.narrative)gameState.narrative=preview.narrative;if(preview.sceneTitle)gameState.sceneTitle=preview.sceneTitle;
+ if(preview.suggestionIntents?.length){const contextual=buildContextualActionSet(gameState,preview.suggestionIntents);gameState.suggestionIntents=contextual.all;gameState.suggestions=contextual.all.map(x=>x.label)}
+ else if(preview.suggestions?.length){const contextual=buildContextualActionSet(gameState,preview.suggestions);gameState.suggestionIntents=contextual.all;gameState.suggestions=contextual.all.map(x=>x.label)}
+ return true
+}
+function startNonblockingPlayerNarration({action,roll,snapshot,plan,intent,previousSuggestions,previousSuggestionIntents,startedAt}){
+ preemptNonblockingScene();const ctrl=new AbortController(),worldId=gameState?.world?.id,baseRevision=Number(plan?.baseRevision)||currentStateRevision(gameState);
+ nonblockingScene.controller=ctrl;nonblockingScene.worldId=worldId;nonblockingScene.revision=baseRevision;updateAIStatusBadge("Player Action AI 正在背景生成玩家可見結果");
+ const jobs=startTurnAIJobs(action,roll,snapshot,{intent,stateSyncPlan:plan,baseRevision,signal:ctrl.signal});
+ jobs.playerAction.then(async scene=>{
+  if(ctrl.signal.aborted)return;const applied=applyPlayerActionScene(scene,{worldId,baseRevision,roll,action,previousSuggestions,previousSuggestionIntents});
+  recordDebug(applied?"PLAYER_ACTION_AI_COMPLETED":"PLAYER_ACTION_AI_STALE_DISCARDED",{action,mode:plan.mode,baseRevision,currentRevision:gameState?currentStateRevision(gameState):null,elapsedMs:Date.now()-startedAt});
+  if(applied){await persist();await refresh()}
+ }).catch(e=>{if(!ctrl.signal.aborted)recordDebug("PLAYER_ACTION_AI_FAILED",{action,mode:plan.mode,error:e?.message||String(e),elapsedMs:Date.now()-startedAt})}).finally(()=>{if(nonblockingScene.controller===ctrl){nonblockingScene.controller=null;nonblockingScene.worldId=null;nonblockingScene.revision=null;updateAIStatusBadge()}});
+ return jobs
+}
 function removePersistedDeferredTurn(taskId){
  if(!gameState?.world?.deferredTurns||!taskId)return;
  gameState.world.deferredTurns=gameState.world.deferredTurns.filter(x=>x.id!==taskId)
@@ -137,16 +169,18 @@ function resumeDeferredDirectorQueue(){
 }
 async function runDeferredDirector(){
  if(!gameState||!aiStatus.aiConfigured||deferredDirector.running||!deferredDirector.queue.length)return;
- if(aiBusy||turnSyncBusy||document.hidden){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},1500);return}
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||document.hidden){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},1500);return}
  if(worldBackground.running){preemptBackgroundWorldEvolution();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
  const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=new AbortController(),debugStarted=Date.now();
  deferredDirector.running=true;deferredDirector.controller=ctrl;
  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_STARTED",visibility:"INTERNAL",action:task.action,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("DEFERRED_TURN_STARTED",{action:task.action,queued:deferredDirector.queue.length});
  try{
-  const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal,intent:task.intent});
+  const snapshot=buildSnapshot(gameState),basePlan=task.plan||planStateSync({action:task.action,intent:task.intent||{},roll:task.roll||{},snapshot}),plan=deferredPlanFrom(basePlan,currentStateRevision(gameState));
+  const patch=await generateStatePatch(task.action,task.roll,snapshot,plan,{signal:ctrl.signal,intent:task.intent});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
-  if(effects)applyDeferredTurnEffects(gameState,effects,{action:task.action,roll:task.roll});
-  deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);recordDebug("DEFERRED_TURN_APPLIED",{action:task.action,elapsedMs:Date.now()-debugStarted,remaining:deferredDirector.queue.length});await persist();await refresh()
+  const committed=patch?commitStatePatch(gameState,patch,plan,{action:task.action,roll:task.roll}):{applied:false,empty:true};
+  if(committed.stale)throw new Error("STATE_PATCH_STALE");
+  deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);recordDebug("DEFERRED_TURN_APPLIED",{action:task.action,elapsedMs:Date.now()-debugStarted,remaining:deferredDirector.queue.length,operations:patch?.operations?.length||0,revision:currentStateRevision(gameState),rebased:committed.rebased===true});await persist();await refresh()
  }catch(e){
   if(!ctrl.signal.aborted){
    task.attempts=(Number(task.attempts)||0)+1;
@@ -168,7 +202,7 @@ function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
 }
 async function runBackgroundWorldEvolution(){
  if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
- if(aiBusy||turnSyncBusy||deferredDirector.running||deferredDirector.queue.length||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
  const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),ctrl=new AbortController(),debugStarted=Date.now();
@@ -177,7 +211,7 @@ async function runBackgroundWorldEvolution(){
  try{
   const ex=await generateRegionExpansion(gameState,reason,{signal:ctrl.signal});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
-  if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist()}
+  if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist()}
  }catch(e){
   if(!ctrl.signal.aborted){
    const error=e?.message||String(e),timedOut=/AI_TIMEOUT/.test(error);worldBackground.failures=Math.min(6,(Number(worldBackground.failures)||0)+1);
@@ -196,10 +230,11 @@ function setPlayerActionControlsLocked(locked,reason=""){
  const free=$("#freeAction");if(free&&on&&reason)free.placeholder=reason;else if(free&&!on&&!gameState?.combat?.active)free.placeholder="自由行動：描述你想做的事……"
 }
 function updateAIStatusBadge(label=""){
- const badge=$("#aiBadge"),queued=foregroundQueue.length;if(!badge)return;
+ const badge=$("#aiBadge");if(!badge)return;
  if(aiBusy&&turnSyncBusy){badge.textContent="PLAYER ACTION";badge.classList.add("thinking");badge.title=label||"Player Action AI 正在優先處理玩家可見結果"}
  else if(aiBusy){badge.textContent="AI THINKING";badge.classList.add("thinking");badge.title=label||"AI 正在處理目前行動…"}
  else if(turnSyncBusy){badge.textContent="STATE SYNC";badge.classList.add("thinking");badge.title=turnSyncLabel||"State Sync AI 正在提交必要 Canon；完成後立即交還玩家控制"}
+ else if(nonblockingScene.controller){badge.textContent="PLAYER ACTION";badge.classList.add("thinking");badge.title=label||"Player Action AI 正在背景補充敘事，不會鎖定玩家操作"}
  else{badge.textContent=aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.remove("thinking");badge.title=""}
 }
 function setTurnSyncing(on,label="AI 正在同步必要世界狀態…"){
@@ -208,24 +243,6 @@ function setTurnSyncing(on,label="AI 正在同步必要世界狀態…"){
  else setPlayerActionControlsLocked(aiBusy,"自由行動：描述你想做的事……");
  const n=$("#narrative");if(turnSyncBusy&&n)n.dataset.syncing=turnSyncLabel;else if(n)delete n.dataset.syncing;
  updateAIStatusBadge()
-}
-function queueForegroundTask(task){
- if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}
- const queued={...task,queuedAt:Date.now()};foregroundQueue.push(queued);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUED",visibility:"INTERNAL",queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length,day:gameState?.world?.state?.day||1,at:queued.queuedAt});recordDebug("ACTION_QUEUED",{queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length});updateAIStatusBadge();
- const free=$("#freeAction");if(free&&!gameState?.combat?.active)free.placeholder=`已排入下一步（${foregroundQueue.length}）：狀態同步完成後自動執行`;
- return true
-}
-async function drainForegroundQueue(){
- if(foregroundDraining||aiBusy||turnSyncBusy||!gameState||!foregroundQueue.length)return;
- foregroundDraining=true;
- try{
-  while(gameState&&foregroundQueue.length&&!aiBusy&&!turnSyncBusy){
-   const next=foregroundQueue.shift(),waitMs=Math.max(0,Date.now()-Number(next.queuedAt||Date.now()));gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUE_DRAINED",visibility:"INTERNAL",queueType:next.type,action:next.customText||next.q||next.action||"",waitMs,day:gameState?.world?.state?.day||1,at:Date.now()});recordDebug("ACTION_QUEUE_DRAINED",{queueType:next.type,action:next.customText||next.q||next.action||"",waitMs,remaining:foregroundQueue.length});updateAIStatusBadge();
-   if(next.type==="action")await runAction(next.action,next.customText,next.options||{});
-   else if(next.type==="npc")await submitNpcConversation(next.npcId,next.q);
-   else if(next.type==="combat")await runCombatAction(next.action)
-  }
- }finally{foregroundDraining=false;updateAIStatusBadge()}
 }
 function setAIThinking(on,label="AI 正在思考…"){if(on)preemptBackgroundAI();aiBusy=on;updateAIStatusBadge(label);setPlayerActionControlsLocked(on||turnSyncBusy,on?"AI 正在處理你的行動…":turnSyncBusy?"STATE SYNC：完成後即可繼續行動":"");qsa("[data-action],.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const helperInput=$("#helperInput");if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
@@ -254,7 +271,7 @@ function scheduleGameStageFit(){
  gameStageFitFrame=requestAnimationFrame(fitGameStage)
 }
 function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));resumeDeferredDirectorQueue();scheduleWorldEvolution("gameplay_idle",1800)}}
-function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);ensurePlayerExperience(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
+function migrate(s){ensureStateSyncRuntime(s);ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);ensurePlayerExperience(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
 async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;updateAIStatusBadge();if(!gameState)return;migrate(gameState);recordGameplayStateChanges(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
@@ -278,12 +295,12 @@ function renderSuggestions(){
  $("#otherActionBtn")?.addEventListener("click",()=>{const form=$("#freeActionForm");form?.classList.toggle("hidden");if(form&&!form.classList.contains("hidden"))$("#freeAction")?.focus()});setPlayerActionControlsLocked(aiBusy||turnSyncBusy,turnSyncBusy?"STATE SYNC：完成後即可繼續行動":"")
 }
 function renderKnownNpcs(){const dock=$("#npcDock"),box=$("#knownNpcList");if(!dock||!box||!gameState)return;const npcs=ensureWorldRegistry(gameState).npcs.filter(x=>canInteractWithNpc(gameState,x)).slice(-6),comm=worldCommunication(gameState);dock.classList.toggle("hidden",!npcs.length);box.innerHTML=npcs.map(n=>{const tag=companionLabel(n),mode=npcInteractionMode(gameState,n),where=mode==="REMOTE"?`遠距 · ${comm.name}`:"附近";return `<button type="button" class="npc-mini" data-npc-id="${esc(n.id)}"><span>${esc((n.name||"?").slice(0,1))}</span><div><strong>${esc(n.name)}</strong><small>${esc(n.role||"")} · ${esc(where)}${tag?` · ${esc(tag)}`:""}</small></div></button>`}).join("");box.querySelectorAll("[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
-function openNpcPanel(npcId,answer=""){const npc=findNpc(gameState,npcId);if(!npc||npc.known!==true)return;const status=npc.companion?.status||"NONE",mode=npcInteractionMode(gameState,npc),interactive=Boolean(mode),local=isNpcPresent(gameState,npc),comm=worldCommunication(gameState),actions=interactive?[`<button class="primary" data-npc-chat="${esc(npc.id)}">${mode==="REMOTE"?`透過 ${esc(comm.name)} 聯絡`:"對話"}</button>`]:[`<span class="muted">目前沒有可用的聯絡方式。</span>`];if(local&&status==="OFFERED")actions.push(`<button class="secondary" data-companion="accept" data-npc-id="${esc(npc.id)}">接受同行</button>`);else if(local&&status==="ACTIVE")actions.push(`<button class="ghost" data-companion="leave" data-npc-id="${esc(npc.id)}">請求暫時離隊</button>`);else if(local)actions.push(`<button class="secondary" data-companion="invite" data-npc-id="${esc(npc.id)}">邀請同行</button>`);openModal(`<div class="eyebrow">NPC · ${esc(companionLabel(npc)||"未同行")}</div><h2>${esc(npc.name)}</h2><p>${esc(answer||npc.description||npc.role||"")}</p><div class="settings-actions">${actions.join("")}</div>`);$("#modalContent [data-npc-chat]")?.addEventListener("click",()=>openNpcConversation(npc.id));$("#modalContent [data-companion]")?.addEventListener("click",async e=>{const action=e.currentTarget.dataset.companion;let message="";if(action==="invite"){const r=inviteCompanion(gameState,npc.id);message=r.accepted?npc.name+" 接受了同行邀請。":npc.name+" 暫時沒有接受同行邀請。"}else if(action==="accept"){message=acceptCompanionOffer(gameState,npc.id)?npc.name+" 正式加入旅程。":"這個同行提議已經失效。"}else if(action==="leave"){message=dismissCompanion(gameState,npc.id)?npc.name+" 暫時離開了隊伍。":"目前無法離隊。"}await persist();await refresh();openNpcPanel(npc.id,message)})}
+function openNpcPanel(npcId,answer=""){const npc=findNpc(gameState,npcId);if(!npc||npc.known!==true)return;const status=npc.companion?.status||"NONE",mode=npcInteractionMode(gameState,npc),interactive=Boolean(mode),local=isNpcPresent(gameState,npc),comm=worldCommunication(gameState),actions=interactive?[`<button class="primary" data-npc-chat="${esc(npc.id)}">${mode==="REMOTE"?`透過 ${esc(comm.name)} 聯絡`:"對話"}</button>`]:[`<span class="muted">目前沒有可用的聯絡方式。</span>`];if(local&&status==="OFFERED")actions.push(`<button class="secondary" data-companion="accept" data-npc-id="${esc(npc.id)}">接受同行</button>`);else if(local&&status==="ACTIVE")actions.push(`<button class="ghost" data-companion="leave" data-npc-id="${esc(npc.id)}">請求暫時離隊</button>`);else if(local)actions.push(`<button class="secondary" data-companion="invite" data-npc-id="${esc(npc.id)}">邀請同行</button>`);openModal(`<div class="eyebrow">NPC · ${esc(companionLabel(npc)||"未同行")}</div><h2>${esc(npc.name)}</h2><p>${esc(answer||npc.description||npc.role||"")}</p><div class="settings-actions">${actions.join("")}</div>`);$("#modalContent [data-npc-chat]")?.addEventListener("click",()=>openNpcConversation(npc.id));$("#modalContent [data-companion]")?.addEventListener("click",async e=>{const action=e.currentTarget.dataset.companion;let message="";if(action==="invite"){const r=inviteCompanion(gameState,npc.id);message=r.accepted?npc.name+" 接受了同行邀請。":npc.name+" 暫時沒有接受同行邀請。"}else if(action==="accept"){message=acceptCompanionOffer(gameState,npc.id)?npc.name+" 正式加入旅程。":"這個同行提議已經失效。"}else if(action==="leave"){message=dismissCompanion(gameState,npc.id)?npc.name+" 暫時離開了隊伍。":"目前無法離隊。"}bumpStateRevision(gameState,"COMPANION_ACTION");await persist();await refresh();openNpcPanel(npc.id,message)})}
 function npcConversationMessages(npcId){if(!npcChatHistory.has(npcId))npcChatHistory.set(npcId,[]);return npcChatHistory.get(npcId)}
 function openNpcConversation(npcId){if(!gameState)return;const npc=findNpc(gameState,npcId),mode=npcInteractionMode(gameState,npc);if(!npc||!mode)return;const messages=npcConversationMessages(npcId),comm=worldCommunication(gameState),where=mode==="REMOTE"?"遠距 · "+comm.name:"就在附近";openModal(`<div class="npc-chat"><div class="npc-chat-head"><div class="npc-chat-avatar">${esc((npc.name||"?").slice(0,1))}</div><div><strong>${esc(npc.name)}</strong><small>${esc(npc.role||"人物")} · ${esc(where)}</small></div></div><div id="npcChatLog" class="npc-chat-log">${messages.length?messages.map(m=>`<div class="chat-bubble ${m.role==="player"?"player":"npc"}">${esc(m.text)}</div>`).join(""):`<div class="chat-bubble npc">${esc(npc.description||npc.role||"對方正等待你開口。")}</div>`}</div><div><p id="npcChatStatus" class="muted"></p><form id="npcChatForm" class="npc-chat-form"><input id="npcChatInput" maxlength="240" autocomplete="off" placeholder="對${esc(npc.name)}說些甚麼……"><button class="primary" type="submit" aria-label="送出">➤</button></form></div></div>`);const log=$("#npcChatLog");if(log)log.scrollTop=log.scrollHeight;$("#npcChatInput")?.focus();$("#npcChatForm")?.addEventListener("submit",async e=>{e.preventDefault();const input=$("#npcChatInput"),q=input?.value.trim();if(q)await submitNpcConversation(npcId,q)})}
-async function submitNpcConversation(npcId,q){preemptBackgroundAI();if(!gameState||!q)return;if(turnSyncBusy){recordDebug("PLAYER_NPC_ACTION_BLOCKED_STATE_SYNC",{npcId,q:String(q||"").slice(0,180)});return}if(aiBusy)return;const npc=findNpc(gameState,npcId),mode=npcInteractionMode(gameState,npc);if(!npc||!mode)return;const messages=npcConversationMessages(npcId);messages.push({role:"player",text:q});openNpcConversation(npcId);setAIThinking(true,`${mode==="REMOTE"?"正在建立遠距聯絡":"正在等待"} ${npc.name} 的回應…`);const status=$("#npcChatStatus");if(status)status.textContent="對方正在回應……";let answer=`${npc.name}沒有提供更多可以確認的資訊。`;try{if(aiStatus.aiConfigured)answer=await talkToDynamicNpc(gameState,npc,q,{mode,communication:worldCommunication(gameState)});const turn=applyNpcConversationTurn(gameState,npc,q,answer),suffix=turn.progressed?.length?"\n\n你從這段對話中確認到可推進任務的新線索。":"";messages.push({role:"npc",text:answer+suffix});await persist();await refresh()}catch(e){console.warn("NPC fallback",e);messages.push({role:"npc",text:answer})}finally{setAIThinking(false);openNpcConversation(npcId)}}
+async function submitNpcConversation(npcId,q){preemptBackgroundAI();if(!gameState||!q)return;if(turnSyncBusy){recordDebug("PLAYER_NPC_ACTION_BLOCKED_STATE_SYNC",{npcId,q:String(q||"").slice(0,180)});return}if(aiBusy)return;const npc=findNpc(gameState,npcId),mode=npcInteractionMode(gameState,npc);if(!npc||!mode)return;const messages=npcConversationMessages(npcId);messages.push({role:"player",text:q});openNpcConversation(npcId);setAIThinking(true,`${mode==="REMOTE"?"正在建立遠距聯絡":"正在等待"} ${npc.name} 的回應…`);const status=$("#npcChatStatus");if(status)status.textContent="對方正在回應……";let answer=`${npc.name}沒有提供更多可以確認的資訊。`;try{if(aiStatus.aiConfigured)answer=await talkToDynamicNpc(gameState,npc,q,{mode,communication:worldCommunication(gameState)});const turn=applyNpcConversationTurn(gameState,npc,q,answer);bumpStateRevision(gameState,"NPC_CONVERSATION");const suffix=turn.progressed?.length?"\n\n你從這段對話中確認到可推進任務的新線索。":"";messages.push({role:"npc",text:answer+suffix});await persist();await refresh()}catch(e){console.warn("NPC fallback",e);messages.push({role:"npc",text:answer})}finally{setAIThinking(false);openNpcConversation(npcId)}}
 function bindNpcLinks(){document.querySelectorAll("#modalContent .npc-link[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
-async function runCombatAction(action){preemptBackgroundAI();if(!gameState?.combat?.active)return;if(turnSyncBusy){recordDebug("PLAYER_COMBAT_ACTION_BLOCKED_STATE_SYNC",{action});return}if(aiBusy)return;const r=combatAction(gameState,action);gameState.narrative=r.summary||"戰鬥局勢發生了變化。";gameState.sceneTitle=deriveSceneTitle(gameState,action);renderRoll(r.roll);if(!gameState.combat?.active){gameState.suggestions=fallbackActionButtons("戰鬥結束")}await persist();await refresh()}
+async function runCombatAction(action){preemptBackgroundAI();if(!gameState?.combat?.active)return;if(turnSyncBusy){recordDebug("PLAYER_COMBAT_ACTION_BLOCKED_STATE_SYNC",{action});return}if(aiBusy)return;const r=combatAction(gameState,action);bumpStateRevision(gameState,"COMBAT_ACTION");gameState.narrative=r.summary||"戰鬥局勢發生了變化。";gameState.sceneTitle=deriveSceneTitle(gameState,action);renderRoll(r.roll);if(!gameState.combat?.active){gameState.suggestions=fallbackActionButtons("戰鬥結束")}await persist();await refresh()}
 function signed(n){const x=Number(n)||0;return x>0?`+${x}`:String(x)}
 function renderRoll(roll){$("#d20").textContent=roll.natural;const m=roll.modifiers||{},parts=[["能力",m.attribute],["技能",m.skill],["裝備",m.equipment],["夥伴",m.companion],["關係",m.relationship],["情境",m.situation],["天氣",m.weather]].filter(([,v])=>Number(v));const detail=parts.map(([k,v])=>`${k} ${signed(v)}`).join(" · ");$("#rollLabel").textContent=`D20 ${roll.natural} ${roll.bonus>=0?"+":"-"} ${Math.abs(roll.bonus)} = ${roll.total} / DC ${roll.dc}`;$("#rollResult").textContent=`${roll.grade.replaceAll("_"," ")}${roll.profile?.skillLabel?` · ${roll.profile.skillLabel}`:""}${detail?` · ${detail}`:""}${Number(roll.difficulty)?` · 難度 ${signed(roll.difficulty)}`:""}${roll.skillUp?` · 技能提升至 ${roll.skillUp.after}`:""}`;const box=$("#diceBox");if(box){box.classList.remove("rolling","roll-success","roll-fail");void box.offsetWidth;box.classList.add("rolling",Number(roll.total)>=Number(roll.dc)?"roll-success":"roll-fail");setTimeout(()=>box.classList.remove("rolling"),700)}}
 async function runAction(action,customText="",options={}){
@@ -291,7 +308,7 @@ async function runAction(action,customText="",options={}){
  if(turnSyncBusy){recordDebug("PLAYER_ACTION_BLOCKED_STATE_SYNC",{action:String(customText||action||"").slice(0,180)});return}
  if(aiBusy)return;
  if(gameState.combat?.active){gameState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}
- if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}
+ if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);bumpStateRevision(gameState,"DEFEAT_RECOVERY");gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}
  const requested=String(customText||action||"").trim()||"觀察目前環境",debugTurnStarted=Date.now(),prevalidatedAssessment=options?.suggestion?trustedSuggestionAssessment(gameState,options.suggestion):null;recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});if(markOpeningEngaged(gameState,requested))recordDebug("OPENING_HOOK_ENGAGED",{action:requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});
  let assessment=prevalidatedAssessment;if(assessment)recordDebug("SUGGESTED_ACTION_PREVALIDATED",{action:requested,kind:assessment.kind,progression:options.suggestion?.progression===true,risk:options.suggestion?.risk,approach:options.suggestion?.approach,source:assessment.source});if(!assessment)assessment=fastLocalActionAssessment(gameState,requested);
  if(!assessment){
@@ -311,9 +328,11 @@ async function runAction(action,customText="",options={}){
  const previousSuggestions=[...(gameState.suggestions||[])],previousSuggestionIntents=[...(gameState.suggestionIntents||[])],impactBefore=ensureWorldImpact(gameState).records.length;
  if(assessment?.verdict!=="BLOCK"){
   const localLore=resolveLocalLoreAction(gameState,effective);
-  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
+  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});bumpStateRevision(gameState,"LOCAL_LORE_ACTION");await persist();await refresh();return}
  }
- const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;recordDebug("ENGINE_ACTION_RESULT",{action:effective,blocked:Boolean(actionResult.blocked),deterministic:Boolean(actionResult.deterministic),roll:roll?{natural:roll.natural,total:roll.total,dc:roll.dc,grade:roll.grade,success:roll.success,kind:roll.profile?.kind}:null,elapsedMs:Date.now()-debugTurnStarted});
+ const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;
+ if(!actionResult.blocked)bumpStateRevision(gameState,actionResult.deterministic?"ENGINE_DETERMINISTIC_ACTION":"ENGINE_ACTION");
+ recordDebug("ENGINE_ACTION_RESULT",{action:effective,blocked:Boolean(actionResult.blocked),deterministic:Boolean(actionResult.deterministic),revision:currentStateRevision(gameState),roll:roll?{natural:roll.natural,total:roll.total,dc:roll.dc,grade:roll.grade,success:roll.success,kind:roll.profile?.kind}:null,elapsedMs:Date.now()-debugTurnStarted});
  if(actionResult.blocked||actionResult.deterministic){
   const itemResult=actionResult.ruleEffects?.item;
   if(actionResult.deterministic&&itemResult?.ok&&["ITEM_SHOWN","ITEM_GIVEN"].includes(itemResult.action)&&itemResult.npcId&&aiStatus.aiConfigured){
@@ -331,54 +350,62 @@ async function runAction(action,customText="",options={}){
  }
  renderRoll(roll);
  gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];
+ const turnWorldId=gameState.world?.id,turnSnapshot=buildSnapshot(gameState),baseRevision=currentStateRevision(gameState);
+ const syncPlan={...planStateSync({action:effective,intent:assessment?.actionIntent||{},roll,snapshot:turnSnapshot,ruleEffects:actionResult.ruleEffects}),baseRevision};
+ recordDebug("STATE_SYNC_PLAN",{action:effective,mode:syncPlan.mode,baseRevision,dirtyFlags:syncPlan.dirtyFlags,immediateCapabilities:syncPlan.immediateCapabilities,deferredCapabilities:syncPlan.deferredCapabilities,blocking:syncPlan.blocking});
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:effective,mode:syncPlan.mode,dirty:syncPlan.dirty,revision:baseRevision,day:gameState.world?.state?.day||1,at:Date.now()});
  await refresh();
- if(aiStatus.aiConfigured){
-  setAIThinking(true,"AI 正在判斷本回合需要的處理方式…");
-  try{
-   const label=effective,routing=await routeAction(label,gameState);
-   if(routing.needsGeneration){
-    const turnWorldId=gameState.world?.id,turnSnapshot=buildSnapshot(gameState),jobs=startTurnAIJobs(label,roll,turnSnapshot,{intent:assessment?.actionIntent});
-    const playerActionResult=jobs.playerAction.then(value=>({status:"fulfilled",value}),reason=>({status:"rejected",reason}));
-    const stateSyncResult=jobs.stateSync.then(value=>({status:"fulfilled",value}),reason=>({status:"rejected",reason}));
-    setTurnSyncing(true,"State Sync AI 正在同步必要 Canon；Player Action AI 會優先回傳玩家可見結果。");
-    setAIThinking(true,"PLAYER ACTION AI 正在優先處理你的行動…");
-    recordDebug("TURN_DUAL_AI_STARTED",{action:label,directorMode:jobs.directorMode,transport:jobs.transport,playerActionTask:"scene",stateSyncTask:jobs.stateMode});
-    let scene=null;
-    const playerResult=await playerActionResult;
-    if(playerResult.status==="fulfilled"){
-     scene=playerResult.value;
-     if(gameState&&gameState.world?.id===turnWorldId){
-      const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents});
-      if(preview.narrative)gameState.narrative=preview.narrative;
-      if(preview.sceneTitle)gameState.sceneTitle=preview.sceneTitle;
-      if(preview.suggestionIntents?.length){const contextual=buildContextualActionSet(gameState,preview.suggestionIntents);gameState.suggestionIntents=contextual.all;gameState.suggestions=contextual.all.map(x=>x.label)}else if(preview.suggestions?.length){const contextual=buildContextualActionSet(gameState,preview.suggestions);gameState.suggestionIntents=contextual.all;gameState.suggestions=contextual.all.map(x=>x.label)}
-      recordDebug("PLAYER_ACTION_AI_COMPLETED",{action:label,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport});
-      await refresh()
-     }
-    }else recordDebug("PLAYER_ACTION_AI_FAILED",{action:label,error:playerResult.reason?.message||String(playerResult.reason),elapsedMs:Date.now()-debugTurnStarted});
-    setAIThinking(false);
-    const stateResult=await stateSyncResult;
-    if(stateResult.status!=="fulfilled"){recordDebug("STATE_SYNC_AI_FAILED",{action:label,error:stateResult.reason?.message||String(stateResult.reason),elapsedMs:Date.now()-debugTurnStarted});throw stateResult.reason}
-    if(gameState?.world?.id===turnWorldId){
-     const candidate=finalizeTurnAIJobs(jobs,scene,stateResult.value,roll,turnSnapshot,label);
-     applyTurnCandidate(gameState,candidate,{action:label,roll});
-     gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});
-     recordDebug("STATE_SYNC_AI_COMPLETED",{action:label,directorMode:candidate.directorMode||"DEEP",elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport});
-     recordDebug("TURN_COMMIT",{action:label,directorMode:candidate.directorMode||"DEEP",elapsedMs:Date.now()-debugTurnStarted,foregroundQueue:foregroundQueue.length,deferredQueue:deferredDirector.queue.length});
-     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,intent:assessment?.actionIntent,queuedAt:Date.now()},3500)
-    }
-   }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label);gameState.suggestionIntents=[]}
-  }
-  catch(e){console.warn("AI turn state fallback",e);recordDebug("TURN_SYNC_DEGRADED",{action:effective,error:e?.message||String(e),elapsedMs:Date.now()-debugTurnStarted});if(!String(gameState.narrative||"").trim())gameState.narrative=localText;if(!String(gameState.sceneTitle||"").trim())gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
-  finally{if(aiBusy)setAIThinking(false)}
- }else gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];
- if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
- try{await persist();await refresh()}
- finally{
-  if(turnSyncBusy)setTurnSyncing(false);
-  scheduleWorldEvolution(effective||"player_exploration",5000);
-  void drainForegroundQueue()
+
+ if(!aiStatus.aiConfigured){
+  recordDebug("STATE_SYNC_SKIPPED_NO_PROVIDER",{action:effective,mode:syncPlan.mode,revision:baseRevision});await persist();await refresh();scheduleWorldEvolution(effective||"player_exploration",5000);return
  }
+ if(syncPlan.mode==="ENGINE_ONLY"){
+  recordDebug("STATE_SYNC_ENGINE_ONLY",{action:effective,revision:baseRevision,dirtyFlags:syncPlan.dirtyFlags});
+  startNonblockingPlayerNarration({action:effective,roll,snapshot:turnSnapshot,plan:syncPlan,intent:assessment?.actionIntent,previousSuggestions,previousSuggestionIntents,startedAt:debugTurnStarted});
+  await persist();await refresh();scheduleWorldEvolution(effective||"player_exploration",5000);return
+ }
+ if(syncPlan.mode==="DEFERRED"){
+  startNonblockingPlayerNarration({action:effective,roll,snapshot:turnSnapshot,plan:syncPlan,intent:assessment?.actionIntent,previousSuggestions,previousSuggestionIntents,startedAt:debugTurnStarted});
+  scheduleDeferredDirector({action:effective,roll,intent:assessment?.actionIntent,plan:syncPlan,queuedAt:Date.now()},1200);
+  recordDebug("STATE_SYNC_DEFERRED",{action:effective,revision:baseRevision,capabilities:syncPlan.capabilities});
+  await persist();await refresh();scheduleWorldEvolution(effective||"player_exploration",7000);return
+ }
+
+ try{
+  const jobs=startTurnAIJobs(effective,roll,turnSnapshot,{intent:assessment?.actionIntent,stateSyncPlan:syncPlan,baseRevision});
+  const playerActionResult=jobs.playerAction.then(value=>({status:"fulfilled",value}),reason=>({status:"rejected",reason}));
+  const stateSyncResult=jobs.stateSync.then(value=>({status:"fulfilled",value}),reason=>({status:"rejected",reason}));
+  setTurnSyncing(true,`State Sync ${syncPlan.mode} · ${syncPlan.dirty.join(" / ")||"minimal"}`);
+  setAIThinking(true,"PLAYER ACTION AI 正在優先處理你的行動…");
+  recordDebug("TURN_DUAL_AI_STARTED",{action:effective,directorMode:syncPlan.mode,transport:jobs.transport,playerActionTask:"scene",stateSyncTask:syncPlan.mode,baseRevision});
+  const playerResult=await playerActionResult;
+  if(playerResult.status==="fulfilled"){
+   const applied=applyPlayerActionScene(playerResult.value,{worldId:turnWorldId,baseRevision,roll,action:effective,previousSuggestions,previousSuggestionIntents});
+   recordDebug(applied?"PLAYER_ACTION_AI_COMPLETED":"PLAYER_ACTION_AI_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,currentRevision:currentStateRevision(gameState),elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport});
+   if(applied)await refresh()
+  }else recordDebug("PLAYER_ACTION_AI_FAILED",{action:effective,mode:syncPlan.mode,error:playerResult.reason?.message||String(playerResult.reason),elapsedMs:Date.now()-debugTurnStarted});
+  setAIThinking(false);
+
+  const stateResult=await stateSyncResult;
+  if(stateResult.status!=="fulfilled"){
+   recordDebug("STATE_SYNC_AI_FAILED",{action:effective,mode:syncPlan.mode,error:stateResult.reason?.message||String(stateResult.reason),elapsedMs:Date.now()-debugTurnStarted});
+   if(syncPlan.mode==="DEEP")throw stateResult.reason;
+   recordDebug("STATE_SYNC_FAST_EMPTY_FALLBACK",{action:effective,revision:currentStateRevision(gameState)})
+  }else if(stateResult.value){
+   const committed=commitStatePatch(gameState,stateResult.value,syncPlan,{action:effective,roll});
+   if(committed.stale){recordDebug("STATE_PATCH_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,currentRevision:committed.currentRevision});if(syncPlan.mode==="DEEP")throw new Error("STATE_PATCH_STALE")}
+   else recordDebug("STATE_SYNC_AI_COMPLETED",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport,operations:stateResult.value.operations?.length||0,revision:currentStateRevision(gameState),rebased:committed.rebased===true})
+  }
+  if(syncPlan.hasDeferredConsequences)scheduleDeferredDirector({action:effective,roll,intent:assessment?.actionIntent,plan:syncPlan,queuedAt:Date.now()},1200);
+  recordDebug("TURN_COMMIT",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,deferredQueue:deferredDirector.queue.length,revision:currentStateRevision(gameState)})
+ }catch(e){
+  console.warn("AI turn state fallback",e);recordDebug("TURN_SYNC_DEGRADED",{action:effective,mode:syncPlan.mode,error:e?.message||String(e),elapsedMs:Date.now()-debugTurnStarted});
+  if(!String(gameState.narrative||"").trim())gameState.narrative=localText;if(!String(gameState.sceneTitle||"").trim())gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)
+ }finally{
+  if(aiBusy)setAIThinking(false);if(turnSyncBusy)setTurnSyncing(false)
+ }
+ try{await persist();await refresh()}
+ finally{scheduleWorldEvolution(effective||"player_exploration",5000)}
 }
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
@@ -531,7 +558,7 @@ $("#generateBtn").onclick=async()=>{
 };
 $("#freeActionForm").onsubmit=async e=>{e.preventDefault();const input=$("#freeAction"),value=input.value.trim();if(!value)return;input.value="";await runAction("free",value)};
 function debugRuntimeSnapshot(){
- return {screen:document.body.dataset.screen||"",aiBusy,turnSyncBusy,turnSyncLabel,foregroundQueue:foregroundQueue.length,foregroundDraining,deferredDirector:{running:deferredDirector.running,queued:deferredDirector.queue.length},worldBackground:{running:worldBackground.running,queued:worldBackground.queued,lastReason:worldBackground.lastReason,failures:worldBackground.failures,cooldownRemainingMs:Math.max(0,Number(worldBackground.cooldownUntil||0)-Date.now())},combatActive:Boolean(gameState?.combat?.active),worldId:gameState?.world?.id||null,worldDay:gameState?.world?.state?.day||null}
+ return {screen:document.body.dataset.screen||"",aiBusy,turnSyncBusy,turnSyncLabel,stateRevision:gameState?currentStateRevision(gameState):null,nonblockingPlayerAction:Boolean(nonblockingScene.controller),deferredDirector:{running:deferredDirector.running,queued:deferredDirector.queue.length},worldBackground:{running:worldBackground.running,queued:worldBackground.queued,lastReason:worldBackground.lastReason,failures:worldBackground.failures,cooldownRemainingMs:Math.max(0,Number(worldBackground.cooldownUntil||0)-Date.now())},combatActive:Boolean(gameState?.combat?.active),worldId:gameState?.world?.id||null,worldDay:gameState?.world?.state?.day||null}
 }
 function currentDebugBundle(){const ai=loadAISettings(),endpoint=String(ai.endpoint||"").replace(/([?&](?:key|api_key|token|access_token)=)[^&]+/gi,"$1[REDACTED]");return debugBundle({appVersion:APP_VERSION,gameState,aiSettings:{provider:ai.provider,model:ai.model,endpoint,optimization:ai.optimization,apiKey:ai.apiKey},runtime:debugRuntimeSnapshot()})}
 function downloadDebugFile(kind="json"){
@@ -562,7 +589,7 @@ function openDebugPanel(){
  "<div class=\"debug-stat\"><small>TOKENS</small><strong>"+Number(tokens.total||0).toLocaleString()+"</strong><span>In "+Number(tokens.input||0).toLocaleString()+" · Out "+Number(tokens.output||0).toLocaleString()+" · Think "+Number(tokens.reasoning||0).toLocaleString()+"</span></div>"+
  "<div class=\"debug-stat\"><small>USAGE SOURCE</small><strong>"+esc(usageLabel)+"</strong><span>Cached "+Number(tokens.cached||0).toLocaleString()+"</span></div>"+
  "<div class=\"debug-stat\"><small>AI LATENCY</small><strong>"+Number(summary.aiLatencyMsAverage||0).toLocaleString()+" ms</strong><span>"+Number(summary.aiRequests||0)+" requests · "+Number(summary.errorCount||0)+" errors</span></div>"+
- "<div class=\"debug-stat\"><small>RUNTIME</small><strong>"+(runtime.turnSyncBusy?"STATE SYNC":runtime.aiBusy?"AI BUSY":"READY")+"</strong><span>Next "+runtime.foregroundQueue+" · Deferred "+runtime.deferredDirector.queued+" · World "+(runtime.worldBackground.running?"RUN":"IDLE")+"</span></div></div>"+
+ "<div class=\"debug-stat\"><small>RUNTIME</small><strong>"+(runtime.turnSyncBusy?"STATE SYNC":runtime.aiBusy?"AI BUSY":"READY")+"</strong><span>Deferred "+runtime.deferredDirector.queued+" · World "+(runtime.worldBackground.running?"RUN":"IDLE")+"</span></div></div>"+
  "<div class=\"settings-actions debug-actions\"><button id=\"debugExportJson\" class=\"primary\">匯出 Debug JSON</button><button id=\"debugExportTxt\" class=\"secondary\">匯出摘要 TXT</button><button id=\"debugRefresh\" class=\"ghost\">重新整理</button><button id=\"debugClear\" class=\"ghost danger-ghost\">清除 Debug 紀錄</button></div>"+
  "<p class=\"muted\">Token 顯示次序：Input / Output / Reasoning-Thinking / Total。API response 有 usage 時使用實際數字；沒有 usage 才標示 ESTIMATED。</p>"+
  "<div class=\"debug-section\"><h3>最近 AI Requests</h3><div class=\"debug-table-wrap\"><table class=\"debug-table\"><thead><tr><th>Time</th><th>Task</th><th>Tier</th><th>Provider</th><th>Status</th><th>Latency</th><th>Token I/O/R/T</th><th>Source</th></tr></thead><tbody>"+(aiRows||"<tr><td colspan=\"8\">尚未有 AI request telemetry</td></tr>")+"</tbody></table></div></div>"+
