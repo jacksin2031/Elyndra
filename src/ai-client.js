@@ -1,8 +1,8 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=333";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=335";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=332";
-import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=333";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=335";
 import {sanitizePlayerText} from "./runtime-guard.js?v=276";
 import {helperSnapshot} from "./helper-context.js?v=320";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
@@ -294,6 +294,17 @@ export async function talkToDynamicNpc(state,npc,message,contact={}){const known
 const TURN_SCENE_SCHEMA='{"sceneTitle":"4-18字繁體中文目前目標，讓玩家一眼知道現在應該處理甚麼，例如「調查鐘聲來源」","narrative":"80-180字繁體中文，只描述玩家當下可感知的行動結果，不建立或修改 Canon","suggestions":["3-4個只基於眼前資訊的下一步行動"]}';
 const TURN_STATE_SCHEMA='{"outcomeSummary":"40-100字可見結果摘要","location":null,"worldNameKnown":false,"calendarKnown":false,"discoveries":[{"title":"...","text":"...","factId":"directorCanon 中既有 fact id；沒有可驗證 Canon 時留空","evidenceType":"OBSERVED|HEARD|READ|EXAMINED"}],"items":[{"name":"...","description":"玩家當下可見描述","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|KEY|QUEST|ARTIFACT","quantity":1,"identified":true,"evidenceFactId":"只有同回合 verified discovery 支持此物品為任務證據時填 fact id，否則留空","historyRefs":["可選既有 HIST id"],"craftingTags":["可選素材標籤"],"useEffects":[{"type":"RESTORE_HP|RESTORE_SATIETY|REDUCE_FATIGUE|REDUCE_EXPOSURE|REDUCE_INJURY|REDUCE_MAGIC_STRAIN","amount":1}],"lore":{"story":"只生成一次","unlockKeywords":["線索"],"minMatches":1},"checkBonuses":{"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL|ALL":"可選整數 -2 至 2；只有功能性工具／裝備才填"}}],"recipes":[{"name":"配方名","description":"簡短","inputs":[{"name":"snapshot.inventory 中現有或合理可取得素材名稱","quantity":1}],"output":{"name":"成品","description":"簡短","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|ARTIFACT","quantity":1,"useEffects":[],"checkBonuses":{},"craftingTags":[]},"minutes":30}],"magicLearning":[{"name":"本世界法術名","school":"本世界魔法流派","cost":10,"effect":"可驗證效果","sourceFactId":"directorCanon 中明確支持此法術／術式的 fact id"}],"npcChanges":[{"npcId":"已知 NPC id","trustDelta":0}],"companionChanges":[{"npcId":"已知 NPC id","action":"OFFER|LEAVE","reason":"符合角色設定的原因"}],"factionChanges":[{"factionId":"已知勢力 id","reputationDelta":0}],"quest":{"title":null,"objective":null},"entityReveals":[{"kind":"location|npc|faction|sideQuest","id":"directorRegistry 既有實體 id"}],"encounter":null或{"type":"combat","enemy":{"name":"符合本世界的敵對存在","description":"與世界規則一致的特徵","level":1,"hp":20,"defense":11,"damage":6,"element":"PHYSICAL|FIRE|ICE|LIGHTNING|POISON|ARCANE|HOLY|SHADOW|NATURE|PSYCHIC|NONE","weaknesses":[],"resistances":[],"abilities":[{"name":"本世界能力","kind":"ATTACK|HEAVY|STATUS|HEAL","power":5,"element":"元素","cooldown":1,"status":"可空"}],"loot":"可空字串"}},"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"worldImpacts":[{"scope":"PERSONAL|LOCAL|REGIONAL|FACTION|WORLD","targetKind":"location|npc|faction|world","targetId":"已存在 id|CURRENT_LOCATION|WORLD","title":"持久改變","summary":"可驗證結果","reason":"直接因果","outcome":"BENEFIT|COST|MIXED","mutations":[{"field":"合法數值欄位|statusTag|structure","op":"DELTA|ADD_TAG|REMOVE_TAG|STRUCTURE","value":"數值／標記；STRUCTURE 時為 {id,label,state,description}"}],"consequences":[],"timelineEffects":[]}]}';
 
+const FAST_TURN_STATE_SCHEMA='{"outcomeSummary":"30-80字可見結果摘要","location":null,"worldNameKnown":false,"calendarKnown":false,"discoveries":[{"title":"...","text":"...","factId":"directorCanon 中既有 fact id 或空字串","evidenceType":"OBSERVED|HEARD|READ|EXAMINED"}],"items":[{"name":"...","description":"玩家當下可見描述","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|KEY|QUEST|ARTIFACT","quantity":1,"identified":true,"evidenceFactId":"","historyRefs":[],"craftingTags":[],"useEffects":[],"lore":null,"checkBonuses":{}}],"npcChanges":[{"npcId":"目前可互動 NPC id","trustDelta":0}],"quest":{"title":null,"objective":null},"entityReveals":[{"kind":"location|npc|faction|sideQuest","id":"既有可揭露實體 id"}],"encounter":null或{"type":"combat","enemy":{"name":"...","description":"...","level":1,"hp":20,"defense":11,"damage":6,"element":"PHYSICAL|FIRE|ICE|LIGHTNING|POISON|ARCANE|HOLY|SHADOW|NATURE|PSYCHIC|NONE","weaknesses":[],"resistances":[],"abilities":[],"loot":""}}}';
+const DEFERRED_TURN_SCHEMA='{"recipes":[{"name":"配方名","description":"簡短","inputs":[{"name":"既有或合理可取得素材","quantity":1}],"output":{"name":"成品","description":"簡短","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|ARTIFACT","quantity":1,"useEffects":[],"checkBonuses":{},"craftingTags":[]},"minutes":30}],"magicLearning":[{"name":"本世界法術名","school":"既有流派","cost":10,"effect":"可驗證效果","sourceFactId":"directorCanon 中既有 fact id"}],"companionChanges":[{"npcId":"已知 NPC id","action":"OFFER|LEAVE","reason":"..."}],"factionChanges":[{"factionId":"已知勢力 id","reputationDelta":0}],"generation":{"locations":[],"npcs":[],"factions":[],"sideQuests":[]},"worldImpacts":[{"scope":"PERSONAL|LOCAL|REGIONAL|FACTION|WORLD","targetKind":"location|npc|faction|world","targetId":"已存在 id|CURRENT_LOCATION|WORLD","title":"持久改變","summary":"可驗證結果","reason":"直接因果","outcome":"BENEFIT|COST|MIXED","mutations":[{"field":"合法欄位|statusTag|structure","op":"DELTA|ADD_TAG|REMOVE_TAG|STRUCTURE","value":"數值／標記／結構物件"}],"consequences":[],"timelineEffects":[]}]}';
+
+export function turnDirectorMode(action,roll={},snapshot={}){
+ const q=String(action||"").toLowerCase(),kind=String(roll?.profile?.kind||"").toUpperCase();
+ if(snapshot?.combat?.active||/摧毀|炸毀|燒毀|殺死|處決|征服|佔領|推翻|宣戰|大型儀式|封印|解除封印|改寫|改變世界|destroy|conquer|overthrow|declare war|ritual/i.test(q))return "DEEP";
+ if(/交給|交出|贈送|說服|威脅|邀請|加入|離隊|學習|學會|施法|魔法|製作|打造|聲望|勢力|任務|偷竊|闖入|破壞|give|persuade|threaten|invite|join|leave|learn|cast|craft|faction|quest|steal|break/i.test(q))return "DEFERRED";
+ if(kind==="RISKY"&&/攀|跳|闖|偷|破壞|climb|jump|break|steal/i.test(q))return "DEFERRED";
+ return "FAST"
+}
+
 export async function askTravelHelper(state,question){
  const q=String(question||"").trim().slice(0,240);if(!q)throw new Error("HELPER_QUESTION_REQUIRED");
  const snapshot=helperSnapshot(state);
@@ -339,27 +350,47 @@ export async function assessPlayerAction(state,action){
 
 export async function generateTurn(action,roll,snapshot,options={}){
  if(hasDirectAI()){
+  const directorMode=turnDirectorMode(action,roll,snapshot);
   const sceneInput={action,roll,snapshot:sceneTurnSnapshot(snapshot)};
-  const stateInput={action,roll,snapshot};
+  const stateInput={action,roll,snapshot:directorMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
   const scenePromise=directChat({
    aiTask:"scene",timeoutMs:35000,maxOutputTokens:700,temperature:.8,
    system:`你是 Elyndra Scene Narrator。你只負責玩家可見敘事與下一步建議，不可以修改世界狀態、Canon、NPC 關係、勢力、任務、戰鬥、物品或世界影響。snapshot.player.origin 定義玩家是一名來自現代地球的普通成年人；敘事中的第一反應、比較、疑問與風險判斷應符合其 commonKnowledge、defaultValues、initialAssumptions，但玩家明確輸入的行動永遠優先。現代地球常識不可被當成異世界 Canon。骰子結果已由 Engine 決定，不能改。只可使用 payload 中玩家已知資訊；不得引用 director-only 資訊，不得發明未揭露專有名詞。snapshot.weather 是玩家目前可直接感知的天氣，敘事要自然反映其感官效果，但不可替玩家知道未公開的 Weather Canon。sceneTitle 是給玩家看的「目前目標」，必須用動詞導向，根據最新位置、衝突或劇情發展重新命名，例如「調查鐘聲來源」「找到安全落腳處」；不得只寫氣氛章節名，也不得固定使用「陌生世界的第一天」。narrative 必須忠於 roll.success / grade，只描寫當下可感知結果。只使用繁體中文，不得輸出 [世界動向]、【世界改變】、SYSTEM 等系統標籤。suggestions 每輪必須根據當前場景重新生成，除非情境真的沒有改變，否則不得逐字重複 snapshot.priorSuggestions；不得使用其他語言。只輸出 JSON：${TURN_SCENE_SCHEMA}`,
    user:JSON.stringify(sceneInput)
   }).then(parseJSON).then(scene=>{try{options?.onScene?.(scene)}catch{}return scene});
 
-  const statePromise=directChat({
-   aiTask:"turn_state",timeoutMs:50000,maxOutputTokens:1800,temperature:.55,
+  const fastStatePromise=()=>directChat({
+   aiTask:"turn_state_fast",timeoutMs:28000,maxOutputTokens:850,temperature:.2,
+   system:`你是 Elyndra Fast Turn State Director。只處理「這一回合立即必須 commit」的結構化狀態；不要做世界擴展、勢力推演、長期後果、配方設計、魔法體系擴寫或永久世界結構變更。骰子結果不可修改。只根據玩家可見資料與 directorCanon 的既有 fact id。
+允許欄位只有：outcomeSummary、location、worldNameKnown、calendarKnown、discoveries、items、npcChanges、quest、entityReveals、encounter。
+普通觀察／搜尋／移動／一般對話應保持空陣列，除非本回合直接取得證據、物品、信任變化、任務線索、位置變更或觸發戰鬥。location 只可使用既有已知地點；discoveries 不得創造新 Canon；npcChanges 只可引用目前可互動 NPC。只輸出 JSON：${FAST_TURN_STATE_SCHEMA}`,
+   user:JSON.stringify(stateInput)
+  }).then(parseJSON);
+  const deepStatePromise=()=>directChat({
+   aiTask:"turn_state_deep",timeoutMs:45000,maxOutputTokens:1700,temperature:.45,
    system:`你是 Elyndra State Director。你只負責結構化世界狀態候選，不寫長篇敘事。骰子結果不可修改。snapshot.world.seedContract 是硬性世界合約；所有新事件、實體、敵人與世界擴展都必須符合它。directorRegistry、directorTimeline、directorHistory、directorCanon 與 directorWeather 只供保持 Canon；天氣狀態由 Engine 推進，State Director 不可自行改寫目前天氣或臨時創造新 weather phenomenon。directorTruth 與未被玩家發現的歷史內容絕不能寫入玩家可見欄位。npcChanges 只能引用 snapshot.registry.npcs 中 present=true 或 remoteContactable=true 的 NPC id，或目前 ACTIVE 夥伴；沒有合法聯絡方式的遠處 NPC 不可直接互動或改 trust。companionChanges 只可作用於 present=true NPC 或 ACTIVE 夥伴，遠距聯絡本身不可瞬間加入實體同行隊伍。location 若有值，只可填 directorRegistry 已存在地點的 id/名稱，或本回合 generation 新建立且玩家實際到達的地點；不可自由創造亂碼或未 Canonize 地名。只有行動與骰子合理導致直接衝突才建立 encounter；敵人的 element / weaknesses / resistances / abilities 必須來自本世界設定與當前場景，不得套用固定怪物模板。discoveries 只有在本回合成功行動實際取得證據時才可引用 directorCanon 的 factId；無法對應 Canon 的內容只能作未驗證觀察，不得當作世界真相。worldImpacts 的 STRUCTURE mutation 可表示橋樑、道路、神殿、城市設施等永久結構狀態，state 只用 ACTIVE|OPEN|RESTORED|STABILIZED|DAMAGED|DESTROYED|CLOSED|FLOODED|ABANDONED|CORRUPTED|TRANSFORMED；失敗不得用正面結構狀態。worldImpacts 只用於玩家真正造成的持久改變；不得改寫過去 Canon；scope 不得高於 snapshot.worldImpact.capability.maxScope；REGIONAL 以上才可調整未觸發 Timeline；recognition 必須忠於已成立 impact 且 spread 不得超過 impact scope。既有實體只用 entityReveals，不得重建。新 generation 必須符合既有 Canon；若 generation 新增 location，必須附 weatherProfile，而且 affinities / suppressions 只能引用 snapshot.directorWeather.system.phenomena 已存在的 id，不得創造新天氣。普通行動可回空 generation/worldImpacts。generation 新地點若有明確的鑰匙／通行證／證據門檻，可使用 accessRequirements（ITEM_OWNED|ITEM_USED|ITEM_SHOWN|ITEM_GIVEN|FACT_KNOWN|EVENT_OCCURRED），但 id 必須引用玩家可取得或已存在的具體條件，禁止建立永遠無法滿足的門檻。snapshot.player.origin 只代表玩家自身的現代地球常識與預設價值觀，不可因此創造或確認任何異世界 Canon。若新增 item，必須分類；CONSUMABLE 只可用白名單 useEffects，食物用 RESTORE_SATIETY 表示增加飽食度；checkBonuses 只可用於明確具功能性的 TOOL/EQUIPMENT，單項每類 -2 至 2；MATERIAL/KEY/QUEST 普通素材或故事物件不要加能力值。recipes 只在本回合真的學到製作方法時生成，材料名稱必須具體，不得憑空消耗不存在物品。outcomeSummary 只用作敘事 AI 失敗時的安全 fallback，必須用繁體中文且不得帶系統標籤。只輸出 JSON：${TURN_STATE_SCHEMA}`,
    user:JSON.stringify(stateInput)
   }).then(parseJSON);
+  const statePromise=directorMode==="DEEP"?deepStatePromise():fastStatePromise();
 
   const [sceneResult,stateResult]=await Promise.allSettled([scenePromise,statePromise]);
   if(stateResult.status!=="fulfilled")throw stateResult.reason;
   const scene=sceneResult.status==="fulfilled"?sceneResult.value:null;
-  return mergeTurnCandidates(scene,stateResult.value,roll,{action,priorSuggestions:snapshot?.priorSuggestions||[]})
+  return {...mergeTurnCandidates(scene,stateResult.value,roll,{action,priorSuggestions:snapshot?.priorSuggestions||[]}),directorMode}
  }
  return (await post("/api/turn",{action,roll,snapshot})).candidate
 }
+
+export async function generateDeferredTurnEffects(action,roll,snapshot,options={}){
+ if(!hasDirectAI())return null;
+ const raw=await directChat({
+  aiTask:"turn_deferred",signal:options?.signal,timeoutMs:45000,maxOutputTokens:1200,temperature:.35,
+  system:`你是 Elyndra Deferred Director。你處理一個已經完成 Fast Turn commit 的舊回合，只補上「非即時但可能需要持久保存」的後果。不可改 narrative、location、HP、骰子結果、即時物品、已驗證 discoveries、encounter 或已完成的 NPC trust。只可輸出 recipes、magicLearning、companionChanges、factionChanges、generation、worldImpacts。沒有直接因果就全部留空。generation 只在玩家行動真的令新實體／區域變得必要時使用；普通觀察、搜尋、走路、一般閒聊通常應為空。worldImpacts 必須是玩家該回合直接造成的持久改變，不得因時間經過自行創造世界事件。所有 id 必須引用 snapshot 中既有 Canon／Registry，除 generation 新實體外不得發明 id。只輸出 JSON：${DEFERRED_TURN_SCHEMA}`,
+  user:JSON.stringify({action,roll,snapshot})
+ });
+ return parseJSON(raw)
+}
+
 export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",civilization:b.civilization||null,communication:b.communication||null,weatherSystem:b.weatherSystem||null}}
 export function regionExpansionPayload(state,reason="player_exploration"){return {reason,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},directorHistory:directorHistorySnapshot(state,8),existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){

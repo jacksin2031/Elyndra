@@ -21,5 +21,16 @@ test("world compiler routes descriptive stages fast and canon-critical stages de
 
 test("runtime calls explicitly label latency-sensitive and balanced tasks",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- for(const task of ["narration","npc","helper","action","scene","turn_state"])assert.match(client,new RegExp('aiTask:"'+task+'"'))
+ for(const task of ["narration","npc","helper","action","scene","turn_state_fast","turn_state_deep","turn_deferred"])assert.match(client,new RegExp('aiTask:"'+task+'"'))
+});
+
+
+test("turn director dynamically selects FAST DEFERRED and DEEP modes",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ assert.match(client,/export function turnDirectorMode/);
+ assert.match(client,/return "FAST"/);
+ assert.match(client,/return "DEFERRED"/);
+ assert.match(client,/return "DEEP"/);
+ assert.match(client,/directorMode==="DEEP"\?deepStatePromise\(\):fastStatePromise\(\)/);
+ assert.match(client,/generateDeferredTurnEffects/)
 });

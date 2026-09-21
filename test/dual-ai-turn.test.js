@@ -36,19 +36,23 @@ test("direct and server turn generation never exceed two concurrent AI calls",as
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../api/turn.js",import.meta.url),"utf8")
  ]);
- const directBlock=client.slice(client.indexOf("export async function generateTurn"),client.indexOf("export function publicWorldBible"));
- assert.equal((directBlock.match(/directChat\(\{/g)||[]).length,2);
+ const directBlock=client.slice(client.indexOf("export async function generateTurn"),client.indexOf("export async function generateDeferredTurnEffects"));
+ assert.equal((directBlock.match(/const scenePromise=directChat\(\{/g)||[]).length,1);
+ assert.equal((directBlock.match(/StatePromise=\(\)=>directChat\(\{/g)||[]).length,2);
+ assert.match(directBlock,/const statePromise=directorMode==="DEEP"\?deepStatePromise\(\):fastStatePromise\(\)/);
  assert.match(directBlock,/Promise\.allSettled\(\[scenePromise,statePromise\]\)/);
  assert.match(directBlock,/Scene Narrator/);
+ assert.match(directBlock,/Fast Turn State Director/);
  assert.match(directBlock,/State Director/);
  assert.equal((server.match(/callModel\(\{/g)||[]).length,2);
  assert.match(server,/Promise\.allSettled\(\[scenePromise,statePromise\]\)/);
 });
 
-test("only State Director receives director-only full snapshot",async()=>{
+test("only Deep State Director receives director-only full snapshot",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- const block=client.slice(client.indexOf("export async function generateTurn"),client.indexOf("export function publicWorldBible"));
+ const block=client.slice(client.indexOf("export async function generateTurn"),client.indexOf("export async function generateDeferredTurnEffects"));
  assert.match(block,/sceneInput=\{action,roll,snapshot:sceneTurnSnapshot\(snapshot\)\}/);
- assert.match(block,/stateInput=\{action,roll,snapshot\}/);
+ assert.match(block,/stateInput=\{action,roll,snapshot:directorMode==="DEEP"\?snapshot:fastTurnStateSnapshot\(snapshot\)\}/);
+ assert.match(block,/directorMode==="DEEP"\?deepStatePromise\(\):fastStatePromise\(\)/);
  assert.match(block,/Scene Narrator[^]*?不可以修改世界狀態/);
 });

@@ -1,10 +1,10 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=334";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=333";
+import {APP_VERSION} from "./src/version.js?v=335";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=335";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=320";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=333";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=333";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=320";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=335";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=335";
+import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=335";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=320";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=320";
@@ -45,9 +45,56 @@ import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=
 import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=320";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 const foregroundQueue=[],MAX_FOREGROUND_QUEUE=3;let foregroundDraining=false;
+const deferredDirector={timer:0,running:false,controller:null,queue:[]};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false};
 function preemptBackgroundWorldEvolution(){
- const ctrl=worldBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
+ const ctrl=worldBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Higher-priority gameplay has priority","AbortError"))
+}
+function preemptDeferredDirector(){
+ const ctrl=deferredDirector.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
+}
+function preemptBackgroundAI(){preemptBackgroundWorldEvolution();preemptDeferredDirector()}
+function removePersistedDeferredTurn(taskId){
+ if(!gameState?.world?.deferredTurns||!taskId)return;
+ gameState.world.deferredTurns=gameState.world.deferredTurns.filter(x=>x.id!==taskId)
+}
+function scheduleDeferredDirector(task,delay=900,{persistTask=true}={}){
+ if(!task||!gameState||!aiStatus.aiConfigured)return;
+ const queued={...task,id:task.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2),attempts:Number(task.attempts)||0,queuedAt:task.queuedAt||Date.now()};
+ if(!deferredDirector.queue.some(x=>x.id===queued.id))deferredDirector.queue.push(queued);
+ if(persistTask){gameState.world.deferredTurns??=[];if(!gameState.world.deferredTurns.some(x=>x.id===queued.id))gameState.world.deferredTurns.push(structuredClone(queued))}
+ if(persistTask){gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_QUEUED",visibility:"INTERNAL",action:queued.action,taskId:queued.id,day:gameState.world?.state?.day||1,at:Date.now()})}
+ if(deferredDirector.timer)clearTimeout(deferredDirector.timer);
+ deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},Math.max(250,Number(delay)||900))
+}
+function resumeDeferredDirectorQueue(){
+ if(!gameState||!aiStatus.aiConfigured)return;
+ for(const task of gameState.world?.deferredTurns||[])scheduleDeferredDirector(task,500,{persistTask:false})
+}
+async function runDeferredDirector(){
+ if(!gameState||!aiStatus.aiConfigured||deferredDirector.running||!deferredDirector.queue.length)return;
+ if(aiBusy||turnSyncBusy||document.hidden){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},1500);return}
+ if(worldBackground.running){preemptBackgroundWorldEvolution();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
+ const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=new AbortController();
+ deferredDirector.running=true;deferredDirector.controller=ctrl;
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_STARTED",visibility:"INTERNAL",action:task.action,day:gameState.world?.state?.day||1,at:Date.now()});
+ try{
+  const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal});
+  if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
+  if(effects)applyDeferredTurnEffects(gameState,effects,{action:task.action,roll:task.roll});
+  deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);await persist();await refresh()
+ }catch(e){
+  if(!ctrl.signal.aborted){
+   task.attempts=(Number(task.attempts)||0)+1;
+   gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_FAILED",visibility:"INTERNAL",action:task.action,reason:e?.message||String(e),attempt:task.attempts,day:gameState?.world?.state?.day||1,at:Date.now()});
+   if(task.attempts>=2){deferredDirector.queue.shift();removePersistedDeferredTurn(task.id)}else{const saved=gameState?.world?.deferredTurns?.find(x=>x.id===task.id);if(saved)saved.attempts=task.attempts}
+   await persist().catch(()=>{})
+  }
+ }finally{
+  if(deferredDirector.controller===ctrl)deferredDirector.controller=null;deferredDirector.running=false;
+  if(deferredDirector.queue.length){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},ctrl.signal.aborted?900:500)}
+  else scheduleWorldEvolution("post_deferred_turn",1800)
+ }
 }
 function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
  if(!gameState||!aiStatus.aiConfigured)return;worldBackground.lastReason=String(reason||"background_gameplay").slice(0,180);worldBackground.queued=true;
@@ -56,7 +103,7 @@ function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
 }
 async function runBackgroundWorldEvolution(){
  if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
- if(aiBusy||turnSyncBusy||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
+ if(aiBusy||turnSyncBusy||deferredDirector.running||deferredDirector.queue.length||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
  const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),ctrl=new AbortController();
@@ -80,12 +127,13 @@ function updateAIStatusBadge(label=""){
  else{badge.textContent=aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.remove("thinking");badge.title=""}
 }
 function setTurnSyncing(on,label="AI 正在背景同步必要世界狀態…"){
- turnSyncBusy=Boolean(on);turnSyncLabel=turnSyncBusy?label:"";if(turnSyncBusy)preemptBackgroundWorldEvolution();
+ turnSyncBusy=Boolean(on);turnSyncLabel=turnSyncBusy?label:"";if(turnSyncBusy)preemptBackgroundAI();
  const n=$("#narrative");if(turnSyncBusy&&n)n.dataset.syncing=turnSyncLabel;else if(n)delete n.dataset.syncing;
  updateAIStatusBadge()
 }
 function queueForegroundTask(task){
- if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}foregroundQueue.push(task);updateAIStatusBadge();
+ if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}
+ const queued={...task,queuedAt:Date.now()};foregroundQueue.push(queued);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUED",visibility:"INTERNAL",queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length,day:gameState?.world?.state?.day||1,at:queued.queuedAt});updateAIStatusBadge();
  const free=$("#freeAction");if(free&&!gameState?.combat?.active)free.placeholder=`已排入下一步（${foregroundQueue.length}）：狀態同步完成後自動執行`;
  return true
 }
@@ -94,14 +142,14 @@ async function drainForegroundQueue(){
  foregroundDraining=true;
  try{
   while(gameState&&foregroundQueue.length&&!aiBusy&&!turnSyncBusy){
-   const next=foregroundQueue.shift();updateAIStatusBadge();
+   const next=foregroundQueue.shift();gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUE_DRAINED",visibility:"INTERNAL",queueType:next.type,action:next.customText||next.q||next.action||"",waitMs:Math.max(0,Date.now()-Number(next.queuedAt||Date.now())),day:gameState?.world?.state?.day||1,at:Date.now()});updateAIStatusBadge();
    if(next.type==="action")await runAction(next.action,next.customText);
    else if(next.type==="npc")await submitNpcConversation(next.npcId,next.q);
    else if(next.type==="combat")await runCombatAction(next.action)
   }
  }finally{foregroundDraining=false;updateAIStatusBadge()}
 }
-function setAIThinking(on,label="AI 正在思考…"){if(on)preemptBackgroundWorldEvolution();aiBusy=on;updateAIStatusBadge(label);qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
+function setAIThinking(on,label="AI 正在思考…"){if(on)preemptBackgroundAI();aiBusy=on;updateAIStatusBadge(label);qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 function tradeLabel(entity){const t=entity?.trade;if(!t)return "";if(t.mode==="barter")return "以物易物"+(t.commonBarter?.length?" · "+t.commonBarter.slice(0,3).join("、"):"");const names=(t.currencies||[]).map(x=>x.name).filter(Boolean).join("、");return (names||"地方交易制度")+(t.mode&&t.mode!=="currency"?" · "+t.mode:"")}
 function worldStateLabel(entity){const s=entity?.worldState;if(!s)return "";const level=(v,low,mid,high)=>Number(v)<35?low:Number(v)<65?mid:high,parts=[];if(Number.isFinite(s.safety))parts.push("安全："+level(s.safety,"危險","不穩","穩定"));if(Number.isFinite(s.supply))parts.push("供應："+level(s.supply,"短缺","正常","充足"));if(Number.isFinite(s.prosperity))parts.push("景氣："+level(s.prosperity,"蕭條","普通","繁榮"));if(Number.isFinite(s.infrastructure))parts.push("設施："+level(s.infrastructure,"破損","可用","完善"));if(Number.isFinite(s.stability)&&!Number.isFinite(s.safety))parts.push("穩定："+level(s.stability,"動盪","不穩","穩定"));if(s.statusTags?.length)parts.push(s.statusTags.slice(-3).join("、"));return parts.join(" · ")}
@@ -127,8 +175,8 @@ function scheduleGameStageFit(){
  cancelAnimationFrame(gameStageFitFrame);
  gameStageFitFrame=requestAnimationFrame(fitGameStage)
 }
-function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));scheduleWorldEvolution("gameplay_idle",1800)}}
-function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
+function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));resumeDeferredDirectorQueue();scheduleWorldEvolution("gameplay_idle",1800)}}
+function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
 async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;updateAIStatusBadge();if(!gameState)return;migrate(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
@@ -204,7 +252,11 @@ async function runAction(action,customText=""){
      if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;
      void refresh()
     }});
-    if(gameState?.world?.id===turnWorldId)applyTurnCandidate(gameState,candidate,{action:label,roll})
+    if(gameState?.world?.id===turnWorldId){
+     applyTurnCandidate(gameState,candidate,{action:label,roll});
+     gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});
+     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,queuedAt:Date.now()},650)
+    }
    }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
   }
   catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,effective,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
