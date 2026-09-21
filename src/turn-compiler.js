@@ -1,4 +1,4 @@
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=276";
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=35000";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 
 export function sceneTurnSnapshot(snapshot={}){
