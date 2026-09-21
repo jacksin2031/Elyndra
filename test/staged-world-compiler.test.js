@@ -14,7 +14,9 @@ test("world creation uses four bounded direct-AI compiler stages",async()=>{
  assert.doesNotMatch(client,/timeoutMs:120000,[\s\S]{0,500}World Architect/);
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  assert.match(client,/Promise\.all\(\[chronologyPromise,openingPromise\]\)/);
- assert.match(client,/normalizeWorldCoreCandidate\(await worldStage\("CORE"/);\n assert.match(client,/worldStage\("CORE_REPAIR"/);\n assert.match(client,/worldCoreIssues\(core\)/);
+ assert.match(client,/normalizeWorldCoreCandidate\(await worldStage\("CORE"/);
+ assert.match(client,/worldStage\("CORE_REPAIR"/);
+ assert.match(client,/worldCoreIssues\(core\)/);
  assert.match(client,/return \{\.\.\.core,\.\.\.chronology,\.\.\.opening\}/);
  assert.match(client,/worldHistory/);
  assert.match(client,/civilization/);
