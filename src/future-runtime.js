@@ -45,7 +45,7 @@ function targetsForEvent(state,event){
  return []
 }
 function eventDelta(state,event,future){
- if(event?.type==="WORLD_EVENT"&&event?.subtype==="TIMELINE_EVENT")return Math.max(0,80-Number(future.pressure||0));
+ if(event?.type==="WORLD_EVENT"&&event?.subtype==="TIMELINE_EVENT"){future.activatedDay=Math.max(1,Number(event.day)||Number(state.world?.state?.day)||1);return Math.max(0,80-Number(future.pressure||0))}
  if(event?.type==="FACTION_ACTION")return Number(STRATEGY_DELTA[String(event.strategy||"").toUpperCase()]||0);
  return 0
 }
@@ -104,7 +104,7 @@ export function advanceFutureSimulation(state){
  processTimelineImpacts(state,rt,changes);
  rt.processedEventIds=[...processed].slice(-600);
  mirrorLegacyCrisisToFuture(state);
- for(const future of futures){recomputeFutureStage(state,future);const signal=emitForeshadowing(state,future,rt);if(signal)signals.push(signal)}
+ for(const future of futures){recomputeFutureStage(state,future);if(future.activatedDay&&future.stage!=="RESOLVED"&&Number(future.pressure||0)>=80)future.stage="ACTIVE";const signal=emitForeshadowing(state,future,rt);if(signal)signals.push(signal)}
  return {changes,signals,newHistory}
 }
 
