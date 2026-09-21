@@ -205,7 +205,7 @@ export function compileWorldCreation(draft){
   blueprint.rules.forbidden.length&&`硬性禁止出現：${blueprint.rules.forbidden.join("、")}`,
   `起源：${ORIGIN_PRESETS[blueprint.player.origin.type]?.label||"自訂"}；定位：${role.label}`,
   blueprint.style.value==="自訂世界"&&blueprint.customStyleDescription&&`自訂世界風格：${clean(blueprint.customStyleDescription,260)}`,
-  `文明${advanced.civilizationLevel.value}/10、科技${advanced.technologyLevel.value}/10、文明數${advanced.civilizationCount.value}、種族${advanced.speciesCount.value}、語言${advanced.languageCount.value}、政治統一${advanced.politicalUnity.value}/10、宗教${advanced.religionInfluence.value}/10、資源${advanced.resourceAbundance.value}/10、危險${advanced.worldDanger.value}/10、生存${advanced.survivalIntensity.value}/10、戰爭=${advanced.warState.value}、未知區域${advanced.unknownRatio.value}%`,
+  `文明${advanced.civilizationLevel.value}/10、科技${advanced.technologyLevel.value}/10、魔法${advanced.magicLevel.value}/10、文明數${advanced.civilizationCount.value}、種族${advanced.speciesCount.value}、語言${advanced.languageCount.value}、政治統一${advanced.politicalUnity.value}/10、宗教${advanced.religionInfluence.value}/10、資源${advanced.resourceAbundance.value}/10、危險${advanced.worldDanger.value}/10、生存${advanced.survivalIntensity.value}/10、戰爭=${advanced.warState.value}、未知區域${advanced.unknownRatio.value}%`,
   blueprint.rules.allowed.length&&`可以存在：${blueprint.rules.allowed.join("、")}`,
   blueprint.storyPreferences.length&&`故事傾向：${clean(blueprint.storyPreferences.join("；"),220)}`,
   blueprint.customWorldDescription&&`世界願望：${clean(blueprint.customWorldDescription,320)}`
