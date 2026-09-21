@@ -17,10 +17,10 @@ test("runtime labels Player Action FAST DEFERRED and DEEP tasks",async()=>{
 });
 
 test("shared turn director selects four modes",()=>{
- assert.equal(turnDirectorMode("查看桌面",{profile:{kind:"OBSERVE"}},{}),"ENGINE_ONLY");
- assert.equal(turnDirectorMode("仔細觀察門上的痕跡",{profile:{kind:"OBSERVE"}},{}),"FAST");
- assert.equal(turnDirectorMode("說服守衛放我們通過",{profile:{kind:"SOCIAL"}},{}),"DEFERRED");
- assert.equal(turnDirectorMode("摧毀整座城的核心並推翻王國",{profile:{kind:"RISKY"}},{}),"DEEP")
+ assert.equal(turnDirectorMode("查看桌面",{success:true,profile:{kind:"OBSERVE"}},{}),"ENGINE_ONLY");
+ assert.equal(turnDirectorMode("仔細觀察門上的痕跡",{success:true,profile:{kind:"OBSERVE"}},{}),"FAST");
+ assert.equal(turnDirectorMode("說服守衛放我們通過",{success:true,profile:{kind:"SOCIAL"}},{}),"DEFERRED");
+ assert.equal(turnDirectorMode("摧毀整座城的核心並推翻王國",{success:true,profile:{kind:"RISKY"}},{}),"DEEP")
 });
 
 test("ai-client consumes shared Engine planner and keeps compatibility mode export",async()=>{
