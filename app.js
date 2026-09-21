@@ -1,5 +1,5 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=35000";
+import {APP_VERSION} from "./src/version.js?v=36000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=35000";
 import {aiHealth,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=35000";
@@ -23,6 +23,7 @@ import {playerVisibleEvents} from "./src/event-visibility.js?v=276";
 import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=276";
 import {getWorldStylePreset} from "./src/world-style-presets.js?v=276";
 import {randomWorldSettings} from "./src/world-randomizer.js?v=290";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=36000";
 import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=276";
 import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=276";
 import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=276";
@@ -339,13 +340,94 @@ async function runAction(action,customText=""){
 }
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
-function syncWorldParameterOutputs(){for(const id of ["danger","magic","politics"]){const input=$("#"+id),out=$("#"+id+"Value");if(input&&out)out.textContent=input.value}}
-function syncWorldviewCreator(applyPreset=false){const genre=$("#genre"),danger=$("#danger"),magic=$("#magic"),politics=$("#politics"),scale=$("#scale"),hint=$("#styleHint"),p=getWorldStylePreset(genre?.value);if(applyPreset&&p){danger.value=p.danger;magic.value=p.magic;politics.value=p.politics;scale.value=p.scale}syncWorldParameterOutputs();if(hint)hint.textContent=(p?.foundation||"")+" 你可以自行調整所有參數；世界核心主題會由 AI 根據你最後確認的設定創造。"}
-$("#randomWorldBtn")?.addEventListener("click",()=>{const genre=$("#genre"),scale=$("#scale"),settings=randomWorldSettings({genres:Array.from(genre.options,x=>x.value),scales:Array.from(scale.options,x=>x.value)});genre.value=settings.genre;$("#danger").value=settings.danger;$("#magic").value=settings.magic;$("#politics").value=settings.politics;scale.value=settings.scale;syncWorldParameterOutputs();const hint=$("#styleHint");if(hint)hint.textContent=`已隨機產生：${settings.genre}／${settings.scale}／危險 ${settings.danger}／魔法 ${settings.magic}／政治 ${settings.politics}。你可以先檢查或再修改，確認後才按「生成世界並轉生」。`});
-$("#genre")?.addEventListener("change",()=>syncWorldviewCreator(true));
-for(const id of ["danger","magic","politics"])$("#"+id)?.addEventListener("input",syncWorldParameterOutputs);
-syncWorldviewCreator(true);
-$("#generateBtn").onclick=async()=>{const btn=$("#generateBtn"),seed={playerName:$("#playerName").value.trim(),worldviewMode:"style",genre:$("#genre").value,scale:$("#scale").value,danger:+$("#danger").value,magic:+$("#magic").value,politics:+$("#politics").value,playHours:Math.max(2,Math.min(100,Math.round(+$("#playHours").value||15))),prompt:$("#prompt").value.trim()};btn.disabled=true;try{if(!aiStatus.aiConfigured)throw new Error("建立新世界需要先在 AI 設定連接 Provider，因為世界主題與開局行動會由 AI 生成");worldProgress(8,"正在準備 World Seed","使用你目前確認的世界設定；核心主題由 AI 根據這些設定創作");await new Promise(r=>setTimeout(r,80));worldProgress(24,"正在編譯世界骨架","建立 Canon、玩家狀態與初始世界規則");gameState=newGame(seed);worldProgress(38,"世界骨架完成",`正在等待 AI World Architect 規劃約 ${seed.playHours} 小時的世界節奏與時間線…`);if(aiStatus.aiConfigured){setAIThinking(true,"AI World Compiler 正在分段建立世界…");try{const candidate=await generateWorldCandidate(seed,WORLD_CONSTITUTION,p=>worldProgress(p.progress,p.label,p.detail));worldProgress(86,"正在驗證 AI 世界","平行生成階段完成；Engine 正在檢查 Seed、Canon、曆法與 Timeline");applyWorldCandidate(gameState,candidate);worldProgress(90,"正在 Canonize 開局內容","建立附近地點、NPC、勢力與第一個支線入口");canonizeGeneration(gameState,candidate.generation)}catch(e){console.error("AI world generation failed",e);worldProgress(0,"AI 世界生成失敗",e.message);throw e}finally{setAIThinking(false)}}worldProgress(94,"正在建立存檔","保存 Canon、角色與世界狀態");await persist();worldProgress(97,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"世界生成完成","正在轉生…");await new Promise(r=>setTimeout(r,350));show("game")}catch(e){worldProgress(0,"世界生成失敗",e.message);alert("世界編譯失敗："+e.message)}finally{btn.disabled=false}};
+function creatorField(id){return document.getElementById(id)}
+function creatorRaw(){
+ const n=id=>Number(creatorField(id)?.value),v=id=>String(creatorField(id)?.value||""),checked=id=>creatorField(id)?.checked===true,mode=id=>v(id+"Mode")||"style";
+ const out={
+  playerName:v("playerName").trim(),worldStyle:v("genre"),worldStyleMode:"fixed",worldStyleLocked:checked("worldStyleLocked"),worldScale:v("scale"),worldScaleMode:"fixed",worldScaleLocked:checked("worldScaleLocked"),
+  targetPlayHours:Math.max(2,Math.min(100,Math.round(n("playHours")||15))),difficulty:v("difficulty"),originType:v("originType"),originCustom:v("originCustom"),playerRole:v("playerRole"),roleCustom:v("roleCustom"),
+  customWorldDescription:v("prompt"),storyPreferences:v("storyPreferences"),requiredElements:v("requiredElements"),allowedElements:v("allowedElements"),forbiddenElements:v("forbiddenElements")
+ };
+ for(const id of ["civilizationLevel","technologyLevel","magicLevel","civilizationCount","speciesCount","languageCount","politicalUnity","religionInfluence","resourceAbundance","worldDanger","unknownRatio","survivalIntensity"]){out[id]=n(id);out[id+"Mode"]=mode(id);out[id+"Locked"]=checked(id+"Locked")}
+ out.warState=v("warState");out.warStateMode=mode("warState");out.warStateLocked=checked("warStateLocked");
+ return out
+}
+function setCreatorStep(step){
+ const n=Math.max(1,Math.min(5,Number(step)||1));
+ qsa("[data-creator-step]").forEach(x=>x.classList.toggle("active",Number(x.dataset.creatorStep)===n));
+ qsa("[data-step-target]").forEach(x=>x.classList.toggle("active",Number(x.dataset.stepTarget)===n));
+ if(n===5)renderCreatorReview();
+ const creator=$("#creator");if(creator)creator.scrollTop=0
+}
+function renderCreatorReview(){
+ const raw=creatorRaw(),req=raw.requiredElements.split(/[\n,，;；]+/).filter(Boolean),forbid=raw.forbiddenElements.split(/[\n,，;；]+/).filter(Boolean),story=raw.storyPreferences.split(/[\n,，;；]+/).filter(Boolean),el=$("#creatorReview");if(!el)return;
+ const label=id=>creatorField(id)?.selectedOptions?.[0]?.textContent||creatorField(id)?.value||"—";
+ el.innerHTML=`<div class="creator-review-card"><small>WORLD</small><strong>${esc(raw.worldStyle)} · ${esc(raw.worldScale)}</strong><span>${raw.targetPlayHours} 小時 · ${esc(label("difficulty"))}</span></div>
+ <div class="creator-review-card"><small>PLAYER</small><strong>${esc(raw.playerName||"由 AI 決定名稱")}</strong><span>${esc(label("originType"))} · ${esc(label("playerRole"))}</span></div>
+ <div class="creator-review-card"><small>DESTINY TENDENCIES</small><strong>${story.length?story.length+" 項":"沒有指定"}</strong><span>只影響事件機會，不鎖死劇情</span></div>
+ <div class="creator-review-card"><small>CONSTITUTION</small><strong>必須 ${req.length} · 禁止 ${forbid.length}</strong><span>生成後會先顯示完整世界契約</span></div>`
+}
+function syncAdvancedCreatorModes(){
+ for(const id of ["civilizationLevel","technologyLevel","magicLevel","civilizationCount","speciesCount","languageCount","politicalUnity","religionInfluence","resourceAbundance","worldDanger","unknownRatio","survivalIntensity","warState"]){
+  const input=creatorField(id),m=creatorField(id+"Mode");if(input&&m)input.disabled=m.value!=="fixed"
+ }
+}
+function randomizeUnlockedCreator(){
+ const genre=creatorField("genre"),scale=creatorField("scale"),settings=randomWorldSettings({genres:Array.from(genre.options,x=>x.value),scales:Array.from(scale.options,x=>x.value)});
+ if(!creatorField("worldStyleLocked")?.checked)genre.value=settings.genre;
+ if(!creatorField("worldScaleLocked")?.checked)scale.value=settings.scale;
+ const ranges={civilizationLevel:[1,5],technologyLevel:[1,5],magicLevel:[1,5],civilizationCount:[1,12],speciesCount:[1,12],languageCount:[1,16],politicalUnity:[1,5],religionInfluence:[1,5],resourceAbundance:[1,5],worldDanger:[1,5],unknownRatio:[10,95],survivalIntensity:[1,5]};
+ for(const [id,[min,max]] of Object.entries(ranges)){if(creatorField(id+"Locked")?.checked)continue;creatorField(id).value=Math.round(min+Math.random()*(max-min))}
+ if(!creatorField("warStateLocked")?.checked)creatorField("warState").value=["PEACE","TENSION","WAR"][Math.floor(Math.random()*3)];
+ const hint=$("#styleHint"),p=getWorldStylePreset(genre.value);if(hint)hint.textContent=`已重抽未鎖定設定。世界風格：${genre.value}。 ${p?.foundation||""}`;
+ renderCreatorReview()
+}
+function confirmWorldContract(contract){
+ return new Promise(resolve=>{
+  const modal=$("#modal"),close=$("#closeModal"),oldClose=close.onclick,oldModal=modal.onclick,finish=value=>{close.onclick=oldClose;modal.onclick=oldModal;modal.classList.add("hidden");resolve(value)};
+  openModal(worldContractHtml(contract));
+  $("#editWorldContract").onclick=()=>finish(false);$("#acceptWorldContract").onclick=()=>finish(true);
+  close.onclick=()=>finish(false);modal.onclick=e=>{if(e.target===modal)finish(false)}
+ })
+}
+qsa("[data-step-next]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepNext));
+qsa("[data-step-prev]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepPrev));
+qsa("[data-step-target]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepTarget));
+$("#randomWorldBtn")?.addEventListener("click",randomizeUnlockedCreator);
+$("#genre")?.addEventListener("change",()=>{const p=getWorldStylePreset($("#genre").value),hint=$("#styleHint");if(hint)hint.textContent=(p?.foundation||"")+" 未指定的進階欄位會以這個風格作基礎。";renderCreatorReview()});
+qsa(".advanced-setting select[id$='Mode']").forEach(x=>x.addEventListener("change",syncAdvancedCreatorModes));
+qsa("#creator input,#creator select,#creator textarea").forEach(x=>x.addEventListener("change",()=>{if(x.id!=="genre")renderCreatorReview()}));
+syncAdvancedCreatorModes();setCreatorStep(1);
+$("#generateBtn").onclick=async()=>{
+ const btn=$("#generateBtn"),draft=createWorldCreationDraft(creatorRaw()),seed=compileWorldCreation(draft);btn.disabled=true;
+ try{
+  if(!aiStatus.aiConfigured)throw new Error("建立新世界需要先在 AI 設定連接 Provider，因為世界主題與開局行動會由 AI 生成");
+  worldProgress(6,"正在建立 World Blueprint","解析玩家設定、起源、定位、故事傾向與世界約束");
+  await new Promise(r=>setTimeout(r,60));
+  worldProgress(15,"正在建立 World Constitution","把必須／可以／禁止與難度、起源規則編譯成持久約束");
+  gameState=newGame(seed);applyWorldCreationState(gameState,seed);
+  recordDebug("WORLD_CREATION_V2_COMPILED",{schemaVersion:2,masterSeed:seed.worldCreationSeed,difficulty:seed.creationV2.difficultyRules.id,origin:seed.creationV2.originProfile.id,role:seed.creationV2.role.id,required:seed.creationV2.blueprint.rules.required,forbidden:seed.creationV2.blueprint.rules.forbidden});
+  worldProgress(26,"World Seed 已鎖定","同一份 Blueprint、Constitution 與 Seed 會成為後續世界生成的根");
+  setAIThinking(true,"AI World Compiler 正在分段建立世界…");
+  try{
+   const candidate=await generateWorldCandidate(seed,gameState.world.constitution,p=>worldProgress(Math.max(28,p.progress),p.label,p.detail));
+   worldProgress(86,"正在驗證 AI 世界","Engine 正在檢查 Seed、Canon、World Constitution、曆法、Timeline 與跨階段引用");
+   const creationValidation=validateWorldCreationCandidate(seed,candidate);
+   if(!creationValidation.valid)throw new Error("WORLD_CREATION_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
+   applyWorldCandidate(gameState,candidate);
+   worldProgress(90,"正在 Canonize 開局內容","只建立世界骨架、出生區域與最小可玩內容；其他地區延遲生成");
+   canonizeGeneration(gameState,candidate.generation)
+  }catch(e){console.error("AI world generation failed",e);worldProgress(0,"AI 世界生成失敗",e.message);throw e}
+  finally{setAIThinking(false)}
+  const contract=buildWorldContract(gameState);gameState.world.creation.contract=structuredClone(contract);
+  worldProgress(93,"世界契約已建立","確認公開規則後才會正式建立這次旅程");
+  const accepted=await confirmWorldContract(contract);
+  if(!accepted){gameState=null;worldProgress(0,"已返回修改","這次編譯結果尚未建立正式存檔；修改設定後可重新生成。");return}
+  worldProgress(96,"正在建立正式存檔","保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon");
+  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"世界生成完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game")
+ }catch(e){worldProgress(0,"世界生成失敗",e.message);alert("世界編譯失敗："+e.message)}
+ finally{btn.disabled=false}
+};
 $("#freeActionForm").onsubmit=async e=>{e.preventDefault();const input=$("#freeAction"),value=input.value.trim();if(!value)return;input.value="";await runAction("free",value)};
 function debugRuntimeSnapshot(){
  return {screen:document.body.dataset.screen||"",aiBusy,turnSyncBusy,turnSyncLabel,foregroundQueue:foregroundQueue.length,foregroundDraining,deferredDirector:{running:deferredDirector.running,queued:deferredDirector.queue.length},worldBackground:{running:worldBackground.running,queued:worldBackground.queued,lastReason:worldBackground.lastReason},combatActive:Boolean(gameState?.combat?.active),worldId:gameState?.world?.id||null,worldDay:gameState?.world?.state?.day||null}
