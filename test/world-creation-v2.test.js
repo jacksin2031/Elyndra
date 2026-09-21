@@ -110,7 +110,7 @@ test("hard Constitution tags compile ahead of long freeform text",()=>{
 
 test("Blueprint Compliance rejects missing required, positive forbidden and profile drift",()=>{
  const seed=compileWorldCreation(createWorldCreationDraft(baseRaw()));
- const bad=validCandidate(seed,{summary:"軍隊使用槍械守衛王城",publicFacts:["龍存在於北方山脈。"],worldBible:{blueprintProfile:{...structuredClone(seed.blueprintProfile),technologyLevel:{value:10,source:"AI_INFERRED",locked:false}}}});
+ const bad=validCandidate(seed,{summary:"軍隊使用槍械守衛王城",publicFacts:["龍存在於北方山脈。"],generation:{locations:[],npcs:[],factions:[],sideQuests:[]},worldBible:{blueprintProfile:{...structuredClone(seed.blueprintProfile),technologyLevel:{value:10,source:"AI_INFERRED",locked:false}}}});
  const report=validateWorldCreationCandidate(seed,bad);
  assert.equal(report.valid,false);
  assert.ok(report.errors.includes("WC2_REQUIRED_MISSING:魔法學院"));
