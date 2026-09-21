@@ -18,8 +18,8 @@ export function selectAIProvider(provider){const all=read(),p=PROVIDERS[provider
 export function clearAISettings(provider){if(!provider){localStorage.removeItem(KEY);localStorage.removeItem(V2_KEY);localStorage.removeItem(OLD_KEY);return}const all=read(),p=PROVIDERS[provider]?provider:all.provider;all.profiles[p]=profile(p);localStorage.setItem(KEY,JSON.stringify(all))}
 export function hasDirectAI(){const s=loadAISettings();return Boolean(s.endpoint&&s.model&&s.apiKey)}
 const AI_TASK_TIER={
- action:"FAST",narration:"FAST",helper:"FAST",npc:"FAST",scene:"FAST",identity:"FAST",geography:"FAST",society:"FAST",cast:"FAST",
- core_anchor:"BALANCED",turn_state:"BALANCED",runtime_expansion:"BALANCED",
+ action:"FAST",narration:"FAST",helper:"FAST",npc:"FAST",scene:"FAST",turn_state_fast:"FAST",identity:"FAST",geography:"FAST",society:"FAST",cast:"FAST",
+ core_anchor:"BALANCED",turn_state:"BALANCED",turn_deferred:"BALANCED",runtime_expansion:"BALANCED",turn_state_deep:"IMPORTANT",
  core_rules:"IMPORTANT",history:"IMPORTANT",future:"IMPORTANT",
  quality:"CRITICAL",quality_repair:"CRITICAL",recovery:"CRITICAL",runtime_quality:"CRITICAL",runtime_repair:"CRITICAL"
 };
