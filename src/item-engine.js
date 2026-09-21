@@ -1,3 +1,4 @@
+import {isNpcPresent} from "./world-registry.js?v=280";
 import {normalizeCheckBonuses} from "./check-engine.js?v=276";
 import {ensureSurvival} from "./survival-engine.js?v=276";
 
@@ -10,6 +11,9 @@ const STACKABLE=new Set(["MATERIAL","CONSUMABLE"]);
 const POWER_CAP={RESTORE_HP:35,REDUCE_HUNGER:45,REDUCE_FATIGUE:40,REDUCE_EXPOSURE:35,REDUCE_INJURY:30,REDUCE_MAGIC_STRAIN:40};
 
 function uniqStrings(v,max=8){return [...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,50).toUpperCase()).filter(Boolean))].slice(0,max)}
+export function itemCategoryLabel(category){
+ return {MATERIAL:"素材",CONSUMABLE:"消耗品",TOOL:"工具",EQUIPMENT:"裝備",KEY:"關鍵物品",QUEST:"任務物品",ARTIFACT:"遺物"}[String(category||"").toUpperCase()]||"其他"
+}
 function effectLabel(type){
  return {RESTORE_HP:"回復生命",REDUCE_HUNGER:"降低飢餓",REDUCE_FATIGUE:"降低疲勞",REDUCE_EXPOSURE:"降低環境暴露",REDUCE_INJURY:"緩解傷勢",REDUCE_MAGIC_STRAIN:"降低魔法負荷"}[type]||type
 }
@@ -164,6 +168,17 @@ export function craftRecipe(state,recipeId){
  const output=addInventoryItem(state,{...status.recipe.output,id:uid("CRAFT"),source:"CRAFTED"},{source:"CRAFTED"});
  state.events??=[];state.events.push({id:uid("EV"),type:"ITEM_CRAFTED",visibility:"PLAYER_KNOWN",recipeId:status.recipe.id,recipeName:status.recipe.name,itemId:output?.id,itemName:output?.name,day:state.world?.state?.day||1,at:Date.now()});
  return {ok:true,recipe:status.recipe,output,minutes:status.recipe.minutes}
+}
+export function presentItemToNpc(state,itemId,npcId,{give=false}={}){
+ ensureItemRuntime(state);const item=state.inventory.find(x=>x.id===itemId||x.name===itemId),npc=(state.world?.registry?.npcs||[]).find(x=>x.id===npcId);
+ if(!item)return {ok:false,reason:"ITEM_NOT_OWNED"};if(!npc||npc.known!==true||npc.encountered!==true)return {ok:false,reason:"NPC_NOT_KNOWN"};if(!isNpcPresent(state,npc))return {ok:false,reason:"NPC_NOT_PRESENT"};if(give&&item.equipped)return {ok:false,reason:"ITEM_EQUIPPED"};
+ const scope=new Set(Array.isArray(npc.knowledgeScope)?npc.knowledgeScope:[]),history=new Set(Array.isArray(npc.historyRefs)?npc.historyRefs:[]),special=Boolean((item.evidenceFactId&&scope.has(item.evidenceFactId))||(item.historyId&&history.has(item.historyId))||(Array.isArray(item.historyRefs)&&item.historyRefs.some(x=>history.has(x))));
+ let trustDelta=special?2:give?1:0;trustDelta=Math.max(0,Math.min(2,trustDelta));npc.trust=Math.max(0,Math.min(100,(Number(npc.trust)||0)+trustDelta));npc.memories??=[];
+ const action=give?"ITEM_GIVEN":"ITEM_SHOWN",summary=special?`${npc.name} 對「${item.name}」明顯有特別反應，因為它與對方已知的世界資訊存在直接關聯。`:`${npc.name} 注意到你${give?"交出":"展示"}了「${item.name}」。`;
+ npc.memories.push({id:uid("MEM"),type:"item",summary,day:state.world?.state?.day||1});npc.memories=npc.memories.slice(-12);
+ if(give){const consumed=consumeInventoryQuantity(state,item.id,1);if(!consumed.ok)return consumed}
+ state.events??=[];state.events.push({id:uid("EV"),type:action,visibility:"PLAYER_KNOWN",npcId:npc.id,npcName:npc.name,itemId:item.id,itemName:item.name,special,trustDelta,summary,day:state.world?.state?.day||1,at:Date.now()});
+ return {ok:true,action,itemName:item.name,npcId:npc.id,npcName:npc.name,special,trustDelta,summary}
 }
 export function craftingSnapshot(state){
  ensureItemRuntime(state);return {recipes:state.crafting.recipes.map(r=>{const status=recipeStatus(state,r);return {id:r.id,name:r.name,description:r.description,inputs:r.inputs,output:{name:r.output.name,category:r.output.category,quantity:r.output.quantity,useEffects:r.output.useEffects,checkBonuses:r.output.checkBonuses},minutes:r.minutes,craftable:status.craftable,missing:status.missing}})}
