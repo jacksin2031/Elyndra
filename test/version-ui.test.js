@@ -20,7 +20,7 @@ test("main UI exposes a fixed bottom-right version badge from APP_VERSION",async
  assert.match(app,/versionBadge\.textContent=\`v\$\{APP_VERSION\}\`/);
 });
 
-test("v0.34.0 keeps unchanged scene assets independently cached",async()=>{
+test("v0.34.1 keeps unchanged scene assets independently cached",async()=>{
  const [html,app]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
@@ -30,7 +30,7 @@ test("v0.34.0 keeps unchanged scene assets independently cached",async()=>{
  assert.match(app,/\.\/src\/version\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
- assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
+ assert.match(app,/\.\/src\/storage\.js\?v=341/);\n assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
  assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/)
 });
