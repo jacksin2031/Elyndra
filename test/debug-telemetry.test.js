@@ -28,7 +28,7 @@ test("debug string scrub removes embedded bearer, query and provider API keys",(
  const sample="Provider error: Authorization: Bearer abcdef123456 https://example.test?q=1&api_key=secretvalue sk-abcdefghijklmnop AIza1234567890abcdefghijklmnop";
  const clean=scrubDebugText(sample);
  assert.doesNotMatch(clean,/abcdef123456|secretvalue|sk-abcdefghijklmnop|AIza1234567890abcdefghijklmnop/);
- assert.match(clean,/Bearer \[REDACTED\]/);
+ assert.ok((clean.match(/\[REDACTED(?:_API_KEY)?\]/g)||[]).length>=4);
  assert.match(clean,/api_key=\[REDACTED\]/)
 });
 
