@@ -426,8 +426,8 @@ function randomizeUnlockedCreator(){
  if(!creatorField("worldStyleLocked")?.checked)genre.value=settings.genre;
  if(!creatorField("worldScaleLocked")?.checked)scale.value=settings.scale;
  const ranges={civilizationLevel:[1,10],technologyLevel:[1,10],magicLevel:[1,10],civilizationCount:[1,12],speciesCount:[1,12],languageCount:[1,16],politicalUnity:[1,10],religionInfluence:[1,10],resourceAbundance:[1,10],worldDanger:[1,10],unknownRatio:[10,95],survivalIntensity:[1,10]};
- for(const [id,[min,max]] of Object.entries(ranges)){if(creatorField(id+"Locked")?.checked)continue;creatorField(id).value=Math.round(min+Math.random()*(max-min))}syncDegreeOutputs()
- if(!creatorField("warStateLocked")?.checked)creatorField("warState").value=["PEACE","TENSION","WAR"][Math.floor(Math.random()*3)];
+ for(const [id,[min,max]] of Object.entries(ranges)){if(creatorField(id+"Locked")?.checked||creatorField(id+"Mode")?.value!=="random")continue;creatorField(id).value=Math.round(min+Math.random()*(max-min))}syncDegreeOutputs()
+ if(!creatorField("warStateLocked")?.checked&&creatorField("warStateMode")?.value==="random")creatorField("warState").value=["PEACE","TENSION","WAR"][Math.floor(Math.random()*3)];
  const hint=$("#styleHint"),p=getWorldStylePreset(genre.value);if(hint)hint.textContent=`已重抽未鎖定設定。世界風格：${genre.value}。 ${p?.foundation||""}`;
  renderCreatorReview()
 }
