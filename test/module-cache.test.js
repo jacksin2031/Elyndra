@@ -19,11 +19,12 @@ test("v0.34.1 hardening keeps save and AI cache generations explicit",async()=>{
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/styles\.css\?v=336/);
- assert.match(html,/app\.js\?v=340/);
- assert.match(app,/\.\/src\/version\.js\?v=340/);
+ assert.match(html,/app\.js\?v=341/);
+ assert.match(app,/\.\/src\/version\.js\?v=341/);
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=340/);
- assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);\n assert.match(app,/\.\/src\/storage\.js\?v=341/);
+ assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/); 
+ assert.match(app,/\.\/src\/storage\.js\?v=341/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
