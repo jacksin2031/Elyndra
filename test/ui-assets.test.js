@@ -21,5 +21,9 @@ test("generated UI artwork is split into live frame background and icon layers",
  assert.match(html,/data-ui="asset-layered-v4"/);
  for(const path of assets)assert.ok(css.includes(path),path+" should be referenced by live CSS");
  assert.match(css,/--ely-scene-position/);
- assert.match(css,/background-size:100% 100%,500% 100%/);\n assert.match(css,/\.modal-card::after/);\n assert.match(css,/\.npc-chat-form::after/);\n assert.match(css,/#game \.quest-card::after/);\n assert.match(css,/#game \.dice-box::after/);
+ assert.match(css,/background-size:100% 100%,500% 100%/);
+ assert.match(css,/\.modal-card::after/);
+ assert.match(css,/\.npc-chat-form::after/);
+ assert.match(css,/#game \.quest-card::after/);
+ assert.match(css,/#game \.dice-box::after/);
 });
