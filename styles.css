@@ -851,3 +851,65 @@ body[data-world-genre="末日異世界"]{--ely-scene-position:100%}
     border-image-width:18px!important;
   }
 }
+
+
+/* HD scene artwork + crisp desktop zoom v0.30.1 */
+:root{
+  --ely-scene-bg:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg");
+}
+body[data-world-genre="王道奇幻"]{--ely-scene-bg:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg")}
+body[data-world-genre="黑暗奇幻"]{--ely-scene-bg:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg")}
+body[data-world-genre="東方幻想"]{--ely-scene-bg:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg")}
+body[data-world-genre="蒸汽魔法"]{--ely-scene-bg:url("./assets/ui/backgrounds/steam-magic-2560x1440.svg")}
+body[data-world-genre="末日異世界"]{--ely-scene-bg:url("./assets/ui/backgrounds/apocalypse-2560x1440.svg")}
+
+/* 2560×1440 masters: preserve aspect ratio and crop instead of stretching. */
+#game .scene-art{
+  background-image:
+    linear-gradient(180deg,rgba(3,6,10,.02) 0%,rgba(3,6,10,.10) 42%,rgba(2,4,8,.78) 100%),
+    var(--ely-scene-bg)!important;
+  background-size:100% 100%,cover!important;
+  background-position:center,center!important;
+  background-repeat:no-repeat!important;
+  image-rendering:auto;
+}
+
+/* On Chromium-class browsers zoom participates in layout, so glyphs and thin
+   frame lines are re-rasterized at the final size instead of scaling a bitmap. */
+@supports (zoom:1){
+  @media(min-width:901px){
+    body[data-screen="game"] #game{
+      display:grid!important;
+      place-items:center!important;
+    }
+    #game .game-shell{
+      position:relative!important;
+      left:auto!important;
+      top:auto!important;
+      transform:none!important;
+      transform-origin:center center!important;
+      zoom:var(--ely-game-scale,1);
+    }
+  }
+}
+
+/* Keep the transform-based path only as a browser fallback where CSS zoom
+   is unavailable. */
+@supports not (zoom:1){
+  @media(min-width:901px){
+    #game .game-shell{
+      transform:translate(-50%,-50%) scale(var(--ely-game-scale,1));
+    }
+  }
+}
+
+@media(min-resolution:1.5dppx){
+  #game .scene-copy h2,
+  #game .scene-copy p,
+  #game .primary-nav .navbtn,
+  #game .choices button,
+  #game .dice-copy{
+    -webkit-font-smoothing:antialiased;
+    text-rendering:geometricPrecision;
+  }
+}
