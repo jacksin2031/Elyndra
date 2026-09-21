@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {normalizeProviderUsage,estimateTextTokens,recordAIUsage,telemetryEntries,telemetrySummary,debugBundle,clearDebugTelemetry} from "../src/debug-telemetry.js";
+import {normalizeProviderUsage,estimateTextTokens,recordAIUsage,recordDebug,telemetryEntries,telemetrySummary,debugBundle,clearDebugTelemetry} from "../src/debug-telemetry.js";
 import {PROVIDERS,saveAISettings,clearAISettings,directChat} from "../src/ai-settings.js";
 
 function memoryStorage(){
@@ -39,13 +39,15 @@ test("telemetry sums token usage and redacts credentials without hiding gameplay
   clearDebugTelemetry();
   recordAIUsage({provider:"openai",model:"m",task:"scene",tier:"FAST",latencyMs:100,response:{usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}},inputText:"x",outputText:"y"});
   recordAIUsage({provider:"gemini",model:"g",task:"history",tier:"IMPORTANT",latencyMs:300,response:{usageMetadata:{promptTokenCount:20,candidatesTokenCount:8,thoughtsTokenCount:4,totalTokenCount:32}},inputText:"x",outputText:"y"});
+  recordDebug("GAME_ITEM_GAINED",{itemId:"I1",name:"舊徽章",quantityDelta:1,totalQuantity:1});
   const summary=telemetrySummary(telemetryEntries());
   assert.equal(summary.tokenTotals.total,47);
   assert.equal(summary.tokenTotals.input,30);
   assert.equal(summary.tokenTotals.output,13);
   assert.equal(summary.tokenTotals.reasoning,4);
   assert.equal(summary.aiLatencyMsAverage,200);
-  const bundle=debugBundle({appVersion:"0.33.6",aiSettings:{apiKey:"secret-key",authorization:"Bearer xx",model:"m"},gameState:{world:{secretLore:"KEEP_ME"},events:[{type:"PLAYER_ACTION"}]},runtime:{turnSyncBusy:true}});
+  assert.equal(summary.gameplayEvents,1);
+  const bundle=debugBundle({appVersion:"0.33.7",aiSettings:{apiKey:"secret-key",authorization:"Bearer xx",model:"m"},gameState:{world:{secretLore:"KEEP_ME"},events:[{type:"PLAYER_ACTION"}]},runtime:{turnSyncBusy:true}});
   assert.equal(bundle.aiSettings.apiKey,"[REDACTED]");
   assert.equal(bundle.aiSettings.authorization,"[REDACTED]");
   assert.equal(bundle.gameState.world.secretLore,"KEEP_ME");
@@ -71,6 +73,13 @@ test("in-game Debug UI exposes token accounting and JSON TXT export",async()=>{
  assert.match(app,/ACTION_ASSESSMENT/);
  assert.match(app,/ENGINE_ACTION_RESULT/);
  assert.match(app,/TURN_COMMIT/);
+ assert.match(app,/GAME_ITEM_GAINED/);
+ assert.match(app,/GAME_KNOWLEDGE_GAINED/);
+ assert.match(app,/GAME_SIDE_QUEST_ACQUIRED/);
+ assert.match(app,/GAME_NPC_ENCOUNTERED/);
+ assert.match(app,/GAME_LOCATION_DISCOVERED/);
+ assert.match(app,/GAME_COMBAT_STARTED/);
+ assert.match(app,/Gameplay State Changes/);
  assert.match(css,/\.debug-card-grid/);
  assert.match(css,/\.debug-table/);
  assert.match(settings,/recordAIUsage/);
