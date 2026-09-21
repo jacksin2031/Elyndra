@@ -108,7 +108,7 @@ npm test
 
 - **OpenAI** — 獨立保存 OpenAI API Key、Endpoint、Model
 - **Gemini** — 獨立保存 Gemini API Key、Endpoint、Model
-- **Agnes 3.0 Flash** — 內建 `https://apihub.agnes-ai.com/v1/chat/completions` + `agnes-3.0-flash` 預設；通常只需輸入 Agnes API Key，仍可手動覆寫 Endpoint / Model
+- **Agnes 3.0 Flash** — 內建 `https://apihub.agnes-ai.com/v1/chat/completions` + `agnes-3.0-flash` 預設；通常只需輸入 Agnes API Key，Endpoint 可進階覆寫，Model 由 Elyndra 固定管理
 
 每間公司的設定彼此分離。當你由 OpenAI 切換到 Gemini，介面會自動保存 OpenAI 當前設定，再載入 Gemini 自己的 API Key / Endpoint / Model；切回 OpenAI 時會恢復原本 OpenAI 設定，不需要重新輸入。
 
@@ -545,3 +545,8 @@ weatherProfile: {
 - IDENTITY / RULES / ANCHOR 遇到 timeout、429/5xx、JSON 破損或 malformed shape 時，會使用同一 Seed/Identity 衍生 fallback，不再因單一 Core provider timeout 終止整個世界。
 - 世界生成全流程仍由硬性 semaphore 保證最多 2 個 AI request 同時執行。
 - Browser cache generation 升至 `v274`。
+
+
+### AI 自適應優化
+
+OpenAI、Gemini、Agnes 都可在 AI 設定選擇「標準」或「Elyndra 自適應優化」。自適應模式按任務重要性分配 Provider 原生思考強度：行動判定／敘事／助手採低延遲設定；一般世界內容採中等；核心規則、歷史、Future Timeline 採較深入推理；World Critic、Recovery 與 Repair 採高推理。模型名稱由 Elyndra Provider preset 固定管理，用戶毋須自行輸入。
