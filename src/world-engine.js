@@ -49,7 +49,7 @@ export function validateWorld(world){
 }
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
- return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},integrity:report,
+ return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationDiagnostics:null,quality:null,evolution:{lastMinute:-9999,lastVersion:0,count:0,lastReason:""}},integrity:report,
   player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點",stats:{strength:2,agility:2,mind:2,presence:2,instinct:2},skills:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0},skillProgress:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0}},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
@@ -82,6 +82,9 @@ export function applyWorldCandidate(state,candidate){
  const existing=new Set(state.world.canon.facts.map(f=>f.text));let n=0;
  for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]])for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
  state.world.summary=String(candidate.summary).slice(0,1000);
+ if(candidate.generationDiagnostics&&typeof candidate.generationDiagnostics==="object")state.world.generationDiagnostics=structuredClone(candidate.generationDiagnostics);
+ if(candidate.worldQuality&&typeof candidate.worldQuality==="object")state.world.quality=structuredClone(candidate.worldQuality);
+ state.world.evolution??={lastMinute:-9999,lastVersion:0,count:0,lastReason:""};
  if(candidate.worldBible?.startingRegion)state.world.state.region=clean(candidate.worldBible.startingRegion,120);
  const trueStart=sanitizeLocationName(candidate.generation?.locations?.[0]?.name)||sanitizeLocationName(candidate.worldBible?.startingLocation);if(trueStart)state.world.state.location=trueStart;state.world.weather.legacyNeutral=false;initializeWeather(state,{force:true})
  const opening=sanitizePlayerText(candidate.openingHook,1000,"你在陌生的環境中醒來，只能先從眼前可見的事物判斷身處何方。");if(opening)state.narrative=opening;
