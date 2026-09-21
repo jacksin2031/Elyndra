@@ -7,12 +7,12 @@ import {performAction,actionProfile} from "../src/game-engine.js";
 const seed={worldviewMode:"style",genre:"王道奇幻",scale:"中型",danger:3,magic:3,politics:3,playHours:15,prompt:""};
 const state=()=>newGame(seed);
 
-test("neutral new character no longer receives fixed action-type bonus",()=>{
+test("modern-Earth new character receives only the explicit baseline skill bonus",()=>{
  const s=state(),check=buildActionCheck(s,"觀察四周",actionProfile("觀察四周"));
  assert.equal(check.kind,"OBSERVE");
  assert.equal(check.modifiers.attribute,0);
- assert.equal(check.modifiers.skill,0);
- assert.equal(check.bonus,0);
+ assert.equal(check.modifiers.skill,1);
+ assert.equal(check.bonus,1);
  assert.equal(check.dc,10);
 });
 
@@ -53,10 +53,10 @@ test("danger crisis and physical condition dynamically change DC and situation m
 });
 
 test("successful use builds skill proficiency and critical success trains faster",()=>{
- const s=state();ensureCheckProfile(s);s.player.skillProgress.OBSERVE=3;
+ const s=state();ensureCheckProfile(s);s.player.skillProgress.OBSERVE=6;
  const result=trainActionSkill(s,"OBSERVE",{success:true,grade:"CRITICAL_SUCCESS"});
  assert.equal(result.rankUp,true);
- assert.equal(s.player.skills.OBSERVE,1);
+ assert.equal(s.player.skills.OBSERVE,2);
  assert.equal(s.player.skillProgress.OBSERVE,1);
 });
 
