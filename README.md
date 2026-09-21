@@ -106,11 +106,11 @@ npm test
 
 遊戲目前支援直接在「AI 設定」中配置 Provider：
 
-- **OpenAI** — 獨立保存 OpenAI API Key、Endpoint、Model
-- **Gemini** — 獨立保存 Gemini API Key、Endpoint、Model
+- **OpenAI** — 獨立保存 OpenAI API Key 與 Endpoint；Model 由 Elyndra 固定管理
+- **Gemini** — 獨立保存 Gemini API Key 與 Endpoint；Model 由 Elyndra 固定管理
 - **Agnes 3.0 Flash** — 內建 `https://apihub.agnes-ai.com/v1/chat/completions` + `agnes-3.0-flash` 預設；通常只需輸入 Agnes API Key，Endpoint 可進階覆寫，Model 由 Elyndra 固定管理
 
-每間公司的設定彼此分離。當你由 OpenAI 切換到 Gemini，介面會自動保存 OpenAI 當前設定，再載入 Gemini 自己的 API Key / Endpoint / Model；切回 OpenAI 時會恢復原本 OpenAI 設定，不需要重新輸入。
+每間公司的設定彼此分離。當你由 OpenAI 切換到 Gemini，介面會自動保存 OpenAI 當前設定，再載入 Gemini 自己的 API Key / Endpoint 與優化模式；切回 OpenAI 時會恢復原本 OpenAI 設定，不需要重新輸入。
 
 舊版 v1/v2 瀏覽器設定會自動遷移到 v3 Provider Profiles。按「清除本地 Key」只會清除目前選取 Provider 的設定，不會刪除其他公司的 API Key。
 
