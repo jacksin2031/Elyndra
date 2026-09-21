@@ -57,7 +57,8 @@ export function newGame(seed){
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
   discoveries:0,suggestions:[],
   events:[{id:uuid(),type:"WORLD_CREATED",visibility:"PLAYER_KNOWN",day:1,at:Date.now()}],
-  narrative:"你在陌生的環境中醒來。作為一個來自現代地球的普通人，你第一反應是確認自己有沒有受傷、附近有沒有危險，以及眼前環境是否能用熟悉的常識解釋。你不知道這是哪裡，也不知道這個世界叫甚麼；任何異世界名稱、魔法、制度與文化都必須重新觀察和學習。你身上沒有任何預設物品，也沒有任何預設同伴。"}
+  narrative:"你在陌生的環境中醒來。作為一個來自現代地球的普通人，你第一反應是確認自己有沒有受傷、附近有沒有危險，以及眼前環境是否能用熟悉的常識解釋。你不知道這是哪裡，也不知道這個世界叫甚麼；任何異世界名稱、魔法、制度與文化都必須重新觀察和學習。你身上沒有任何預設物品，也沒有任何預設同伴。"};
+ ensureCausalWorldCore(state);return state
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
 export function discover(state,item,score=3){
