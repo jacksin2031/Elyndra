@@ -1,5 +1,5 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=291";
+import {APP_VERSION} from "./src/version.js?v=292";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=276";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=280";
 import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=281";
@@ -47,7 +47,24 @@ const IMPACT_LABEL={PERSONAL:"個人",LOCAL:"地方",REGIONAL:"區域",FACTION:"
 const RENOWN_LABEL={UNKNOWN:"無名",LOCAL_NAME:"地方知名",REGIONAL_FIGURE:"區域人物",MAJOR_FIGURE:"重要人物",LEGEND:"傳奇"};
 function impactLabel(scope){return IMPACT_LABEL[scope]||scope||"地方"}
 function renownLabel(tier){return RENOWN_LABEL[tier]||tier||"無名"}
-function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game")requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}))}
+let gameStageFitFrame=0;
+function fitGameStage(){
+ const game=$("#game"),shell=$("#game .game-shell");
+ if(!game||!shell)return;
+ const desktop=window.matchMedia("(min-width: 901px)").matches;
+ if(!desktop){game.style.removeProperty("--ely-game-scale");return}
+ const topbarHeight=$(".topbar")?.getBoundingClientRect().height||58;
+ const viewportHeight=window.visualViewport?.height||window.innerHeight;
+ const availableWidth=Math.max(1,window.innerWidth-24);
+ const availableHeight=Math.max(1,viewportHeight-topbarHeight-24);
+ const scale=Math.min(availableWidth/1720,availableHeight/860);
+ game.style.setProperty("--ely-game-scale",String(Math.max(.25,Math.min(scale,1.25))))
+}
+function scheduleGameStageFit(){
+ cancelAnimationFrame(gameStageFitFrame);
+ gameStageFitFrame=requestAnimationFrame(fitGameStage)
+}
+function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}))}}
 function migrate(s){ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);repairPlayerLocation(s);initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);s.player.wallet??={};s.player.calendarKnown??=false;s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
 async function refresh(){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;$("#aiBadge").textContent=aiStatus.aiConfigured?"AI ONLINE":"LOCAL";if(!gameState)return;migrate(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?gameState.world.name:"未知世界";$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=gameState.player.location||"未知之地";if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent="資產";if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
@@ -121,5 +138,8 @@ $("#modalContent")?.addEventListener("click",e=>{const id=e.target.closest("[dat
 $("#moreBtn")?.addEventListener("click",()=>$("#gameMenuBtn")?.click());
 qsa("[data-nav-home]").forEach(b=>b.addEventListener("click",()=>{$("#modal")?.classList.add("hidden");$(".scene")?.scrollIntoView({behavior:"smooth",block:"start"})}));
 qsa("[data-mobile-target]").forEach(b=>b.addEventListener("click",()=>{qsa("[data-mobile-target]").forEach(x=>x.classList.toggle("active",x===b));const target=b.dataset.mobileTarget;if(target==="home"){$("#modal")?.classList.add("hidden");$(".scene")?.scrollIntoView({behavior:"smooth",block:"start"});return}document.getElementById(target)?.click()}));
+window.addEventListener("resize",scheduleGameStageFit,{passive:true});
+window.visualViewport?.addEventListener("resize",scheduleGameStageFit,{passive:true});
+scheduleGameStageFit();
 const versionBadge=$("#versionBadge");if(versionBadge)versionBadge.textContent=`v${APP_VERSION}`;
 aiStatus=await aiHealth();await refresh();
