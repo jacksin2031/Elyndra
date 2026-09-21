@@ -36,6 +36,9 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.match(client,/weatherSystem/);
  assert.match(client,/weatherProfile/);
  assert.match(client,/compactRetryArgs/);
+ assert.match(client,/EMPTY_AI_RESPONSE/);
+ assert.match(client,/disableOptimization:true/);
+ assert.match(client,/compactRetryArgs\(args,firstReason\)/);
  assert.match(client,/WORLD_RECOVERY/);
  assert.match(client,/applyFallbackRecoveryPatch/);
  assert.match(client,/fallbackStages\.length<4/);
