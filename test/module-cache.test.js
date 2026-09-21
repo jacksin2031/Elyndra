@@ -23,7 +23,8 @@ test("v0.33.5 Fast Deferred Director cache-busts turn pipeline modules",async()=
  assert.match(app,/\.\/src\/ai-settings\.js\?v=335/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=335/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
- for(const mod of ["world-engine","world-registry","game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));\n assert.match(app,/\\.\\/src\\/adventure-engine\\.js\\?v=335/);
+ for(const mod of ["world-engine","world-registry","game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
+ assert.match(app,/\.\/src\/adventure-engine\.js\?v=335/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=300/);
  assert.match(client,/\.\/ai-settings\.js\?v=335/);
  assert.match(client,/\.\/world-compiler\.js\?v=332/);
