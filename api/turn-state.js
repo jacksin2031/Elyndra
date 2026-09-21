@@ -2,18 +2,29 @@ import {json,methodGuard,safeBody,callModel} from "./_ai.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {fastTurnStateSnapshot} from "../src/turn-compiler.js";
 import {normalizeActionIntent} from "../src/action-intent.js";
-import {buildTurnOutcomeKernel,turnDirectorMode,validateKernelBoundaries} from "../src/turn-outcome.js";
-import {stateDirectorSystem} from "../src/ai-runtime-contracts.js";
+import {buildTurnOutcomeKernel} from "../src/turn-outcome.js";
+import {statePatchDirectorSystem} from "../src/ai-runtime-contracts.js";
+import {planStateSync,validateStatePatch} from "../src/state-sync.js";
 
+function serverPlan(base,requested,snapshot){
+ const baseRevision=Math.max(0,Math.round(Number(requested?.baseRevision??snapshot?.stateRevision)||0));
+ if(String(requested?.mode||"").toUpperCase()==="DEFERRED"){
+  const capabilities=[...(base.deferredCapabilities||[])];
+  return {...base,mode:"DEFERRED",blocking:false,deferred:true,requiresStateAI:capabilities.length>0,capabilities,dirty:[...(base.deferredDirty||[])],baseRevision}
+ }
+ return {...base,baseRevision}
+}
 export default async function handler(req,res){
  if(!methodGuard(req,res))return;
  try{
-  const {action,intent,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
-  const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot}),directorMode=turnDirectorMode(action,roll,snapshot),stateMode=directorMode==="DEEP"?"DEEP":"FAST";
-  const input={action,intent:actionIntent,kernel,snapshot:stateMode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
-  const raw=await callModel({system:stateDirectorSystem(stateMode),user:JSON.stringify(input),temperature:stateMode==="FAST"?.2:.4,timeoutMs:stateMode==="FAST"?30000:50000,maxOutputTokens:stateMode==="FAST"?900:1800});
-  const state=parseModelJSON(raw),boundary=validateKernelBoundaries(state,kernel);if(!boundary.valid)return json(res,422,{error:"TURN_OUTCOME_KERNEL_VIOLATION",details:boundary.errors});
-  return json(res,200,{state,directorMode,stateMode,actionIntent,kernel})
+  const {action,intent,roll,snapshot,plan:requestedPlan}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
+  const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot});
+  const base=planStateSync({action,intent:actionIntent,roll,snapshot,kernel}),plan=serverPlan(base,requestedPlan,snapshot);kernel.dirtyFlags={...(plan.dirtyFlags||kernel.dirtyFlags||{})};
+  if(!plan.requiresStateAI)return json(res,200,{patch:{baseRevision:plan.baseRevision,operations:[]},plan,actionIntent,kernel});
+  const input={action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)};
+  const raw=await callModel({system:statePatchDirectorSystem(plan),user:JSON.stringify(input),temperature:plan.mode==="DEEP"?.3:.15,timeoutMs:plan.mode==="DEEP"?50000:plan.mode==="DEFERRED"?40000:25000,maxOutputTokens:plan.mode==="DEEP"?1300:plan.mode==="DEFERRED"?900:650});
+  const patch=parseModelJSON(raw),v=validateStatePatch(patch,plan);if(!v.valid)return json(res,422,{error:"STATE_PATCH_INVALID",details:v.errors});
+  return json(res,200,{patch,plan,actionIntent,kernel})
  }catch(e){
   const status=e.code==="AI_NOT_CONFIGURED"?503:e.code==="INVALID_MODEL_JSON"||String(e.message||"").startsWith("INVALID_MODEL_JSON")?422:502;
   return json(res,status,{error:e.code||e.message})
