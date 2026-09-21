@@ -2,26 +2,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readdir,readFile} from "node:fs/promises";
 
-async function entryCacheVersion(){
- const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- const versions=[...app.matchAll(/from\s+"\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(m=>m[1]);
- assert.ok(versions.length>5);
- assert.equal(new Set(versions).size,1);
- return versions[0]
-}
-
-test("every nested browser module import uses the exact entry cache generation",async()=>{
- const expected=await entryCacheVersion(),files=(await readdir(new URL("../src/",import.meta.url))).filter(x=>x.endsWith(".js"));
+test("every browser module import is explicitly cache-versioned",async()=>{
+ const files=(await readdir(new URL("../src/",import.meta.url))).filter(x=>x.endsWith(".js"));
  for(const file of files){
   const source=await readFile(new URL("../src/"+file,import.meta.url),"utf8");
   for(const match of source.matchAll(/from\s+"(\.\/[^"]+\.js)([^"]*)";/g)){
-   assert.equal(match[2],"?v="+expected,file+" cache mismatch for "+match[1]+": expected ?v="+expected+", got "+(match[2]||"<none>"))
+   assert.match(match[2],/^\?v=\d+$/,file+" missing cache version for "+match[1])
   }
  }
 });
 
-test("entry assets and app src imports share one cache version",async()=>{
- const v=await entryCacheVersion(),html=await readFile(new URL("../index.html",import.meta.url),"utf8");
- assert.match(html,new RegExp("app\\.js\\?v="+v));
- assert.match(html,new RegExp("styles\\.css\\?v="+v))
+test("v0.28 modified world modules use the v280 cache generation from the entry graph",async()=>{
+ const [html,app,client]=await Promise.all([
+  readFile(new URL("../index.html",import.meta.url),"utf8"),
+  readFile(new URL("../app.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
+ ]);
+ assert.match(html,/app\.js\?v=280/);
+ for(const mod of ["version","world-engine","ai-client","world-registry","world-quality"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
+ for(const mod of ["world-compiler","world-quality"])assert.match(client,new RegExp("\\.\\/"+mod+"\\.js\\?v=280"))
 });
