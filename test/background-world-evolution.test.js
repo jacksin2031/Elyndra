@@ -29,11 +29,21 @@ test("foreground AI preempts low-priority background world work",async()=>{
  assert.match(settings,/AI_ABORTED: request cancelled by higher-priority gameplay/);
  assert.match(client,/generateRegionExpansion\(state,reason="player_exploration",options=\{\}\)/);
  assert.match(client,/const signal=options\?\.signal/);
- assert.match(client,/signal,timeoutMs:90000/);
- assert.match(client,/signal,timeoutMs:40000/);
- assert.match(client,/signal,timeoutMs:55000/);
+ assert.match(client,/signal,timeoutMs:45000,retryOnTimeout:false/);
+ assert.match(client,/signal,timeoutMs:25000,retryOnTimeout:false/);
+ assert.match(client,/signal,timeoutMs:35000,retryOnTimeout:false/);
  assert.match(app,/deferredDirector\.queue\.length/);
  assert.match(app,/preemptDeferredDirector\(\)/)
+});
+
+
+test("timed-out background world evolution enters exponential cooldown instead of immediately retrying",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ assert.match(app,/worldBackground=\{timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false,failures:0,cooldownUntil:0\}/);
+ assert.match(app,/const cooldown=Math\.max\(0,Number\(worldBackground\.cooldownUntil\|\|0\)-Date\.now\(\)\)/);
+ assert.match(app,/timedOut=\/AI_TIMEOUT\/\.test\(error\)/);
+ assert.match(app,/2\*60\*1000\*\(2\*\*\(worldBackground\.failures-1\)\)/);
+ assert.match(app,/cooldownRemainingMs/);
 });
 
 test("scene narration can preview before State Director finishes",async()=>{
