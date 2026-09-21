@@ -5,7 +5,8 @@ import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates} fr
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=271";
 import {sanitizePlayerText} from "./runtime-guard.js?v=271";
 import {helperSnapshot} from "./helper-context.js?v=271";
-import {directorHistorySnapshot} from "./world-history.js?v=271";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=271";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=271";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=271";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
@@ -61,22 +62,44 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   }
   if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);
 
-  report(58,"平行編譯世界","時間線與開局地區將同時生成，減少等待時間");
-  const chronologyPromise=worldStage("CHRONOLOGY",{
-   timeoutMs:60000,
-   maxOutputTokens:3000,
-   system:`你是 Elyndra Chronology Compiler。根據固定世界核心，同時生成「不可改寫的過去歷史 World History」與「會在遊戲中向未來發展的 Timeline」。World History 必須解釋文明、制度、衝突、魔法／技術與現代世界為何變成現在這樣；它是已發生 Canon，之後不可被玩家或 AI 改寫。Timeline 則是未來事件，可被玩家影響其實際結果。不得洩漏 directorTruth 給玩家。Timeline 必須符合 timelinePacing、按 earliestDay 排序並涵蓋 early/middle/late。欄位內容保持精簡。只輸出 JSON，不要 Markdown。`,
-   user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:core.worldBible},timelinePacing:directive.timelinePacing,required:{
-    worldHistory:Array.from({length:5},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內歷史時代名稱",title:`重大歷史事件${i+1}`,category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革等",summary:"已經發生且不可改寫的歷史",causes:["1-3項原因"],legacies:["1-4項直到現在仍存在的影響"],regions:["受影響區域，可空"],factions:["相關勢力，可空"],discoverKeywords:["日後可從遺跡／文獻／NPC發現的線索詞"]})),
-    worldCalendar:{name:"曆法名",epochName:"紀元名",dayTerm:"日序稱呼",cycleTerm:"短週期稱呼",longCycleTerm:"長週期稱呼",daysPerCycle:"3-60整數",cyclesPerLongCycle:"3-30整數",cycles:["週期名"],periods:[{name:"時段名",fromMinute:0,toMinute:359}]},
-    worldTimeline:Array.from({length:directive.timelinePacing.majorEventCount},(_,i)=>({title:`大事件${i+1}`,category:"事件類型",earliestDay:"2-horizonDays",latestDay:"earliestDay-horizonDays",directorTruth:"簡潔隱藏因果",observableEffect:"簡潔可觀察影響",pressure:"0-15整數"}))
-   }})
-  }).then(chronology=>{if(!chronology?.worldCalendar||!Array.isArray(chronology?.worldHistory)||chronology.worldHistory.length<3||!Array.isArray(chronology?.worldTimeline)||chronology.worldTimeline.length!==directive.timelinePacing.majorEventCount)throw new Error("WORLD_CHRONOLOGY_INVALID");report(64,"時間線完成","開局內容仍在同步編譯");return chronology});
+  report(58,"平行編譯世界","歷史 Canon、未來 Timeline 與開局地區會分流編譯，避免單一重型請求超時");
+  const chronologyPromise=(async()=>{
+   const history=await worldStage("HISTORY",{
+    timeoutMs:70000,
+    retryOnTimeout:false,
+    maxOutputTokens:1300,
+    system:`你是 Elyndra History Compiler。根據固定世界核心，只生成「不可改寫的過去歷史 World History」。歷史必須解釋文明、制度、衝突、魔法／技術與現代世界為何變成現在這樣；它是已發生 Canon，之後不可被玩家或 AI 改寫。只需 3 個最重要的歷史節點，每個保持精簡；regions/factions 可空，不要生成曆法、未來 Timeline、地點、NPC 或任務。只輸出 JSON，不要 Markdown。`,
+    user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:{era:core.worldBible.era,centralConflict:core.worldBible.centralConflict,magicCost:core.worldBible.magicCost,ancientTruth:core.worldBible.ancientTruth,currentCrisis:core.worldBible.currentCrisis,civilization:core.worldBible.civilization}},required:{
+     worldHistory:Array.from({length:3},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內歷史時代名稱",title:`重大歷史事件${i+1}`,category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革等",summary:"40-90字，已發生且不可改寫",causes:["最多1項"],legacies:["1-2項直到現在仍存在的影響"],discoverKeywords:["1-2個日後可從遺跡／文獻／NPC發現的線索詞"]}))
+    }})
+   });
+   const historyReport=validateWorldHistory(history?.worldHistory);
+   if(!historyReport.valid)throw new Error("WORLD_HISTORY_INVALID:"+historyReport.errors.join(","));
+   report(62,"世界歷史完成","正在根據歷史遺產編排未來事件");
+
+   const slots=timelineAuthoringSlots(directive.timelinePacing);
+   const future=await worldStage("FUTURE",{
+    timeoutMs:70000,
+    retryOnTimeout:false,
+    maxOutputTokens:1600,
+    system:`你是 Elyndra Future Compiler。根據固定世界核心、已 Canonize 的過去歷史與 Engine 提供的 timelineSlots，生成自訂曆法與未來 Timeline。你不得自己計算或改寫事件日期：只按 slot 順序生成事件內容，Engine 會套用 earliestDay/latestDay。Timeline 是未來可能發生的事件，可被玩家影響結果；directorTruth 永遠不可向玩家洩漏。只輸出 JSON，不要 Markdown。`,
+    user:JSON.stringify({core:{worldName:core.worldName,worldTheme:core.worldTheme,worldBible:{era:core.worldBible.era,centralConflict:core.worldBible.centralConflict,currentCrisis:core.worldBible.currentCrisis,tone:core.worldBible.tone}},history:historyReport.history.map(x=>({era:x.era,title:x.title,summary:x.summary,legacies:x.legacies})),timelinePacing:directive.timelinePacing,timelineSlots:slots,required:{
+     worldCalendar:{name:"曆法名",epochName:"紀元名",dayTerm:"日序稱呼",cycleTerm:"短週期稱呼",longCycleTerm:"長週期稱呼",daysPerCycle:"3-60整數，可省略",cyclesPerLongCycle:"3-30整數，可省略",cycles:["3-6個週期名"],periods:[{name:"時段名",fromMinute:0,toMinute:359}]},
+     worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`大事件${i+1}`,category:"事件類型",directorTruth:"20-60字隱藏因果",observableEffect:"20-60字可觀察影響",pressure:"0-15整數"}))
+    }})
+   });
+   if(!future?.worldCalendar||!Array.isArray(future?.worldTimeline))throw new Error("WORLD_FUTURE_INVALID:SHAPE");
+   const authoredTimeline=bindTimelineAuthoringSlots(future.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
+   if(!timelineReport.valid)throw new Error("WORLD_FUTURE_INVALID:"+timelineReport.errors.join(","));
+   report(64,"時間線完成","開局內容仍在同步編譯");
+   return {worldHistory:historyReport.history,worldCalendar:future.worldCalendar,worldTimeline:timelineReport.timeline}
+  })();
 
   const openingPromise=(async()=>{
    const region=await worldStage("REGION",{
-    timeoutMs:55000,
-    maxOutputTokens:1600,
+    timeoutMs:65000,
+    retryOnTimeout:false,
+    maxOutputTokens:1500,
     system:`你是 Elyndra Opening Region Compiler。根據固定世界核心，只生成最小可玩開局：1個出生地點、最多1個勢力與零知識 openingHook。不得生成 NPC、任務或 suggestions。location.name 必須與 worldBible.startingLocation 完全一致。地點／勢力要有簡潔但具辨識度的 culture 與 trade；不可假設世界共用貨幣。每個地點要有 weatherProfile，affinities / suppressions 只能引用 worldBible.weatherSystem.phenomena 的 id，令不同地區有不同天氣分布。openingHook 不可洩漏未知專有資訊。只輸出 JSON，不要 Markdown。`,
     user:JSON.stringify({core:{worldTheme:core.worldTheme,worldBible:core.worldBible,publicFacts:core.publicFacts},required:{
      openingHook:"60-140字感官開場",
@@ -87,8 +110,9 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    if(!region?.openingHook||!Array.isArray(region?.locations)||!region.locations.length||!Array.isArray(region?.factions))throw new Error("WORLD_REGION_INVALID");
    report(68,"開局地區完成","正在生成第一名附近人物與開局行動");
    const cast=await worldStage("CAST",{
-    timeoutMs:50000,
-    maxOutputTokens:1200,
+    timeoutMs:60000,
+    retryOnTimeout:false,
+    maxOutputTokens:1100,
     system:`你是 Elyndra Opening Cast Compiler。只根據既有 core 與 region 生成1個附近 NPC、最多1個支線與3-4個開局 suggestions。NPC knowledgeScope 只能引用 core.publicFacts 完整文字；suggestions 只能使用 openingHook 中可感知資訊。內容保持精簡。只輸出 JSON，不要 Markdown。`,
     user:JSON.stringify({core:{worldTheme:core.worldTheme,publicFacts:core.publicFacts},region:{openingHook:region.openingHook,locations:region.locations,factions:region.factions},required:{
      npcs:[{name:"...",role:"...",description:"40-100字",personality:"簡短",goal:"簡短",locationName:"引用 region.locations",factionName:"可空或引用 region.factions",knowledgeScope:["core.publicFacts 完整文字"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1-2項"],boundaries:["1-2項"]},lore:{story:"40-100字，只生成一次",unlockKeywords:["1-3線索"],minMatches:1}}],
