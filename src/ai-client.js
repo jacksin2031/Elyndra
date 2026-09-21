@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=270";
 import {seedDirective} from "./seed-contract.js?v=270";
 import {recognitionForNpc} from "./recognition-engine.js?v=270";
-import {normalizeWorldCoreCandidate} from "./world-compiler.js?v=270";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates} from "./world-compiler.js?v=270";
 import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=270";
 import {sanitizePlayerText} from "./runtime-guard.js?v=270";
 import {helperSnapshot} from "./helper-context.js?v=270";
@@ -26,9 +26,9 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  const chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
  if(hasDirectAI()){
   report(42,"世界核心","AI 正在建立精簡世界核心與 Seed Contract");
-  const core=normalizeWorldCoreCandidate(await worldStage("CORE",{
+  let core=normalizeWorldCoreCandidate(await worldStage("CORE",{
    timeoutMs:65000,
-   maxOutputTokens:2200,
+   maxOutputTokens:3400,
    system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。你必須先定義 civilization.level 1-5，再設計符合「文明程度 + 魔法普及度 + 世界文化」的聯絡方式；低文明低魔法只可有信使／驛站等延遲通訊，只有文明或魔法足以支持時才可有即時或近即時遠距對話，不得無理由直接套用現實互聯網。你亦必須定義本世界獨有 Weather Canon：天氣不必遵循現實地球，可由魔力、天體、浮游物質、世界法則或其他設定形成；至少一種現象必須明顯屬於這個異世界，而不是單純晴雨雪換名。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
    user:JSON.stringify({seed,seedDirective:{contract:directive.contract,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy},required:{
     worldName:"string",worldTheme:"具體核心主題",playerName:"string",summary:"80-160字世界概要",
@@ -46,7 +46,18 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
     hiddenFacts:["2-3項簡潔真正秘密"]
    }})
   }));
-  if(!core?.worldName||!core?.worldTheme||!core?.summary||!core?.seedCompliance||!core?.worldBible||!Array.isArray(core.worldBible?.weatherSystem?.phenomena)||core.worldBible.weatherSystem.phenomena.length<4||!Array.isArray(core.publicFacts)||!Array.isArray(core.hiddenFacts))throw new Error("WORLD_CORE_INVALID");
+  let coreIssues=worldCoreIssues(core);
+  if(coreIssues.length){
+   report(50,"修復世界核心","核心回覆缺少必要欄位，正在局部修補而不重跑整個世界");
+   const repair=normalizeWorldCoreCandidate(await worldStage("CORE_REPAIR",{
+    timeoutMs:65000,
+    maxOutputTokens:3400,
+    system:`你是 Elyndra World Architect · Core Repair。上一輪已回傳合法 JSON，但 CORE 有缺欄位或不完整。你只修復 CORE，不生成曆法、Timeline、地點、NPC、任務。保留 previousCore 已有且合理的設定，只補 missingOrInvalid；必須回傳一份完整可獨立使用的 CORE JSON。世界主題、文明、通訊與 Weather Canon 必須互相一致；weatherSystem 至少 4 種 phenomena，其中至少 1 種明顯屬於異世界。publicFacts 與 hiddenFacts 各至少 2 項。只輸出 JSON，不要 Markdown。`,
+    user:JSON.stringify({seed,seedDirective:{contract:directive.contract,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy},missingOrInvalid:coreIssues,previousCore:core,required:{worldName:"string",worldTheme:"string",playerName:"string",summary:"80-160字",seedCompliance:"完整保留／補齊原 Seed Contract 對應值與 evidence",worldBible:{era:"string",centralConflict:"string",magicCost:"string",startingRegion:"string",startingSettlement:"string",startingLocation:"string",ancientTruth:"string",currentCrisis:"string",tone:"string",civilization:{level:"1-5",stage:"string",infrastructure:"string",literacy:"string",mobility:"string"},communication:{name:"string",medium:"string",description:"string",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"string"},weatherSystem:{identity:"string",source:"string",cycle:"string",forecastability:"LOW|MEDIUM|HIGH",phenomena:"至少4個完整 phenomenon objects"}},publicFacts:["至少2項"],hiddenFacts:["至少2項"]}})
+   }));
+   core=mergeWorldCoreCandidates(core,repair);coreIssues=worldCoreIssues(core)
+  }
+  if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);
 
   report(58,"平行編譯世界","時間線與開局地區將同時生成，減少等待時間");
   const chronologyPromise=worldStage("CHRONOLOGY",{
