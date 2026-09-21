@@ -1,13 +1,13 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=273";
-import {seedDirective} from "./seed-contract.js?v=273";
-import {recognitionForNpc} from "./recognition-engine.js?v=273";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=273";
-import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=273";
-import {sanitizePlayerText} from "./runtime-guard.js?v=273";
-import {helperSnapshot} from "./helper-context.js?v=273";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=273";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=273";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=273";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=274";
+import {seedDirective} from "./seed-contract.js?v=274";
+import {recognitionForNpc} from "./recognition-engine.js?v=274";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=274";
+import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=274";
+import {sanitizePlayerText} from "./runtime-guard.js?v=274";
+import {helperSnapshot} from "./helper-context.js?v=274";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=274";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=274";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=274";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
