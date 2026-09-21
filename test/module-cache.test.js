@@ -30,7 +30,7 @@ test("v0.41.0 refreshes State Sync dependency chain while preserving Causal Worl
  assert.match(app,/\.\/src\/world-engine\.js\?v=40000/);
  assert.match(app,/\.\/src\/game-engine\.js\?v=40000/);
  assert.match(app,/\.\/src\/combat-engine\.js\?v=40000/);
- assert.match(app,/\.\/src\/progression-ui\.js\?v=40000/);
+ assert.match(app,/\.\/src\/progression-ui\.js\?v=41000/);
  assert.match(client,/\.\/turn-outcome\.js\?v=41000/);
  assert.match(client,/\.\/ai-runtime-contracts\.js\?v=41000/);
  assert.match(client,/\.\/state-sync\.js\?v=41000/);
