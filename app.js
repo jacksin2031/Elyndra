@@ -138,7 +138,7 @@ function setTurnSyncing(on,label="AI 正在背景同步必要世界狀態…"){
 }
 function queueForegroundTask(task){
  if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}
- const queued={...task,queuedAt:Date.now()};foregroundQueue.push(queued);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUED",visibility:"INTERNAL",queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length,day:gameState?.world?.state?.day||1,at:queued.queuedAt});updateAIStatusBadge();
+ const queued={...task,queuedAt:Date.now()};foregroundQueue.push(queued);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUED",visibility:"INTERNAL",queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length,day:gameState?.world?.state?.day||1,at:queued.queuedAt});recordDebug("ACTION_QUEUED",{queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length});updateAIStatusBadge();
  const free=$("#freeAction");if(free&&!gameState?.combat?.active)free.placeholder=`已排入下一步（${foregroundQueue.length}）：狀態同步完成後自動執行`;
  return true
 }
@@ -147,7 +147,7 @@ async function drainForegroundQueue(){
  foregroundDraining=true;
  try{
   while(gameState&&foregroundQueue.length&&!aiBusy&&!turnSyncBusy){
-   const next=foregroundQueue.shift();gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUE_DRAINED",visibility:"INTERNAL",queueType:next.type,action:next.customText||next.q||next.action||"",waitMs:Math.max(0,Date.now()-Number(next.queuedAt||Date.now())),day:gameState?.world?.state?.day||1,at:Date.now()});updateAIStatusBadge();
+   const next=foregroundQueue.shift(),waitMs=Math.max(0,Date.now()-Number(next.queuedAt||Date.now()));gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUE_DRAINED",visibility:"INTERNAL",queueType:next.type,action:next.customText||next.q||next.action||"",waitMs,day:gameState?.world?.state?.day||1,at:Date.now()});recordDebug("ACTION_QUEUE_DRAINED",{queueType:next.type,action:next.customText||next.q||next.action||"",waitMs,remaining:foregroundQueue.length});updateAIStatusBadge();
    if(next.type==="action")await runAction(next.action,next.customText);
    else if(next.type==="npc")await submitNpcConversation(next.npcId,next.q);
    else if(next.type==="combat")await runCombatAction(next.action)
