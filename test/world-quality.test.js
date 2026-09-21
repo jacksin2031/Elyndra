@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {newGame} from "../src/world-engine.js";
+import {canonizeGeneration} from "../src/world-registry.js";
 import {
  createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,
  normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,
@@ -81,4 +83,20 @@ test("runtime expansion requires valid history provenance and schedules maintena
  assert.ok(need.reasons.includes("WORLD_QUALITY_DROP"));
  markWorldEvolution(state,{reason:need.reason});
  assert.equal(state.world.evolution.count,1)
+});
+
+
+test("canonization persists valid historyRefs on locations npcs factions and quests",()=>{
+ const s=newGame({worldviewMode:"style",genre:"王道奇幻",scale:"中型",danger:3,magic:3,politics:3,playHours:10,prompt:""});
+ s.world.history=[{id:"HIST-1",order:1,era:"舊紀",title:"舊遷徙",category:"遷徙",summary:"過去發生的大遷徙",causes:["危機"],legacies:["聚落形成"],regions:[],factions:[],discoverKeywords:["碑文"],mutable:false}];
+ canonizeGeneration(s,{
+  locations:[{name:"灰門",type:"聚落",description:"舊路旁形成的聚落",historyRefs:["HIST-1"],known:false}],
+  factions:[{name:"守門會",goal:"維持舊路秩序",description:"由遷徙者後代組成",historyRefs:["HIST-1"],known:false}],
+  npcs:[{name:"米拉",role:"守門人",description:"熟悉舊路",locationName:"灰門",factionName:"守門會",historyRefs:["HIST-1"],known:false}],
+  sideQuests:[{title:"碑文殘片",objective:"找出舊遷徙留下的碑文",historyRefs:["HIST-1"],known:false,evidenceKeywords:["碑文"],target:1}]
+ });
+ assert.deepEqual(s.world.registry.locations[0].historyRefs,["HIST-1"]);
+ assert.deepEqual(s.world.registry.factions[0].historyRefs,["HIST-1"]);
+ assert.deepEqual(s.world.registry.npcs[0].historyRefs,["HIST-1"]);
+ assert.deepEqual(s.world.registry.sideQuests[0].historyRefs,["HIST-1"])
 });
