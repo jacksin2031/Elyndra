@@ -12,15 +12,15 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.28.1 compiler hotfix uses targeted cache generations",async()=>{
+test("v0.29 creator uses targeted cache generations",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=281/);
- assert.match(app,/\.\/src\/version\.js\?v=281/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=281/);
+ assert.match(html,/app\.js\?v=290/);
+ assert.match(app,/\.\/src\/version\.js\?v=290/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=281/);\n assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  for(const mod of ["world-engine","world-registry","world-quality"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
  for(const mod of ["world-compiler","world-quality"])assert.match(client,new RegExp("\\.\\/"+mod+"\\.js\\?v=280"));
  assert.match(client,/\.\/model-json\.js\?v=281/)
