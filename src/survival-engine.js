@@ -22,6 +22,13 @@ export function tickSurvival(state,minutes,{kind="",rest=false}={}){
 export function survivalModifier(state,kind){
  const s=ensureSurvival(state);let n=0;if(s.hunger>=80)n--;if(s.fatigue>=75)n--;if(s.injury>=65&&["TRAVEL","RISKY"].includes(kind))n--;if(s.exposure>=75&&["OBSERVE","TRAVEL","RISKY"].includes(kind))n--;return clamp(n,-3,0)
 }
+export function survivalActionGate(state,kind){
+ const s=ensureSurvival(state),k=String(kind||"").toUpperCase();
+ if(["TRAVEL","RISKY"].includes(k)&&s.fatigue>=95)return {ok:false,reason:"TOO_FATIGUED",message:"你已經過度疲勞，無法安全進行這個行動。先休息會比較好。"};
+ if(["TRAVEL","RISKY"].includes(k)&&s.hunger>=95)return {ok:false,reason:"TOO_HUNGRY",message:"你已經極度飢餓，無法安全進行這個行動。先補充食物會比較好。"};
+ if(k==="TRAVEL"&&s.injury>=90)return {ok:false,reason:"TOO_INJURED",message:"目前傷勢太重，無法繼續長距離移動。"};
+ return {ok:true}
+}
 export function consumeSupply(state,itemName){
  const name=String(itemName||"").trim(),i=(state.inventory||[]).findIndex(x=>x.name===name);if(i<0)return false;state.inventory.splice(i,1);const s=ensureSurvival(state);s.hunger=clamp(s.hunger-25,0,100);s.exposure=clamp(s.exposure-5,0,100);refreshConditions(s);return true
 }
