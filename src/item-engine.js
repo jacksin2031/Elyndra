@@ -1,5 +1,5 @@
-import {isNpcPresent} from "./world-registry.js?v=280";
-import {normalizeCheckBonuses} from "./check-engine.js?v=276";
+import {isNpcPresent} from "./world-registry.js?v=320";
+import {normalizeCheckBonuses} from "./check-engine.js?v=320";
 import {ensureSurvival} from "./survival-engine.js?v=320";
 
 const uid=prefix=>prefix+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
