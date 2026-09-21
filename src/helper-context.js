@@ -1,5 +1,5 @@
 import {playerVisibleEvents} from "./event-visibility.js?v=276";
-import {sanitizePlayerText} from "./runtime-guard.js?v=276";
+import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {survivalSnapshot} from "./survival-engine.js?v=320";
 import {travelSnapshot} from "./travel-engine.js?v=320";
