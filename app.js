@@ -88,6 +88,7 @@ async function runDeferredDirector(){
    task.attempts=(Number(task.attempts)||0)+1;
    gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_FAILED",visibility:"INTERNAL",action:task.action,reason:e?.message||String(e),attempt:task.attempts,day:gameState?.world?.state?.day||1,at:Date.now()});
    if(task.attempts>=2){deferredDirector.queue.shift();removePersistedDeferredTurn(task.id)}else{const saved=gameState?.world?.deferredTurns?.find(x=>x.id===task.id);if(saved)saved.attempts=task.attempts}
+   await persist().catch(()=>{})
   }
  }finally{
   if(deferredDirector.controller===ctrl)deferredDirector.controller=null;deferredDirector.running=false;
