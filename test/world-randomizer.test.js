@@ -21,3 +21,24 @@ test("random world settings does not own player name prompt or play duration",()
 test("random world settings rejects missing option sets",()=>{
  assert.throws(()=>randomWorldSettings({genres:[],scales:["中型"]}),/RANDOM_WORLD_OPTIONS_REQUIRED/)
 });
+
+
+test("creator random world button only fills settings and waits for explicit generation",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const [html,app]=await Promise.all([
+  readFile(new URL("../index.html",import.meta.url),"utf8"),
+  readFile(new URL("../app.js",import.meta.url),"utf8")
+ ]);
+ assert.match(html,/id="randomWorldBtn"[^>]*>🎲 隨機世界<\/button>/);
+ assert.doesNotMatch(html,/aiWorldviewBtn|交給 AI 決定世界觀/);
+ const start=app.indexOf('$("#randomWorldBtn")?.addEventListener');
+ const end=app.indexOf('$("#genre")?.addEventListener',start);
+ const randomHandler=app.slice(start,end);
+ assert.ok(start>=0&&end>start);
+ assert.match(randomHandler,/randomWorldSettings/);
+ assert.doesNotMatch(randomHandler,/generateWorldCandidate|newGame|persist\(/);
+ const generateBlock=app.slice(app.indexOf('$("#generateBtn").onclick'),app.indexOf('$("#freeActionForm").onsubmit'));
+ assert.match(generateBlock,/worldviewMode:"style"/);
+ assert.match(generateBlock,/generateWorldCandidate/);
+ assert.doesNotMatch(generateBlock,/worldviewMode:"ai"/)
+});
