@@ -2,7 +2,7 @@ import {hasDirectAI,directChat} from "./ai-settings.js?v=340";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=332";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=35000";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=37000";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=35000";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
@@ -11,6 +11,9 @@ import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance} from "./world-quality.js?v=300";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
+import {normalizeActionIntent} from "./action-intent.js?v=37000";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode,validateKernelBoundaries} from "./turn-outcome.js?v=37000";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem} from "./ai-runtime-contracts.js?v=37000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -313,9 +316,10 @@ export async function askTravelHelper(state,question){
  if(hasDirectAI()){const raw=await directChat({aiTask:"helper",timeoutMs:30000,maxOutputTokens:700,temperature:.25,system,user:JSON.stringify({question:q,snapshot})});return sanitizePlayerText(raw,900,"目前沒有足夠情報確認。")}
  const raw=(await post("/api/helper",{question:q,snapshot})).text;return sanitizePlayerText(raw,900,"目前沒有足夠情報確認。")
 }
-function normalizeActionAssessment(raw,action){
+function normalizeActionAssessment(raw,action,snapshot={}){
  const r=raw&&typeof raw==="object"?raw:{},verdict=["ALLOW","ADJUST","BLOCK"].includes(String(r.verdict||"").toUpperCase())?String(r.verdict).toUpperCase():"ALLOW",kind=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].includes(String(r.kind||"").toUpperCase())?String(r.kind).toUpperCase():"GENERAL";
- return {verdict,kind,normalizedAction:sanitizePlayerText(r.normalizedAction,180,action)||action,reason:sanitizePlayerText(r.reason,320,""),requirements:Array.isArray(r.requirements)?r.requirements.map(x=>sanitizePlayerText(x,120,"")).filter(Boolean).slice(0,4):[],confidence:Math.max(0,Math.min(100,Math.round(Number(r.confidence)||70)))}
+ const normalizedAction=sanitizePlayerText(r.normalizedAction,180,action)||action,actionIntent=normalizeActionIntent(r.actionIntent||r,normalizedAction,kind,snapshot);
+ return {verdict,kind,normalizedAction,reason:sanitizePlayerText(r.reason,320,""),requirements:Array.isArray(r.requirements)?r.requirements.map(x=>sanitizePlayerText(x,120,"")).filter(Boolean).slice(0,4):[],confidence:Math.max(0,Math.min(100,Math.round(Number(r.confidence)||70))),actionIntent}
 }
 function actionFeasibilitySnapshot(state){
  const h=helperSnapshot(state),inventory=(state.inventory||[]).slice(-30).map(x=>({name:x.name,category:x.category,quantity:Number(x.quantity)||1,equipped:x.equipped===true,identified:x.identified!==false,useEffects:(x.useEffects||[]).map(e=>e.type)})),recipes=(state.crafting?.recipes||[]).slice(-20).map(r=>({name:r.name,inputs:(r.inputs||[]).map(i=>({name:i.name,quantity:i.quantity})),output:r.output?.name||""}));
@@ -326,11 +330,17 @@ function localActionKind(label){
 }
 export function fastLocalActionAssessment(state,label){
  const q=String(label||"").trim(),kind=localActionKind(q);if(!q||state?.combat?.active||state?.player?.status==="DOWNED")return null;
- const consequential=/偷|竊|闖|破壞|拆|攻擊|威脅|恐嚇|說服|欺騙|騙|賄賂|施法|使用|交給|交出|贈送|展示|出示|攀|跳|撬|開鎖|潛入|steal|break|attack|threat|persuade|lie|bribe|cast|use|give|show|climb|jump|lockpick|sneak/i;
+ const consequential=/偷|竊|闖|破壞|拆|攻擊|威脅|恐嚇|說服|欺騙|騙|賄賂|施法|交給|交出|贈送|展示|出示|攀|跳|撬|開鎖|潛入|steal|break|attack|threat|persuade|lie|bribe|cast|give|show|climb|jump|lockpick|sneak/i;
  const simpleObserve=kind==="OBSERVE"&&!consequential.test(q);
  const simpleSocial=kind==="SOCIAL"&&!consequential.test(q)&&/問|詢問|打招呼|說|交談|聊|talk|ask|greet|say/i.test(q);
- if(!simpleObserve&&!simpleSocial)return null;
- return {verdict:"ALLOW",kind,normalizedAction:q,reason:"這是目前場景內可直接嘗試的基本行動，由 Fast Path 立即放行；實際結果仍由 Engine 與骰子決定。",requirements:[],confidence:99,source:"ENGINE_FASTPATH"}
+ const inventoryOnly=/^(?:查看|打開|檢查)?(?:我的)?(?:背包|物品|inventory)$/i.test(q);
+ const rest=/休息|睡眠|紮營|露營|rest|sleep|camp/i.test(q);
+ const eat=/食用|進食|吃|喝|飲用|eat|drink/i.test(q)&&(state.inventory||[]).some(x=>x?.name&&q.includes(x.name));
+ const knownLocation=(state.world?.registry?.locations||[]).find(x=>x?.known===true&&x?.name&&q.includes(x.name));
+ const simpleTravel=kind==="TRAVEL"&&Boolean(knownLocation)&&!/闖|突破|潛入|偷渡|break in|sneak/i.test(q);
+ if(!simpleObserve&&!simpleSocial&&!inventoryOnly&&!rest&&!eat&&!simpleTravel)return null;
+ const resolvedKind=inventoryOnly||rest||eat?"GENERAL":kind,snapshot=actionFeasibilitySnapshot(state);
+ return {verdict:"ALLOW",kind:resolvedKind,normalizedAction:q,reason:"這是 Engine 可以直接確認前提的基本行動，由 Fast Path 放行；實際結果仍由規則與骰子決定。",requirements:[],confidence:99,source:"ENGINE_FASTPATH",actionIntent:normalizeActionIntent({},q,resolvedKind,snapshot)}
 }
 function degradedActionAssessment(state,label,error){
  const inv=state.inventory||[],q=String(label||""),kind=localActionKind(q),requirements=[];
@@ -339,17 +349,16 @@ function degradedActionAssessment(state,label,error){
  if(/飛上天空|直接飛行|瞬間移動|teleport|fly into the sky/i.test(q)&&!(state.player?.magic?.knownSpells||[]).some(s=>/飛|傳送|移動|teleport|flight/i.test(String(s?.name||"")+" "+String(s?.effect||""))))return {verdict:"BLOCK",kind:"RISKY",normalizedAction:q,reason:"你目前沒有已知能力支持這種超常移動。",requirements:["需要相應能力、魔法或工具"],confidence:90,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")};
  return {verdict:"ALLOW",kind,normalizedAction:q,reason:"AI 可行性判定暫時不可用；已改用保守 Engine 條件檢查，成功與否仍由正常判定處理。",requirements:[],confidence:35,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")}
 }
-const ACTION_ASSESS_SYSTEM=`你是 Elyndra Action Feasibility Judge。只判斷玩家目前「能否合理嘗試」這個行動；不要判斷成功率、不要擲骰、不要修改狀態、不要創造世界設定。只根據 payload 內玩家可知／可用資料。技能低、疲勞高或受傷通常仍可 ALLOW，之後交由 Engine DC 處理。只有缺少必要物品／能力、目標不在場、未知且不可到達地點、或物理上明顯不可能時才 BLOCK。含糊但可最小修正時用 ADJUST。kind 只可 OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL。只輸出單一 JSON：{"verdict":"ALLOW|ADJUST|BLOCK","kind":"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL","normalizedAction":"...","reason":"...","requirements":[],"confidence":0-100}。`;
 async function directActionAssessment(payload,label,compact=false){
- const raw=await directChat({aiTask:"action",disableOptimization:compact,timeoutMs:compact?35000:28000,maxOutputTokens:compact?700:650,temperature:0,system:compact?ACTION_ASSESS_SYSTEM+" 不要解釋，只回 JSON。":ACTION_ASSESS_SYSTEM,user:JSON.stringify(payload)});
- return {...normalizeActionAssessment(parseJSON(raw),label),source:compact?"AI_RETRY":"AI"}
+ const raw=await directChat({aiTask:"action",disableOptimization:compact,timeoutMs:compact?35000:28000,maxOutputTokens:compact?700:650,temperature:0,system:compact?SHARED_ACTION_ASSESS_SYSTEM+" 不要解釋，只回 JSON。":SHARED_ACTION_ASSESS_SYSTEM,user:JSON.stringify(payload)});
+ return {...normalizeActionAssessment(parseJSON(raw),label,payload?.snapshot||{}),source:compact?"AI_RETRY":"AI"}
 }
 export async function assessPlayerAction(state,action){
  const label=String(action||"").trim().slice(0,180);if(!label)throw new Error("ACTION_REQUIRED");
  const fast=fastLocalActionAssessment(state,label);if(fast)return fast;
  const snapshot=actionFeasibilitySnapshot(state),payload={action:label,snapshot};
  if(!hasDirectAI()){
-  try{const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label),source:"SERVER_AI"}}catch(e){return degradedActionAssessment(state,label,e)}
+  try{const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label,snapshot),source:"SERVER_AI"}}catch(e){return degradedActionAssessment(state,label,e)}
  }
  try{return await directActionAssessment(payload,label,false)}
  catch(firstError){
