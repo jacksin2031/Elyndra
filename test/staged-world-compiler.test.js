@@ -73,6 +73,13 @@ test("world creation progress represents real compiler boundaries instead of a f
  assert.ok(appProgress.includes(98));
 });
 
+test("World Compiler preserves must-exist labels in Canon prompts",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ assert.match(client,/blueprintProfile\.mustExist 是硬性世界要素/);
+ assert.match(client,/blueprintProfile\.mustExist 的每一項都必須在世界 Canon 實際存在/);
+ assert.match(client,/blueprintProfile:directive\.blueprintProfile/)
+});
+
 test("staged compiler loads timeout settings through current cache generation",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.match(client,/ai-settings\.js\?v=340/);
