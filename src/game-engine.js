@@ -43,17 +43,24 @@ function localNarrative(label,roll,profile){
 }
 export function performAction(state,action="free",customText=""){
  ensure(state);
- const label=clean(customText||action)||"觀察目前環境",profile=actionProfile(label),gate=survivalActionGate(state,profile.kind);
+ const label=clean(customText||action)||"觀察目前環境",profile=actionProfile(label),directItem=resolveItemAction(state,label,{success:true});
+ if(directItem?.handled){
+  const minutes=Math.max(1,Math.round(Number(directItem.minutes)||2));advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL"}),questProgress=evaluateQuestState(state);
+  const text=directItem.ok?(directItem.output?`你完成了「${directItem.recipe?.name||label}」，取得「${directItem.output.name}」。`:directItem.effects?`你使用了「${directItem.itemName}」。`:`你完成了「${label}」。`):directItem.reason==="MATERIALS_MISSING"?"材料不足，無法完成這項合成。":directItem.reason==="ITEM_NOT_USABLE"?"這件物品目前沒有可以直接使用的效果。":directItem.reason==="ITEM_NOT_OWNED"?"你目前沒有指定的物品。":"目前無法完成這個物品操作。";
+  state.narrative=text;state.events.push({id:id(),type:"PLAYER_ITEM_ACTION",visibility:"PLAYER_KNOWN",action:"item",customText:label,reason:directItem.reason||"",day:state.world.state.day,minutes,at:Date.now()});
+  const worldEvent=tickWorld(state);tickMainQuest(state);return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{item:directItem,survival,questProgress}}
+ }
+ const gate=survivalActionGate(state,profile.kind);
  if(!gate.ok){state.narrative=gate.message;state.events.push({id:id(),type:"PLAYER_ACTION_BLOCKED",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,reason:gate.reason,day:state.world.state.day,at:Date.now()});return {blocked:true,roll:null,text:gate.message,minutes:0,actionKind:profile.kind,check:null,training:null,ruleEffects:{gate}}}
  const check=buildActionCheck(state,label,profile),roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
  advanceTime(state,profile.minutes);
  const economy=resolveEconomyAction(state,label,roll),paidLodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),restGranted=profile.rest===true&&roll.success&&(!paidLodging||economy?.ok===true);
  const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
- const culture=applyCultureAction(state,label,roll),magic=resolveMagicAction(state,label,roll),item=resolveItemAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
+ const culture=applyCultureAction(state,label,roll),magic=resolveMagicAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
  const text=localNarrative(label,roll,profile);
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,item,talent,dungeon,questProgress}}
+ return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress}}
 }
