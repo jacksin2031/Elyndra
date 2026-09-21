@@ -18,7 +18,7 @@ import {ensureDungeonSites,exploreDungeon} from "../src/dungeon-engine.js";
 import {applyWorldImpacts} from "../src/world-impact.js";
 import {canStartEncounter} from "../src/combat-engine.js";
 import {ensureTalents,grantTalentPoint,learnTalent,talentActionModifier} from "../src/talent-engine.js";
-import {createTimelinePacing} from "../src/world-timeline.js";
+import {createTimelinePacing,timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "../src/world-timeline.js";
 import {endgameWindowOpen} from "../src/world-pacing.js";
 
 const seed={genre:"異界奇幻",theme:"漂流世界",scale:"中型",danger:3,magic:4,politics:3,playHours:15,prompt:"世界規則必須能被玩家實際體驗"};
@@ -125,4 +125,18 @@ test("level rewards become player-selected talents that affect checks",()=>{
 test("15-hour worlds use a playable horizon and ENDGAME stays closed in early timeline",()=>{
  const pacing=createTimelinePacing(15);assert.ok(pacing.horizonDays>=7&&pacing.horizonDays<=12);
  const s=game();s.world.timelinePacing=pacing;s.world.timeline=[{id:"TL-1",status:"SCHEDULED",earliestDay:2,latestDay:pacing.horizonDays,triggerDay:pacing.horizonDays,baseTriggerDay:pacing.horizonDays,impactOffsetDays:0,intensityModifier:0,pressure:5}];s.world.state.day=1;assert.equal(endgameWindowOpen(s),false);s.world.state.day=pacing.phases.late.fromDay;assert.equal(endgameWindowOpen(s),true)
+});
+
+
+test("timeline pacing phases and authored slots stay inside the world horizon even for short campaigns",()=>{
+ for(const hours of [2,3,5,15,100]){
+  const pacing=createTimelinePacing(hours),slots=timelineAuthoringSlots(pacing);
+  assert.ok(pacing.phases.early.fromDay>=2&&pacing.phases.early.toDay<=pacing.horizonDays);
+  assert.ok(pacing.phases.middle.fromDay>=2&&pacing.phases.middle.toDay<=pacing.horizonDays);
+  assert.ok(pacing.phases.late.fromDay>=2&&pacing.phases.late.toDay<=pacing.horizonDays);
+  assert.equal(slots.length,pacing.majorEventCount);
+  for(let i=0;i<slots.length;i++){assert.ok(slots[i].earliestDay>=2);assert.ok(slots[i].latestDay<=pacing.horizonDays);assert.ok(slots[i].latestDay>=slots[i].earliestDay);if(i)assert.ok(slots[i].earliestDay>=slots[i-1].earliestDay)}
+  const authored=slots.map((_,i)=>({title:"事件 "+(i+1),category:"WORLD_EVENT",directorTruth:"這是只有導演層知道的完整事件因果。",observableEffect:"玩家能從世界變化直接觀察到事件影響。",pressure:5}));
+  const report=validateWorldTimeline(bindTimelineAuthoringSlots(authored,pacing),pacing);assert.equal(report.valid,true,report.errors.join(","))
+ }
 });
