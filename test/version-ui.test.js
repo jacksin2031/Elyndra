@@ -28,7 +28,8 @@ test("v0.31.0 generated UI assets are cache-busted independently from compiler m
  assert.match(html,/styles\.css\?v=292/);
  assert.match(html,/app\.js\?v=310/);
  assert.match(app,/\.\/src\/version\.js\?v=310/);
- assert.match(app,/\.\/src\/ai-settings\.js\?v=310/);\n assert.match(app,/\.\/src\/ai-client\.js\?v=300/);
+ assert.match(app,/\.\/src\/ai-settings\.js\?v=310/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=300/);
  for(const mod of ["world-engine","world-registry"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
  assert.match(app,/\.\/src\/world-quality\.js\?v=300/)
 });
