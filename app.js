@@ -2,7 +2,7 @@ window.__ELYNDRA_BOOTED__=true;
 import {APP_VERSION} from "./src/version.js?v=312";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=310";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=280";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=300";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=320";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=276";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=276";
@@ -87,7 +87,45 @@ function bindNpcLinks(){document.querySelectorAll("#modalContent .npc-link[data-
 async function runCombatAction(action){if(!gameState?.combat?.active||aiBusy)return;const r=combatAction(gameState,action);gameState.narrative=r.summary||"戰鬥局勢發生了變化。";gameState.sceneTitle=deriveSceneTitle(gameState,action);renderRoll(r.roll);if(!gameState.combat?.active){gameState.suggestions=fallbackActionButtons("戰鬥結束")}await persist();await refresh()}
 function signed(n){const x=Number(n)||0;return x>0?`+${x}`:String(x)}
 function renderRoll(roll){$("#d20").textContent=roll.natural;const m=roll.modifiers||{},parts=[["能力",m.attribute],["技能",m.skill],["裝備",m.equipment],["夥伴",m.companion],["關係",m.relationship],["情境",m.situation],["天氣",m.weather]].filter(([,v])=>Number(v));const detail=parts.map(([k,v])=>`${k} ${signed(v)}`).join(" · ");$("#rollLabel").textContent=`D20 ${roll.natural} ${roll.bonus>=0?"+":"-"} ${Math.abs(roll.bonus)} = ${roll.total} / DC ${roll.dc}`;$("#rollResult").textContent=`${roll.grade.replaceAll("_"," ")}${roll.profile?.skillLabel?` · ${roll.profile.skillLabel}`:""}${detail?` · ${detail}`:""}${Number(roll.difficulty)?` · 難度 ${signed(roll.difficulty)}`:""}${roll.skillUp?` · 技能提升至 ${roll.skillUp.after}`:""}`;const box=$("#diceBox");if(box){box.classList.remove("rolling","roll-success","roll-fail");void box.offsetWidth;box.classList.add("rolling",Number(roll.total)>=Number(roll.dc)?"roll-success":"roll-fail");setTimeout(()=>box.classList.remove("rolling"),700)}}
-async function runAction(action,customText=""){if(!gameState||aiBusy)return;if(gameState.combat?.active){gameState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}const previousSuggestions=[...(gameState.suggestions||[])],impactBefore=ensureWorldImpact(gameState).records.length;const localLore=resolveLocalLoreAction(gameState,customText||action);if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,customText||action);gameState.suggestions=fallbackActionButtons(customText||action);await refresh();return}if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}const actionResult=performAction(gameState,action,customText),{roll,text:localText}=actionResult;gameState.narrative=localText;if(actionResult.blocked||actionResult.deterministic){gameState.sceneTitle=deriveSceneTitle(gameState,customText||action);gameState.suggestions=fallbackActionButtons(customText||action);await persist();await refresh();return}if(aiStatus.aiConfigured){setAIThinking(true,"2 個 AI 正在並行處理敘事與世界狀態…");try{const label=customText||action,routing=await routeAction(label,gameState);if(routing.needsGeneration){const candidate=await generateTurn(label,roll,buildSnapshot(gameState));applyTurnCandidate(gameState,candidate,{action:label,roll})}else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}}catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,customText||action,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,customText||action);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(customText||action)}finally{setAIThinking(false)}}else gameState.suggestions=fallbackActionButtons(customText||action);if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,customText||action);renderRoll(roll);if(aiStatus.aiConfigured&&!gameState.combat?.active){const evolution=worldEvolutionNeed(gameState);if(needsExpansion(gameState)||evolution.required){setAIThinking(true,evolution.reasons.includes("WORLD_QUALITY_DROP")?"AI 正在修補世界觀薄弱部分…":"AI 正在擴展你剛發現的世界區域…");try{const reason=evolution.required?evolution.reason:(customText||action||"player_exploration"),ex=await generateRegionExpansion(gameState,reason);if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason})}}catch(e){console.warn("world evolution fallback",e)}finally{setAIThinking(false)}}}await persist();await refresh()}
+async function runAction(action,customText=""){
+ if(!gameState||aiBusy)return;
+ if(gameState.combat?.active){gameState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}
+ if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}
+ const requested=String(customText||action||"").trim()||"觀察目前環境";
+ if(!aiStatus.aiConfigured){gameState.narrative="目前沒有可用的 AI Provider，無法先判定這個行動是否符合角色狀態與場景條件。請先在 AI 設定連線。";await refresh();return}
+ let assessment;
+ setAIThinking(true,"AI 正在根據角色狀態、物品與場景判定行動是否合理…");
+ try{assessment=await assessPlayerAction(gameState,requested)}
+ catch(e){
+  console.warn("action feasibility failed",e);
+  gameState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
+  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
+  await persist();await refresh();return
+ }finally{setAIThinking(false)}
+ const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
+ const previousSuggestions=[...(gameState.suggestions||[])],impactBefore=ensureWorldImpact(gameState).records.length;
+ if(assessment?.verdict!=="BLOCK"){
+  const localLore=resolveLocalLoreAction(gameState,effective);
+  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
+ }
+ const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;
+ if(actionResult.blocked||actionResult.deterministic){
+  gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);await persist();await refresh();return
+ }
+ if(aiStatus.aiConfigured){
+  setAIThinking(true,"2 個 AI 正在並行處理敘事與世界狀態…");
+  try{const label=effective,routing=await routeAction(label,gameState);if(routing.needsGeneration){const candidate=await generateTurn(label,roll,buildSnapshot(gameState));applyTurnCandidate(gameState,candidate,{action:label,roll})}else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}}
+  catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,effective,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
+  finally{setAIThinking(false)}
+ }else gameState.suggestions=fallbackActionButtons(effective);
+ if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
+ renderRoll(roll);
+ if(aiStatus.aiConfigured&&!gameState.combat?.active){
+  const evolution=worldEvolutionNeed(gameState);
+  if(needsExpansion(gameState)||evolution.required){setAIThinking(true,evolution.reasons.includes("WORLD_QUALITY_DROP")?"AI 正在修補世界觀薄弱部分…":"AI 正在擴展你剛發現的世界區域…");try{const reason=evolution.required?evolution.reason:(effective||"player_exploration"),ex=await generateRegionExpansion(gameState,reason);if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason})}}catch(e){console.warn("world evolution fallback",e)}finally{setAIThinking(false)}}
+ }
+ await persist();await refresh()
+}
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
 function syncWorldParameterOutputs(){for(const id of ["danger","magic","politics"]){const input=$("#"+id),out=$("#"+id+"Value");if(input&&out)out.textContent=input.value}}
