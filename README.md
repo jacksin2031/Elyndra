@@ -535,3 +535,13 @@ weatherProfile: {
 - `worldName / worldTheme / seedCompliance` 由 Engine 組裝，Rules/Anchor 無法各自改寫世界身份。
 - IDENTITY、Rules、Anchor 遇到 timeout、429/5xx 或 invalid JSON 會使用同一 Seed / Identity-derived fallback，不再因單點 Core provider timeout 中止整個世界。
 - Browser cache generation 升至 `v274`。
+
+## V0.27.4 — Resilient Split Core Compiler
+
+- 移除單一 95 秒 `CORE` / `CORE_REPAIR` 重型請求。
+- 先用短 `IDENTITY` 鎖定唯一 `worldName / worldTheme / genre / scale / danger / magic / politics`。
+- 再以最多兩個 AI 並行生成 `CORE_RULES + CORE_ANCHOR`，兩者共享同一 Engine-owned World Identity。
+- `CORE_RULES` 只擁有時代、核心衝突、魔法代價、危機、文明與通訊；`CORE_ANCHOR` 只擁有開局地區、Weather Canon、public/hidden facts，不能互相覆寫。
+- IDENTITY / RULES / ANCHOR 遇到 timeout、429/5xx、JSON 破損或 malformed shape 時，會使用同一 Seed/Identity 衍生 fallback，不再因單一 Core provider timeout 終止整個世界。
+- 世界生成全流程仍由硬性 semaphore 保證最多 2 個 AI request 同時執行。
+- Browser cache generation 升至 `v274`。
