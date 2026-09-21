@@ -1,27 +1,27 @@
 import {isNpcPresent} from "./world-registry.js?v=280";
 import {normalizeCheckBonuses} from "./check-engine.js?v=276";
-import {ensureSurvival} from "./survival-engine.js?v=276";
+import {ensureSurvival} from "./survival-engine.js?v=320";
 
 const uid=prefix=>prefix+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const CATEGORIES=new Set(["MATERIAL","CONSUMABLE","TOOL","EQUIPMENT","KEY","QUEST","ARTIFACT"]);
-const EFFECTS=new Set(["RESTORE_HP","REDUCE_HUNGER","REDUCE_FATIGUE","REDUCE_EXPOSURE","REDUCE_INJURY","REDUCE_MAGIC_STRAIN"]);
+const EFFECTS=new Set(["RESTORE_HP","RESTORE_SATIETY","REDUCE_FATIGUE","REDUCE_EXPOSURE","REDUCE_INJURY","REDUCE_MAGIC_STRAIN"]);
 const STACKABLE=new Set(["MATERIAL","CONSUMABLE"]);
-const POWER_CAP={RESTORE_HP:35,REDUCE_HUNGER:45,REDUCE_FATIGUE:40,REDUCE_EXPOSURE:35,REDUCE_INJURY:30,REDUCE_MAGIC_STRAIN:40};
+const POWER_CAP={RESTORE_HP:35,RESTORE_SATIETY:45,REDUCE_FATIGUE:40,REDUCE_EXPOSURE:35,REDUCE_INJURY:30,REDUCE_MAGIC_STRAIN:40};
 
 function uniqStrings(v,max=8){return [...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,50).toUpperCase()).filter(Boolean))].slice(0,max)}
 export function itemCategoryLabel(category){
  return {MATERIAL:"素材",CONSUMABLE:"消耗品",TOOL:"工具",EQUIPMENT:"裝備",KEY:"關鍵物品",QUEST:"任務物品",ARTIFACT:"遺物"}[String(category||"").toUpperCase()]||"其他"
 }
 function effectLabel(type){
- return {RESTORE_HP:"回復生命",REDUCE_HUNGER:"降低飢餓",REDUCE_FATIGUE:"降低疲勞",REDUCE_EXPOSURE:"降低環境暴露",REDUCE_INJURY:"緩解傷勢",REDUCE_MAGIC_STRAIN:"降低魔法負荷"}[type]||type
+ return {RESTORE_HP:"回復生命",RESTORE_SATIETY:"增加飽食度",REDUCE_FATIGUE:"降低疲勞",REDUCE_EXPOSURE:"降低環境暴露",REDUCE_INJURY:"緩解傷勢",REDUCE_MAGIC_STRAIN:"降低魔法負荷"}[type]||type
 }
 export function normalizeUseEffects(input){
  const rows=Array.isArray(input)?input:(input&&typeof input==="object"?[input]:[]);
  const out=[];
  for(const row of rows.slice(0,3)){
-  const type=String(row?.type||"").toUpperCase();if(!EFFECTS.has(type))continue;
+  let type=String(row?.type||"").toUpperCase();if(type==="REDUCE_HUNGER")type="RESTORE_SATIETY";if(!EFFECTS.has(type))continue;
   const amount=Math.round(clamp(row?.amount,1,POWER_CAP[type]||20));
   out.push({type,amount})
  }
@@ -94,7 +94,7 @@ export function consumeInventoryQuantity(state,itemId,quantity=1){
 function applyEffect(state,effect){
  const amount=Math.max(1,Number(effect.amount)||1),s=ensureSurvival(state);
  if(effect.type==="RESTORE_HP"){const before=Number(state.player.hp)||0;state.player.hp=Math.min(Number(state.player.maxHp)||100,before+amount);return state.player.hp-before}
- if(effect.type==="REDUCE_HUNGER"){const before=s.hunger;s.hunger=clamp(s.hunger-amount,0,100);return before-s.hunger}
+ if(effect.type==="RESTORE_SATIETY"){const before=s.satiety;s.satiety=clamp(s.satiety+amount,0,100);return s.satiety-before}
  if(effect.type==="REDUCE_FATIGUE"){const before=s.fatigue;s.fatigue=clamp(s.fatigue-amount,0,100);return before-s.fatigue}
  if(effect.type==="REDUCE_EXPOSURE"){const before=s.exposure;s.exposure=clamp(s.exposure-amount,0,100);return before-s.exposure}
  if(effect.type==="REDUCE_INJURY"){const before=s.injury;s.injury=clamp(s.injury-amount,0,100);return before-s.injury}
@@ -102,7 +102,7 @@ function applyEffect(state,effect){
  return 0
 }
 function refreshSurvivalConditions(state){
- const s=ensureSurvival(state),out=[];if(s.hunger>=65)out.push("飢餓");if(s.fatigue>=65)out.push("疲勞");if(s.exposure>=65)out.push("環境暴露");if(s.injury>=55)out.push("傷勢");s.conditions=out
+ const s=ensureSurvival(state),out=[];if(s.satiety<=35)out.push("飢餓");if(s.fatigue>=65)out.push("疲勞");if(s.exposure>=65)out.push("環境暴露");if(s.injury>=55)out.push("傷勢");s.conditions=out
 }
 export function canUseItem(item){
  const x=normalizeItem(item);return Boolean(x&&x.identified!==false&&x.useEffects.length&&x.category!=="KEY"&&x.category!=="QUEST")
