@@ -21,13 +21,16 @@ test("world creation uses linked waves with at most two AI requests in parallel"
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
  assert.match(client,/timelineAuthoringSlots\(directive\.timelinePacing\)/);
  assert.match(client,/bindTimelineAuthoringSlots\(futureRaw\?\.worldTimeline,directive\.timelinePacing\)/);
- assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);\n assert.doesNotMatch(client,/worldStage\("REGION"/);
+ assert.doesNotMatch(client,/worldStage\("CHRONOLOGY"/);
+ assert.doesNotMatch(client,/worldStage\("REGION"/);
  assert.match(client,/normalizeWorldCoreCandidate\(await worldStage\("CORE"/);
  assert.match(client,/worldStage\("CORE_REPAIR"/);
  assert.match(client,/timeoutMs:70000/);
  assert.match(client,/retryOnTimeout:false/);
  assert.match(client,/worldCoreIssues\(core\)/);
- assert.match(client,/buildWorldAnchorContract\(core,directive\.timelinePacing\)/);\n assert.match(client,/worldGenerationLinkIssues\(/);\n assert.match(client,/resilientWorldStage\("CAST"/);
+ assert.match(client,/buildWorldAnchorContract\(core,directive\.timelinePacing\)/);
+ assert.match(client,/worldGenerationLinkIssues\(/);
+ assert.match(client,/resilientWorldStage\("CAST"/);
  assert.match(client,/worldHistory/);
  assert.match(client,/civilization/);
  assert.match(client,/weatherSystem/);
