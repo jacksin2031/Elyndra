@@ -37,7 +37,7 @@ test("Deferred Director accepts only narrow persistent-effect shape",()=>{
 test("app preserves Action Intent when scheduling Deferred Director",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/candidate\.directorMode==="DEFERRED"/);
- assert.match(app,/scheduleDeferredDirector\(\{action:label,roll,intent:assessment\?\.actionIntent,queuedAt:Date\.now\(\)\},650\)/);
+ assert.match(app,/scheduleDeferredDirector\(\{action:label,roll,intent:assessment\?\.actionIntent,queuedAt:Date\.now\(\)\},3500\)/);
  assert.match(app,/generateDeferredTurnEffects\(task\.action,task\.roll,buildSnapshot\(gameState\),\{signal:ctrl\.signal,intent:task\.intent\}\)/);
  assert.match(app,/type:"TURN_DIRECTOR_MODE"/);
  assert.match(app,/type:"DEFERRED_TURN_STARTED"/);
