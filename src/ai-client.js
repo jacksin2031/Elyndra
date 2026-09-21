@@ -43,7 +43,8 @@ function societyFallback(anchor,history,geography){
 }
 function futureFallback(anchor,history,pacing){
  const slots=timelineAuthoringSlots(pacing);
- return {worldCalendar:{name:`${anchor.worldName}紀`,epochName:anchor.era||"現紀",dayTerm:"日",cycleTerm:"旬",longCycleTerm:"輪",daysPerCycle:10,cyclesPerLongCycle:10,cycles:["初旬","中旬","末旬"],periods:[{name:"前段",fromMinute:0,toMinute:479},{name:"中段",fromMinute:480,toMinute:959},{name:"後段",fromMinute:960,toMinute:1439}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:i===slots.length-1?(anchor.currentCrisis||"危機轉折"):`${anchor.centralConflict||anchor.worldTheme}的第${i+1}次波動`,category:"WORLD_EVENT",directorTruth:`此事件延續自${history?.[i%Math.max(1,history.length)]?.title||"既有歷史"}。`,observableEffect:`${anchor.startingRegion}及其周邊逐步出現可被居民察覺的變化。`,pressure:Math.min(15,3+i),links:{historyRefs:[history?.[i%Math.max(1,history.length)]?.id||"HIST-1"],locationRefs:["STARTING_REGION"]}}))}
+ const rows=slots.map((slot,i)=>({slot:slot.slot,title:i===slots.length-1?(anchor.currentCrisis||"危機轉折"):`${anchor.centralConflict||anchor.worldTheme}的第${i+1}次波動`,category:"WORLD_EVENT",directorTruth:`此事件延續自${history?.[i%Math.max(1,history.length)]?.title||"既有歷史"}。`,observableEffect:`${anchor.startingRegion}及其周邊逐步出現可被居民察覺的變化。`,pressure:Math.min(15,3+i),links:{historyRefs:[history?.[i%Math.max(1,history.length)]?.id||"HIST-1"],locationRefs:["STARTING_REGION"]}}));
+ return {worldCalendar:{name:`${anchor.worldName}紀`,epochName:anchor.era||"現紀",dayTerm:"日",cycleTerm:"旬",longCycleTerm:"輪",daysPerCycle:10,cyclesPerLongCycle:10,cycles:["初旬","中旬","末旬"],periods:[{name:"前段",fromMinute:0,toMinute:479},{name:"中段",fromMinute:480,toMinute:959},{name:"後段",fromMinute:960,toMinute:1439}]},worldTimeline:bindTimelineAuthoringSlots(rows,pacing)}
 }
 function castFallback(anchor,history,region,society){
  const location=anchor.startingLocation,faction=society?.faction?.name||"";
