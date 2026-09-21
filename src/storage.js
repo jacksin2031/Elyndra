@@ -1,4 +1,6 @@
 import {assertSaveState} from "./state-validator.js?v=276";
+import {ensureItemRuntime} from "./item-engine.js?v=320";
+import {ensureNotes} from "./notes-engine.js?v=320";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=11;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);const MIGRATION_RENOWN={PERSONAL:1,LOCAL:4,REGIONAL:10,FACTION:15,WORLD:25};const LEGACY_SUGGESTIONS=["觀察目前環境","確認自己的狀態","尋找可以安全前進的方向"];
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}
@@ -49,11 +51,18 @@ export function migrateSave(input){
   if(s.quests?.main){s.quests.main.stage=Math.max(0,Math.min(5,Math.round(Number(s.quests.main.stage)||0)));s.quests.main.stageKey??=["SURVIVE","ORIENT","CONTACT","INVESTIGATE","CRISIS","CLIMAX"][s.quests.main.stage]}
   v=11
  }
+ ensureItemRuntime(s);ensureNotes(s);
  s.formatVersion=FORMAT_VERSION;return s
 }
-export async function saveWorld(state){const clean=migrateSave(state);assertSaveState(clean);Object.assign(state,clean);const record={...structuredClone(clean),id:"autosave",savedAt:new Date().toISOString(),formatVersion:FORMAT_VERSION};await tx("readwrite",s=>s.put(record));return record}
-export async function loadWorld(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).get("autosave");r.onsuccess=()=>{try{if(!r.result){resolve(null);return}const migrated=migrateSave(r.result);assertSaveState(migrated);resolve(migrated)}catch(e){reject(e)}};r.onerror=()=>reject(r.error)})}
+async function putSave(state,id="autosave",label=""){const clean=migrateSave(state);assertSaveState(clean);if(id==="autosave")Object.assign(state,clean);const record={...structuredClone(clean),id,savedAt:new Date().toISOString(),saveLabel:String(label||"").slice(0,80),formatVersion:FORMAT_VERSION};await tx("readwrite",s=>s.put(record));return record}
+async function getSave(id){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).get(id);r.onsuccess=()=>{try{if(!r.result){resolve(null);return}const migrated=migrateSave(r.result);assertSaveState(migrated);resolve(migrated)}catch(e){reject(e)}};r.onerror=()=>reject(r.error)})}
+export async function saveWorld(state){return putSave(state,"autosave","自動存檔")}
+export async function loadWorld(){return getSave("autosave")}
+export async function saveWorldSlot(state,slot=1,label=""){const n=Math.max(1,Math.min(3,Math.round(Number(slot)||1)));return putSave(state,"slot-"+n,label||"手動存檔 "+n)}
+export async function loadWorldSlot(slot=1){const n=Math.max(1,Math.min(3,Math.round(Number(slot)||1)));return getSave("slot-"+n)}
+export async function listWorldSaves(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).getAll();r.onsuccess=()=>resolve((r.result||[]).map(x=>({id:x.id,savedAt:x.savedAt||"",saveLabel:x.saveLabel||"",worldName:x.world?.name||"未知世界",playerName:x.player?.name||"無名者",day:x.world?.state?.day||1,location:x.player?.location||"未知地點"})).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))));r.onerror=()=>reject(r.error)})}
+export async function deleteWorldSlot(slot){const id=slot==="autosave"?"autosave":"slot-"+Math.max(1,Math.min(3,Math.round(Number(slot)||1)));await tx("readwrite",s=>s.delete(id))}
 export async function hasWorld(){return !!(await loadWorld())}
-export async function deleteWorld(){await tx("readwrite",s=>s.delete("autosave"))}
+export async function deleteWorld(){await tx("readwrite",s=>{s.delete("autosave");s.delete("slot-1");s.delete("slot-2");s.delete("slot-3")})}
 export function exportWorld(state){const payload={format:"elyndra-save",formatVersion:FORMAT_VERSION,exportedAt:new Date().toISOString(),state:migrateSave(state)};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${state.world?.name||"world"}.elyndra`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 export async function importWorld(file){const payload=JSON.parse(await file.text()),version=Number(payload.formatVersion);if(payload.format!=="elyndra-save"||!Number.isInteger(version)||version<1||version>FORMAT_VERSION||!payload.state?.world)throw new Error(version>FORMAT_VERSION?"SAVE_VERSION_TOO_NEW":"不是有效的 Elyndra 存檔");if(Number(payload.state.formatVersion||version)>FORMAT_VERSION)throw new Error("SAVE_VERSION_TOO_NEW");const state=migrateSave(payload.state);assertSaveState(state);await saveWorld(state);return state}
