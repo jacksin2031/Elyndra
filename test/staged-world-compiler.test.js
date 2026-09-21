@@ -5,18 +5,18 @@ import {readFile} from "node:fs/promises";
 test("world creation uses linked waves with at most two AI requests in parallel",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
- assert.match(client,/worldStage\("CORE"/);assert.match(client,/worldStage\("CORE_REPAIR"/);for(const stage of ["HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
- assert.match(client,/timeoutMs:95000/);
+ for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
+ assert.match(client,/timeoutMs:35000/);
  assert.match(client,/timeoutMs:65000/);
  assert.match(client,/timeoutMs:50000/);
  assert.match(client,/timeoutMs:55000/);
- for(const budget of [2200,1800,1200,800,1450,950])assert.match(client,new RegExp(`maxOutputTokens:${budget}`));
+ for(const budget of [500,900,1000,1200,800,1450,950])assert.match(client,new RegExp(`maxOutputTokens:${budget}`));
  assert.doesNotMatch(client,/timeoutMs:120000,[\s\S]{0,500}World Architect/);
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  const worldBlock=client.slice(client.indexOf("export async function generateWorldCandidate"),client.indexOf("export async function talkToNpc"));
  const parallelCalls=[...worldBlock.matchAll(/Promise\.all\(\[/g)];
- assert.equal(parallelCalls.length,2);
- assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("HISTORY"[\s\S]*resilientWorldStage\("GEOGRAPHY"/);
+ assert.equal(parallelCalls.length,3);
+ assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("CORE_RULES"[\s\S]*resilientWorldStage\("CORE_ANCHOR"/);\n assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("HISTORY"[\s\S]*resilientWorldStage\("GEOGRAPHY"/);
  assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("FUTURE"[\s\S]*resilientWorldStage\("SOCIETY"/);
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
  assert.match(client,/const WORLD_AI_CONCURRENCY=2/);
@@ -44,7 +44,7 @@ test("world creation progress represents real compiler boundaries instead of a f
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
- for(const p of [42,56,64,74,84])assert.match(client,new RegExp(`report\\(${p},`));
+ for(const p of [42,47,52,56,64,74,84])assert.match(client,new RegExp(`report\\(${p},`));
  assert.doesNotMatch(app,/let pulse=38/);
  assert.doesNotMatch(app,/setInterval\(\(\)=>\{pulse=/);
  assert.match(app,/generateWorldCandidate\(seed,WORLD_CONSTITUTION,p=>worldProgress\(p\.progress,p\.label,p\.detail\)\)/);
