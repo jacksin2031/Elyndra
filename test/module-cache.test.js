@@ -22,9 +22,9 @@ test("v0.40.0 causal core refreshes changed browser entrypoints",async()=>{
   readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=39000/);
+ assert.match(html,/app\\.js\\?v=40000/);
  assert.match(html,/styles\.css\?v=38001/);
- for(const path of ["version","ai-client","adventure-engine","game-engine","world-simulation","npc-conversation","world-impact","item-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=39000"),path);
+ assert.match(app,/\\.\\/src\\/version\\.js\\?v=40000/);\n assert.match(app,/\\.\\/src\\/world-engine\\.js\\?v=40000/);\n for(const path of ["ai-client","adventure-engine","game-engine","world-simulation","npc-conversation","world-impact","item-engine","progression-ui"])assert.match(app,new RegExp("\\\\.\\\\/src\\\\/"+path.replaceAll("-","\\\\-")+"\\\\.js\\\\?v=39000"),path);
  assert.match(client,/\.\/ai-runtime-contracts\.js\?v=39000/);
  assert.match(adventure,/\.\/world-impact\.js\?v=39000/);assert.match(adventure,/\.\/item-engine\.js\?v=39000/);
  assert.match(game,/\.\/world-simulation\.js\?v=39000/);assert.match(game,/\.\/item-engine\.js\?v=39000/);
