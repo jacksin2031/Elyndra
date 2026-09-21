@@ -28,12 +28,15 @@ export function recordGenerationStage(diagnostics,stage,data={}){
 }
 
 export function finalizeGenerationDiagnostics(diagnostics){
- const d=obj(diagnostics)?structuredClone(diagnostics):createGenerationDiagnostics(),rows=Object.values(d.stages||{});
+ const d=obj(diagnostics)?structuredClone(diagnostics):createGenerationDiagnostics(),entries=Object.entries(d.stages||{}),rows=entries.map(([,row])=>row);
  const aiSucceeded=rows.filter(x=>x.source==="AI").length,fallbackCount=rows.filter(x=>x.source==="FALLBACK").length,failedCount=rows.filter(x=>x.source==="FAILED").length;
+ const recovered=new Set(d.recovery?.succeeded===true&&Array.isArray(d.recovery?.recoveredStages)?d.recovery.recoveredStages:[]);
+ const recoveredFallbackCount=entries.filter(([stage,row])=>row?.source==="FALLBACK"&&recovered.has(stage)).length;
+ const unrecoveredFallbackCount=Math.max(0,fallbackCount-recoveredFallbackCount);
  d.finishedAt=Date.now();
  d.totalLatencyMs=Math.max(0,d.finishedAt-(Number(d.startedAt)||d.finishedAt));
- d.summary={stageCount:rows.length,aiSucceeded,fallbackCount,failedCount};
- d.quality=failedCount?"FAILED":fallbackCount>=4?"SEVERELY_DEGRADED":fallbackCount?"DEGRADED":"HEALTHY";
+ d.summary={stageCount:rows.length,aiSucceeded,fallbackCount,recoveredFallbackCount,unrecoveredFallbackCount,failedCount};
+ d.quality=failedCount?"FAILED":unrecoveredFallbackCount>=4?"SEVERELY_DEGRADED":unrecoveredFallbackCount?"DEGRADED":fallbackCount?"RECOVERED":"HEALTHY";
  return d
 }
 
@@ -63,8 +66,24 @@ export function normalizeWorldEvaluation(input,meta={}){
 
 const genericText=text=>/任何超常力量|逐步出現可被居民察覺的變化|第\d+次波動|當地引路人|異界醒轉地|與世界主題.*代價/.test(String(text||""));
 
+const FALLBACK_STAGE_FINDINGS={
+ IDENTITY:{targetType:"WORLD_IDENTITY",problem:"世界身份階段使用 fallback，原創性與主題辨識度可能不足。",recommendation:"保留 Seed Contract，重新具體化世界名稱、主題與 premise。"},
+ CORE_RULES:{targetType:"MAGIC_SYSTEM",problem:"核心規則階段使用 fallback，世界主題未必真正落入魔法、文明與危機規則。",recommendation:"令 worldTheme 直接驅動可執行魔法代價、文明制度、通訊限制與 currentCrisis。"},
+ CORE_ANCHOR:{targetType:"WORLD_CORE",problem:"開局 Anchor 使用 fallback，地名、Weather Canon 或公開／秘密設定可能模板化。",recommendation:"在不改 Seed Contract 下重新具體化開局地理、天候與世界事實。"},
+ HISTORY:{targetType:"HISTORY_INTEGRATION",problem:"歷史階段使用 fallback，過去事件可能只係模板因果。",recommendation:"保留 HIST id 與次序，重寫成直接解釋今日制度、危機與地方生活的具體歷史。"},
+ GEOGRAPHY:{targetType:"GEOGRAPHY",problem:"地理階段使用 fallback，開局地貌與環境敘述可能模板化。",recommendation:"保留 Anchor 地點關係，重寫具體地貌、環境痕跡與零知識 openingHook。"},
+ FUTURE:{targetType:"FUTURE_EVENTS",problem:"未來 Timeline 使用 fallback，事件可能過於通用。",recommendation:"保留事件 id、日期窗口與 links，重寫成源自本世界歷史與危機的具體事件。"},
+ SOCIETY:{targetType:"SOCIETY_CULTURE",problem:"地方社會階段使用 fallback，文化、交易與勢力可能模板化。",recommendation:"利用已鎖定歷史與環境重寫地方文化、經濟與勢力。"},
+ CAST:{targetType:"CHARACTERS",problem:"開局人物階段使用 fallback，NPC 或支線可能係通用佔位內容。",recommendation:"保留世界關係與 historyRefs，重寫具體人物、動機與支線。"}
+};
+function unresolvedFallbackStageFindings(d){
+ const recovered=new Set(Array.isArray(d?.recovery?.recoveredStages)?d.recovery.recoveredStages:[]);
+ return Object.entries(d?.stages||{}).filter(([stage,row])=>row?.source==="FALLBACK"&&!recovered.has(stage)).map(([stage])=>({
+  severity:"HIGH",...(FALLBACK_STAGE_FINDINGS[stage]||{targetType:"WORLD",problem:stage+" 使用 fallback。",recommendation:"以現有 Canon 為基礎重新具體化該部分。"}),requiresRegeneration:true
+ }))
+}
 export function fallbackWorldEvaluation(candidate,diagnostics,reason="AI_CRITIC_UNAVAILABLE"){
- const d=finalizeGenerationDiagnostics(diagnostics),fallbacks=Number(d.summary?.fallbackCount)||0,findings=[];let score=92-Math.min(48,fallbacks*8);
+ const d=finalizeGenerationDiagnostics(diagnostics),stageFindings=unresolvedFallbackStageFindings(d),fallbacks=stageFindings.length,findings=[...stageFindings];let score=92-Math.min(48,fallbacks*8);
  const magic=clean(candidate?.worldBible?.magicCost,500);
  if(!magic||genericText(magic)){score-=12;findings.push({severity:"HIGH",targetType:"MAGIC_SYSTEM",problem:"魔法代價仍然過於抽象或模板化。",recommendation:"建立可執行的具體代價、觸發條件與可觀察後果。",requiresRegeneration:true})}
  const timeline=Array.isArray(candidate?.worldTimeline)?candidate.worldTimeline:[],effects=timeline.map(x=>clean(x?.observableEffect,500)).filter(Boolean);
@@ -80,6 +99,71 @@ export function fallbackWorldEvaluation(candidate,diagnostics,reason="AI_CRITIC_
  if(findings.some(x=>x.targetType==="PROVENANCE"))dimensions.historyIntegration=Math.max(25,score-15);
  if(findings.some(x=>x.targetType==="KNOWLEDGE_BOUNDARY"))dimensions.knowledgeBoundary=Math.max(10,score-30);
  return normalizeWorldEvaluation({overall:score,dimensions,findings},{source:"FALLBACK",reason})
+}
+
+export function applyFallbackRecoveryPatch(candidate,input,diagnostics){
+ const d=finalizeGenerationDiagnostics(diagnostics),fallbackStages=new Set(Object.entries(d.stages||{}).filter(([,row])=>row?.source==="FALLBACK").map(([stage])=>stage));
+ const out=structuredClone(candidate||{}),patch=obj(input?.patch)?input.patch:(obj(input)?input:{});
+ if(fallbackStages.has("CORE_RULES")&&obj(patch.worldBible)){
+  out.worldBible??={};
+  for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone","civilization","communication"])if(patch.worldBible[key]!=null)out.worldBible[key]=structuredClone(patch.worldBible[key])
+ }
+ if(fallbackStages.has("CORE_ANCHOR")){
+  if(clean(patch.summary,1200))out.summary=clean(patch.summary,1200);
+  for(const key of ["publicFacts","hiddenFacts"])if(Array.isArray(patch[key])&&patch[key].length)out[key]=structuredClone(patch[key]);
+  if(obj(patch.worldBible)){
+   out.worldBible??={};
+   if(patch.worldBible.weatherSystem!=null)out.worldBible.weatherSystem=structuredClone(patch.worldBible.weatherSystem);
+   const oldRegion=clean(out.worldBible.startingRegion,160),oldSettlement=clean(out.worldBible.startingSettlement,160),oldLocation=clean(out.worldBible.startingLocation,160);
+   const newRegion=clean(patch.worldBible.startingRegion,160)||oldRegion,newSettlement=clean(patch.worldBible.startingSettlement,160)||oldSettlement,newLocation=clean(patch.worldBible.startingLocation,160)||oldLocation;
+   out.worldBible.startingRegion=newRegion;out.worldBible.startingSettlement=newSettlement;out.worldBible.startingLocation=newLocation;
+   if(obj(out.generation)){
+    for(const loc of out.generation.locations||[]){if(clean(loc?.region,160)===oldRegion)loc.region=newRegion;if(clean(loc?.name,160)===oldLocation)loc.name=newLocation}
+    for(const npc of out.generation.npcs||[])if(clean(npc?.locationName,160)===oldLocation)npc.locationName=newLocation;
+    for(const faction of out.generation.factions||[])if(clean(faction?.locationName,160)===oldLocation)faction.locationName=newLocation;
+    for(const q of out.generation.sideQuests||[])if(clean(q?.locationName,160)===oldLocation)q.locationName=newLocation
+   }
+   for(const event of out.worldTimeline||[])if(obj(event?.links)&&Array.isArray(event.links.locationRefs))event.links.locationRefs=event.links.locationRefs.map(x=>x===oldLocation?newLocation:x===oldRegion?newRegion:x)
+  }
+ }
+ if(fallbackStages.has("HISTORY")&&Array.isArray(out.worldHistory)&&Array.isArray(patch.worldHistory)){
+  out.worldHistory=out.worldHistory.map((base,i)=>mergeDescriptive(base,patch.worldHistory[i],["id","order"]))
+ }
+ if(fallbackStages.has("GEOGRAPHY")){
+  if(clean(patch.openingHook,1200))out.openingHook=clean(patch.openingHook,1200);
+  if(obj(patch.generation)&&Array.isArray(out.generation?.locations)&&Array.isArray(patch.generation.locations)){
+   out.generation.locations=out.generation.locations.map((base,i)=>mergeDescriptive(base,patch.generation.locations[i],["id","name","region","known","historyRefs"]))
+  }
+ }
+ if(fallbackStages.has("FUTURE")){
+  if(obj(patch.worldCalendar)&&obj(out.worldCalendar))out.worldCalendar=mergeDescriptive(out.worldCalendar,patch.worldCalendar,["daysPerCycle","cyclesPerLongCycle"]);
+  if(Array.isArray(patch.worldTimeline)&&Array.isArray(out.worldTimeline))out.worldTimeline=out.worldTimeline.map((base,i)=>mergeDescriptive(base,patch.worldTimeline[i],["id","earliestDay","latestDay","triggerDay","baseTriggerDay","links","status","triggeredDay"]))
+ }
+ if(fallbackStages.has("SOCIETY")&&obj(patch.generation)&&obj(out.generation)){
+  if(Array.isArray(out.generation.locations)&&Array.isArray(patch.generation.locations))out.generation.locations=out.generation.locations.map((base,i)=>{
+   const p=patch.generation.locations[i];if(!obj(p))return base;const next=structuredClone(base);
+   for(const key of ["culture","trade"])if(p[key]!=null)next[key]=structuredClone(p[key]);
+   return next
+  });
+  if(Array.isArray(out.generation.factions)&&Array.isArray(patch.generation.factions)){
+   out.generation.factions=out.generation.factions.map((base,i)=>mergeDescriptive(base,patch.generation.factions[i],["id","locationName","historyRefs","known"]));
+   const oldName=clean(candidate?.generation?.factions?.[0]?.name,160),newName=clean(out.generation.factions?.[0]?.name,160);
+   if(oldName&&newName&&oldName!==newName){
+    for(const npc of out.generation.npcs||[])if(clean(npc?.factionName,160)===oldName)npc.factionName=newName;
+    for(const q of out.generation.sideQuests||[])if(clean(q?.factionName,160)===oldName)q.factionName=newName
+   }
+  }
+ }
+ if(fallbackStages.has("CAST")&&obj(patch.generation)&&obj(out.generation)){
+  if(Array.isArray(out.generation.npcs)&&Array.isArray(patch.generation.npcs)){
+   out.generation.npcs=out.generation.npcs.map((base,i)=>mergeDescriptive(base,patch.generation.npcs[i],["id","locationId","locationName","factionId","factionName","knowledgeScope","historyRefs","known"]));
+   const oldName=clean(candidate?.generation?.npcs?.[0]?.name,160),newName=clean(out.generation.npcs?.[0]?.name,160);
+   if(oldName&&newName&&oldName!==newName)for(const q of out.generation.sideQuests||[])if(clean(q?.npcName,160)===oldName)q.npcName=newName
+  }
+  if(Array.isArray(out.generation.sideQuests)&&Array.isArray(patch.generation.sideQuests))out.generation.sideQuests=out.generation.sideQuests.map((base,i)=>mergeDescriptive(base,patch.generation.sideQuests[i],["id","locationName","npcName","factionName","historyRefs","known"]))
+  if(Array.isArray(patch.suggestions)&&patch.suggestions.length)out.suggestions=structuredClone(patch.suggestions)
+ }
+ return out
 }
 
 function mergeDescriptive(base,patch,protectedKeys=[]){

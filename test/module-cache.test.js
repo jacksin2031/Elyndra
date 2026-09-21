@@ -12,17 +12,19 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.29.2 viewport-stable UI entry keeps compiler cache generations intact",async()=>{
+test("v0.30.0 viewport-stable UI loads recovery compiler modules",async()=>{
  const [html,app,client]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=292/);
- assert.match(app,/\.\/src\/version\.js\?v=292/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=281/);
+ assert.match(html,/app\.js\?v=300/);
+ assert.match(app,/\.\/src\/version\.js\?v=300/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=300/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
- for(const mod of ["world-engine","world-registry","world-quality"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
- for(const mod of ["world-compiler","world-quality"])assert.match(client,new RegExp("\\.\\/"+mod+"\\.js\\?v=280"));
+ for(const mod of ["world-engine","world-registry"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
+ assert.match(app,/\.\/src\/world-quality\.js\?v=300/);
+ assert.match(client,/\.\/world-compiler\.js\?v=280/);
+ assert.match(client,/\.\/world-quality\.js\?v=300/);
  assert.match(client,/\.\/model-json\.js\?v=281/)
 });

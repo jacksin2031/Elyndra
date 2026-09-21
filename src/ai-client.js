@@ -8,7 +8,7 @@ import {helperSnapshot} from "./helper-context.js?v=276";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=276";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,validateExpansionProvenance} from "./world-quality.js?v=280";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance} from "./world-quality.js?v=300";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
@@ -36,6 +36,11 @@ let activeGenerationDiagnostics=null;
 function markWorldFallback(stage,reason){
  recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,fallbackUsed:true})
 }
+function compactRetryArgs(args={}){
+ const timeoutMs=Math.max(30000,Math.min(45000,Number(args.timeoutMs)||45000));
+ const maxOutputTokens=Math.max(350,Math.min(1200,Math.round((Number(args.maxOutputTokens)||900)*.78)));
+ return {...args,timeoutMs,maxOutputTokens,temperature:Math.min(.35,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次請更精簡，只回傳 schema 要求的必要 JSON；不要 Markdown、解釋或額外欄位。"}
+}
 async function resilientWorldStage(stage,args,fallback){
  const startedAt=Date.now();
  try{
@@ -43,14 +48,25 @@ async function resilientWorldStage(stage,args,fallback){
   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",latencyMs:Date.now()-startedAt,attempts:1});
   return value
  }catch(err){
-  const reason=err?.message||String(err);
-  if(compilerRecoverable(err)){
-   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,latencyMs:Date.now()-startedAt,attempts:1,fallbackUsed:true});
+  const firstReason=err?.message||String(err);
+  if(!compilerRecoverable(err)){
+   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FAILED",reason:firstReason,latencyMs:Date.now()-startedAt,attempts:1});
+   throw err
+  }
+  try{
+   const value=await worldStage(stage,compactRetryArgs(args));
+   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
+   return value
+  }catch(retryErr){
+   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;
+   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,latencyMs:Date.now()-startedAt,attempts:2,fallbackUsed:true});
    return structuredClone(typeof fallback==="function"?fallback():fallback)
   }
-  recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FAILED",reason,latencyMs:Date.now()-startedAt,attempts:1});
-  throw err
  }
+}
+function fallbackClause(value,fallback="當前危機",max=42){
+ const s=String(value||fallback).trim().replace(/[。！？!?；;,.，]+$/g,"").replace(/\s+/g," ");
+ return (s||fallback).slice(0,max)
 }
 function identityFallback(expected,seed){
  return normalizeWorldIdentity({},expected,seed)
@@ -69,9 +85,9 @@ function coreAnchorFallback(identity){
 }
 function historyFallback(anchor){
  return [
-  {id:"HIST-1",order:1,era:anchor.era||"古紀",title:"舊世界秩序的形成",category:"改革",summary:(anchor.centralConflict||anchor.worldTheme)+" 的前身在此時形成，並留下直到現在仍影響制度與生活的結構。",causes:[anchor.worldTheme],legacies:[anchor.centralConflict||"舊秩序仍在"],discoverKeywords:["舊紀錄"]},
-  {id:"HIST-2",order:2,era:anchor.era||"中紀",title:"世界規則的代價浮現",category:"魔法",summary:(anchor.magicCost||"世界力量需要付出代價")+"，不同群體因如何承擔代價而產生長期分歧。",causes:[anchor.magicCost||anchor.centralConflict],legacies:["現代文化仍保留對力量代價的禁忌"],discoverKeywords:["古老禁忌"]},
-  {id:"HIST-3",order:3,era:anchor.era||"今紀",title:"當前危機的前兆",category:"災難",summary:(anchor.currentCrisis||anchor.centralConflict)+" 並非突然發生，而是過去矛盾累積到今天的結果。",causes:[anchor.centralConflict],legacies:[anchor.currentCrisis||"危機仍在發展"],discoverKeywords:["危機前兆"]}
+  {id:"HIST-1",order:1,era:anchor.era||"古紀",title:"舊世界秩序的形成",category:"改革",summary:fallbackClause(anchor.centralConflict||anchor.worldTheme,"舊世界秩序")+"的前身在此時形成，並留下直到現在仍影響制度與生活的結構。",causes:[anchor.worldTheme],legacies:[anchor.centralConflict||"舊秩序仍在"],discoverKeywords:["舊紀錄"]},
+  {id:"HIST-2",order:2,era:anchor.era||"中紀",title:"世界規則的代價浮現",category:"魔法",summary:fallbackClause(anchor.magicCost,"世界力量需要付出代價")+"，不同群體因如何承擔代價而產生長期分歧。",causes:[anchor.magicCost||anchor.centralConflict],legacies:["現代文化仍保留對力量代價的禁忌"],discoverKeywords:["古老禁忌"]},
+  {id:"HIST-3",order:3,era:anchor.era||"今紀",title:"當前危機的前兆",category:"災難",summary:fallbackClause(anchor.currentCrisis||anchor.centralConflict,"當前危機")+"並非突然發生，而是過去矛盾累積到今天的結果。",causes:[anchor.centralConflict],legacies:[anchor.currentCrisis||"危機仍在發展"],discoverKeywords:["危機前兆"]}
  ]
 }
 function geographyFallback(anchor){
@@ -80,7 +96,7 @@ function geographyFallback(anchor){
 }
 function societyFallback(anchor,history,geography){
  const href=history?.[0]?.id||"HIST-1",location=geography?.location?.name||anchor.startingLocation;
- return {locationRef:location,historyRefs:[href],locationCulture:{identity:`在${anchor.worldTheme}與本地環境下形成的生活文化`,etiquette:["先觀察當地人的做法再行動"],taboos:["不要公開輕視本地維生方式"],food:["以本地可取得物資為主"],beliefs:[anchor.centralConflict||anchor.worldTheme],architecture:["配合本地環境與天候"],clothing:["適應當地環境"],hospitality:["對陌生人先保持觀望"],namingStyle:"地方化命名",languageNotes:[]},locationTrade:{mode:"barter",currencies:[],commonBarter:["食物","工具"],foreignAcceptance:[],priceCulture:"價值取決於本地稀缺程度",questReward:0,combatReward:0},faction:{name:`${anchor.startingRegion}在地共同體`,goal:`在${anchor.currentCrisis||anchor.centralConflict}下維持生存與秩序`,description:`扎根於${location}附近，制度受${history?.[0]?.title||"舊歷史"}影響。`,known:false,locationName:location,historyRefs:[href],culture:{identity:"重視地方生存與互助",etiquette:["尊重地方規矩"],taboos:["破壞共同生存資源"],beliefs:[anchor.worldTheme]},trade:{mode:"barter",currencies:[],commonBarter:["食物","工具"],foreignAcceptance:[],priceCulture:"按稀缺程度交換",questReward:0,combatReward:0},lore:{story:`共同體的形成與「${history?.[0]?.title||"舊歷史"}」直接相關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}}
+ return {locationRef:location,historyRefs:[href],locationCulture:{identity:`在${anchor.worldTheme}與本地環境下形成的生活文化`,etiquette:["先觀察當地人的做法再行動"],taboos:["不要公開輕視本地維生方式"],food:["以本地可取得物資為主"],beliefs:[anchor.centralConflict||anchor.worldTheme],architecture:["配合本地環境與天候"],clothing:["適應當地環境"],hospitality:["對陌生人先保持觀望"],namingStyle:"地方化命名",languageNotes:[]},locationTrade:{mode:"barter",currencies:[],commonBarter:["食物","工具"],foreignAcceptance:[],priceCulture:"價值取決於本地稀缺程度",questReward:0,combatReward:0},faction:{name:`${anchor.startingRegion}在地共同體`,goal:`應對「${fallbackClause(anchor.currentCrisis||anchor.centralConflict,"當前危機",34)}」帶來的壓力，維持地方生存與秩序`,description:`扎根於${location}附近，制度受${history?.[0]?.title||"舊歷史"}影響。`,known:false,locationName:location,historyRefs:[href],culture:{identity:"重視地方生存與互助",etiquette:["尊重地方規矩"],taboos:["破壞共同生存資源"],beliefs:[anchor.worldTheme]},trade:{mode:"barter",currencies:[],commonBarter:["食物","工具"],foreignAcceptance:[],priceCulture:"按稀缺程度交換",questReward:0,combatReward:0},lore:{story:`共同體的形成與「${history?.[0]?.title||"舊歷史"}」直接相關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}}
 }
 function futureFallback(anchor,history,pacing){
  const slots=timelineAuthoringSlots(pacing),templates=[
@@ -88,7 +104,7 @@ function futureFallback(anchor,history,pacing){
   h=>({title:"外來避難者抵達邊境",category:"MIGRATION",directorTruth:`「${h.title}」留下的區域矛盾被重新引爆，迫使一批人口離開原居地。`,observableEffect:"帶著不同口音與少量行李的陌生人陸續出現，當地食物、住宿與治安開始受壓。"}),
   h=>({title:"力量代價登記開始強制執行",category:"LAW",directorTruth:`「${h.title}」形成的禁忌與制度被重新啟用，用來控制危機下的超常力量使用。`,observableEffect:"公共場所出現新的檢查與登記要求，居民談論施術代價與違規後果。"}),
   h=>({title:"主要通路因異常天候封閉",category:"WEATHER",directorTruth:`「${h.title}」造成的環境遺產與現時天候循環疊加，使一條重要通路暫時無法安全通行。`,observableEffect:"商隊改道、路標被封，市場開始出現某些日用品供應不足。"}),
-  h=>({title:"地方共同體出現公開分裂",category:"POLITICS",directorTruth:`「${h.title}」留下的利益衝突在${anchor.currentCrisis||anchor.centralConflict}下失去妥協空間。`,observableEffect:"同一聚落的人開始公開支持不同處理方案，守衛、商人與居民的行動不再一致。"}),
+  h=>({title:"地方共同體出現公開分裂",category:"POLITICS",directorTruth:`「${h.title}」留下的利益衝突，在「${fallbackClause(anchor.currentCrisis||anchor.centralConflict,"當前危機",34)}」造成的壓力下失去妥協空間。`,observableEffect:"同一聚落的人開始公開支持不同處理方案，守衛、商人與居民的行動不再一致。"}),
   h=>({title:anchor.currentCrisis||"危機進入不可忽視的轉折",category:"CRISIS",directorTruth:"過去歷史累積的矛盾在此時匯合，令當前危機正式改變區域秩序。",observableEffect:"原本零散的異常同時出現，居民開始撤離、封鎖或重新分配資源，日常秩序明顯改變。"})
  ];
  const rows=slots.map((slot,i)=>{const h=history?.[i%Math.max(1,history.length)]||{id:"HIST-1",title:"既有歷史"},t=templates[Math.min(i,templates.length-1)](h);return {...t,slot:slot.slot,pressure:Math.min(15,3+i),links:{historyRefs:[h.id||"HIST-1"],locationRefs:["STARTING_REGION"]}}});
@@ -97,6 +113,27 @@ function futureFallback(anchor,history,pacing){
 function castFallback(anchor,history,region,society){
  const location=anchor.startingLocation,faction=society?.faction?.name||"";
  return {npcs:[{name:"當地引路人",role:"居民",description:`生活在${location}、熟悉最基本地方規矩的人。`,personality:"對陌生人謹慎但願意回答眼前問題",goal:"確保自己與聚落安全",locationName:location,factionName:faction,knowledgeScope:(anchor.publicFacts||[]).slice(0,2),historyRefs:[history?.[0]?.id||"HIST-1"],known:false,companionProfile:{joinThreshold:45,leaveThreshold:10,motives:["保護自己的生活圈"],boundaries:["不會為陌生人無條件冒險"]},lore:{story:`家族記憶與「${history?.[0]?.title||"舊歷史"}」有關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}],sideQuests:[],suggestions:["觀察四周","確認自己身上的物品","嘗試與附近的人打招呼"]}
+}
+
+async function recoverFallbackWorldCandidate(candidate,diagnostics,report){
+ const before=finalizeGenerationDiagnostics(diagnostics);
+ const stageRows=Object.entries(before.stages||{}),fallbackStages=stageRows.filter(([,row])=>row?.source==="FALLBACK").map(([stage])=>stage);
+ if(fallbackStages.length<4||fallbackStages.length*2<Math.max(1,stageRows.length))return candidate;
+ diagnostics.recovery={attempted:true,succeeded:false,startedAt:Date.now(),fallbackStages:[...fallbackStages],recoveredStages:[]};
+ report(85,"世界自動復原",`偵測到 ${fallbackStages.length}/${stageRows.length} 個階段使用 fallback；只重寫 fallback 內容，保留成功 AI Canon`);
+ try{
+  const recoveryPatch=await worldStage("WORLD_RECOVERY",{
+   timeoutMs:65000,maxOutputTokens:2400,temperature:.45,
+   system:`你是 Elyndra World Recovery Architect。只有 payload.fallbackStages 列出的階段可重寫；其他 AI 成功階段視為鎖定 Canon，不得改。永遠禁止改 worldName、worldTheme、seedCompliance。CORE_RULES fallback 可重寫 worldBible 的規則／文明／通訊；CORE_ANCHOR fallback 可重寫 summary、startingRegion/Settlement/Location、Weather、公私 facts；HISTORY fallback 可重寫既有 worldHistory 內容但保留 HIST id/order；GEOGRAPHY fallback 可重寫 openingHook 與既有 location 描述；FUTURE fallback 可重寫 calendar 描述與 Timeline title/category/directorTruth/observableEffect/pressure，但保留 id/日期窗口/links；SOCIETY fallback 可重寫 location culture/trade 與既有 faction，包括名稱；CAST fallback 可重寫既有 NPC/sideQuest，包括名稱。不得新增或刪除實體，historyRefs 不可改。若重新命名 Anchor/Faction/NPC，Engine 會同步引用。目標係消除「異界醒轉地」「當地引路人」「在地共同體」等模板佔位內容，並令所有 fallback 部分具體服務 worldTheme 與已鎖定歷史。openingHook 必須保持零知識感官視角。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
+   user:JSON.stringify({fallbackStages,candidate})
+  });
+  const recovered=applyFallbackRecoveryPatch(candidate,recoveryPatch,diagnostics);
+  diagnostics.recovery={...diagnostics.recovery,succeeded:true,finishedAt:Date.now(),recoveredStages:[...fallbackStages],changedTargets:Array.isArray(recoveryPatch?.changedTargets)?recoveryPatch.changedTargets:[]};
+  return recovered
+ }catch(e){
+  diagnostics.recovery={...diagnostics.recovery,succeeded:false,finishedAt:Date.now(),reason:e?.message||String(e)};
+  return candidate
+ }
 }
 
 async function evaluateWorldQuality(candidate,diagnostics){
@@ -169,6 +206,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
 
   let core=mergeCoreWave(identity,expected,rules,coreAnchor),coreIssues=coreWaveIssues(identity,rules,coreAnchor,core);
   if(coreIssues.length){
+   markWorldFallback("CORE_RULES","CORE_WAVE_INVALID:"+coreIssues.join(","));
+   markWorldFallback("CORE_ANCHOR","CORE_WAVE_INVALID:"+coreIssues.join(","));
    rules=coreRulesFallback(identity);coreAnchor=coreAnchorFallback(identity);
    core=mergeCoreWave(identity,expected,rules,coreAnchor);coreIssues=coreWaveIssues(identity,rules,coreAnchor,core)
   }
@@ -216,7 +255,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));const future=timelineReport.valid?{worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline}:futureFallback(anchor,history,directive.timelinePacing);
   if(!future?.worldCalendar||!Array.isArray(future.worldTimeline))throw new Error("WORLD_FUTURE_INVALID");
   let linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});
-  if(linkIssues.length){society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society);const safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
+  if(linkIssues.length){const reason="CROSS_STAGE_LINK_INVALID:"+linkIssues.join(",");markWorldFallback("SOCIETY",reason);markWorldFallback("FUTURE",reason);society=societyFallback(anchor,history,geography);region=mergeOpeningRegion(anchor,geography,society);const safeFuture=futureFallback(anchor,history,directive.timelinePacing);Object.assign(future,safeFuture);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future})}
   if(linkIssues.length)throw new Error("WORLD_LINK_INVALID:"+linkIssues.join(","));
 
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
@@ -227,12 +266,13 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   },()=>castFallback(anchor,history,region,society));
   if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2){markWorldFallback("CAST","STRUCTURE_INVALID");cast=castFallback(anchor,history,region,society)};
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
-  if(linkIssues.length){cast=castFallback(anchor,history,region,society);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast})}
+  if(linkIssues.length){markWorldFallback("CAST","CROSS_STAGE_LINK_INVALID:"+linkIssues.join(","));cast=castFallback(anchor,history,region,society);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast})}
   if(linkIssues.length)throw new Error("WORLD_CAST_LINK_INVALID:"+linkIssues.join(","));
 
   report(84,"整合世界","三個 Wave 完成；任何時候最多兩個 AI 並行，Engine 正在驗證跨階段引用");
   const draft={...core,worldHistory:history,worldCalendar:future.worldCalendar,worldTimeline:future.worldTimeline,openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}};
-  const reviewed=await reviewAndRepairWorldCandidate(draft,diagnostics,report);activeGenerationDiagnostics=null;return reviewed
+  const recovered=await recoverFallbackWorldCandidate(draft,diagnostics,report);
+  const reviewed=await reviewAndRepairWorldCandidate(recovered,diagnostics,report);activeGenerationDiagnostics=null;return reviewed
 
  }
  activeGenerationDiagnostics=null;

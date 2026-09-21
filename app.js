@@ -1,8 +1,8 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=292";
+import {APP_VERSION} from "./src/version.js?v=300";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=276";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=280";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=281";
+import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateRegionExpansion,askTravelHelper} from "./src/ai-client.js?v=300";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=276";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=276";
@@ -36,7 +36,7 @@ import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276"
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=280";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=300";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,helperHistory=[],npcChatHistory=new Map();
 function setAIThinking(on,label="AI 正在思考…"){aiBusy=on;const badge=$("#aiBadge");if(badge){badge.textContent=on?"AI THINKING":aiStatus.aiConfigured?"AI ONLINE":"LOCAL";badge.classList.toggle("thinking",on);badge.title=on?label:""}qsa("[data-action],#choices button,#freeActionForm button,.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const input=$("#freeAction"),helperInput=$("#helperInput");if(input)input.disabled=on;if(helperInput)helperInput.disabled=on;const n=$("#narrative");if(on&&n)n.dataset.thinking=label;else if(n)delete n.dataset.thinking}
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
