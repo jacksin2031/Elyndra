@@ -1,13 +1,13 @@
-import {ensureCrisis,addCrisisPressure} from "./crisis-engine.js?v=273";
-import {recordCausalEvent} from "./knowledge-graph.js?v=273";
-import {tickFactions} from "./faction-engine.js?v=273";
-import {tickNpcs} from "./npc-engine.js?v=273";
-import {ensureClock} from "./world-clock.js?v=273";
-import {triggerDueTimelineEvents,effectiveTimelinePressure} from "./world-timeline.js?v=273";
-import {processDueConsequences,revealTriggeredConsequences} from "./world-impact.js?v=273";
-import {processRecognition} from "./recognition-engine.js?v=273";
-import {tickWeather} from "./weather-engine.js?v=273";
-import {pacedTimelinePressure} from "./world-pacing.js?v=273";
+import {ensureCrisis,addCrisisPressure} from "./crisis-engine.js?v=274";
+import {recordCausalEvent} from "./knowledge-graph.js?v=274";
+import {tickFactions} from "./faction-engine.js?v=274";
+import {tickNpcs} from "./npc-engine.js?v=274";
+import {ensureClock} from "./world-clock.js?v=274";
+import {triggerDueTimelineEvents,effectiveTimelinePressure} from "./world-timeline.js?v=274";
+import {processDueConsequences,revealTriggeredConsequences} from "./world-impact.js?v=274";
+import {processRecognition} from "./recognition-engine.js?v=274";
+import {tickWeather} from "./weather-engine.js?v=274";
+import {pacedTimelinePressure} from "./world-pacing.js?v=274";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){
  const clock=ensureClock(state);
