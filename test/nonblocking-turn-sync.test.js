@@ -45,6 +45,14 @@ test("D20 result unlocks controls before State Director finishes",async()=>{
 
 test("background world evolution waits for pending turn Canon sync",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/if\(aiBusy\|\|turnSyncBusy\|\|gameState\.combat\?\.active\|\|document\.hidden\)/);
+ assert.match(app,/if\(aiBusy\|\|turnSyncBusy\|\|deferredDirector\.running\|\|deferredDirector\.queue\.length\|\|gameState\.combat\?\.active\|\|document\.hidden\)/);
  assert.match(app,/!aiBusy&&!turnSyncBusy\)scheduleWorldEvolution/);
+});
+
+
+test("queued player input records wait diagnostics",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ assert.match(app,/type:"ACTION_QUEUED"/);
+ assert.match(app,/type:"ACTION_QUEUE_DRAINED"/);
+ assert.match(app,/waitMs:Math\.max\(0,Date\.now\(\)-Number\(next\.queuedAt/)
 });
