@@ -1,4 +1,4 @@
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=268";
+import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=270";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 
 export function sceneTurnSnapshot(snapshot={}){
@@ -37,6 +37,7 @@ export function mergeTurnCandidates(scene,state,roll={},context={}){
   calendarKnown:state.calendarKnown===true,
   discoveries:Array.isArray(state.discoveries)?state.discoveries:[],
   items:Array.isArray(state.items)?state.items:[],
+  magicLearning:Array.isArray(state.magicLearning)?state.magicLearning:[],
   npcChanges:Array.isArray(state.npcChanges)?state.npcChanges:[],
   companionChanges:Array.isArray(state.companionChanges)?state.companionChanges:[],
   factionChanges:Array.isArray(state.factionChanges)?state.factionChanges:[],

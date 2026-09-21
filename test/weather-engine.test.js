@@ -83,10 +83,10 @@ test("Scene Narrator sees current observable weather but not Director weather ca
  assert.equal(scene.directorWeather,undefined);
 });
 
-test("save migration v10 initializes weather runtime and location profiles",()=>{
+test("save migration initializes weather runtime and location profiles",()=>{
  const s=newGame(seed);s.formatVersion=9;delete s.world.weather;
  s.world.registry.locations.push({id:"LOC-OLD",name:"舊城",type:"城市",description:"舊存檔地點",known:true});
- const m=migrateSave(s);assert.equal(m.formatVersion,10);assert.ok(m.world.weather);assert.equal(m.world.weather.legacyNeutral,true);initializeWeather(m);assert.equal(m.world.bible?.weatherSystem,undefined);assert.equal(currentWeather(m).id,"WTH-STABLE");assert.deepEqual(m.world.registry.locations[0].weatherProfile,{zone:"",affinities:[],suppressions:[]});
+ const m=migrateSave(s);assert.equal(m.formatVersion,11);assert.ok(m.world.weather);assert.equal(m.world.weather.legacyNeutral,true);initializeWeather(m);assert.equal(m.world.bible?.weatherSystem,undefined);assert.equal(currentWeather(m).id,"WTH-STABLE");assert.deepEqual(m.world.registry.locations[0].weatherProfile,{zone:"",affinities:[],suppressions:[]});
 });
 
 test("weather UI and AI generation contracts are wired into the current release",async()=>{

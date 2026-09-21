@@ -1,9 +1,9 @@
-import {advanceTime} from "./world-clock.js?v=267";
-import {tickWorld} from "./world-simulation.js?v=267";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=267";
-import {npcInteractionMode} from "./world-registry.js?v=267";
-import {npcConversationMinutes} from "./communication-engine.js?v=267";
-import {sanitizePlayerText,deriveSceneTitle} from "./runtime-guard.js?v=267";
+import {advanceTime} from "./world-clock.js?v=270";
+import {tickWorld} from "./world-simulation.js?v=270";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=270";
+import {npcInteractionMode} from "./world-registry.js?v=270";
+import {npcConversationMinutes} from "./communication-engine.js?v=270";
+import {sanitizePlayerText,deriveSceneTitle} from "./runtime-guard.js?v=270";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 
 export function applyNpcConversationTurn(state,npc,{question="",answer=""}={}){
@@ -15,8 +15,8 @@ export function applyNpcConversationTurn(state,npc,{question="",answer=""}={}){
  const knowledgeTitle="與 "+npc.name+" 的對話";
  const knowledgeId="NPC-K-"+npc.id+"-"+Date.now();
  const already=(state.knowledge||[]).some(k=>k.title===knowledgeTitle&&k.text===a);
- if(!already){state.knowledge.push({id:knowledgeId,title:knowledgeTitle,status:"PARTIAL",text:a,sources:["NPC_CONVERSATION"],npcId:npc.id});state.player.knowledgeScore=Math.min(100,(state.player.knowledgeScore||0)+1)}
- const questProgress=evaluateQuestEvidence(state,q+" "+a);
+ if(!already){state.knowledge.push({id:knowledgeId,title:knowledgeTitle,status:"TESTIMONY",text:a,sources:["NPC_CONVERSATION"],npcId:npc.id,score:0})}
+ const questProgress=evaluateQuestEvidence(state,q+" "+a,{source:"NPC_TESTIMONY",npcId:npc.id});
  const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,minutes,summary:"與"+npc.name+"交談："+a,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),at:Date.now()};
  state.events.push(event);
  state.narrative="你與"+npc.name+(mode==="REMOTE"?"進行遠距聯絡。":"交談。")+" "+a;

@@ -1,9 +1,9 @@
-import {advanceTime} from "./world-clock.js?v=268";
-import {tickWorld} from "./world-simulation.js?v=268";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=268";
-import {npcInteractionMode} from "./world-registry.js?v=268";
-import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=268";
-import {deriveSceneTitle} from "./runtime-guard.js?v=268";
+import {advanceTime} from "./world-clock.js?v=270";
+import {tickWorld} from "./world-simulation.js?v=270";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=270";
+import {npcInteractionMode} from "./world-registry.js?v=270";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=270";
+import {deriveSceneTitle} from "./runtime-guard.js?v=270";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
@@ -14,7 +14,7 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  const summary="玩家："+String(message||"").slice(0,180)+" / "+npc.name+"："+String(answer||"").slice(0,360);
  npc.memories.push({id:id(),type:"conversation",summary,day:state.world.state.day,minute:state.world.state.clock.totalMinutes,mode});
  npc.memories=npc.memories.slice(-12);
- const progressed=evaluateQuestEvidence(state,String(message||"")+" "+String(answer||""));
+ const progressed=evaluateQuestEvidence(state,String(message||"")+" "+String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
  const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
  state.events.push(event);
  if(mode==="LOCAL")establishNpcRemoteContact(state,npc);

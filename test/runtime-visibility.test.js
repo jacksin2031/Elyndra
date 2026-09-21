@@ -62,7 +62,7 @@ test("turn location changes accept only canonical registry locations",()=>{
  const s=world(),before=s.player.location;
  applyTurnCandidate(s,{narrative:"你向前走了幾步，重新確認周圍環境。",location:"\uFFFD{broken}",suggestions:["看看左邊","看看右邊"]},{action:"向前走",roll:{success:true}});
  assert.equal(s.player.location,before);
- applyTurnCandidate(s,{narrative:"你沿著道路來到河邊，水聲逐漸清晰。",location:"河岸小徑",suggestions:["觀察河面","沿河前進"]},{action:"沿路前進",roll:{success:true}});
+ applyTurnCandidate(s,{narrative:"你沿著道路來到河邊，水聲逐漸清晰。",location:"河岸小徑",suggestions:["觀察河面","沿河前進"]},{action:"沿路前進",roll:{success:true,profile:{kind:"TRAVEL"}}});
  assert.equal(s.player.location,"河岸小徑");
 });
 

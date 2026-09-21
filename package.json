@@ -1,10 +1,10 @@
 {
   "name": "elyndra",
-  "version": "0.26.8",
+  "version": "0.27.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run version:check && node --check app.js && node --check api/_ai.js && node --check api/world.js && node --check api/turn.js && node --check api/narrate.js && node --check api/npc.js && node --check api/helper.js && node --check src/ai-client.js && node --check src/world-compiler.js && node --check src/turn-compiler.js && node --check src/check-engine.js && node --check src/runtime-guard.js && node --check src/helper-context.js && node --check src/weather-engine.js && node --check src/npc-conversation.js && node --check src/world-history.js && node --check src/communication-engine.js && node --check src/world-engine.js && node --check src/world-timeline.js && node --check src/world-impact.js && node --check src/recognition-engine.js && node --check src/world-locality.js && node --check src/npc-engine.js && node --check src/adventure-engine.js && node --check src/world-simulation.js && node --check src/knowledge-graph.js && node --check src/state-validator.js && node --check src/storage.js && node --check src/quest-engine.js && node --check src/combat-engine.js && node --test",
+    "test": "npm run version:check && node scripts/check-js.mjs && node --test",
     "version:check": "node scripts/check-version.mjs"
   },
   "engines": {

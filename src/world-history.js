@@ -36,6 +36,13 @@ export function directorHistorySnapshot(state,limit=8){
  return (state.world?.history||[]).slice(-Math.max(1,limit)).map(x=>({id:x.id,order:x.order,era:x.era,title:x.title,category:x.category,summary:x.summary,causes:x.causes,legacies:x.legacies,regions:x.regions,factions:x.factions}));
 }
 export function knownHistorySnapshot(state,limit=12){
- const known=new Set((state.knowledge||[]).map(k=>k.historyId).filter(Boolean));
+ const known=new Set((state.knowledge||[]).filter(k=>k?.status==="VERIFIED").map(k=>k.historyId).filter(Boolean));
  return (state.world?.history||[]).filter(x=>known.has(x.id)).slice(-Math.max(1,limit));
+}
+
+export function discoverHistoryEvidence(state,historyId,source={}){
+ const history=(state.world?.history||[]).find(x=>x.id===historyId);if(!history)return null;
+ const existing=(state.knowledge||[]).find(k=>k.historyId===history.id);if(existing)return existing;
+ const entry={id:"HKN-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2)),title:history.title,status:"VERIFIED",text:history.summary,historyId:history.id,evidenceType:String(source.type||"ARCHAEOLOGY").slice(0,40),sources:["WORLD_HISTORY_EVIDENCE"],sourceRef:{siteId:source.siteId||null,roomId:source.roomId||null,label:String(source.label||"").slice(0,160)},score:3};
+ state.knowledge??=[];state.knowledge.push(entry);state.player.knowledgeScore=Math.min(100,(Number(state.player.knowledgeScore)||0)+3);state.events??=[];state.events.push({id:"HIST-EV-"+Date.now()+"-"+history.id,type:"HISTORY_DISCOVERED",visibility:"PLAYER_KNOWN",historyId:history.id,summary:"你取得了關於「"+history.title+"」的可驗證歷史證據。",day:state.world?.state?.day||1,at:Date.now()});return entry
 }

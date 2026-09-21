@@ -1,9 +1,12 @@
+import {endgameWindowOpen} from "./world-pacing.js?v=270";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const STAGES=["DORMANT","RUMORS","ESCALATING","CRISIS","ENDGAME"];
 export function ensureCrisis(state){state.world.state.crisis??={stage:"DORMANT",pressure:0,lastStageDay:state.world.state.day,history:[]};return state.world.state.crisis}
 export function endgameReadiness(state){
- const knowledge=Array.isArray(state.knowledge)?state.knowledge:[],score=Math.max(0,Number(state.player?.knowledgeScore)||0),substantial=knowledge.filter(k=>typeof k?.text==="string"&&k.text.trim().length>=8).length;
- return {ready:score>=10&&substantial>=3,knowledgeScore:score,substantialKnowledge:substantial,requiredScore:10,requiredKnowledge:3}
+ const knowledge=Array.isArray(state.knowledge)?state.knowledge:[],canonIds=new Set((state.world?.canon?.facts||[]).map(f=>f.id)),historyIds=new Set((state.world?.history||[]).map(h=>h.id));
+ const verified=knowledge.filter(k=>k?.status==="VERIFIED"&&typeof k?.text==="string"&&k.text.trim().length>=8&&((typeof k.factId==="string"&&canonIds.has(k.factId))||(typeof k.historyId==="string"&&historyIds.has(k.historyId))));
+ const rawScore=Math.max(0,Number(state.player?.knowledgeScore)||0),score=Math.min(rawScore,verified.reduce((n,k)=>n+Math.max(1,Number(k.score)||4),0)),substantial=verified.length;
+ const pacingReady=endgameWindowOpen(state);return {ready:score>=10&&substantial>=3&&pacingReady,knowledgeReady:score>=10&&substantial>=3,pacingReady,knowledgeScore:score,rawKnowledgeScore:rawScore,substantialKnowledge:substantial,requiredScore:10,requiredKnowledge:3}
 }
 export function addCrisisPressure(state,amount,reason){
  const c=ensureCrisis(state),before=c.stage;c.pressure=Math.max(0,Math.min(100,c.pressure+Math.max(0,Number(amount)||0)));
@@ -16,4 +19,4 @@ export function addCrisisPressure(state,amount,reason){
  }
  return {changed:before!==c.stage,stage:c.stage,pressure:c.pressure,endgameReady:readiness.ready}
 }
-export function crisisSnapshot(state){const c=ensureCrisis(state),readiness=endgameReadiness(state);return {stage:c.stage,pressure:c.pressure,endgameReady:readiness.ready,knowledgeScore:readiness.knowledgeScore,requiredKnowledgeScore:readiness.requiredScore,history:c.history.slice(-4)}}
+export function crisisSnapshot(state){const c=ensureCrisis(state),readiness=endgameReadiness(state);return {stage:c.stage,pressure:c.pressure,endgameReady:readiness.ready,knowledgeReady:readiness.knowledgeReady,pacingReady:readiness.pacingReady,knowledgeScore:readiness.knowledgeScore,requiredKnowledgeScore:readiness.requiredScore,history:c.history.slice(-4)}}

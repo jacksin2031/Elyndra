@@ -10,6 +10,9 @@ import {validateSaveState} from "../src/state-validator.js";
 
 const seed={genre:"黑暗奇幻",scale:"中型",danger:3,magic:3,politics:3,playHours:15,prompt:"玩家事蹟必須按世界內資訊傳播"};
 
+function grantKnowledge(s){
+ for(let i=0;i<3;i++){const id="FACT-REC-"+i;s.world.canon.facts.push({id,type:"public",visibility:"public",text:"河谷已驗證知識 "+i+" 的完整內容。",canonical:true});s.knowledge.push({id:"K-REC-"+i,title:"河谷知識 "+i,text:"河谷已驗證知識 "+i+" 的完整內容。",factId:id,status:"VERIFIED",score:3});s.player.knowledgeScore+=3}
+}
 function world(){
  const s=newGame(seed);
  canonizeGeneration(s,{
@@ -19,7 +22,7 @@ function world(){
   ],
   factions:[{name:"河岸盟",goal:"控制渡口",description:"地方勢力",known:true}],
   npcs:[
-   {name:"米拉",role:"渡船人",description:"住在石橋鎮",known:true,locationName:"石橋鎮"},
+   {name:"米拉",role:"渡船人",description:"住在石橋鎮",known:true,locationName:"石橋鎮",factionName:"河岸盟"},
    {name:"塔恩",role:"藥師",description:"住在下游村",known:true,locationName:"下游村"}
   ]
  });
@@ -42,7 +45,7 @@ test("local rumor is known nearby but not telepathically known by a remote NPC",
 });
 
 test("regional reputation spreads only after world time passes",()=>{
- const s=world();s.player.knowledgeScore=8;
+ const s=world();grantKnowledge(s);
  for(let i=0;i<2;i++)applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,title:"地方改善 "+i,summary:"一項可以被居民確認的地方改善。",mutations:[{field:"prosperity",op:"DELTA",value:1}],recognition:{rumor:"石橋鎮最近有人持續改善公共設施。",tone:"RESPECT",spread:"LOCAL"}}],{roll:{success:true}});
  const remote=s.world.registry.npcs[1],before=recognitionForNpc(s,remote).knownDeeds.length;
  const regional=applyWorldImpacts(s,[{scope:"REGIONAL",targetKind:"location",targetId:s.world.registry.locations[0].id,title:"解除河谷封鎖",summary:"你令整條河谷的主要運輸路線重新恢復。",mutations:[{field:"supply",op:"DELTA",value:12}],recognition:{rumor:"解除河谷封鎖的人正成為沿河聚落共同談論的名字。",tone:"ADMIRE",spread:"REGIONAL",publicLabel:"河谷開路者"}}],{roll:{success:true}});
@@ -74,8 +77,8 @@ test("recognition candidate rejects invalid tone, spread and mark",()=>{
  assert.equal(r.valid,false);assert.ok(r.errors.includes("RECOGNITION_TONE_INVALID"));assert.ok(r.errors.includes("RECOGNITION_SPREAD_INVALID"));assert.ok(r.errors.includes("RECOGNITION_MARK_INVALID"));
 });
 
-test("save format v10 migrates recognition state without breaking existing impact history",()=>{
+test("save format v11 migrates recognition state without breaking existing impact history",()=>{
  const s=world();applyWorldImpacts(s,[{scope:"LOCAL",targetKind:"location",targetId:s.world.registry.locations[0].id,title:"舊版影響",summary:"這是一項已經存在的世界影響。",mutations:[{field:"safety",op:"DELTA",value:2}]}],{roll:{success:true}});
  s.formatVersion=7;delete s.world.recognition;
- const m=migrateSave(s);assert.equal(m.formatVersion,10);assert.ok(m.world.recognition);assert.equal(validateSaveState(m).valid,true);assert.equal(m.world.impact.records.length,1);assert.equal(m.world.recognition.renown,4);assert.equal(m.world.recognition.rumors.length,1);assert.equal(m.world.recognition.rumors[0].status,"ACTIVE");
+ const m=migrateSave(s);assert.equal(m.formatVersion,11);assert.ok(m.world.recognition);assert.equal(validateSaveState(m).valid,true);assert.equal(m.world.impact.records.length,1);assert.equal(m.world.recognition.renown,4);assert.equal(m.world.recognition.rumors.length,1);assert.equal(m.world.recognition.rumors[0].status,"ACTIVE");
 });

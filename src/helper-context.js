@@ -1,10 +1,15 @@
-import {playerVisibleEvents} from "./event-visibility.js?v=268";
-import {sanitizePlayerText} from "./runtime-guard.js?v=268";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=268";
+import {playerVisibleEvents} from "./event-visibility.js?v=270";
+import {sanitizePlayerText} from "./runtime-guard.js?v=270";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=270";
+import {survivalSnapshot} from "./survival-engine.js?v=270";
+import {travelSnapshot} from "./travel-engine.js?v=270";
+import {marketSnapshot} from "./economy-engine.js?v=270";
+import {dungeonSnapshot} from "./dungeon-engine.js?v=270";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
 export function helperSnapshot(state){
+ state=structuredClone(state);
  const r=state.world?.registry||{locations:[],npcs:[],factions:[],sideQuests:[]},locations=Array.isArray(r.locations)?r.locations:[],npcs=Array.isArray(r.npcs)?r.npcs:[],factions=Array.isArray(r.factions)?r.factions:[],sideQuests=Array.isArray(r.sideQuests)?r.sideQuests:[];
  const locName=String(state.player?.location||state.world?.state?.location||""),loc=locations.find(x=>x.name===locName)||null;
  const present=n=>n?.alive!==false&&(n?.companion?.status==="ACTIVE"||Boolean(loc&&n?.locationId===loc.id));
@@ -25,7 +30,9 @@ export function helperSnapshot(state){
    maxHp:state.player?.maxHp,
    level:state.player?.level,
    assets,
-   inventory:(state.inventory||[]).slice(-20).map(x=>({name:x.name,description:safe(x.description,120),equipped:x.equipped===true}))
+   inventory:(state.inventory||[]).slice(-20).map(x=>({name:x.name,description:safe(x.description,120),equipped:x.equipped===true})),
+   survival:survivalSnapshot(state),
+   magic:state.player?.magic?{strain:state.player.magic.strain,capacity:state.player.magic.capacity,knownSpells:(state.player.magic.knownSpells||[]).map(x=>({name:x.name,school:x.school,cost:x.cost,effect:safe(x.effect,140)}))}:null
   },
   world:{
    name:state.player?.worldNameKnown?state.world?.name:"UNKNOWN",
@@ -33,7 +40,10 @@ export function helperSnapshot(state){
    currentLocation:loc?{name:loc.name,type:loc.type,region:loc.region,description:safe(loc.description,220)}:{name:state.player?.location||"未知地點"},
    currentNarrative:safe(state.narrative,500),
    sceneTitle:safe(state.sceneTitle,80),
-   weather:playerWeatherSnapshot(state)
+   weather:playerWeatherSnapshot(state),
+   travel:travelSnapshot(state,{director:false}),
+   market:(()=>{const m=marketSnapshot(state);return m?{mode:m.mode,currency:m.currency?{id:m.currency.id,name:m.currency.name,symbol:m.currency.symbol}:null,goods:m.goods.map(x=>({name:x.name,price:x.price,stock:x.stock}))}:null})(),
+   dungeon:dungeonSnapshot(state,{director:false})
   },
   objective:{
    mainTitle:safe(state.quests?.main?.title,120),
@@ -41,7 +51,7 @@ export function helperSnapshot(state){
    suggestions:(state.suggestions||[]).map(x=>safe(x,120)).filter(Boolean).slice(0,4)
   },
   knowledge:{
-   facts:(state.knowledge||[]).slice(-20).map(x=>({title:safe(x.title,100),text:safe(x.text,260)})).filter(x=>x.title&&x.text),
+   facts:(state.knowledge||[]).slice(-20).map(x=>({title:safe(x.title,100),text:safe(x.text,260),status:["VERIFIED","TESTIMONY","OBSERVATION","LORE"].includes(x.status)?x.status:"UNCONFIRMED"})).filter(x=>x.title&&x.text),
    knownLocations,
    nearbyNpcs,
    knownFactions,

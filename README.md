@@ -88,6 +88,15 @@ npm test
 - `src/world-engine.js` — World Compiler / Constitution / Validator / D20
 - `src/game-engine.js` — deterministic gameplay mutation
 - `src/storage.js` — IndexedDB + .elyndra import/export
+- `src/travel-engine.js` — Canon 路網、距離、地形與旅行耗時
+- `src/survival-engine.js` — 飢餓、疲勞、環境暴露與傷勢
+- `src/magic-engine.js` — Canon 驗證法術、魔法負荷與反噬
+- `src/culture-engine.js` — 地方禮俗、禁忌與文化 standing
+- `src/economy-engine.js` — 地方市場、住宿、買賣與兌換
+- `src/dungeon-engine.js` — 持久遺跡／地下城空間與考古證據
+- `src/world-impact.js` — 授權邊界、持久世界改變與延遲後果
+- `src/world-pacing.js` — Timeline / Crisis 共用節奏
+- `src/talent-engine.js` — 玩家選擇式長期成長
 - `src/ai-settings.js` — Provider profiles、API Key / Endpoint / Model 切換與 Direct AI transport
 - `src/ai-client.js` — AI world / turn / NPC / expansion boundary 與 knowledge gate
 - `docs/WORLD_SCHEMA.md` — Canon 與 runtime schema
@@ -436,3 +445,54 @@ weatherProfile: {
 ### Save Format v10
 - 新世界完整保存 Weather Canon、runtime 與 location weather profiles。
 - v0.26.7 或更舊存檔升級時不會憑空補造異世界 Weather Canon；舊世界維持中性固定天候，避免升級等同改寫既有世界設定。
+
+## V0.27.0 — Isekai Runtime Hardening
+
+呢個版本集中處理兩件事：**AI 不可以繞過 Engine 因果授權**，以及**異世界設定必須真正成為玩家要遵守、可以利用的遊戲規則**。
+
+### Causality & authority hardening
+- World Impact 使用明確 scope × targetKind × field 邊界；LOCAL / REGIONAL / FACTION / WORLD 不再只係數值上限。
+- Delayed Consequence 保存並重驗 parent authority boundary，不能由地方／勢力影響橫向或向上越權。
+- 無實際 mutation / timeline effect / valid consequence 的候選不會建立 impact record、增加 influence 或解鎖更高 scope。
+- 失敗骰預設不能產生正面 durable result；只有明確 COST / MIXED fail-forward 才可留下負面持久後果。
+- Pending consequence 不再因固定 queue 長度而靜默消失；未到期項目全部保留。
+- World Impact Ledger 不再截斷 PLAYER_IMPACT / CONSEQUENCE records。
+- 遠方 consequence 可準時改變世界，但在玩家合理得知之前保持 INTERNAL。
+- Timeline DELAY / ADVANCE 受 event window 約束；同時到期按 effective trigger day 排序。
+- Impact scope 解鎖只計 VERIFIED Canon / World History knowledge。
+
+### Verified knowledge boundary
+- AI discovery 只有引用 public Canon fact、成功行動及合法 evidence type 才會成為 VERIFIED knowledge。
+- Hidden / Director-only Canon 不能直接變成玩家知識。
+- 未驗證 observation、NPC testimony、一般 lore 不增加可用於 Endgame / World Impact 的 knowledge score。
+- NPC 對話可作為 `NPC_TESTIMONY` 推進支線，但不等同世界真相。
+- AI 生成物品只有在同回合有相同 VERIFIED Canon fact 時，才可以作 quest evidence。
+- 法術學習要求玩家已驗證對應 Canon fact，而且 Canon 文字必須實際包含該法術名稱。
+
+### Real isekai gameplay rules
+- **Travel Runtime**：持久路網、距離、地形、天氣與旅行時間由 Engine 管理。
+- **Survival Runtime**：飢餓、疲勞、環境暴露、傷勢、休息、住宿與食物形成實際循環。
+- **Culture Runtime**：地方 etiquette / taboo 改變判定及 persistent culture standing。
+- **Magic Runtime**：Canon 法術、strain、capacity、失敗反噬及休息恢復。
+- **Local Economy**：地方貨幣／barter、庫存、買賣、住宿與兌換。
+- **NPC Life Simulation**：NPC 有 HP、energy、工作／休息、移動、避難及個人目標。
+- **Faction Simulation**：勢力依 goal、resources、territory、diplomacy、crisis 採取不同策略。
+- **Companion Gameplay**：同行者有 HP、energy、skills、加入／離開條件並可參戰。
+- **Combat Depth**：element、weakness、resistance、abilities、status、phase，以及 Encounter 因果閘門。
+- **Quest State Machine**：主線由 Engine 狀態推進；AI 只提供 hint。
+- **Structured Side Quests**：優先使用 FACT_KNOWN / ITEM_OWNED / ENTITY_KNOWN / EVENT_OCCURRED / WORLD_STATE conditions。
+- **Persistent Ruins / Dungeons**：固定 room graph、hazard、清理狀態、遺物及歷史 evidence。
+- **Archaeology / World History**：Immutable History 必須透過合理證據被發現。
+- **Structural World Mutation**：橋、道路、神殿、城市設施可持久改變狀態。
+- **Player-selected Talents**：升級給 Talent Point，由玩家決定成長方向。
+- **Unified Pacing**：遊玩時數映射到合理世界日數；ENDGAME 同時要求 verified knowledge 與 Timeline 成熟度。
+
+### Save / CI
+- **Save Format v11**：保存 travel、survival、magic、culture standing、NPC life、faction diplomacy、dungeon、talent、structural state 與 impact authority。
+- 非法或 future `formatVersion` 直接拒絕，不會被降級覆寫。
+- State Validator 驗證 impact scope-target matrix、queue、authority、travel、dungeon、magic、survival 等 runtime。
+- Browser module graph 統一 cache generation `v270`；nested import 版本不一致會令 contract test 失敗。
+- CI 使用最低支援 Node.js 20，不增加 matrix，以控制 GitHub Actions 用量。
+- `npm test` 自動 syntax-check 全部 `api/`、`src/` runtime JS，再執行完整 Node regression suite。
+
+> The world is not merely lore the AI can describe. It is a ruleset the player must live inside.

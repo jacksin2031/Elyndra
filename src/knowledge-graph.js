@@ -17,8 +17,9 @@ export function bootstrapKnowledgeGraph(state){
  return g
 }
 function visibleNodeIds(state,g){
- const factIds=new Set((state.knowledge||[]).map(k=>k.factId).filter(Boolean));
- const graphIds=new Set((state.knowledge||[]).map(k=>k.graphNodeId).filter(Boolean));
+ const verified=(state.knowledge||[]).filter(k=>k?.status==="VERIFIED");
+ const factIds=new Set(verified.map(k=>k.factId).filter(Boolean));
+ const graphIds=new Set(verified.map(k=>k.graphNodeId).filter(Boolean));
  return new Set(g.nodes.filter(n=>n.visibility==="public"||graphIds.has(n.id)||(n.factId&&factIds.has(n.factId))).map(n=>n.id))
 }
 export function graphSnapshot(state){
