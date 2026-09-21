@@ -1,6 +1,6 @@
-import {addCrisisPressure,ensureCrisis} from "./crisis-engine.js?v=272";
-import {applyTimelineImpact} from "./world-timeline.js?v=272";
-import {validateRecognitionCandidate,registerImpactRecognition} from "./recognition-engine.js?v=272";
+import {addCrisisPressure,ensureCrisis} from "./crisis-engine.js?v=273";
+import {applyTimelineImpact} from "./world-timeline.js?v=273";
+import {validateRecognitionCandidate,registerImpactRecognition} from "./recognition-engine.js?v=273";
 
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=300)=>typeof v==="string"?v.trim().slice(0,max):"";
