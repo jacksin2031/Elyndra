@@ -75,7 +75,9 @@ test("two-agent waves share one anchor and Engine validates cross-stage referenc
  const future={worldTimeline:[{title:"預報斷裂",links:{historyRefs:["HIST-2"],locationRefs:["STARTING_REGION"]}}]};
  const cast={npcs:[{name:"米拉",locationName:"潮門",historyRefs:["HIST-1"]}],sideQuests:[{title:"找回舊潮表",locationName:"潮門",historyRefs:["HIST-2"]}]};
  assert.equal(anchor.startingLocation,"潮門");
- assert.equal(mergeOpeningRegion(anchor,geography,society).locations[0].culture.identity,"以潮汐鐘聲維持生活");
+ const mergedRegion=mergeOpeningRegion(anchor,geography,society);
+ assert.equal(mergedRegion.locations[0].culture.identity,"以潮汐鐘聲維持生活");
+ assert.deepEqual(mergedRegion.locations[0].historyRefs,["HIST-1"]);
  assert.deepEqual(worldGenerationLinkIssues({anchor,history,geography,society,future,cast}),[]);
  const broken={...society,historyRefs:["HIST-NOPE"]};
  assert.ok(worldGenerationLinkIssues({anchor,history,geography,society:broken,future,cast}).includes("SOCIETY_HISTORY_REF_INVALID"))
