@@ -26,7 +26,9 @@ test("v0.33.7 runtime diagnostics cache-bust changed modules",async()=>{
  assert.match(app,/\.\/src\/debug-telemetry\.js\?v=337/);
  assert.match(client,/\.\/ai-settings\.js\?v=336/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
- assert.match(app,/\.\/src\/world-engine\.js\?v=320/);\n assert.match(app,/\.\/src\/world-registry\.js\?v=337/);\n for(const mod of ["game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
+ assert.match(app,/\.\/src\/world-engine\.js\?v=320/);
+ assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
+ for(const mod of ["game-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=320"));
  assert.match(app,/\.\/src\/adventure-engine\.js\?v=335/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/);
  assert.match(client,/\.\/ai-settings\.js\?v=336/);
