@@ -39,10 +39,10 @@ export function recordAIUsage({provider,model,task,tier,status="SUCCESS",latency
 export function telemetryEntries(){return read().entries.slice()}
 export function clearDebugTelemetry(){write({entries:[]});recordDebug("DEBUG_CLEARED",{at:Date.now()})}
 export function telemetrySummary(entries=telemetryEntries()){
- const ai=entries.filter(x=>x.type==="AI_REQUEST"),ok=ai.filter(x=>x.data?.status==="SUCCESS"),errors=entries.filter(x=>/ERROR|FAILED/.test(x.type)||x.data?.status==="ERROR");
- const tokens=ok.reduce((a,x)=>{const u=x.data?.usage||{};a.input+=Number(u.input)||0;a.output+=Number(u.output)||0;a.reasoning+=Number(u.reasoning)||0;a.cached+=Number(u.cached)||0;a.total+=Number(u.total)||0;a.api+=(u.source==="API");a.estimated+=(u.source!=="API");return a},{input:0,output:0,reasoning:0,cached:0,total:0,api:0,estimated:0});
+ const ai=entries.filter(x=>x.type==="AI_REQUEST"),ok=ai.filter(x=>x.data?.status==="SUCCESS"),billable=ai.filter(x=>Number(x.data?.usage?.total)>0),errors=entries.filter(x=>/ERROR|FAILED/.test(x.type)||x.data?.status==="ERROR");
+ const tokens=billable.reduce((a,x)=>{const u=x.data?.usage||{};a.input+=Number(u.input)||0;a.output+=Number(u.output)||0;a.reasoning+=Number(u.reasoning)||0;a.cached+=Number(u.cached)||0;a.total+=Number(u.total)||0;a.api+=(u.source==="API");a.estimated+=(u.source!=="API");return a},{input:0,output:0,reasoning:0,cached:0,total:0,api:0,estimated:0});
  const latency=ok.reduce((a,x)=>a+(Number(x.data?.latencyMs)||0),0);
- return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,aiRequests:ai.length,aiSuccess:ok.length,errorCount:errors.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
+ return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,aiRequests:ai.length,aiSuccess:ok.length,aiUsageResponses:billable.length,errorCount:errors.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
 }
 export function debugBundle({appVersion="",gameState=null,aiSettings=null,runtime={}}={}){
  const entries=telemetryEntries(),summary=telemetrySummary(entries);
