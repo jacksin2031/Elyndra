@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate} from "../src/world-compiler.js";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate} from "../src/world-compiler.js";\nimport {normalizeWeatherSystem} from "../src/weather-engine.js";
 
 test("AI-selected worldTheme becomes the single canonical seed-compliance theme",()=>{
  const core={
@@ -45,10 +45,20 @@ test("core normalization tolerates common model shape drift without inventing lo
 
 test("semantic core repair merges only supplied corrections and reports unresolved requirements",()=>{
  const partial={worldName:"伊瑟",worldTheme:"潮汐記憶",summary:"世界概要",seedCompliance:{theme:{value:"潮汐記憶",evidence:"e"}},worldBible:{civilization:{level:3},communication:{name:"潮訊"},weatherSystem:{identity:"記憶潮形成天氣",phenomena:[{id:"WTH-1",name:"霧"}]}},publicFacts:["事實一"],hiddenFacts:[]};
- assert.ok(worldCoreIssues(partial).includes("worldBible.weatherSystem.phenomena>=4"));
+ assert.ok(worldCoreIssues(partial).includes("worldBible.weatherSystem.phenomena>=2"));
  assert.ok(worldCoreIssues(partial).includes("publicFacts>=2"));
  const repaired=mergeWorldCoreCandidates(partial,{worldBible:{weatherSystem:{phenomena:[{id:"WTH-1",name:"霧"},{id:"WTH-2",name:"逆雨"},{id:"WTH-3",name:"星屑風"},{id:"WTH-4",name:"靜電潮"}]}},publicFacts:["事實一","事實二"],hiddenFacts:["秘密一","秘密二"]});
  assert.equal(repaired.worldName,"伊瑟");
  assert.equal(repaired.worldBible.communication.name,"潮訊");
  assert.deepEqual(worldCoreIssues(repaired),[])
+});
+
+
+test("two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states",()=>{
+ const core={worldName:"潮界",worldTheme:"天空潮汐",summary:"潮汐在天空流動並改變聚落生活。",seedCompliance:{theme:{value:"天空潮汐",evidence:"世界以天空潮汐為核心。"}},worldBible:{civilization:{level:2},communication:{name:"燈塔訊號"},weatherSystem:{identity:"天空潮汐會凝成可見天候。",source:"天空潮汐",cycle:"隨雙月交替",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"倒雨",observableName:"雨滴向天空升起",description:"水滴逆向上升。",sensoryCue:"皮膚附近水滴向上飄",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"聲霧",observableName:"霧中聲音延遲",description:"霧層扭曲聲音傳遞。",sensoryCue:"腳步聲在身後才響起",rarity:"RARE",danger:2}]}},publicFacts:["天空潮會影響道路","聚落用燈號預報"],hiddenFacts:["潮汐源頭並非自然","古塔可改變潮向"]};
+ assert.deepEqual(worldCoreIssues(core),[]);
+ const runtime=normalizeWeatherSystem(core.worldBible.weatherSystem,{magic:3});
+ assert.equal(runtime.phenomena.length,4);
+ assert.equal(runtime.phenomena[0].name,"倒雨");
+ assert.equal(runtime.phenomena[1].name,"聲霧")
 });
