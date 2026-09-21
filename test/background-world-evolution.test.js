@@ -15,7 +15,7 @@ test("runtime world evolution is automatic background work and never awaited by 
  assert.match(app,/WORLD_EVOLUTION_BACKGROUND_APPLIED/);
  assert.match(app,/preemptBackgroundWorldEvolution\(\)/);
  assert.doesNotMatch(run,/await generateRegionExpansion\(/);
- assert.match(run,/scheduleWorldEvolution\(effective\|\|"player_exploration",5000\)/)
+ assert.match(run,/scheduleWorldEvolution\(effective\|\|"player_exploration",(5000|7000)\)/)
 });
 
 test("foreground AI preempts low-priority background world work",async()=>{
@@ -32,6 +32,7 @@ test("foreground AI preempts low-priority background world work",async()=>{
  assert.match(client,/signal,timeoutMs:45000,retryOnTimeout:false/);
  assert.match(client,/signal,timeoutMs:25000,retryOnTimeout:false/);
  assert.match(client,/signal,timeoutMs:35000,retryOnTimeout:false/);
+ assert.match(app,/nonblockingScene\.controller/);
  assert.match(app,/deferredDirector\.queue\.length/);
  assert.match(app,/preemptDeferredDirector\(\)/)
 });
@@ -46,23 +47,13 @@ test("timed-out background world evolution enters exponential cooldown instead o
  assert.match(app,/cooldownRemainingMs/);
 });
 
-test("Player Action narration is rendered before State Sync commit",async()=>{
- const [app,client]=await Promise.all([
-  readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
- ]);
- assert.match(client,/export function startTurnAIJobs/);
- assert.match(client,/const playerAction=directChat/);
- assert.match(client,/const stateSync=directChat/);
+test("blocking Player Action preview precedes StatePatch commit and nonblocking preview is revision-gated",async()=>{
+ const [app,client]=await Promise.all([readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")]);
+ assert.match(client,/export function startTurnAIJobs/);assert.match(client,/stateSync=immediateStateAI\?directChat/);
  const run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
- const playerAwait=run.indexOf("await playerActionResult");
- const previewAt=run.indexOf("sceneTurnPreview(scene,roll");
- const refreshAt=run.indexOf("await refresh()",previewAt);
- const stateAwait=run.indexOf("await stateSyncResult");
- const commitAt=run.indexOf("applyTurnCandidate",stateAwait);
- assert.ok(playerAwait>=0&&previewAt>playerAwait&&refreshAt>previewAt&&stateAwait>refreshAt&&commitAt>stateAwait);
+ const playerAwait=run.indexOf("await playerActionResult"),stateAwait=run.indexOf("await stateSyncResult"),commit=run.indexOf("commitStatePatch",stateAwait);
+ assert.ok(playerAwait>=0&&stateAwait>playerAwait&&commit>stateAwait);
+ assert.match(app,/function applyPlayerActionScene/);assert.match(app,/currentStateRevision\(gameState\)!==baseRevision/);assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);
  const preview=sceneTurnPreview({narrative:"你看見門後有微光。",sceneTitle:"檢查門後",suggestions:["靠近觀察","先後退"]},{success:true},{action:"看門",priorSuggestions:[]});
- assert.equal(preview.narrative,"你看見門後有微光。");
- assert.equal(preview.sceneTitle,"檢查門後");
- assert.deepEqual(preview.suggestions,["靠近觀察","先後退"])
+ assert.equal(preview.narrative,"你看見門後有微光。");assert.equal(preview.sceneTitle,"檢查門後");assert.deepEqual(preview.suggestions,["靠近觀察","先後退"])
 });
