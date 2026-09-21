@@ -118,6 +118,20 @@ test("Blueprint Compliance rejects missing required, positive forbidden and prof
  assert.ok(report.errors.includes("BLUEPRINT_TECH_MISMATCH"))
 });
 
+test("Blueprint Compliance accepts equivalent wording for built-in technology requirements",()=>{
+ const seed=compileWorldCreation(createWorldCreationDraft(baseRaw({
+  requiredElements:"人工智慧\n網絡通訊",
+  forbiddenElements:""
+ })));
+ const report=validateWorldCreationCandidate(seed,validCandidate(seed,{
+  summary:"城市由 AI 協助分配公共資源，各區透過網路通信節點交換即時訊息。",
+  publicFacts:["人工智能系統參與交通調度。","跨區通信網路依賴固定中繼節點。"],
+  generation:{locations:[],npcs:[],factions:[],sideQuests:[]}
+ }));
+ assert.equal(report.valid,true,report.errors.join(","));
+ assert.equal(report.compliance.MUST_EXIST_COMPLIANCE.status,"PASS")
+});
+
 test("Blueprint Compliance accepts explicit prohibitions and reports named compliance rows",()=>{
  const seed=compileWorldCreation(createWorldCreationDraft(baseRaw()));
  const report=validateWorldCreationCandidate(seed,validCandidate(seed));
