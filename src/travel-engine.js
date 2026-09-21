@@ -36,6 +36,19 @@ export function ensureTravelNetwork(state){
 function neighbours(state,id){
  const t=ensureTravelNetwork(state),out=[];for(const r of t.routes){if(r.open===false)continue;if(r.fromId===id)out.push({route:r,to:r.toId});else if(r.toId===id)out.push({route:r,to:r.fromId})}return out
 }
+function accessRequirementMet(state,c){
+ const type=String(c?.type||"").toUpperCase(),id=String(c?.id||"");
+ if(type==="ITEM_OWNED")return (state.inventory||[]).some(x=>(x.id===id||x.name===id)&&(Number(x.quantity)||1)>0);
+ if(["ITEM_USED","ITEM_SHOWN","ITEM_GIVEN"].includes(type)){const eventType={ITEM_USED:"ITEM_USED",ITEM_SHOWN:"ITEM_SHOWN",ITEM_GIVEN:"ITEM_GIVEN"}[type];return (state.events||[]).some(e=>e.type===eventType&&(e.itemId===id||e.itemName===id))}
+ if(type==="FACT_KNOWN")return (state.knowledge||[]).some(k=>k.status==="VERIFIED"&&k.factId===id);
+ if(type==="EVENT_OCCURRED")return (state.events||[]).some(e=>e.id===id||e.type===id);
+ return false
+}
+export function locationAccessStatus(state,location){
+ const requirements=Array.isArray(location?.accessRequirements)?location.accessRequirements:[];
+ const missing=requirements.filter(x=>!accessRequirementMet(state,x));
+ return {allowed:missing.length===0,requirements,missing}
+}
 function weatherFactor(state){const w=currentWeather(state),danger=clamp(Number(w?.danger)||0,0,5);return 1+danger*.08}
 function routeMinutes(state,route){return Math.max(10,Math.round(Number(route.baseMinutes||45)*(1+clamp(Number(route.hazard)||0,0,5)*.04)*weatherFactor(state)))}
 export function findTravelPlan(state,destinationId){
@@ -53,6 +66,7 @@ export function travelTo(state,destination,{roll=null,actionKind="",baseMinutes=
  if(force){target.known=true;state.player.location=target.name;state.world.state.location=target.name;state.world.state.region=target.region||state.world.state.region;target.discoveredDay??=state.world.state.day;retargetWeather(state);return {ok:true,target,plan:{routes:[],minutes:0,distanceKm:0,forced:true},extraMinutes:0}}
  if(String(actionKind||roll?.profile?.kind||"").toUpperCase()!=="TRAVEL")return {ok:false,reason:"TRAVEL_ACTION_REQUIRED"};
  if(!force&&roll?.success===false)return {ok:false,reason:"TRAVEL_CHECK_FAILED"};
+ const access=locationAccessStatus(state,target);if(!force&&!access.allowed){state.events??=[];state.events.push({id:uid("EV"),type:"TRAVEL_ACCESS_BLOCKED",visibility:"PLAYER_KNOWN",destinationId:target.id,missing:access.missing.map(x=>({type:x.type,id:x.id,hint:x.hint||""})),summary:access.missing.map(x=>x.hint||"尚未滿足進入條件").join(" · "),day:state.world?.state?.day||1,at:Date.now()});return {ok:false,reason:"ACCESS_REQUIREMENT_MISSING",missing:access.missing}}
  target.known=true;const plan=findTravelPlan(state,target.id);if(!plan)return {ok:false,reason:"NO_CANON_ROUTE"};
  const extraMinutes=force?0:Math.max(0,plan.minutes-Math.max(0,Number(baseMinutes)||0));if(extraMinutes){advanceTime(state,extraMinutes);tickSurvival(state,extraMinutes,{kind:"TRAVEL"});tickWeather(state)}
  state.player.location=target.name;state.world.state.location=target.name;state.world.state.region=target.region||state.world.state.region;target.discoveredDay??=state.world.state.day;
@@ -62,5 +76,5 @@ export function travelTo(state,destination,{roll=null,actionKind="",baseMinutes=
 }
 export function travelSnapshot(state,{director=false}={}){
  const t=ensureTravelNetwork(state),here=current(state),known=new Set(locations(state).filter(x=>x.known===true).map(x=>x.id)),routes=t.routes.filter(r=>director||(known.has(r.fromId)&&known.has(r.toId))).map(r=>({id:r.id,fromId:r.fromId,toId:r.toId,distanceKm:r.distanceKm,terrain:r.terrain,hazard:r.hazard,baseMinutes:r.baseMinutes,open:r.open!==false}));
- return {currentLocationId:here?.id||null,routes:routes.slice(-40)}
+ return {currentLocationId:here?.id||null,routes:routes.slice(-40),locations:locations(state).filter(x=>director||x.known===true).map(x=>({id:x.id,name:x.name,region:x.region,type:x.type,access:locationAccessStatus(state,x)})).slice(-40)}
 }
