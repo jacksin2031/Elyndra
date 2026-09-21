@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate} from "../src/world-compiler.js";\nimport {normalizeWeatherSystem} from "../src/weather-engine.js";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate} from "../src/world-compiler.js";
+import {normalizeWeatherSystem} from "../src/weather-engine.js";
 
 test("AI-selected worldTheme becomes the single canonical seed-compliance theme",()=>{
  const core={
