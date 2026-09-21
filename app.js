@@ -1,31 +1,31 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=36000";
+import {APP_VERSION} from "./src/version.js?v=37000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=35000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=35000";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=35000";
-import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=35000";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=37000";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=37000";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=37000";
+import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=37000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
-import {performAction} from "./src/game-engine.js?v=35000";
+import {performAction} from "./src/game-engine.js?v=37000";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=34004";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=35000";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=37000";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
 import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=276";
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=35000";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=35000";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=37000";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=276";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=35000";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=37000";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=320";
 import {ensureCrisis} from "./src/crisis-engine.js?v=276";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=276";
 import {playerVisibleEvents} from "./src/event-visibility.js?v=276";
 import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=276";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=276";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=37000";
 import {randomWorldSettings} from "./src/world-randomizer.js?v=290";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=36000";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=37000";
 import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=276";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=276";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=37000";
 import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=276";
 import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=320";
 import {deriveSceneTitle} from "./src/runtime-guard.js?v=35000";
@@ -142,7 +142,7 @@ async function runDeferredDirector(){
  deferredDirector.running=true;deferredDirector.controller=ctrl;
  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_STARTED",visibility:"INTERNAL",action:task.action,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("DEFERRED_TURN_STARTED",{action:task.action,queued:deferredDirector.queue.length});
  try{
-  const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal});
+  const effects=await generateDeferredTurnEffects(task.action,task.roll,buildSnapshot(gameState),{signal:ctrl.signal,intent:task.intent});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
   if(effects)applyDeferredTurnEffects(gameState,effects,{action:task.action,roll:task.roll});
   deferredDirector.queue.shift();removePersistedDeferredTurn(task.id);recordDebug("DEFERRED_TURN_APPLIED",{action:task.action,elapsedMs:Date.now()-debugStarted,remaining:deferredDirector.queue.length});await persist();await refresh()
@@ -252,7 +252,7 @@ async function persist(){if(gameState){
  maintainSession(gameState);await saveWorld(gameState)
 }}
 function fallbackActionButtons(action=""){const contextual=roleplayFallbackSuggestions(gameState||{},{action});if(contextual.length)return contextual.slice(0,4);return ["檢查地面與附近物件上最新留下的痕跡","找一個正在避開人群的人，問他剛才看見了甚麼","沿著最明顯的新鮮痕跡走一小段，確認它通往哪裡","找一個能看見出入口的位置觀察人流"]}
-function renderSuggestions(){const box=$("#choices");if(!box)return;if(gameState?.combat?.active){box.innerHTML='<button type="button" data-combat-action="attack">攻擊</button><button type="button" data-combat-action="defend">防禦</button><button type="button" data-combat-action="retreat">撤退</button>';box.querySelectorAll("[data-combat-action]").forEach(b=>b.onclick=()=>runCombatAction(b.dataset.combatAction));return}const suggestions=(gameState?.suggestions||[]).slice(0,4);const shown=suggestions.length?suggestions:fallbackActionButtons();box.innerHTML=shown.map(s=>`<button type="button">${esc(s)}</button>`).join("");box.querySelectorAll("button").forEach(b=>b.onclick=()=>runAction("free",b.textContent))}
+function renderSuggestions(){const box=$("#choices");if(!box)return;if(gameState?.combat?.active){box.innerHTML='<button type="button" data-combat-action="attack">攻擊</button><button type="button" data-combat-action="defend">防禦</button><button type="button" data-combat-action="retreat">撤退</button>';box.querySelectorAll("[data-combat-action]").forEach(b=>b.onclick=()=>runCombatAction(b.dataset.combatAction));return}const intents=(gameState?.suggestionIntents||[]).slice(0,4),suggestions=(gameState?.suggestions||[]).slice(0,4),shown=intents.length?intents:(suggestions.length?suggestions:fallbackActionButtons()).map(x=>({label:x,action:x,kind:"GENERAL",risk:"UNKNOWN"}));box.innerHTML=shown.map(x=>`<button type="button" data-suggested-action="${esc(x.action||x.label)}" title="${esc([x.kind,x.risk!=="UNKNOWN"?x.risk:"",x.skillHint||""].filter(Boolean).join(" · "))}">${esc(x.label||x.action)}</button>`).join("");box.querySelectorAll("[data-suggested-action]").forEach(b=>b.onclick=()=>runAction("free",b.dataset.suggestedAction||b.textContent))}
 function renderKnownNpcs(){const dock=$("#npcDock"),box=$("#knownNpcList");if(!dock||!box||!gameState)return;const npcs=ensureWorldRegistry(gameState).npcs.filter(x=>canInteractWithNpc(gameState,x)).slice(-6),comm=worldCommunication(gameState);dock.classList.toggle("hidden",!npcs.length);box.innerHTML=npcs.map(n=>{const tag=companionLabel(n),mode=npcInteractionMode(gameState,n),where=mode==="REMOTE"?`遠距 · ${comm.name}`:"附近";return `<button type="button" class="npc-mini" data-npc-id="${esc(n.id)}"><span>${esc((n.name||"?").slice(0,1))}</span><div><strong>${esc(n.name)}</strong><small>${esc(n.role||"")} · ${esc(where)}${tag?` · ${esc(tag)}`:""}</small></div></button>`}).join("");box.querySelectorAll("[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
 function openNpcPanel(npcId,answer=""){const npc=findNpc(gameState,npcId);if(!npc||npc.known!==true)return;const status=npc.companion?.status||"NONE",mode=npcInteractionMode(gameState,npc),interactive=Boolean(mode),local=isNpcPresent(gameState,npc),comm=worldCommunication(gameState),actions=interactive?[`<button class="primary" data-npc-chat="${esc(npc.id)}">${mode==="REMOTE"?`透過 ${esc(comm.name)} 聯絡`:"對話"}</button>`]:[`<span class="muted">目前沒有可用的聯絡方式。</span>`];if(local&&status==="OFFERED")actions.push(`<button class="secondary" data-companion="accept" data-npc-id="${esc(npc.id)}">接受同行</button>`);else if(local&&status==="ACTIVE")actions.push(`<button class="ghost" data-companion="leave" data-npc-id="${esc(npc.id)}">請求暫時離隊</button>`);else if(local)actions.push(`<button class="secondary" data-companion="invite" data-npc-id="${esc(npc.id)}">邀請同行</button>`);openModal(`<div class="eyebrow">NPC · ${esc(companionLabel(npc)||"未同行")}</div><h2>${esc(npc.name)}</h2><p>${esc(answer||npc.description||npc.role||"")}</p><div class="settings-actions">${actions.join("")}</div>`);$("#modalContent [data-npc-chat]")?.addEventListener("click",()=>openNpcConversation(npc.id));$("#modalContent [data-companion]")?.addEventListener("click",async e=>{const action=e.currentTarget.dataset.companion;let message="";if(action==="invite"){const r=inviteCompanion(gameState,npc.id);message=r.accepted?npc.name+" 接受了同行邀請。":npc.name+" 暫時沒有接受同行邀請。"}else if(action==="accept"){message=acceptCompanionOffer(gameState,npc.id)?npc.name+" 正式加入旅程。":"這個同行提議已經失效。"}else if(action==="leave"){message=dismissCompanion(gameState,npc.id)?npc.name+" 暫時離開了隊伍。":"目前無法離隊。"}await persist();await refresh();openNpcPanel(npc.id,message)})}
 function npcConversationMessages(npcId){if(!npcChatHistory.has(npcId))npcChatHistory.set(npcId,[]);return npcChatHistory.get(npcId)}
@@ -269,22 +269,25 @@ async function runAction(action,customText=""){
  if(gameState.combat?.active){gameState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}
  if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}
  const requested=String(customText||action||"").trim()||"觀察目前環境",debugTurnStarted=Date.now();recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});if(markOpeningEngaged(gameState,requested))recordDebug("OPENING_HOOK_ENGAGED",{action:requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});
- if(!aiStatus.aiConfigured){gameState.narrative="目前沒有可用的 AI Provider，無法先判定這個行動是否符合角色狀態與場景條件。請先在 AI 設定連線。";await refresh();return}
- let assessment;
- setAIThinking(true,"AI 正在根據角色狀態、物品與場景判定行動是否合理…");
- try{assessment=await assessPlayerAction(gameState,requested);recordDebug("ACTION_ASSESSMENT",{action:requested,verdict:assessment?.verdict,kind:assessment?.kind,source:assessment?.source,confidence:assessment?.confidence,reason:assessment?.reason,latencyFromTurnStartMs:Date.now()-debugTurnStarted})}
- catch(e){
-  console.warn("action feasibility failed",e);
-  gameState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
-  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
-  await persist();await refresh();return
- }finally{setAIThinking(false)}
+ let assessment=fastLocalActionAssessment(gameState,requested);
+ if(!assessment){
+  if(!aiStatus.aiConfigured){gameState.narrative="這個行動需要語義判斷，但目前沒有可用的 AI Provider。基本觀察、查看背包、休息、使用明確物品與前往已知地點仍可由 Engine 直接處理。";await refresh();return}
+  setAIThinking(true,"AI 正在解析 Action Intent 並判斷必要前提…");
+  try{assessment=await assessPlayerAction(gameState,requested)}
+  catch(e){
+   console.warn("action feasibility failed",e);
+   gameState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
+   gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:gameState.world?.state?.day||1,at:Date.now()});
+   await persist();await refresh();return
+  }finally{setAIThinking(false)}
+ }
+ recordDebug("ACTION_ASSESSMENT",{action:requested,verdict:assessment?.verdict,kind:assessment?.kind,intent:assessment?.actionIntent?.intent,targetId:assessment?.actionIntent?.targetId,source:assessment?.source,confidence:assessment?.confidence,reason:assessment?.reason,latencyFromTurnStartMs:Date.now()-debugTurnStarted});
  if(assessment?.source==="ENGINE_DEGRADED"){gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_DEGRADED",visibility:"INTERNAL",action:requested,reason:assessment.aiError||assessment.reason,day:gameState.world?.state?.day||1,at:Date.now()})}
   const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
- const previousSuggestions=[...(gameState.suggestions||[])],impactBefore=ensureWorldImpact(gameState).records.length;
+ const previousSuggestions=[...(gameState.suggestions||[])],previousSuggestionIntents=[...(gameState.suggestionIntents||[])],impactBefore=ensureWorldImpact(gameState).records.length;
  if(assessment?.verdict!=="BLOCK"){
   const localLore=resolveLocalLoreAction(gameState,effective);
-  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
+  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
  }
  const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;recordDebug("ENGINE_ACTION_RESULT",{action:effective,blocked:Boolean(actionResult.blocked),deterministic:Boolean(actionResult.deterministic),roll:roll?{natural:roll.natural,total:roll.total,dc:roll.dc,grade:roll.grade,success:roll.success,kind:roll.profile?.kind}:null,elapsedMs:Date.now()-debugTurnStarted});
  if(actionResult.blocked||actionResult.deterministic){
@@ -300,10 +303,10 @@ async function runAction(action,customText=""){
     }catch(e){console.warn("item npc reaction fallback",e)}finally{setAIThinking(false)}
    }
   }
-  gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);await persist();await refresh();return
+  gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];await persist();await refresh();return
  }
  renderRoll(roll);
- gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);
+ gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];
  await refresh();
  if(aiStatus.aiConfigured){
   setAIThinking(true,"AI 正在判斷本回合需要的處理方式…");
@@ -312,24 +315,24 @@ async function runAction(action,customText=""){
    if(routing.needsGeneration){
     const turnWorldId=gameState.world?.id,turnSnapshot=buildSnapshot(gameState);
     setTurnSyncing(true,"AI 正在背景同步敘事後的必要世界狀態；你可以繼續輸入下一步。");setAIThinking(false);
-    const candidate=await generateTurn(label,roll,turnSnapshot,{onScene:scene=>{
+    const candidate=await generateTurn(label,roll,turnSnapshot,{intent:assessment?.actionIntent,onScene:scene=>{
      if(!gameState||gameState.world?.id!==turnWorldId)return;
-     const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions});
+     const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents});
      if(preview.narrative)gameState.narrative=preview.narrative;
      if(preview.sceneTitle)gameState.sceneTitle=preview.sceneTitle;
-     if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;
+     if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;if(preview.suggestionIntents?.length)gameState.suggestionIntents=preview.suggestionIntents;
      void refresh()
     }});
     if(gameState?.world?.id===turnWorldId){
      applyTurnCandidate(gameState,candidate,{action:label,roll});
      gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("TURN_COMMIT",{action:label,directorMode:candidate.directorMode||"DEEP",elapsedMs:Date.now()-debugTurnStarted,foregroundQueue:foregroundQueue.length,deferredQueue:deferredDirector.queue.length});
-     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,queuedAt:Date.now()},650)
+     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,intent:assessment?.actionIntent,queuedAt:Date.now()},650)
     }
-   }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
+   }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label);gameState.suggestionIntents=[]}
   }
   catch(e){console.warn("AI turn state fallback",e);recordDebug("TURN_SYNC_DEGRADED",{action:effective,error:e?.message||String(e),elapsedMs:Date.now()-debugTurnStarted});if(!String(gameState.narrative||"").trim())gameState.narrative=localText;if(!String(gameState.sceneTitle||"").trim())gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
   finally{if(aiBusy)setAIThinking(false)}
- }else gameState.suggestions=fallbackActionButtons(effective);
+ }else gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];
  if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
  try{await persist();await refresh()}
  finally{
@@ -341,10 +344,56 @@ async function runAction(action,customText=""){
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
 function creatorField(id){return document.getElementById(id)}
+const DEGREE_FIELDS=["civilizationLevel","technologyLevel","magicLevel","politicalUnity","religionInfluence","resourceAbundance","worldDanger","survivalIntensity"];
+const RULE_TAG_LIBRARY={
+ "魔法與超自然":["魔法學院","魔法公會","元素魔法","召喚術","治癒魔法","禁忌魔法","魔法契約","魔導科技","魔法災害","神術","詛咒","煉金術","超能力","靈魂魔法"],
+ "文明與制度":["冒險者公會","商人公會","多王國","帝國","城邦聯盟","部落聯盟","貴族制度","騎士團","宗教國家","學術機構","民主議會","傭兵制度","奴隸制度","地下組織"],
+ "種族與生物":["龍","精靈","矮人","獸人","亞人","魔族","不死族","巨人","妖精","智慧魔物","人造生命","神祇","惡魔","天使","海族"],
+ "地理與探索":["天空群島","漂浮大陸","地下世界","海洋文明","世界樹","巨型迷宮","古代遺跡","禁地","未知大陸","移動城市","荒野邊境","異常天候","巨大生物棲地","多層世界"],
+ "科技與交通":["蒸汽機械","魔導機械","飛行船","鐵路","火器","槍械","電力","現代工業","網絡通訊","機器人","人工智慧","生物科技","太空文明","傳送門"],
+ "衝突與劇情":["魔王","古代威脅","王國戰爭","宗教戰爭","政變","世界末日","災難循環","預言","勇者召喚","英雄制度","學院篇","競技場","商業戰","遠征","革命"],
+ "氛圍與限制":["黑暗殘酷","輕鬆日常","戀愛要素","恐怖要素","政治陰謀","慢速成長","開局無敵","後宮","永久死亡","時間旅行","平行世界","現代地球直接介入","科幻文明","全知主角","固定救世主劇情"]
+};
+let activeRuleTarget="required";
+const ruleValues={required:[],allowed:[],forbidden:[]};
+function cleanRuleTag(v){return String(v||"").trim().replace(/[\n,，;；]+/g," ").slice(0,60)}
+function syncRuleHidden(){creatorField("requiredElements").value=ruleValues.required.join("\n");creatorField("allowedElements").value=ruleValues.allowed.join("\n");creatorField("forbiddenElements").value=ruleValues.forbidden.join("\n")}
+function renderSelectedRuleTags(){
+ for(const target of ["required","allowed","forbidden"]){
+  const box=creatorField(target+"TagCloud");if(!box)continue;
+  box.innerHTML=ruleValues[target].map(tag=>`<span class="world-tag selected-${target}">${esc(tag)}<button type="button" data-remove-rule-tag="${target}" data-tag="${esc(tag)}" aria-label="移除 ${esc(tag)}">×</button></span>`).join("")||'<span class="muted">尚未加入標籤</span>'
+ }
+ qsa("[data-remove-rule-tag]").forEach(b=>b.onclick=()=>{const t=b.dataset.removeRuleTag,tag=b.dataset.tag;ruleValues[t]=ruleValues[t].filter(x=>x!==tag);syncRuleHidden();renderRuleTagBuilder();renderCreatorReview()})
+}
+function addRuleTag(target,raw){
+ const tag=cleanRuleTag(raw);if(!tag||!ruleValues[target])return;
+ for(const key of Object.keys(ruleValues))ruleValues[key]=ruleValues[key].filter(x=>x!==tag);
+ ruleValues[target].push(tag);syncRuleHidden();renderRuleTagBuilder();renderCreatorReview()
+}
+function renderRuleTagPresets(){
+ const box=creatorField("ruleTagPresets"),category=creatorField("ruleTagCategory")?.value||"全部",query=String(creatorField("ruleTagSearch")?.value||"").trim().toLowerCase();if(!box)return;
+ const entries=Object.entries(RULE_TAG_LIBRARY).filter(([name])=>category==="全部"||name===category).flatMap(([,tags])=>tags),unique=[...new Set(entries)].filter(tag=>!query||tag.toLowerCase().includes(query));
+ box.innerHTML=unique.map(tag=>{const owner=Object.keys(ruleValues).find(k=>ruleValues[k].includes(tag));return `<button type="button" class="world-tag ${owner?"selected-"+owner:""}" data-preset-rule-tag="${esc(tag)}">${esc(tag)}</button>`}).join("")||'<span class="muted">沒有符合的預設標籤</span>';
+ const count=creatorField("ruleTagCount");if(count)count.textContent=`${unique.length} 個標籤`;
+ qsa("[data-preset-rule-tag]").forEach(b=>b.onclick=()=>addRuleTag(activeRuleTarget,b.dataset.presetRuleTag))
+}
+function renderRuleTagBuilder(){renderSelectedRuleTags();renderRuleTagPresets();qsa("[data-rule-target]").forEach(b=>b.classList.toggle("active",b.dataset.ruleTarget===activeRuleTarget));qsa("[data-rule-bucket]").forEach(b=>b.classList.toggle("active",b.dataset.ruleBucket===activeRuleTarget))}
+function initRuleTagBuilder(){
+ const category=creatorField("ruleTagCategory");if(category){category.innerHTML=["全部",...Object.keys(RULE_TAG_LIBRARY)].map(x=>`<option>${esc(x)}</option>`).join("");category.onchange=renderRuleTagPresets}
+ creatorField("ruleTagSearch")?.addEventListener("input",renderRuleTagPresets);
+ qsa("[data-rule-target]").forEach(b=>b.onclick=()=>{activeRuleTarget=b.dataset.ruleTarget;renderRuleTagBuilder()});
+ qsa("[data-rule-bucket]").forEach(b=>b.onclick=e=>{if(e.target.closest("button,input"))return;activeRuleTarget=b.dataset.ruleBucket;renderRuleTagBuilder()});
+ qsa("[data-add-custom-tag]").forEach(b=>b.onclick=()=>{const target=b.dataset.addCustomTag,input=creatorField(target+"TagInput");addRuleTag(target,input?.value);if(input)input.value=""});
+ for(const target of ["required","allowed","forbidden"])creatorField(target+"TagInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addRuleTag(target,e.currentTarget.value);e.currentTarget.value=""}});
+ renderRuleTagBuilder()
+}
+function syncDegreeOutputs(){for(const id of DEGREE_FIELDS){const input=creatorField(id),out=creatorField(id+"Value");if(input&&out)out.value=input.value}}
+function syncCustomWorldStyle(){const custom=creatorField("genre")?.value==="自訂世界";creatorField("customWorldStyleWrap")?.classList.toggle("hidden",!custom);const hint=creatorField("styleHint");if(custom&&hint)hint.textContent="自訂世界會以你的風格描述作為 Blueprint 基礎；進階設定仍可獨立指定。"}
+
 function creatorRaw(){
  const n=id=>Number(creatorField(id)?.value),v=id=>String(creatorField(id)?.value||""),checked=id=>creatorField(id)?.checked===true,mode=id=>v(id+"Mode")||"style";
  const out={
-  playerName:v("playerName").trim(),worldStyle:v("genre"),worldStyleMode:"fixed",worldStyleLocked:checked("worldStyleLocked"),worldScale:v("scale"),worldScaleMode:"fixed",worldScaleLocked:checked("worldScaleLocked"),
+  playerName:v("playerName").trim(),worldStyle:v("genre"),customWorldStyle:v("customWorldStyle"),worldStyleMode:"fixed",worldStyleLocked:checked("worldStyleLocked"),worldScale:v("scale"),worldScaleMode:"fixed",worldScaleLocked:checked("worldScaleLocked"),
   targetPlayHours:Math.max(2,Math.min(100,Math.round(n("playHours")||15))),difficulty:v("difficulty"),originType:v("originType"),originCustom:v("originCustom"),playerRole:v("playerRole"),roleCustom:v("roleCustom"),
   customWorldDescription:v("prompt"),storyPreferences:v("storyPreferences"),requiredElements:v("requiredElements"),allowedElements:v("allowedElements"),forbiddenElements:v("forbiddenElements")
  };
@@ -373,12 +422,12 @@ function syncAdvancedCreatorModes(){
  }
 }
 function randomizeUnlockedCreator(){
- const genre=creatorField("genre"),scale=creatorField("scale"),settings=randomWorldSettings({genres:Array.from(genre.options,x=>x.value),scales:Array.from(scale.options,x=>x.value)});
+ const genre=creatorField("genre"),scale=creatorField("scale"),settings=randomWorldSettings({genres:Array.from(genre.options,x=>x.value).filter(x=>x!=="自訂世界"),scales:Array.from(scale.options,x=>x.value)});
  if(!creatorField("worldStyleLocked")?.checked)genre.value=settings.genre;
  if(!creatorField("worldScaleLocked")?.checked)scale.value=settings.scale;
- const ranges={civilizationLevel:[1,5],technologyLevel:[1,5],magicLevel:[1,5],civilizationCount:[1,12],speciesCount:[1,12],languageCount:[1,16],politicalUnity:[1,5],religionInfluence:[1,5],resourceAbundance:[1,5],worldDanger:[1,5],unknownRatio:[10,95],survivalIntensity:[1,5]};
- for(const [id,[min,max]] of Object.entries(ranges)){if(creatorField(id+"Locked")?.checked)continue;creatorField(id).value=Math.round(min+Math.random()*(max-min))}
- if(!creatorField("warStateLocked")?.checked)creatorField("warState").value=["PEACE","TENSION","WAR"][Math.floor(Math.random()*3)];
+ const ranges={civilizationLevel:[1,10],technologyLevel:[1,10],magicLevel:[1,10],civilizationCount:[1,12],speciesCount:[1,12],languageCount:[1,16],politicalUnity:[1,10],religionInfluence:[1,10],resourceAbundance:[1,10],worldDanger:[1,10],unknownRatio:[10,95],survivalIntensity:[1,10]};
+ for(const [id,[min,max]] of Object.entries(ranges)){if(creatorField(id+"Locked")?.checked||creatorField(id+"Mode")?.value!=="random")continue;creatorField(id).value=Math.round(min+Math.random()*(max-min))}syncDegreeOutputs()
+ if(!creatorField("warStateLocked")?.checked&&creatorField("warStateMode")?.value==="random")creatorField("warState").value=["PEACE","TENSION","WAR"][Math.floor(Math.random()*3)];
  const hint=$("#styleHint"),p=getWorldStylePreset(genre.value);if(hint)hint.textContent=`已重抽未鎖定設定。世界風格：${genre.value}。 ${p?.foundation||""}`;
  renderCreatorReview()
 }
@@ -394,10 +443,11 @@ qsa("[data-step-next]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepNe
 qsa("[data-step-prev]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepPrev));
 qsa("[data-step-target]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepTarget));
 $("#randomWorldBtn")?.addEventListener("click",randomizeUnlockedCreator);
-$("#genre")?.addEventListener("change",()=>{const p=getWorldStylePreset($("#genre").value),hint=$("#styleHint");if(hint)hint.textContent=(p?.foundation||"")+" 未指定的進階欄位會以這個風格作基礎。";renderCreatorReview()});
+$("#genre")?.addEventListener("change",()=>{syncCustomWorldStyle();const p=getWorldStylePreset($("#genre").value),hint=$("#styleHint");if($("#genre").value!=="自訂世界"&&hint)hint.textContent=(p?.foundation||"")+" 未指定的進階欄位會以這個風格作基礎。";renderCreatorReview()});
 qsa(".advanced-setting select[id$='Mode']").forEach(x=>x.addEventListener("change",syncAdvancedCreatorModes));
 qsa("#creator input,#creator select,#creator textarea").forEach(x=>x.addEventListener("change",()=>{if(x.id!=="genre")renderCreatorReview()}));
-syncAdvancedCreatorModes();setCreatorStep(1);
+for(const id of DEGREE_FIELDS)creatorField(id)?.addEventListener("input",()=>{syncDegreeOutputs();renderCreatorReview()});
+initRuleTagBuilder();syncDegreeOutputs();syncCustomWorldStyle();syncAdvancedCreatorModes();setCreatorStep(1);
 $("#generateBtn").onclick=async()=>{
  const btn=$("#generateBtn"),draft=createWorldCreationDraft(creatorRaw()),seed=compileWorldCreation(draft);btn.disabled=true;
  try{

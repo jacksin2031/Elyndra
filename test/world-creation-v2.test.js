@@ -3,69 +3,103 @@ import assert from "node:assert/strict";
 import {
  createWorldCreationDraft,
  resolveWorldBlueprint,
- buildWorldConstitution,
  compileWorldCreation,
  validateWorldCreationCandidate,
  applyWorldCreationState,
  buildWorldContract,
- DIFFICULTY_PRESETS
+ DIFFICULTY_PRESETS,
+ BLUEPRINT_SOURCES
 } from "../src/world-creation.js";
+import {createWorldSeedContract} from "../src/seed-contract.js";
 
 function baseRaw(overrides={}){
  return {
   masterSeed:"wc2-regression-seed",
-  worldStyle:"王道奇幻",
-  worldScale:"中型",
-  targetPlayHours:18,
-  difficulty:"hard",
-  originType:"summoned",
-  playerRole:"researcher",
+  worldStyle:"王道奇幻",worldScale:"中型",targetPlayHours:18,difficulty:"hard",
+  originType:"summoned",playerRole:"researcher",
   customWorldDescription:"多王國高魔法世界，玩家慢慢成長。",
   storyPreferences:"後期可能爆發戰爭\n希望出現魔法學院篇",
-  requiredElements:"魔法學院\n龍",
-  allowedElements:"魔王",
-  forbiddenElements:"槍械\n科幻文明",
-  civilizationLevel:3,civilizationLevelMode:"style",
-  technologyLevel:2,technologyLevelMode:"random",
-  magicLevel:5,magicLevelMode:"fixed",
+  requiredElements:"魔法學院\n龍",allowedElements:"魔王",forbiddenElements:"槍械\n科幻文明",
+  civilizationLevel:6,civilizationLevelMode:"style",
+  technologyLevel:4,technologyLevelMode:"random",
+  magicLevel:9,magicLevelMode:"fixed",
   civilizationCount:5,civilizationCountMode:"random",
   speciesCount:4,speciesCountMode:"random",
   languageCount:6,languageCountMode:"random",
-  politicalUnity:2,politicalUnityMode:"style",
-  religionInfluence:3,religionInfluenceMode:"style",
-  resourceAbundance:3,resourceAbundanceMode:"style",
-  worldDanger:4,worldDangerMode:"fixed",
+  politicalUnity:4,politicalUnityMode:"style",
+  religionInfluence:6,religionInfluenceMode:"style",
+  resourceAbundance:6,resourceAbundanceMode:"style",
+  worldDanger:8,worldDangerMode:"fixed",
   warState:"TENSION",warStateMode:"random",
   unknownRatio:70,unknownRatioMode:"random",
-  survivalIntensity:4,survivalIntensityMode:"fixed",
+  survivalIntensity:8,survivalIntensityMode:"fixed",
+  ...overrides
+ }
+}
+function validCandidate(seed,overrides={}){
+ return {
+  worldTheme:"學院與龍共存的王國",
+  summary:"魔法學院研究龍類；這個世界沒有槍械，也禁止科幻文明。",
+  worldBible:{startingLocation:"學院外城",blueprintProfile:structuredClone(seed.blueprintProfile)},
+  publicFacts:["魔法學院是王國的重要教育機構。","龍存在於北方山脈。"],
+  hiddenFacts:[],worldHistory:[],
+  generation:{locations:[{name:"魔法學院"}],npcs:[],factions:[],sideQuests:[]},
   ...overrides
  }
 }
 
-test("World Creation 2.0 resolves the same master seed deterministically",()=>{
+test("World Creation 2.0 resolves deterministic random values before AI",()=>{
  const a=resolveWorldBlueprint(createWorldCreationDraft(baseRaw()));
  const b=resolveWorldBlueprint(createWorldCreationDraft(baseRaw()));
  assert.deepEqual(a,b);
- assert.equal(a.advanced.magicLevel.value,5);
+ assert.equal(a.advanced.magicLevel.value,9);
+ assert.equal(a.advanced.magicLevel.source,BLUEPRINT_SOURCES.USER);
  assert.equal(a.difficulty,"hard")
 });
 
-test("locked fields remain fixed even when their mode is random or style",()=>{
+test("locked fields remain USER-owned even when their mode says random or style",()=>{
  const draft=createWorldCreationDraft(baseRaw({
-  technologyLevel:5,technologyLevelMode:"random",technologyLevelLocked:true,
+  technologyLevel:10,technologyLevelMode:"random",technologyLevelLocked:true,
   civilizationLevel:1,civilizationLevelMode:"style",civilizationLevelLocked:true
  }));
  const b=resolveWorldBlueprint(draft);
- assert.equal(b.advanced.technologyLevel.value,5);
- assert.equal(b.advanced.technologyLevel.source,"player_locked");
+ assert.equal(b.advanced.technologyLevel.value,10);
+ assert.equal(b.advanced.technologyLevel.source,BLUEPRINT_SOURCES.USER);
  assert.equal(b.advanced.civilizationLevel.value,1);
- assert.equal(b.advanced.civilizationLevel.source,"player_locked")
+ assert.equal(b.advanced.civilizationLevel.source,BLUEPRINT_SOURCES.USER)
 });
 
-test("hard constraints are compiled ahead of long freeform text",()=>{
+test("degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values",()=>{
  const seed=compileWorldCreation(createWorldCreationDraft(baseRaw({
-  customWorldDescription:"很長的世界描述".repeat(180)
+  magicLevel:10,magicLevelMode:"fixed",
+  worldDanger:9,worldDangerMode:"fixed",
+  politicalUnity:2,politicalUnityMode:"fixed"
  })));
+ assert.equal(seed.blueprintProfile.magicLevel.value,10);
+ assert.equal(seed.blueprintProfile.worldDanger.value,9);
+ assert.equal(seed.blueprintProfile.politicalUnity.value,2);
+ assert.equal(seed.magic,5);
+ assert.equal(seed.danger,5);
+ assert.equal(seed.politics,5);
+ assert.match(seed.prompt,/魔法10\/10/);
+ assert.match(seed.prompt,/危險9\/10/)
+});
+
+test("custom world style stays first-class and becomes Seed style foundation",()=>{
+ const seed=compileWorldCreation(createWorldCreationDraft(baseRaw({
+  worldStyle:"自訂世界",
+  customWorldStyle:"天空群島文明，魔法由記憶驅動，跨國學院保持中立。",
+  civilizationLevel:7,civilizationLevelMode:"fixed"
+ })));
+ const contract=createWorldSeedContract(seed);
+ assert.equal(seed.genre,"自訂世界");
+ assert.equal(seed.blueprintProfile.customStyleDescription,"天空群島文明，魔法由記憶驅動，跨國學院保持中立。");
+ assert.match(contract.styleFoundation,/天空群島文明/);
+ assert.doesNotMatch(contract.styleFoundation,/冒險感較強/)
+});
+
+test("hard Constitution tags compile ahead of long freeform text",()=>{
+ const seed=compileWorldCreation(createWorldCreationDraft(baseRaw({customWorldDescription:"很長的世界描述".repeat(180)})));
  assert.match(seed.prompt,/硬性必須存在：魔法學院、龍/);
  assert.match(seed.prompt,/硬性禁止出現：槍械、科幻文明/);
  assert.ok(seed.prompt.length<=800);
@@ -74,27 +108,25 @@ test("hard constraints are compiled ahead of long freeform text",()=>{
  assert.ok(c.hardRules.some(x=>x.kind==="FORBID"&&x.term==="槍械"))
 });
 
-test("candidate validator rejects missing required and positive forbidden content",()=>{
+test("Blueprint Compliance rejects missing required, positive forbidden and profile drift",()=>{
  const seed=compileWorldCreation(createWorldCreationDraft(baseRaw()));
- const bad={worldTheme:"龍之王國",summary:"軍隊使用槍械守衛王城",worldBible:{},publicFacts:[],hiddenFacts:[],worldHistory:[],generation:{}};
+ const bad=validCandidate(seed,{summary:"軍隊使用槍械守衛王城",publicFacts:["龍存在於北方山脈。"],generation:{locations:[],npcs:[],factions:[],sideQuests:[]},worldBible:{blueprintProfile:{...structuredClone(seed.blueprintProfile),technologyLevel:{value:10,source:"AI_INFERRED",locked:false}}}});
  const report=validateWorldCreationCandidate(seed,bad);
  assert.equal(report.valid,false);
  assert.ok(report.errors.includes("WC2_REQUIRED_MISSING:魔法學院"));
- assert.ok(report.errors.includes("WC2_FORBIDDEN_PRESENT:槍械"))
+ assert.ok(report.errors.includes("WC2_FORBIDDEN_PRESENT:槍械"));
+ assert.ok(report.errors.includes("BLUEPRINT_TECH_MISMATCH"))
 });
 
-test("candidate validator does not treat explicit prohibition as generated forbidden content",()=>{
+test("Blueprint Compliance accepts explicit prohibitions and reports named compliance rows",()=>{
  const seed=compileWorldCreation(createWorldCreationDraft(baseRaw()));
- const candidate={
-  worldTheme:"學院與龍共存的王國",
-  summary:"魔法學院研究龍類；這個世界沒有槍械，也禁止科幻文明。",
-  worldBible:{startingLocation:"學院外城"},
-  publicFacts:["魔法學院是王國的重要教育機構。","龍存在於北方山脈。"],
-  hiddenFacts:[],worldHistory:[],
-  generation:{locations:[{name:"魔法學院"}],npcs:[],factions:[],sideQuests:[]}
- };
- const report=validateWorldCreationCandidate(seed,candidate);
- assert.equal(report.valid,true,report.errors.join(","))
+ const report=validateWorldCreationCandidate(seed,validCandidate(seed));
+ assert.equal(report.valid,true,report.errors.join(","));
+ assert.equal(report.compliance.ORIGIN_COMPLIANCE.status,"PASS");
+ assert.equal(report.compliance.TECH_COMPLIANCE.status,"PASS");
+ assert.equal(report.compliance.CIVILIZATION_COMPLIANCE.status,"PASS");
+ assert.equal(report.compliance.DIFFICULTY_COMPLIANCE.status,"PASS");
+ assert.equal(report.compliance.FORBIDDEN_CONTENT_COMPLIANCE.status,"PASS")
 });
 
 test("creation state persists origin role difficulty and dynamic constitution",()=>{
@@ -110,15 +142,15 @@ test("creation state persists origin role difficulty and dynamic constitution",(
  assert.ok(state.world.constitution.some(x=>x.kind==="FORBID"&&x.term==="槍械"))
 });
 
-test("World Contract is a public projection and does not expose hidden truth",()=>{
+test("World Contract is public projection and keeps hidden truth out",()=>{
  const seed=compileWorldCreation(createWorldCreationDraft(baseRaw()));
  const state={world:{seed:{},constitution:[]},player:{}};
  applyWorldCreationState(state,seed);
  state.world.hiddenState={truth:"玩家其實由古神召喚"};
- const contract=buildWorldContract(state);
- const text=JSON.stringify(contract);
+ const contract=buildWorldContract(state),text=JSON.stringify(contract);
  assert.equal(contract.difficulty,"困難");
  assert.equal(contract.origin,"被召喚");
+ assert.match(contract.structure[0],/\/10/);
  assert.ok(contract.unknown.includes("隱藏世界真相"));
  assert.equal(text.includes("玩家其實由古神召喚"),false)
 });

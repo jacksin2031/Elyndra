@@ -5,6 +5,8 @@ const uniq=v=>[...new Set(v)];
 const hash=s=>{let h=2166136261;for(let i=0;i<String(s).length;i++){h^=String(s).charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0};
 const rng=seed=>{let x=hash(seed)||0x9e3779b9;return()=>{x+=0x6D2B79F5;let t=x;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}};
 const pick=(r,rows)=>rows[Math.min(rows.length-1,Math.floor(r()*rows.length))];
+const toLegacyLevel10=v=>clamp(Math.ceil(clamp(v,1,10)/2),1,5);
+export const BLUEPRINT_SOURCES=Object.freeze({USER:"USER",STYLE:"STYLE",RANDOM:"RANDOM",AI_INFERRED:"AI_INFERRED"});
 
 export const DIFFICULTY_PRESETS=Object.freeze({
  easy:Object.freeze({id:"easy",label:"簡單",hunger:false,fatigue:false,statusEffects:false,hpFloor:1,savePolicy:"FREE",languageBarrier:"LOW",injuryRecovery:"FAST",carryWeight:"RELAXED",environment:"RELAXED",permadeath:false}),
@@ -36,11 +38,12 @@ export const ROLE_PRESETS=Object.freeze({
 });
 
 const STYLE_BASE={
- "王道奇幻":{civilization:3,technology:2,magic:4,politicalUnity:2,religion:3,resources:3,danger:3,survival:2,unknownRatio:55},
- "黑暗奇幻":{civilization:3,technology:2,magic:3,politicalUnity:2,religion:4,resources:2,danger:5,survival:4,unknownRatio:65},
- "東方幻想":{civilization:3,technology:2,magic:4,politicalUnity:3,religion:4,resources:3,danger:3,survival:2,unknownRatio:60},
- "蒸汽魔法":{civilization:4,technology:4,magic:3,politicalUnity:3,religion:2,resources:4,danger:3,survival:2,unknownRatio:45},
- "末日異世界":{civilization:2,technology:3,magic:2,politicalUnity:1,religion:3,resources:1,danger:5,survival:5,unknownRatio:75}
+ "王道奇幻":{civilization:6,technology:4,magic:8,politicalUnity:4,religion:6,resources:6,danger:6,survival:4,unknownRatio:55},
+ "黑暗奇幻":{civilization:6,technology:4,magic:6,politicalUnity:4,religion:8,resources:4,danger:10,survival:8,unknownRatio:65},
+ "東方幻想":{civilization:6,technology:4,magic:8,politicalUnity:6,religion:8,resources:6,danger:6,survival:4,unknownRatio:60},
+ "蒸汽魔法":{civilization:8,technology:8,magic:6,politicalUnity:6,religion:4,resources:8,danger:6,survival:4,unknownRatio:45},
+ "末日異世界":{civilization:4,technology:6,magic:4,politicalUnity:2,religion:6,resources:2,danger:10,survival:10,unknownRatio:75},
+ "自訂世界":{civilization:5,technology:5,magic:5,politicalUnity:5,religion:5,resources:5,danger:5,survival:5,unknownRatio:60}
 };
 
 function field(value,mode="style",locked=false){return {mode:["fixed","random","style"].includes(mode)?mode:"style",value,locked:locked===true}}
@@ -59,22 +62,23 @@ export function createWorldCreationDraft(raw={}){
    worldStyle:field(style,raw.worldStyleMode||"fixed",raw.worldStyleLocked),
    worldScale:field(["小型","中型","大型"].includes(raw.worldScale||raw.scale)?(raw.worldScale||raw.scale):"中型",raw.worldScaleMode||"fixed",raw.worldScaleLocked),
    targetPlayHours:Number.isFinite(Number(raw.targetPlayHours??raw.playHours))?clamp(raw.targetPlayHours??raw.playHours,2,100):15,
-   difficulty
+   difficulty,
+   customStyleDescription:clean(raw.customWorldStyle,600)
   },
   advanced:{
-   civilizationLevel:numberField(raw,"civilizationLevel",3),
-   technologyLevel:numberField(raw,"technologyLevel",2),
-   magicLevel:numberField(raw,"magicLevel",4),
+   civilizationLevel:numberField(raw,"civilizationLevel",5,1,10),
+   technologyLevel:numberField(raw,"technologyLevel",4,1,10),
+   magicLevel:numberField(raw,"magicLevel",7,1,10),
    civilizationCount:numberField(raw,"civilizationCount",4,1,12),
    speciesCount:numberField(raw,"speciesCount",4,1,12),
    languageCount:numberField(raw,"languageCount",5,1,16),
-   politicalUnity:numberField(raw,"politicalUnity",2),
-   religionInfluence:numberField(raw,"religionInfluence",3),
-   resourceAbundance:numberField(raw,"resourceAbundance",3),
-   worldDanger:numberField(raw,"worldDanger",3),
+   politicalUnity:numberField(raw,"politicalUnity",4,1,10),
+   religionInfluence:numberField(raw,"religionInfluence",5,1,10),
+   resourceAbundance:numberField(raw,"resourceAbundance",5,1,10),
+   worldDanger:numberField(raw,"worldDanger",5,1,10),
    warState:stringField(raw,"warState","TENSION"),
    unknownRatio:numberField(raw,"unknownRatio",60,10,95),
-   survivalIntensity:numberField(raw,"survivalIntensity",3)
+   survivalIntensity:numberField(raw,"survivalIntensity",5,1,10)
   },
   player:{
    name:clean(raw.playerName,40),
@@ -92,8 +96,8 @@ export function createWorldCreationDraft(raw={}){
 }
 
 function resolveField(f,key,styleBase,r,opts={}){
- const mode=f?.mode||"style",min=opts.min??1,max=opts.max??5,locked=f?.locked===true;
- let value=f?.value,source=locked?"player_locked":mode==="fixed"?"player_explicit":mode==="random"?"random":"style_inferred";
+ const mode=f?.mode||"style",min=opts.min??1,max=opts.max??10,locked=f?.locked===true;
+ let value=f?.value,source=locked||mode==="fixed"?BLUEPRINT_SOURCES.USER:mode==="random"?BLUEPRINT_SOURCES.RANDOM:BLUEPRINT_SOURCES.STYLE;
  if(!locked&&mode==="style"&&styleBase?.[key]!=null)value=styleBase[key];
  if(!locked&&mode==="random"){
   if(opts.values)value=pick(r,opts.values);
@@ -109,27 +113,28 @@ export function resolveWorldBlueprint(draft){
  const scale=resolveField(d.basic.worldScale,"scale",base,r,{values:["小型","中型","大型"]});
  const a=d.advanced;
  const resolved={
-  civilizationLevel:resolveField(a.civilizationLevel,"civilization",base,r),
-  technologyLevel:resolveField(a.technologyLevel,"technology",base,r),
-  magicLevel:resolveField(a.magicLevel,"magic",base,r),
+  civilizationLevel:resolveField(a.civilizationLevel,"civilization",base,r,{min:1,max:10}),
+  technologyLevel:resolveField(a.technologyLevel,"technology",base,r,{min:1,max:10}),
+  magicLevel:resolveField(a.magicLevel,"magic",base,r,{min:1,max:10}),
   civilizationCount:resolveField(a.civilizationCount,"civilizationCount",base,r,{min:1,max:12}),
   speciesCount:resolveField(a.speciesCount,"speciesCount",base,r,{min:1,max:12}),
   languageCount:resolveField(a.languageCount,"languageCount",base,r,{min:1,max:16}),
-  politicalUnity:resolveField(a.politicalUnity,"politicalUnity",base,r),
-  religionInfluence:resolveField(a.religionInfluence,"religion",base,r),
-  resourceAbundance:resolveField(a.resourceAbundance,"resources",base,r),
-  worldDanger:resolveField(a.worldDanger,"danger",base,r),
+  politicalUnity:resolveField(a.politicalUnity,"politicalUnity",base,r,{min:1,max:10}),
+  religionInfluence:resolveField(a.religionInfluence,"religion",base,r,{min:1,max:10}),
+  resourceAbundance:resolveField(a.resourceAbundance,"resources",base,r,{min:1,max:10}),
+  worldDanger:resolveField(a.worldDanger,"danger",base,r,{min:1,max:10}),
   warState:resolveField(a.warState,"warState",base,r,{values:["PEACE","TENSION","WAR"]}),
   unknownRatio:resolveField(a.unknownRatio,"unknownRatio",base,r,{min:10,max:95}),
-  survivalIntensity:resolveField(a.survivalIntensity,"survival",base,r)
+  survivalIntensity:resolveField(a.survivalIntensity,"survival",base,r,{min:1,max:10})
  };
  return {
   schemaVersion:2,
   masterSeed:d.masterSeed,
-  style:{value:style,source:d.basic.worldStyle.mode==="fixed"?"player_explicit":"style_inferred",locked:d.basic.worldStyle.locked===true},
+  style:{value:style,source:d.basic.worldStyle.locked===true||d.basic.worldStyle.mode==="fixed"?BLUEPRINT_SOURCES.USER:d.basic.worldStyle.mode==="random"?BLUEPRINT_SOURCES.RANDOM:BLUEPRINT_SOURCES.STYLE,locked:d.basic.worldStyle.locked===true},
   scale,
   targetPlayHours:d.basic.targetPlayHours,
   difficulty:d.basic.difficulty,
+  customStyleDescription:d.basic.customStyleDescription||"",
   advanced:resolved,
   player:structuredClone(d.player),
   customWorldDescription:d.customWorldDescription,
@@ -164,6 +169,34 @@ function originProfile(origin){
  }
 }
 
+export function worldBlueprintProfile(blueprint){
+ const b=blueprint,d=DIFFICULTY_PRESETS[b.difficulty]||DIFFICULTY_PRESETS.normal,a=b.advanced,origin=ORIGIN_PRESETS[b.player.origin.type]||ORIGIN_PRESETS.custom,role=ROLE_PRESETS[b.player.role.type]||ROLE_PRESETS.custom;
+ const row=x=>({value:x?.value,source:x?.source||BLUEPRINT_SOURCES.AI_INFERRED,locked:x?.locked===true});
+ return {
+  version:1,
+  origin:{type:origin.id,source:BLUEPRINT_SOURCES.USER,knowledgePolicy:origin.knowledgePolicy,languagePolicy:origin.languagePolicy},
+  playerRole:{type:role.id,source:BLUEPRINT_SOURCES.USER},
+  difficulty:{value:b.difficulty,source:BLUEPRINT_SOURCES.USER},
+  civilizationLevel:row(a.civilizationLevel),
+  technologyLevel:row(a.technologyLevel),
+  magicLevel:row(a.magicLevel),
+  civilizationCount:row(a.civilizationCount),
+  speciesCount:row(a.speciesCount),
+  languageCount:row(a.languageCount),
+  politicalUnity:row(a.politicalUnity),
+  religionInfluence:row(a.religionInfluence),
+  resourceAbundance:row(a.resourceAbundance),
+  worldDanger:row(a.worldDanger),
+  warState:row(a.warState),
+  unknownRatio:row(a.unknownRatio),
+  survivalIntensity:row(a.survivalIntensity),
+  languageDifficulty:{value:d.languageBarrier,source:BLUEPRINT_SOURCES.USER},
+  survivalRules:{hunger:d.hunger,fatigue:d.fatigue,statusEffects:d.statusEffects,hpFloor:d.hpFloor,injuryRecovery:d.injuryRecovery,carryWeight:d.carryWeight,environment:d.environment,permadeath:d.permadeath},
+  mustExist:[...b.rules.required],mayExist:[...b.rules.allowed],forbidden:[...b.rules.forbidden],storyTendencies:[...b.storyPreferences],
+  inspiration:clean(b.customWorldDescription,500),customStyleDescription:clean(b.customStyleDescription,500),targetPlayHours:b.targetPlayHours
+ }
+}
+
 export function compileWorldCreation(draft){
  const blueprint=resolveWorldBlueprint(draft),constitution=buildWorldConstitution(blueprint),difficultyRules=structuredClone(DIFFICULTY_PRESETS[blueprint.difficulty]),role=ROLE_PRESETS[blueprint.player.role.type]||ROLE_PRESETS.custom;
  const advanced=blueprint.advanced;
@@ -171,23 +204,25 @@ export function compileWorldCreation(draft){
   blueprint.rules.required.length&&`硬性必須存在：${blueprint.rules.required.join("、")}`,
   blueprint.rules.forbidden.length&&`硬性禁止出現：${blueprint.rules.forbidden.join("、")}`,
   `起源：${ORIGIN_PRESETS[blueprint.player.origin.type]?.label||"自訂"}；定位：${role.label}`,
-  `文明${advanced.civilizationLevel.value}/5、科技${advanced.technologyLevel.value}/5、文明數${advanced.civilizationCount.value}、種族${advanced.speciesCount.value}、語言${advanced.languageCount.value}、政治統一${advanced.politicalUnity.value}/5、宗教${advanced.religionInfluence.value}/5、資源${advanced.resourceAbundance.value}/5、戰爭=${advanced.warState.value}、未知區域${advanced.unknownRatio.value}%`,
+  blueprint.style.value==="自訂世界"&&blueprint.customStyleDescription&&`自訂世界風格：${clean(blueprint.customStyleDescription,260)}`,
+  `文明${advanced.civilizationLevel.value}/10、科技${advanced.technologyLevel.value}/10、魔法${advanced.magicLevel.value}/10、文明數${advanced.civilizationCount.value}、種族${advanced.speciesCount.value}、語言${advanced.languageCount.value}、政治統一${advanced.politicalUnity.value}/10、宗教${advanced.religionInfluence.value}/10、資源${advanced.resourceAbundance.value}/10、危險${advanced.worldDanger.value}/10、生存${advanced.survivalIntensity.value}/10、戰爭=${advanced.warState.value}、未知區域${advanced.unknownRatio.value}%`,
   blueprint.rules.allowed.length&&`可以存在：${blueprint.rules.allowed.join("、")}`,
   blueprint.storyPreferences.length&&`故事傾向：${clean(blueprint.storyPreferences.join("；"),220)}`,
   blueprint.customWorldDescription&&`世界願望：${clean(blueprint.customWorldDescription,320)}`
  ].filter(Boolean);
- const creationV2={schemaVersion:2,draft:structuredClone(draft),blueprint,constitution,difficultyRules,originProfile:originProfile(blueprint.player.origin),role:{id:role.id,label:role.label,custom:blueprint.player.role.custom,bias:structuredClone(role.bias)},contract:null};
+ const blueprintProfile=worldBlueprintProfile(blueprint),creationV2={schemaVersion:2,draft:structuredClone(draft),blueprint,blueprintProfile,constitution,difficultyRules,originProfile:originProfile(blueprint.player.origin),role:{id:role.id,label:role.label,custom:blueprint.player.role.custom,bias:structuredClone(role.bias)},contract:null};
  return {
   playerName:blueprint.player.name,
   worldviewMode:"style",
   genre:blueprint.style.value,
   scale:blueprint.scale.value,
-  danger:advanced.worldDanger.value,
-  magic:advanced.magicLevel.value,
-  politics:Math.max(1,Math.min(5,6-advanced.politicalUnity.value)),
+  danger:toLegacyLevel10(advanced.worldDanger.value),
+  magic:toLegacyLevel10(advanced.magicLevel.value),
+  politics:toLegacyLevel10(11-advanced.politicalUnity.value),
   playHours:blueprint.targetPlayHours,
   prompt:clean(clauses.join("\n"),800),
   worldCreationSeed:blueprint.masterSeed,
+  blueprintProfile,
   creationV2
  }
 }
@@ -203,10 +238,11 @@ function positiveMention(source,term){
  return false
 }
 export function validateWorldCreationCandidate(seed,candidate){
- const creation=seed?.creationV2,errors=[];if(!creation)return {valid:true,errors};
- const rules=creation.blueprint?.rules||{required:[],forbidden:[]};
+ const creation=seed?.creationV2,errors=[];if(!creation)return {valid:true,errors,compliance:{}};
+ const rules=creation.blueprint?.rules||{required:[],forbidden:[]},expected=creation.blueprintProfile||worldBlueprintProfile(creation.blueprint),actual=candidate?.worldBible?.blueprintProfile;
+ const bible={...(candidate?.worldBible||{})};delete bible.blueprintProfile;
  const searchable=JSON.stringify({
-  worldTheme:candidate?.worldTheme||"",summary:candidate?.summary||"",worldBible:candidate?.worldBible||{},
+  worldTheme:candidate?.worldTheme||"",summary:candidate?.summary||"",worldBible:bible,
   publicFacts:candidate?.publicFacts||[],hiddenFacts:candidate?.hiddenFacts||[],worldHistory:candidate?.worldHistory||[],
   generation:candidate?.generation||{}
  }).toLocaleLowerCase();
@@ -216,7 +252,25 @@ export function validateWorldCreationCandidate(seed,candidate){
   history:candidate?.worldHistory||[],generation:candidate?.generation||{}
  });
  for(const term of rules.forbidden||[])if(term&&positiveMention(generated,term))errors.push("WC2_FORBIDDEN_PRESENT:"+term);
- return {valid:errors.length===0,errors}
+ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),pass=(ok,evidence)=>({status:ok?"PASS":"FAIL",evidence});
+ const originOk=same(actual?.origin,expected.origin),techOk=same(actual?.technologyLevel,expected.technologyLevel),civOk=same(actual?.civilizationLevel,expected.civilizationLevel)&&same(actual?.civilizationCount,expected.civilizationCount),difficultyOk=same(actual?.difficulty,expected.difficulty)&&same(actual?.languageDifficulty,expected.languageDifficulty)&&same(actual?.survivalRules,expected.survivalRules);
+ if(!actual)errors.push("BLUEPRINT_PROFILE_REQUIRED");
+ else{
+  if(!originOk)errors.push("BLUEPRINT_ORIGIN_MISMATCH");
+  if(!techOk)errors.push("BLUEPRINT_TECH_MISMATCH");
+  if(!civOk)errors.push("BLUEPRINT_CIVILIZATION_MISMATCH");
+  if(!difficultyOk)errors.push("BLUEPRINT_DIFFICULTY_MISMATCH")
+ }
+ const forbiddenOk=!errors.some(x=>x.startsWith("WC2_FORBIDDEN_PRESENT:")),mustOk=!errors.some(x=>x.startsWith("WC2_REQUIRED_MISSING:"));
+ const compliance={
+  ORIGIN_COMPLIANCE:pass(originOk,`origin=${expected.origin.type}`),
+  TECH_COMPLIANCE:pass(techOk,`technologyLevel=${expected.technologyLevel.value}; source=${expected.technologyLevel.source}`),
+  CIVILIZATION_COMPLIANCE:pass(civOk,`civilizationLevel=${expected.civilizationLevel.value}; count=${expected.civilizationCount.value}`),
+  DIFFICULTY_COMPLIANCE:pass(difficultyOk,`difficulty=${expected.difficulty.value}; language=${expected.languageDifficulty.value}`),
+  MUST_EXIST_COMPLIANCE:pass(mustOk,`required=${expected.mustExist.join("、")||"none"}`),
+  FORBIDDEN_CONTENT_COMPLIANCE:pass(forbiddenOk,`forbidden=${expected.forbidden.join("、")||"none"}`)
+ };
+ return {valid:errors.length===0,errors:[...new Set(errors)],compliance}
 }
 
 export function applyWorldCreationState(state,seed){
@@ -245,10 +299,10 @@ export function buildWorldContract(state){
   origin:o.label,
   role:c.role.label,
   structure:[
-   `文明程度 ${a.civilizationLevel.value}/5 · 科技 ${a.technologyLevel.value}/5 · 魔法 ${a.magicLevel.value}/5`,
+   `文明程度 ${a.civilizationLevel.value}/10 · 科技 ${a.technologyLevel.value}/10 · 魔法 ${a.magicLevel.value}/10`,
    `主要文明／部落約 ${a.civilizationCount.value} · 智慧種族約 ${a.speciesCount.value} · 語言約 ${a.languageCount.value}`,
-   `政治統一 ${a.politicalUnity.value}/5 · 宗教影響 ${a.religionInfluence.value}/5 · 資源 ${a.resourceAbundance.value}/5`,
-   `世界危險 ${a.worldDanger.value}/5 · 生存強度 ${a.survivalIntensity.value}/5 · 未知區域約 ${a.unknownRatio.value}% · ${a.warState.value}`
+   `政治統一 ${a.politicalUnity.value}/10 · 宗教影響 ${a.religionInfluence.value}/10 · 資源 ${a.resourceAbundance.value}/10`,
+   `世界危險 ${a.worldDanger.value}/10 · 生存強度 ${a.survivalIntensity.value}/10 · 未知區域約 ${a.unknownRatio.value}% · ${a.warState.value}`
   ],
   difficultyRules:[
    d.hunger?"飢餓系統啟用":"不消耗飽食度",

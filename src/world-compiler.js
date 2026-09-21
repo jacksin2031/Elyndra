@@ -61,7 +61,7 @@ export function buildWorldAnchorContract(core,pacing){
   worldName:text(core?.worldName),worldTheme:text(core?.worldTheme),
   startingRegion:text(b.startingRegion),startingSettlement:text(b.startingSettlement),startingLocation:text(b.startingLocation),
   centralConflict:text(b.centralConflict),currentCrisis:text(b.currentCrisis),magicCost:text(b.magicCost),era:text(b.era),tone:text(b.tone),
-  civilization:obj(b.civilization)?structuredClone(b.civilization):{},communication:obj(b.communication)?structuredClone(b.communication):{},
+  civilization:obj(b.civilization)?structuredClone(b.civilization):{},communication:obj(b.communication)?structuredClone(b.communication):{},blueprintProfile:obj(b.blueprintProfile)?structuredClone(b.blueprintProfile):null,
   weatherPhenomena:(Array.isArray(weather.phenomena)?weather.phenomena:[]).map(x=>({id:text(x.id),name:text(x.name),observableName:text(x.observableName)})).filter(x=>x.id),
   publicFacts:uniq(core?.publicFacts).slice(0,4),timelinePacing:structuredClone(pacing||{})
  }
@@ -157,7 +157,7 @@ export function mergeCoreWave(identity,expected,rules,anchor){
   seedCompliance:buildSeedComplianceFromIdentity(identity,expected),
   worldBible:{
    era:text(r.era),centralConflict:text(r.centralConflict),magicCost:text(r.magicCost),ancientTruth:text(r.ancientTruth),currentCrisis:text(r.currentCrisis),tone:text(r.tone),
-   civilization:obj(r.civilization)?structuredClone(r.civilization):{},communication:obj(r.communication)?structuredClone(r.communication):{},
+   civilization:obj(r.civilization)?structuredClone(r.civilization):{},communication:obj(r.communication)?structuredClone(r.communication):{},blueprintProfile:obj(expected?.blueprintProfile)?structuredClone(expected.blueprintProfile):(obj(r.blueprintProfile)?structuredClone(r.blueprintProfile):null),
    startingRegion:text(a.startingRegion),startingSettlement:text(a.startingSettlement),startingLocation:text(a.startingLocation),
    weatherSystem:obj(a.weatherSystem)?structuredClone(a.weatherSystem):{}
   },

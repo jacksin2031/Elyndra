@@ -10,10 +10,12 @@ test("creator exposes player naming and gameplay uses dynamic AI action containe
  assert.doesNotMatch(html,/data-action="forest"|data-action="road"|data-action="coin"|data-action="lia"|莉亞/);
 });
 
-test("browser runtime renders dynamic suggestions and dynamic NPC interactions",async()=>{
+test("browser runtime renders structured dynamic suggestions and NPC interactions",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/gameState\?\.suggestions/);
- assert.match(app,/runAction\("free",b\.textContent\)/);
+ assert.match(app,/gameState\?\.suggestionIntents/);
+ assert.match(app,/data-suggested-action/);
+ assert.match(app,/runAction\("free",b\.dataset\.suggestedAction\|\|b\.textContent\)/);
  assert.match(app,/openNpcConversation/);
  assert.match(app,/playerVisibleEvents/);
  assert.doesNotMatch(app,/action==="forest"|霧狼|莉亞|第三軍團|查明陌生銅幣/);

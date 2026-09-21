@@ -1,6 +1,19 @@
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h)};
+const conditions=v=>[...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,160)).filter(Boolean))].slice(0,8);
+function conditionMet(state,raw){
+ const q=clean(raw,160);if(!q)return true;
+ if(q.startsWith("NOT:"))return !conditionMet(state,q.slice(4));
+ let m=q.match(/^DAY\s*(>=|>|<=|<|=)\s*(\d+)$/i);if(m){const day=Number(state.world?.state?.day)||1,n=Number(m[2]);return m[1]===">="?day>=n:m[1]===">"?day>n:m[1]==="<="?day<=n:m[1]==="<"?day<n:day===n}
+ m=q.match(/^EVENT:(.+)$/i);if(m)return (state.events||[]).some(e=>e.type===m[1]||e.id===m[1]);
+ m=q.match(/^FACT:(.+)$/i);if(m)return (state.knowledge||[]).some(k=>k.status==="VERIFIED"&&(k.factId===m[1]||k.id===m[1]));
+ m=q.match(/^FLAG:(.+)$/i);if(m)return Boolean(state.world?.state?.flags?.[m[1]]);
+ m=q.match(/^LOCATION:(.+)$/i);if(m)return String(state.player?.location||state.world?.state?.location||"")===m[1];
+ return false
+}
+function conditionsMet(state,rows=[]){return conditions(rows).every(x=>conditionMet(state,x))}
+export function timelineConditionSnapshot(state,event){return {activationMet:conditionsMet(state,event?.activationConditions),cancelMet:conditions(event?.cancelConditions).length>0&&conditionsMet(state,event?.cancelConditions),escalationMet:conditions(event?.escalationConditions).length>0&&conditionsMet(state,event?.escalationConditions)}};
 export function createTimelinePacing(playHours=15){
  const targetPlayHours=clamp(Math.round(Number(playHours)||15),2,100);
  let majorEventCount,horizonDays;
@@ -42,7 +55,7 @@ export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
   const id=clean(x.id,100)||"TL-"+(i+1)+"-"+hash(title+"|"+earliestDay+"|"+latestDay);
   const triggerDay=earliestDay+(hash(id+"|"+title)%(latestDay-earliestDay+1));
   const links=x.links&&typeof x.links==="object"&&!Array.isArray(x.links)?{historyRefs:[...new Set((Array.isArray(x.links.historyRefs)?x.links.historyRefs:[]).map(v=>clean(v,100)).filter(Boolean))].slice(0,4),locationRefs:[...new Set((Array.isArray(x.links.locationRefs)?x.links.locationRefs:[]).map(v=>clean(v,120)).filter(Boolean))].slice(0,4)}:{historyRefs:[],locationRefs:[]};
-  out.push({id,title,category:clean(x.category,60)||"WORLD_EVENT",earliestDay,latestDay,triggerDay,baseTriggerDay:triggerDay,impactOffsetDays:0,intensityModifier:0,impactHistory:[],directorTruth,observableEffect,pressure:clamp(Math.round(Number(x.pressure)||0),0,15),links,status:"SCHEDULED",triggeredDay:null})
+  out.push({id,title,category:clean(x.category,60)||"WORLD_EVENT",earliestDay,latestDay,triggerDay,baseTriggerDay:triggerDay,impactOffsetDays:0,intensityModifier:0,impactHistory:[],directorTruth,observableEffect,pressure:clamp(Math.round(Number(x.pressure)||0),0,15),links,activationConditions:conditions(x.activationConditions),cancelConditions:conditions(x.cancelConditions),escalationConditions:conditions(x.escalationConditions),playerCanPrevent:x.playerCanPrevent!==false,playerCanAccelerate:x.playerCanAccelerate!==false,status:"SCHEDULED",triggeredDay:null})
  }
  return out
 }
@@ -68,7 +81,7 @@ export function applyTimelineImpact(state,effect){
  const id=clean(effect?.timelineId,120),action=String(effect?.action||"").toUpperCase(),timeline=(state.world?.timeline||[]).find(x=>x.id===id&&x.status==="SCHEDULED");if(!timeline||!["DELAY","ADVANCE","WEAKEN","STRENGTHEN"].includes(action))return null;
  timeline.baseTriggerDay??=timeline.triggerDay;timeline.impactOffsetDays??=0;timeline.intensityModifier??=0;timeline.impactHistory??=[];
  const earliest=Math.max(2,Number(timeline.earliestDay)||2),latest=Math.max(earliest,Number(timeline.latestDay)||earliest),current=Math.max(1,Number(state.world?.state?.day)||1),beforeDay=effectiveTriggerDay(timeline),beforePressure=effectiveTimelinePressure(timeline),base=Number(timeline.baseTriggerDay)||beforeDay;
- if(["DELAY","ADVANCE"].includes(action)&&current>=latest)return null;
+ if(["DELAY","ADVANCE"].includes(action)&&current>=latest)return null;if(["DELAY","WEAKEN"].includes(action)&&timeline.playerCanPrevent===false)return null;if(["ADVANCE","STRENGTHEN"].includes(action)&&timeline.playerCanAccelerate===false)return null;
  if(action==="DELAY"){const days=clamp(Math.round(Number(effect?.days)||1),1,5),desired=clamp(beforeDay+days,Math.max(earliest,current+1),latest);timeline.impactOffsetDays=desired-base}
  if(action==="ADVANCE"){const days=clamp(Math.round(Number(effect?.days)||1),1,3),desired=clamp(beforeDay-days,Math.max(earliest,current+1),latest);timeline.impactOffsetDays=desired-base}
  if(action==="WEAKEN")timeline.intensityModifier=clamp(timeline.intensityModifier-clamp(Math.round(Number(effect?.amount)||1),1,5),-10,10);
@@ -77,11 +90,13 @@ export function applyTimelineImpact(state,effect){
  return {timelineId:timeline.id,action,beforeDay,afterDay:effectiveTriggerDay(timeline),beforePressure,afterPressure:effectiveTimelinePressure(timeline)}
 }
 export function directorTimelineSnapshot(state,limit=6){
- return (state.world?.timeline||[]).filter(x=>x.status==="SCHEDULED").sort((a,b)=>effectiveTriggerDay(a)-effectiveTriggerDay(b)).slice(0,limit).map(x=>({id:x.id,category:x.category,earliestDay:x.earliestDay,latestDay:x.latestDay,triggerDay:effectiveTriggerDay(x),baseTriggerDay:x.baseTriggerDay??x.triggerDay,impactOffsetDays:x.impactOffsetDays||0,intensityModifier:x.intensityModifier||0,directorTruth:x.directorTruth,observableEffect:x.observableEffect,pressure:effectiveTimelinePressure(x)}))
+ return (state.world?.timeline||[]).filter(x=>x.status==="SCHEDULED").sort((a,b)=>effectiveTriggerDay(a)-effectiveTriggerDay(b)).slice(0,limit).map(x=>({id:x.id,category:x.category,earliestDay:x.earliestDay,latestDay:x.latestDay,triggerDay:effectiveTriggerDay(x),baseTriggerDay:x.baseTriggerDay??x.triggerDay,impactOffsetDays:x.impactOffsetDays||0,intensityModifier:x.intensityModifier||0,directorTruth:x.directorTruth,observableEffect:x.observableEffect,pressure:effectiveTimelinePressure(x),activationConditions:[...(x.activationConditions||[])],cancelConditions:[...(x.cancelConditions||[])],escalationConditions:[...(x.escalationConditions||[])],playerCanPrevent:x.playerCanPrevent!==false,playerCanAccelerate:x.playerCanAccelerate!==false,conditionState:timelineConditionSnapshot(state,x)}))
 }
 export function triggerDueTimelineEvents(state){
- const day=Number(state.world?.state?.day)||1,timeline=state.world?.timeline||[],due=timeline.filter(x=>x.status==="SCHEDULED"&&day>=effectiveTriggerDay(x)).sort((a,b)=>effectiveTriggerDay(a)-effectiveTriggerDay(b)||Number(a.earliestDay)-Number(b.earliestDay)||String(a.id).localeCompare(String(b.id)))[0];
+ const day=Number(state.world?.state?.day)||1,timeline=state.world?.timeline||[];
+ for(const event of timeline.filter(x=>x.status==="SCHEDULED")){const c=timelineConditionSnapshot(state,event);if(c.cancelMet){event.status="CANCELLED";event.cancelledDay=day;event.cancelReason="CANCEL_CONDITIONS_MET"}}
+ const due=timeline.filter(x=>x.status==="SCHEDULED"&&day>=effectiveTriggerDay(x)&&timelineConditionSnapshot(state,x).activationMet).sort((a,b)=>effectiveTriggerDay(a)-effectiveTriggerDay(b)||Number(a.earliestDay)-Number(b.earliestDay)||String(a.id).localeCompare(String(b.id)))[0];
  if(!due)return null;
- due.status="TRIGGERED";due.triggeredDay=day;due.effectivePressure=effectiveTimelinePressure(due);
+ const c=timelineConditionSnapshot(state,due);due.status="TRIGGERED";due.triggeredDay=day;due.effectivePressure=clamp(effectiveTimelinePressure(due)+(c.escalationMet?2:0),0,20);due.escalated=c.escalationMet;
  return due
 }

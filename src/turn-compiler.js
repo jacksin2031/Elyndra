@@ -1,5 +1,22 @@
-import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=35000";
+import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=35000";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
+const SUGGESTION_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
+const SUGGESTION_RISKS=new Set(["LOW","MEDIUM","HIGH","UNKNOWN"]);
+export function normalizeSuggestionIntent(raw){
+ if(typeof raw==="string"){const label=sanitizeSuggestion(raw);return label?{label,action:label,kind:"GENERAL",risk:"UNKNOWN",targetId:null,skillHint:null}:null}
+ if(!raw||typeof raw!=="object"||Array.isArray(raw))return null;
+ const label=sanitizeSuggestion(raw.label||raw.action),action=sanitizePlayerText(raw.action,180,label||"");
+ if(!label||!action)return null;
+ const kind=SUGGESTION_KINDS.has(String(raw.kind||"").toUpperCase())?String(raw.kind).toUpperCase():"GENERAL";
+ const risk=SUGGESTION_RISKS.has(String(raw.risk||"").toUpperCase())?String(raw.risk).toUpperCase():"UNKNOWN";
+ return {label,action,kind,risk,targetId:text(raw.targetId,100)||null,skillHint:sanitizePlayerText(raw.skillHint,60,"")||null}
+}
+export function normalizeSuggestionIntents(input,previous=[]){
+ const out=[];for(const raw of Array.isArray(input)?input:[]){const x=normalizeSuggestionIntent(raw);if(x&&!out.some(y=>y.action===x.action)){out.push(x);if(out.length>=4)break}}
+ const before=(Array.isArray(previous)?previous:[]).map(normalizeSuggestionIntent).filter(Boolean);
+ const same=out.length===before.length&&out.length>0&&out.every((x,i)=>x.action===before[i]?.action&&x.label===before[i]?.label);
+ return same?[]:out
+}
 
 export function sceneTurnSnapshot(snapshot={}){
  return {
@@ -16,6 +33,8 @@ export function sceneTurnSnapshot(snapshot={}){
   registry:{...(snapshot.registry||{}),npcs:(snapshot.registry?.npcs||[]).filter(n=>n.present===true)},
   companions:snapshot.companions,
   priorSuggestions:(snapshot.priorSuggestions||[]).slice(0,4),
+  priorSuggestionIntents:(snapshot.priorSuggestionIntents||[]).slice(0,4),
+  knowledgeLayers:snapshot.knowledgeLayers?{version:snapshot.knowledgeLayers.version||1,playerKnowledge:structuredClone(snapshot.knowledgeLayers.playerKnowledge||{})}:null,
   recognition:{
    tier:snapshot.recognition?.tier,
    titles:snapshot.recognition?.titles||[],
@@ -25,8 +44,10 @@ export function sceneTurnSnapshot(snapshot={}){
 }
 
 export function sceneTurnPreview(scene,roll={},context={}){
- const fallback=fallbackNarrative(context.action,roll),narrative=sanitizePlayerText(scene?.narrative,1200,fallback),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,""),suggestions=sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]);
- return {narrative:narrative||fallback,sceneTitle,suggestions}
+ const fallback=fallbackNarrative(context.action,roll),narrative=sanitizePlayerText(scene?.narrative,1200,fallback),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
+ const suggestionIntents=normalizeSuggestionIntents(scene?.suggestions,context.priorSuggestionIntents||context.priorSuggestions||[]);
+ const suggestions=suggestionIntents.length?suggestionIntents.map(x=>x.label):sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]);
+ return {narrative:narrative||fallback,sceneTitle,suggestions,suggestionIntents}
 }
 
 export function fastTurnStateSnapshot(snapshot={}){
@@ -38,7 +59,8 @@ export function mergeTurnCandidates(scene,state,roll={},context={}){
  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("TURN_STATE_REQUIRED");
  const fallback=fallbackNarrative(context.action,roll),sceneText=sanitizePlayerText(scene?.narrative,1200,""),stateText=sanitizePlayerText(state.outcomeSummary,1200,"");
  const narrative=state?.encounter?.type==="combat"?(stateText||sceneText||fallback):(sceneText||stateText||fallback);
- const suggestions=sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
+ const suggestionIntents=normalizeSuggestionIntents(scene?.suggestions,context.priorSuggestionIntents||context.priorSuggestions||[]);
+ const suggestions=suggestionIntents.length?suggestionIntents.map(x=>x.label):sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
  return {
   narrative,
   sceneTitle,
@@ -57,6 +79,7 @@ export function mergeTurnCandidates(scene,state,roll={},context={}){
   encounter:state.encounter??null,
   generation:state.generation??null,
   worldImpacts:Array.isArray(state.worldImpacts)?state.worldImpacts:[],
-  suggestions
+  suggestions,
+  suggestionIntents
  }
 }

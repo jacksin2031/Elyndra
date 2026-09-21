@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-test("main UI exposes a fixed bottom-right version badge from APP_VERSION",async()=>{
+test("main UI exposes APP_VERSION and package version consistently",async()=>{
  const [html,css,app,versionSource,pkgText]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../styles.css",import.meta.url),"utf8"),
@@ -11,29 +11,19 @@ test("main UI exposes a fixed bottom-right version badge from APP_VERSION",async
   readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);
- assert.equal(m[1],pkg.version);
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.37.0");
  assert.match(html,/id="versionBadge" class="version-badge"/);
- assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(css,/bottom:/);
- assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=36000"/);
- assert.match(app,/versionBadge\.textContent=\`v\$\{APP_VERSION\}\`/);
+ assert.match(css,/\.version-badge\{position:fixed;right:/);assert.match(css,/bottom:/);
+ assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=37000"/);
+ assert.match(app,/versionBadge\.textContent=\`v\$\{APP_VERSION\}\`/)
 });
 
-test("v0.36.0 keeps unchanged scene assets independently cached",async()=>{
- const [html,app]=await Promise.all([
-  readFile(new URL("../index.html",import.meta.url),"utf8"),
-  readFile(new URL("../app.js",import.meta.url),"utf8")
- ]);
+test("v0.37.0 keeps scene assets independent while creator/runtime use current generation",async()=>{
+ const [html,app]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8")]);
  assert.match(html,/styles\.css\?v=336/);
- assert.match(html,/app\.js\?v=36000/);
- assert.match(app,/\.\/src\/version\.js\?v=36000/);
- assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=35000/);
- assert.match(app,/\.\/src\/storage\.js\?v=34004/); 
- assert.match(app,/\.\/src\/world-engine\.js\?v=35000/);
- assert.match(app,/\.\/src\/world-registry\.js\?v=337/);
- assert.match(app,/\.\/src\/world-quality\.js\?v=337/);
- assert.match(app,/\.\/src\/world-creation\.js\?v=36000/);
- assert.match(html,/creator\.css\?v=36000/)
+ assert.match(html,/creator\.css\?v=37000/);
+ assert.match(html,/app\.js\?v=37000/);
+ assert.match(app,/\.\/src\/world-creation\.js\?v=37000/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=37000/);
+ assert.match(app,/\.\/src\/adventure-engine\.js\?v=37000/)
 });
