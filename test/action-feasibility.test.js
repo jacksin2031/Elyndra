@@ -35,7 +35,7 @@ test("shared Action Intent feasibility contract separates semantics from dice",a
   readFile(new URL("../src/ai-runtime-contracts.js",import.meta.url),"utf8")
  ]);
  const start=client.indexOf("export async function assessPlayerAction"),end=client.indexOf("export async function generateTurn",start),block=client.slice(start,end);
- assert.match(contracts,/Action Intent \+ Feasibility Judge/);
+ assert.match(contracts,/Action Intent \\+ Feasibility Adviser/);
  assert.match(contracts,/不要判斷成功率/);
  assert.match(contracts,/技能低、疲勞高或受傷通常仍可 ALLOW/);
  assert.match(contracts,/ALLOW\|ADJUST\|BLOCK/);
