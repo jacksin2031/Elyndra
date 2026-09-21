@@ -40,7 +40,9 @@ test("D20 result unlocks controls before State Director finishes",async()=>{
  assert.ok(sync>=0);
  assert.ok(unlock>sync);
  assert.ok(generate>unlock);
- assert.match(run,/await persist\(\);await refresh\(\);\n if\(turnSyncBusy\)setTurnSyncing\(false\)/);
+ assert.match(run,/try\{await persist\(\);await refresh\(\)\}\s*finally\{\s*if\(turnSyncBusy\)setTurnSyncing\(false\)/);
+ assert.doesNotMatch(run,/await narrate\(/);
+ assert.match(run,/TURN_SYNC_DEGRADED/);
 });
 
 test("background world evolution waits for pending turn Canon sync",async()=>{
