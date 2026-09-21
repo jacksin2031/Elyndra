@@ -43,9 +43,19 @@ export function finalizeGenerationDiagnostics(diagnostics){
 const statusFor=score=>score>=80?"PASS":score>=70?"MINOR_REPAIR":score>=50?"REPAIR_REQUIRED":"MAJOR_REPAIR";
 
 export function normalizeWorldEvaluation(input,meta={}){
- const raw=obj(input)?input:{},dimensions={};
- for(const key of WORLD_QUALITY_DIMENSIONS)dimensions[key]=Math.round(clamp(raw.dimensions?.[key],0,100));
- const supplied=Number(raw.overall),overall=Number.isFinite(supplied)?Math.round(clamp(supplied,0,100)):Math.round(WORLD_QUALITY_DIMENSIONS.reduce((n,k)=>n+dimensions[k],0)/WORLD_QUALITY_DIMENSIONS.length);
+ const raw=obj(input)?input:{},dimensions={},provided=[];
+ const hasOverall=raw.overall!==undefined&&raw.overall!==null&&raw.overall!==""&&Number.isFinite(Number(raw.overall));
+ const suppliedOverall=hasOverall?Math.round(clamp(Number(raw.overall),0,100)):null;
+ for(const key of WORLD_QUALITY_DIMENSIONS){
+  const value=raw.dimensions?.[key],valid=value!==undefined&&value!==null&&value!==""&&Number.isFinite(Number(value));
+  if(valid)provided.push(Math.round(clamp(Number(value),0,100)))
+ }
+ const dimensionFallback=suppliedOverall??(provided.length?Math.round(provided.reduce((n,v)=>n+v,0)/provided.length):0);
+ for(const key of WORLD_QUALITY_DIMENSIONS){
+  const value=raw.dimensions?.[key],valid=value!==undefined&&value!==null&&value!==""&&Number.isFinite(Number(value));
+  dimensions[key]=valid?Math.round(clamp(Number(value),0,100)):dimensionFallback
+ }
+ const overall=suppliedOverall??Math.round(WORLD_QUALITY_DIMENSIONS.reduce((n,k)=>n+dimensions[k],0)/WORLD_QUALITY_DIMENSIONS.length);
  const findings=(Array.isArray(raw.findings)?raw.findings:[]).slice(0,10).map((x,i)=>({
   id:clean(x?.id,80)||"FIND-"+(i+1),
   severity:["LOW","MEDIUM","HIGH","CRITICAL"].includes(String(x?.severity||"").toUpperCase())?String(x.severity).toUpperCase():"MEDIUM",
