@@ -185,6 +185,9 @@ export function craftingSnapshot(state){
 }
 export function resolveItemAction(state,label,roll){
  const q=String(label||"");if(roll?.success===false)return null;ensureItemRuntime(state);
+ const mentionedItem=state.inventory.find(x=>x.name&&q.includes(x.name)),mentionedNpc=(state.world?.registry?.npcs||[]).find(x=>x.name&&q.includes(x.name));
+ if(/交給|交出|贈送|送給|give|hand over/i.test(q)&&mentionedItem&&mentionedNpc)return {handled:true,...presentItemToNpc(state,mentionedItem.id,mentionedNpc.id,{give:true})};
+ if(/展示|出示|拿給.*看|show|present/i.test(q)&&mentionedItem&&mentionedNpc)return {handled:true,...presentItemToNpc(state,mentionedItem.id,mentionedNpc.id,{give:false})};
  if(/使用|食用|進食|吃|喝|飲用|服用|use|eat|drink/i.test(q)){
   const item=state.inventory.find(x=>q.includes(x.name));if(!item)return {handled:true,ok:false,reason:"ITEM_NOT_OWNED"};
   return {handled:true,...useItem(state,item.id)}
