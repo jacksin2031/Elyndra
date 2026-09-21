@@ -120,7 +120,8 @@ function setTurnSyncing(on,label="AI 正在背景同步必要世界狀態…"){
  updateAIStatusBadge()
 }
 function queueForegroundTask(task){
- if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}foregroundQueue.push(task);updateAIStatusBadge();
+ if(!task)return false;if(foregroundQueue.length>=MAX_FOREGROUND_QUEUE){updateAIStatusBadge("下一步隊列已滿");return false}
+ const queued={...task,queuedAt:Date.now()};foregroundQueue.push(queued);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUED",visibility:"INTERNAL",queueType:queued.type,action:queued.customText||queued.q||queued.action||"",queuePosition:foregroundQueue.length,day:gameState?.world?.state?.day||1,at:queued.queuedAt});updateAIStatusBadge();
  const free=$("#freeAction");if(free&&!gameState?.combat?.active)free.placeholder=`已排入下一步（${foregroundQueue.length}）：狀態同步完成後自動執行`;
  return true
 }
@@ -129,7 +130,7 @@ async function drainForegroundQueue(){
  foregroundDraining=true;
  try{
   while(gameState&&foregroundQueue.length&&!aiBusy&&!turnSyncBusy){
-   const next=foregroundQueue.shift();updateAIStatusBadge();
+   const next=foregroundQueue.shift();gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_QUEUE_DRAINED",visibility:"INTERNAL",queueType:next.type,action:next.customText||next.q||next.action||"",waitMs:Math.max(0,Date.now()-Number(next.queuedAt||Date.now())),day:gameState?.world?.state?.day||1,at:Date.now()});updateAIStatusBadge();
    if(next.type==="action")await runAction(next.action,next.customText);
    else if(next.type==="npc")await submitNpcConversation(next.npcId,next.q);
    else if(next.type==="combat")await runCombatAction(next.action)
@@ -239,7 +240,11 @@ async function runAction(action,customText=""){
      if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;
      void refresh()
     }});
-    if(gameState?.world?.id===turnWorldId)applyTurnCandidate(gameState,candidate,{action:label,roll})
+    if(gameState?.world?.id===turnWorldId){
+     applyTurnCandidate(gameState,candidate,{action:label,roll});
+     gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});
+     if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,queuedAt:Date.now()},650)
+    }
    }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
   }
   catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,effective,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
