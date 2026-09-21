@@ -56,7 +56,7 @@ export function sceneTurnPreview(scene,roll={},context={}){
 
 export function fastTurnStateSnapshot(snapshot={}){
  const scene=sceneTurnSnapshot(snapshot);
- return {...scene,directorCanon:(snapshot.directorCanon||[]).slice(-24),worldImpact:{capability:snapshot.worldImpact?.capability||null},travel:snapshot.travel||null,survival:snapshot.survival||null,magic:snapshot.magic||null}
+ return {...scene,stateRevision:Number(snapshot.stateRevision)||0,directorCanon:(snapshot.directorCanon||[]).slice(-24),worldImpact:{capability:snapshot.worldImpact?.capability||null},travel:snapshot.travel||null,survival:snapshot.survival||null,magic:snapshot.magic||null}
 }
 
 export function mergeTurnCandidates(scene,state,roll={},context={}){
