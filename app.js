@@ -155,19 +155,31 @@ async function runAction(action,customText=""){
   }
   gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);await persist();await refresh();return
  }
+ renderRoll(roll);
+ gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);
+ await refresh();
  if(aiStatus.aiConfigured){
-  setAIThinking(true,"2 個 AI 正在並行處理敘事與世界狀態…");
-  try{const label=effective,routing=await routeAction(label,gameState);if(routing.needsGeneration){const candidate=await generateTurn(label,roll,buildSnapshot(gameState));applyTurnCandidate(gameState,candidate,{action:label,roll})}else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}}
+  setAIThinking(true,"AI 正在處理敘事與必要狀態同步…");
+  try{
+   const label=effective,routing=await routeAction(label,gameState);
+   if(routing.needsGeneration){
+    const turnWorldId=gameState.world?.id,turnSnapshot=buildSnapshot(gameState);
+    const candidate=await generateTurn(label,roll,turnSnapshot,{onScene:scene=>{
+     if(!gameState||gameState.world?.id!==turnWorldId)return;
+     const preview=sceneTurnPreview(scene,roll,{action:label,priorSuggestions:previousSuggestions});
+     if(preview.narrative)gameState.narrative=preview.narrative;
+     if(preview.sceneTitle)gameState.sceneTitle=preview.sceneTitle;
+     if(preview.suggestions?.length)gameState.suggestions=preview.suggestions;
+     void refresh()
+    }});
+    if(gameState?.world?.id===turnWorldId)applyTurnCandidate(gameState,candidate,{action:label,roll})
+   }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
+  }
   catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,effective,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
   finally{setAIThinking(false)}
  }else gameState.suggestions=fallbackActionButtons(effective);
  if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
- renderRoll(roll);
- if(aiStatus.aiConfigured&&!gameState.combat?.active){
-  const evolution=worldEvolutionNeed(gameState);
-  if(needsExpansion(gameState)||evolution.required){setAIThinking(true,evolution.reasons.includes("WORLD_QUALITY_DROP")?"AI 正在修補世界觀薄弱部分…":"AI 正在擴展你剛發現的世界區域…");try{const reason=evolution.required?evolution.reason:(effective||"player_exploration"),ex=await generateRegionExpansion(gameState,reason);if(ex?.generation){canonizeGeneration(gameState,ex.generation);recordExpansion(gameState,ex.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason})}}catch(e){console.warn("world evolution fallback",e)}finally{setAIThinking(false)}}
- }
- await persist();await refresh()
+ await persist();await refresh();scheduleWorldEvolution(effective||"player_exploration",700)
 }
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
