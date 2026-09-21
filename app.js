@@ -1,8 +1,8 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=336";
+import {APP_VERSION} from "./src/version.js?v=337";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=336";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=320";
-import {aiHealth,narrate,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=336";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,generateTurn,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction} from "./src/ai-client.js?v=336";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=335";
 import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=335";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
@@ -10,7 +10,7 @@ import {performAction} from "./src/game-engine.js?v=320";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=320";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=276";
-import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=320";
+import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
 import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=276";
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=276";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=276";
@@ -37,7 +37,7 @@ import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276"
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=300";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=337";
 import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=320";
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
@@ -264,14 +264,16 @@ async function runAction(action,customText=""){
     }
    }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
   }
-  catch(e){console.warn("AI turn fallback",e);try{const fallback=await narrate(gameState,effective,roll);if(fallback)gameState.narrative=fallback}catch{gameState.narrative=localText}gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
+  catch(e){console.warn("AI turn state fallback",e);recordDebug("TURN_SYNC_DEGRADED",{action:effective,error:e?.message||String(e),elapsedMs:Date.now()-debugTurnStarted});if(!String(gameState.narrative||"").trim())gameState.narrative=localText;if(!String(gameState.sceneTitle||"").trim())gameState.sceneTitle=deriveSceneTitle(gameState,effective);if(JSON.stringify(gameState.suggestions||[])===JSON.stringify(previousSuggestions))gameState.suggestions=fallbackActionButtons(effective)}
   finally{if(aiBusy)setAIThinking(false)}
  }else gameState.suggestions=fallbackActionButtons(effective);
  if(!aiStatus.aiConfigured)gameState.sceneTitle=deriveSceneTitle(gameState,effective);
- await persist();await refresh();
- if(turnSyncBusy)setTurnSyncing(false);
- scheduleWorldEvolution(effective||"player_exploration",700);
- void drainForegroundQueue()
+ try{await persist();await refresh()}
+ finally{
+  if(turnSyncBusy)setTurnSyncing(false);
+  scheduleWorldEvolution(effective||"player_exploration",700);
+  void drainForegroundQueue()
+ }
 }
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
