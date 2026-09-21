@@ -9,7 +9,7 @@ function cloneSafe(value,depth=0,seen=new WeakSet()){
  if(seen.has(value))return "[CIRCULAR]";seen.add(value);
  if(Array.isArray(value))return value.slice(-500).map(x=>cloneSafe(x,depth+1,seen));
  const out={};for(const [k,v] of Object.entries(value)){
-  if(/api.?key|authorization|password|access.?token|refresh.?token|bearer|secret/i.test(k)){out[k]="[REDACTED]";continue}
+  if(/api.?key|authorization|password|access.?token|refresh.?token|bearer|client.?secret/i.test(k)){out[k]="[REDACTED]";continue}
   out[k]=cloneSafe(v,depth+1,seen)
  }return out
 }
