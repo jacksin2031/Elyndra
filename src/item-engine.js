@@ -1,6 +1,8 @@
 import {isNpcPresent} from "./world-registry.js?v=320";
 import {normalizeCheckBonuses} from "./check-engine.js?v=320";
 import {ensureSurvival} from "./survival-engine.js?v=320";
+import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=43000";
+import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=43000";
 
 const uid=prefix=>prefix+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
@@ -62,10 +64,10 @@ function sameStack(a,b){
  return a.stackable===true&&b.stackable===true&&a.name===b.name&&a.category===b.category&&String(a.evidenceFactId||"")===String(b.evidenceFactId||"")&&JSON.stringify(a.useEffects||[])===JSON.stringify(b.useEffects||[])&&JSON.stringify(a.checkBonuses||{})===JSON.stringify(b.checkBonuses||{})
 }
 export function ensureItemRuntime(state){
- state.inventory=Array.isArray(state.inventory)?state.inventory:[];
+ ensureItemHeritage(state);state.inventory=Array.isArray(state.inventory)?state.inventory:[];
  const normalized=[];
  for(const raw of state.inventory){
-  const item=normalizeItem(raw);if(!item)continue;
+  const item=normalizeItem(raw);if(!item)continue;ensureItemStory(state,item);
   const existing=normalized.find(x=>sameStack(x,item));
   if(existing)existing.quantity=Math.min(999,existing.quantity+item.quantity);else normalized.push(item)
  }
@@ -78,7 +80,7 @@ export function addInventoryItem(state,input,options={}){
  ensureItemRuntime(state);const item=normalizeItem(input,options);if(!item)return null;
  const existing=state.inventory.find(x=>sameStack(x,item));
  if(existing){existing.quantity=Math.min(999,existing.quantity+item.quantity);return existing}
- state.inventory.push(item);return item
+ ensureItemStory(state,item);state.inventory.push(item);if(item.heritage?.seedId)materializeHeritageSeed(state,item.heritage.seedId,item.id);return item
 }
 function removeQuantity(state,item,quantity=1){
  const q=Math.max(1,Math.round(quantity)),idx=state.inventory.findIndex(x=>x.id===item.id);if(idx<0)return false;
@@ -172,13 +174,15 @@ export function craftRecipe(state,recipeId){
 export function presentItemToNpc(state,itemId,npcId,{give=false}={}){
  ensureItemRuntime(state);const item=state.inventory.find(x=>x.id===itemId||x.name===itemId),npc=(state.world?.registry?.npcs||[]).find(x=>x.id===npcId);
  if(!item)return {ok:false,reason:"ITEM_NOT_OWNED"};if(!npc||npc.known!==true||npc.encountered!==true)return {ok:false,reason:"NPC_NOT_KNOWN"};if(!isNpcPresent(state,npc))return {ok:false,reason:"NPC_NOT_PRESENT"};if(give&&item.equipped)return {ok:false,reason:"ITEM_EQUIPPED"};
- const scope=new Set(Array.isArray(npc.knowledgeScope)?npc.knowledgeScope:[]),history=new Set(Array.isArray(npc.historyRefs)?npc.historyRefs:[]),special=Boolean((item.evidenceFactId&&scope.has(item.evidenceFactId))||(item.historyId&&history.has(item.historyId))||(Array.isArray(item.historyRefs)&&item.historyRefs.some(x=>history.has(x))));
+ advanceItemKnowledge(state,item.id,{method:"OBSERVE"});
+ const recognition=npcItemRecognition(state,item,npc),special=recognition.recognized===true;
  let trustDelta=special?2:give?1:0;trustDelta=Math.max(0,Math.min(2,trustDelta));npc.trust=Math.max(0,Math.min(100,(Number(npc.trust)||0)+trustDelta));npc.memories??=[];
- const action=give?"ITEM_GIVEN":"ITEM_SHOWN",summary=special?`${npc.name} 對「${item.name}」明顯有特別反應，因為它與對方已知的世界資訊存在直接關聯。`:`${npc.name} 注意到你${give?"交出":"展示"}了「${item.name}」。`;
+ const action=give?"ITEM_GIVEN":"ITEM_SHOWN",summary=special?`${npc.name} 對「${item.name}」有可辨識的反應；對方能說到哪一層由職業、勢力、歷史連結與個人記憶決定。`:`${npc.name} 注意到你${give?"交出":"展示"}了「${item.name}」，但沒有可靠依據辨認其來歷。`;
+ let testimony=null;if(special&&!give)testimony=recordNpcItemTestimony(state,item.id,npc.id,{});
  npc.memories.push({id:uid("MEM"),type:"item",summary,day:state.world?.state?.day||1});npc.memories=npc.memories.slice(-12);
  if(give){const consumed=consumeInventoryQuantity(state,item.id,1);if(!consumed.ok)return consumed}
- state.events??=[];state.events.push({id:uid("EV"),type:action,visibility:"PLAYER_KNOWN",npcId:npc.id,npcName:npc.name,itemId:item.id,itemName:item.name,special,trustDelta,summary,day:state.world?.state?.day||1,at:Date.now()});
- return {ok:true,action,itemName:item.name,npcId:npc.id,npcName:npc.name,special,trustDelta,summary}
+ state.events??=[];state.events.push({id:uid("EV"),type:action,visibility:"PLAYER_KNOWN",npcId:npc.id,npcName:npc.name,itemId:item.id,itemName:item.name,special,trustDelta,recognition:{level:recognition.level,confidence:recognition.confidence,reasons:recognition.reasons,mayMisidentify:recognition.mayMisidentify,mayWithhold:recognition.mayWithhold},testimonyId:testimony?.testimonyId||null,summary,day:state.world?.state?.day||1,at:Date.now()});
+ return {ok:true,action,itemName:item.name,npcId:npc.id,npcName:npc.name,special,trustDelta,recognition,testimonyId:testimony?.testimonyId||null,summary}
 }
 export function setItemEquipped(state,itemId,equipped=true){
  ensureItemRuntime(state);const item=state.inventory.find(x=>x.id===itemId||x.name===itemId);if(!item)return {ok:false,reason:"ITEM_NOT_OWNED"};
