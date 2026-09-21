@@ -513,3 +513,14 @@ weatherProfile: {
 - 修正短遊玩時數下 middle / late phase 可能超出 `horizonDays` 的 pacing bug。
 - REGION timeout 調整至 65 秒、CAST 至 60 秒，並停用重型 compiler stage 的 duplicate timeout retry。
 - Browser cache generation 升至 `v272`，正式站不會繼續載入舊 `CHRONOLOGY` compiler。
+
+## V0.27.3 — Linked Two-Agent World Compiler
+
+- 世界生成改為 **Linked Two-Agent Waves**；任何時刻最多只會有 2 個 AI request。
+- `worldStage()` 內加入硬性 concurrency semaphore，即使日後新增子編譯器亦不能突破 2 個同時請求。
+- Wave 1：`HISTORY + GEOGRAPHY`；兩者共享同一份 World Anchor Contract。
+- Wave 2：`FUTURE + SOCIETY`；必須引用 Wave 1 的 History / Starting Location。
+- Wave 3：`CAST`；NPC 與支線必須引用已存在 Location / Faction / History。
+- Engine 會驗證 `historyRefs` / `locationRefs` 等跨階段引用，拒絕無來源的新事件、地點、勢力或支線。
+- 子編譯器 timeout 或 malformed response 會用同一 Anchor 與上一波 Canon 生成 fallback，不再令整個世界建立失敗。
+- Browser cache generation 升至 `v273`。
