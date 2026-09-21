@@ -113,6 +113,6 @@ test("NPC contact dock filters through local-or-canonical-remote interaction bou
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../index.html",import.meta.url),"utf8")
  ]);
- assert.match(html,/CONTACTS/);
+ assert.match(html,/id="npcDock"/);\n assert.match(html,/>人物<\/small>/);
  assert.match(app,/npcs\.filter\(x=>canInteractWithNpc\(gameState,x\)\)/);
 });
