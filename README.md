@@ -504,3 +504,12 @@ weatherProfile: {
 - 新增 World Core 欄位正規化、缺欄位診斷與 semantic repair；合法 JSON 但漏欄位時只局部修補 CORE。
 - Weather Canon 在 Engine 套用前會經 `normalizeWeatherSystem()`，補足 duration、weight、modifiers 等 runtime 欄位。
 - Browser cache generation 升至 `v271`，避免正式站繼續載入舊版 `ai-client.js`。
+
+## V0.27.2 — Chronology Compiler Hotfix
+
+- 移除單一 `CHRONOLOGY` 重型請求，拆成 `HISTORY` 與 `FUTURE` 兩個較小編譯階段。
+- `HISTORY` 只生成 3 個不可改寫的重要歷史節點，避免一次輸出 5 段歷史、曆法與整條 Timeline。
+- `FUTURE` 只生成自訂曆法與未來事件內容；事件日期窗口由 Engine 預先分配，AI 不再自己計算日數。
+- 修正短遊玩時數下 middle / late phase 可能超出 `horizonDays` 的 pacing bug。
+- REGION timeout 調整至 65 秒、CAST 至 60 秒，並停用重型 compiler stage 的 duplicate timeout retry。
+- Browser cache generation 升至 `v272`，正式站不會繼續載入舊 `CHRONOLOGY` compiler。
