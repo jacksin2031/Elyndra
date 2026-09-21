@@ -853,23 +853,48 @@ body[data-world-genre="末日異世界"]{--ely-scene-position:100%}
 }
 
 
-/* HD scene artwork + crisp desktop zoom v0.31.1 */
+/* Raster scene artwork + crisp desktop zoom v0.31.2 */
 :root{
-  --ely-scene-bg:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg");
+  --ely-scene-raster:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.avif");
+  --ely-scene-fallback:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg");
+  --ely-scene-position:58% center;
 }
-body[data-world-genre="王道奇幻"]{--ely-scene-bg:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg")}
-body[data-world-genre="黑暗奇幻"]{--ely-scene-bg:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg")}
-body[data-world-genre="東方幻想"]{--ely-scene-bg:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg")}
-body[data-world-genre="蒸汽魔法"]{--ely-scene-bg:url("./assets/ui/backgrounds/steam-magic-2560x1440.svg")}
-body[data-world-genre="末日異世界"]{--ely-scene-bg:url("./assets/ui/backgrounds/apocalypse-2560x1440.svg")}
+body[data-world-genre="王道奇幻"]{
+  --ely-scene-raster:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.avif");
+  --ely-scene-fallback:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg");
+  --ely-scene-position:58% center;
+}
+body[data-world-genre="黑暗奇幻"]{
+  --ely-scene-raster:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.avif");
+  --ely-scene-fallback:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg");
+  --ely-scene-position:60% center;
+}
+body[data-world-genre="東方幻想"]{
+  --ely-scene-raster:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.avif");
+  --ely-scene-fallback:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg");
+  --ely-scene-position:56% center;
+}
+body[data-world-genre="蒸汽魔法"]{
+  --ely-scene-raster:url("./assets/ui/backgrounds/steam-magic-2560x1440.avif");
+  --ely-scene-fallback:url("./assets/ui/backgrounds/steam-magic-2560x1440.svg");
+  --ely-scene-position:62% center;
+}
+body[data-world-genre="末日異世界"]{
+  --ely-scene-raster:url("./assets/ui/backgrounds/apocalypse-2560x1440.avif");
+  --ely-scene-fallback:url("./assets/ui/backgrounds/apocalypse-2560x1440.svg");
+  --ely-scene-position:60% center;
+}
 
-/* 2560×1440 scene masters: preserve aspect ratio and crop instead of stretching. */
+/* Real 2560×1440 AVIF artwork sits above the SVG fallback.
+   Artwork keeps its aspect ratio and crops with cover instead of stretching. */
 #game .scene-art{
   background-image:
-    linear-gradient(180deg,rgba(3,6,10,.02) 0%,rgba(3,6,10,.10) 42%,rgba(2,4,8,.78) 100%),
-    var(--ely-scene-bg)!important;
-  background-size:100% 100%,cover!important;
-  background-position:center,center!important;
+    linear-gradient(90deg,rgba(2,5,9,.30) 0%,rgba(2,5,9,.08) 42%,rgba(2,5,9,.02) 72%,rgba(2,5,9,.16) 100%),
+    linear-gradient(180deg,rgba(3,6,10,.02) 0%,rgba(3,6,10,.08) 42%,rgba(2,4,8,.76) 100%),
+    var(--ely-scene-raster),
+    var(--ely-scene-fallback)!important;
+  background-size:100% 100%,100% 100%,cover,cover!important;
+  background-position:center,center,var(--ely-scene-position),var(--ely-scene-position)!important;
   background-repeat:no-repeat!important;
   image-rendering:auto;
 }
