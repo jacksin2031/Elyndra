@@ -63,6 +63,10 @@ Save Manager → IndexedDB / .elyndra
 
 > AI proposes. Game Engine decides. Database remembers.
 
+### v0.40.0 — Causal World Core
+
+Elyndra 現在加入 World Ledger、Generation Claims、Evidence/Belief/Truth 分離，以及多事件 Future Engine。現有 crisis / VERIFIED knowledge / Save v12 保持向後相容，詳細架構見 `docs/causal-world-core-v040.md`.
+
 ## 本地啟動
 
 ES Modules 與 IndexedDB 需要透過本地 HTTP server 開啟：
