@@ -2,7 +2,7 @@ import {hasDirectAI,directChat} from "./ai-settings.js?v=331";
 import {seedDirective} from "./seed-contract.js?v=276";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=332";
-import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=320";
+import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=333";
 import {sanitizePlayerText} from "./runtime-guard.js?v=276";
 import {helperSnapshot} from "./helper-context.js?v=320";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
@@ -337,7 +337,7 @@ export async function assessPlayerAction(state,action){
  }
 }
 
-export async function generateTurn(action,roll,snapshot){
+export async function generateTurn(action,roll,snapshot,options={}){
  if(hasDirectAI()){
   const sceneInput={action,roll,snapshot:sceneTurnSnapshot(snapshot)};
   const stateInput={action,roll,snapshot};
@@ -345,7 +345,7 @@ export async function generateTurn(action,roll,snapshot){
    aiTask:"scene",timeoutMs:35000,maxOutputTokens:700,temperature:.8,
    system:`你是 Elyndra Scene Narrator。你只負責玩家可見敘事與下一步建議，不可以修改世界狀態、Canon、NPC 關係、勢力、任務、戰鬥、物品或世界影響。snapshot.player.origin 定義玩家是一名來自現代地球的普通成年人；敘事中的第一反應、比較、疑問與風險判斷應符合其 commonKnowledge、defaultValues、initialAssumptions，但玩家明確輸入的行動永遠優先。現代地球常識不可被當成異世界 Canon。骰子結果已由 Engine 決定，不能改。只可使用 payload 中玩家已知資訊；不得引用 director-only 資訊，不得發明未揭露專有名詞。snapshot.weather 是玩家目前可直接感知的天氣，敘事要自然反映其感官效果，但不可替玩家知道未公開的 Weather Canon。sceneTitle 是給玩家看的「目前目標」，必須用動詞導向，根據最新位置、衝突或劇情發展重新命名，例如「調查鐘聲來源」「找到安全落腳處」；不得只寫氣氛章節名，也不得固定使用「陌生世界的第一天」。narrative 必須忠於 roll.success / grade，只描寫當下可感知結果。只使用繁體中文，不得輸出 [世界動向]、【世界改變】、SYSTEM 等系統標籤。suggestions 每輪必須根據當前場景重新生成，除非情境真的沒有改變，否則不得逐字重複 snapshot.priorSuggestions；不得使用其他語言。只輸出 JSON：${TURN_SCENE_SCHEMA}`,
    user:JSON.stringify(sceneInput)
-  }).then(parseJSON);
+  }).then(parseJSON).then(scene=>{try{options?.onScene?.(scene)}catch{}return scene});
 
   const statePromise=directChat({
    aiTask:"turn_state",timeoutMs:50000,maxOutputTokens:1800,temperature:.55,
@@ -362,17 +362,18 @@ export async function generateTurn(action,roll,snapshot){
 }
 export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",civilization:b.civilization||null,communication:b.communication||null,weatherSystem:b.weatherSystem||null}}
 export function regionExpansionPayload(state,reason="player_exploration"){return {reason,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},directorHistory:directorHistorySnapshot(state,8),existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
-export async function generateRegionExpansion(state,reason="player_exploration"){
+export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const payload=regionExpansionPayload(state,reason);if(!hasDirectAI())return null;
+ const signal=options?.signal;
  const expansion=await worldStage("RUNTIME_EXPANSION",{
-  timeoutMs:90000,maxOutputTokens:1800,temperature:.65,
+  signal,timeoutMs:90000,maxOutputTokens:1800,temperature:.65,
   system:'你是 Elyndra Progressive World Architect。world.seedContract 是不可違反的玩家世界設定；新內容必須保持同一世界因果。每個新 Location、NPC、Faction 都必須提供至少1個有效 historyRefs，且只能引用 directorHistory 中存在的 HIST id；不得只在 prose 提到歷史。每個新地點／勢力要有 culture 與 trade；每個地點要有 weatherProfile，affinities / suppressions 只可引用既有 Weather id。需要鑰匙、通行證、證據或先前事件才能進入的地點，可加入 accessRequirements，type 只可 ITEM_OWNED|ITEM_USED|ITEM_SHOWN|ITEM_GIVEN|FACT_KNOWN|EVENT_OCCURRED，id 必須是具體物品名稱／既有 fact id／既有 event type，hint 要用玩家可理解但不洩漏秘密的提示；不要為普通地點硬加門檻。不得假設全世界通用貨幣或同一文化。任何新 NPC 都要有 companionProfile。只輸出 JSON：{"region":"新區域名稱","reason":"與既有世界的因果連接","generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","historyRefs":["HIST-1"],"known":true或false,"accessRequirements":[{"type":"ITEM_OWNED","id":"具體物品名稱","hint":"需要相應通行物"}],"weatherProfile":{"zone":"...","affinities":["既有WTH id"],"suppressions":[]},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","historyRefs":["HIST-1"],"knowledgeScope":["既有 public fact"],"known":true或false,"companionProfile":{"joinThreshold":35,"leaveThreshold":10,"motives":[],"boundaries":[]},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","historyRefs":["HIST-1"],"known":false,"culture":{"identity":"..."},"trade":{"mode":"barter","currencies":[],"commonBarter":[],"foreignAcceptance":[],"priceCulture":"...","questReward":0,"combatReward":0},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","historyRefs":["HIST-1"],"known":true或false,"evidenceKeywords":["線索"],"conditions":[],"target":2}]}}。最多2地點、2 NPC、1勢力、1支線。不得重建 existing、不得改寫 World Bible、不得洩漏 hidden secrets。',
   user:JSON.stringify(payload)
  });
  let provenance=validateExpansionProvenance(state,expansion?.generation),quality;
  try{
   quality=normalizeWorldEvaluation(await worldStage("RUNTIME_QUALITY_CRITIC",{
-   timeoutMs:40000,maxOutputTokens:900,temperature:.2,
+   signal,timeoutMs:40000,maxOutputTokens:900,temperature:.2,
    system:"你是 Elyndra Runtime World Critic。評估今次 expansion 與既有世界的因果一致性、歷史連結、文化差異、可玩性與模板化程度。overall 0-100；findings 最多5項。historyRefs 缺失或無效必須列 HIGH。只輸出與 World Critic 相同 JSON 格式。",
    user:JSON.stringify({payload,expansion,provenance})
   }),{source:"AI"})
@@ -383,7 +384,7 @@ export async function generateRegionExpansion(state,reason="player_exploration")
  if(!provenance.valid||quality.overall<75){
   try{
    const repaired=await worldStage("RUNTIME_REPAIR",{
-    timeoutMs:55000,maxOutputTokens:1500,temperature:.4,
+    signal,timeoutMs:55000,maxOutputTokens:1500,temperature:.4,
     system:"你是 Elyndra Runtime Repair Architect。只修正這次 expansion，不可改既有 Canon。保留既有實體名稱與 region，補足有效 historyRefs、文化／交易／lore 深度及具體內容。不得創造 directorHistory 以外的 history id。只輸出完整 {generation:{...}} 修正版。",
     user:JSON.stringify({payload,expansion,quality,provenance})
    });
