@@ -132,3 +132,277 @@ body[data-weather-danger="4"] .scene-atmosphere,body[data-weather-danger="5"] .s
 }
 @keyframes sheetIn{from{transform:translateY(24px);opacity:.65}to{transform:none;opacity:1}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}}
+
+
+/* Cinematic HUD v2 */
+@media(min-width:721px){
+  body[data-screen="game"]{
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 72% 15%,rgba(118,101,177,.10),transparent 28%),
+      linear-gradient(180deg,#06090f,#03050a);
+  }
+  body[data-screen="game"] .topbar{
+    position:relative;
+    z-index:30;
+    height:58px;
+    padding:0 18px;
+    background:linear-gradient(180deg,rgba(4,7,12,.96),rgba(4,7,12,.76));
+    border-bottom:1px solid rgba(255,255,255,.055);
+    box-shadow:none;
+    backdrop-filter:blur(18px);
+  }
+  body[data-screen="game"] .brand{font-size:18px;letter-spacing:.22em}
+  body[data-screen="game"] .brand-wrap .subtitle{opacity:.48;font-size:9px}
+  body[data-screen="game"] .topbar-context{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    padding:7px 13px;
+    border:1px solid rgba(255,255,255,.07);
+    border-radius:999px;
+    background:rgba(255,255,255,.025);
+    backdrop-filter:blur(14px);
+  }
+
+  #game{
+    height:calc(100vh - 58px);
+    min-height:620px;
+    overflow:hidden;
+  }
+  #game .game-shell{
+    --hud-w:252px;
+    position:relative;
+    display:block;
+    height:100%;
+    min-height:0;
+    background:none;
+  }
+
+  #game .sidebar{
+    position:absolute;
+    z-index:12;
+    top:18px;
+    left:18px;
+    bottom:18px;
+    width:var(--hud-w);
+    height:auto;
+    padding:16px 14px;
+    gap:12px;
+    overflow:auto;
+    border:1px solid rgba(255,255,255,.085);
+    border-radius:22px;
+    background:
+      linear-gradient(180deg,rgba(8,12,20,.78),rgba(6,10,17,.66)),
+      radial-gradient(circle at 20% 0%,rgba(143,124,255,.08),transparent 34%);
+    box-shadow:0 26px 80px rgba(0,0,0,.34);
+    backdrop-filter:blur(22px) saturate(125%);
+  }
+  #game .sidebar:before{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    border-radius:22px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  #game .world-title{padding:2px 4px 8px}
+  #game .world-title h2{font-size:22px;line-height:1.08}
+  #game .world-title small{font-size:10px;opacity:.6}
+  #game .player-summary{
+    padding:11px;
+    border-radius:15px;
+    background:linear-gradient(135deg,rgba(143,124,255,.10),rgba(215,179,106,.05));
+  }
+  #game .player-sigil{width:40px;height:40px;flex-basis:40px}
+  #game .compact-stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:0 12px;
+    padding:9px 11px;
+    border-radius:15px;
+    background:rgba(2,6,12,.32);
+  }
+  #game .compact-stats .vital-row{grid-column:1/-1}
+  #game .compact-stats .secondary-stat{font-size:10px}
+  #game .quest-card{
+    padding:13px;
+    border-radius:15px;
+    background:
+      linear-gradient(135deg,rgba(215,179,106,.13),rgba(80,64,117,.10)),
+      rgba(5,8,13,.32);
+  }
+  #game .quest-card strong{font-size:15px}
+  #game .quest-card p{font-size:10px;line-height:1.55}
+  #game .primary-nav{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+  }
+  #game .primary-nav .navbtn{
+    min-height:40px;
+    justify-content:flex-start;
+    padding:8px 9px;
+    font-size:11px;
+    background:rgba(255,255,255,.018);
+    border:1px solid rgba(255,255,255,.045);
+  }
+  #game .primary-nav .navbtn.more-nav{grid-column:1/-1}
+  #game .npc-dock{margin-top:0;max-height:160px;overflow:auto}
+
+  #game .scene{
+    position:relative;
+    display:block;
+    height:100%;
+    min-height:0;
+    padding:18px;
+    background:none;
+  }
+  #game .scene-art{
+    position:absolute;
+    inset:18px;
+    min-height:0;
+    height:auto;
+    border-radius:28px;
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 32px 110px rgba(0,0,0,.40);
+    background:
+      linear-gradient(180deg,rgba(5,8,13,.03) 0%,rgba(5,8,13,.08) 32%,rgba(3,6,10,.32) 62%,rgba(3,5,9,.94) 100%),
+      radial-gradient(circle at 76% 14%,rgba(220,180,119,.24),transparent 20%),
+      radial-gradient(ellipse at 58% 52%,rgba(67,108,111,.25),transparent 31%),
+      linear-gradient(135deg,#263641 0%,#15232a 38%,#11171f 70%,#090c12 100%);
+  }
+  #game .scene-art:before{
+    opacity:.95;
+    background:
+      linear-gradient(180deg,transparent 0 50%,rgba(3,6,9,.18) 64%,rgba(2,4,8,.62) 100%),
+      radial-gradient(ellipse at 64% 98%,rgba(55,92,74,.33),transparent 48%),
+      repeating-linear-gradient(116deg,transparent 0 94px,rgba(141,177,152,.035) 95px 120px);
+  }
+  #game .scene-art:after{
+    box-shadow:
+      inset 0 0 180px rgba(0,0,0,.28),
+      inset 80px 0 130px rgba(0,0,0,.18),
+      inset -70px 0 120px rgba(0,0,0,.14);
+  }
+  #game .scene-copy{
+    left:calc(var(--hud-w) + 58px);
+    right:48px;
+    bottom:224px;
+    max-width:880px;
+  }
+  #game .scene-copy h2{
+    max-width:780px;
+    margin:13px 0 12px;
+    font-size:clamp(42px,5.1vw,76px);
+    line-height:.98;
+    letter-spacing:-.045em;
+    text-shadow:0 10px 36px rgba(0,0,0,.5);
+  }
+  #game .scene-copy p{
+    max-width:760px;
+    max-height:135px;
+    overflow:auto;
+    padding:14px 16px;
+    line-height:1.78;
+    font-size:13px;
+    border:1px solid rgba(255,255,255,.075);
+    border-left:2px solid rgba(215,179,106,.8);
+    border-radius:0 13px 13px 0;
+    background:linear-gradient(90deg,rgba(3,6,10,.68),rgba(3,6,10,.28));
+    backdrop-filter:blur(12px);
+  }
+  #game .scene-meta{gap:7px}
+  #game .location,#game .weather-chip{
+    min-height:28px;
+    padding:5px 10px;
+    font-size:10px;
+    background:rgba(3,6,10,.48);
+  }
+
+  #game .decision-panel{
+    position:absolute;
+    z-index:10;
+    left:calc(var(--hud-w) + 58px);
+    right:36px;
+    bottom:34px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 258px;
+    gap:10px;
+    align-items:stretch;
+  }
+  #game .action-zone{
+    padding:12px;
+    border:1px solid rgba(255,255,255,.09);
+    border-radius:18px;
+    background:linear-gradient(180deg,rgba(5,9,15,.78),rgba(5,9,15,.64));
+    box-shadow:0 18px 52px rgba(0,0,0,.24);
+    backdrop-filter:blur(22px) saturate(130%);
+  }
+  #game .action-heading{margin-bottom:8px}
+  #game .choices{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+  }
+  #game .choices button{
+    min-height:46px;
+    padding:9px 10px;
+    border-radius:12px;
+    text-align:left;
+    font-size:11px;
+    line-height:1.35;
+    background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.014));
+  }
+  #game .free-action{
+    margin-top:8px;
+    padding-top:8px;
+    gap:7px;
+  }
+  #game .free-action input{min-height:43px;background:rgba(1,4,8,.52)}
+  #game .dice-box{
+    min-height:100%;
+    padding:13px;
+    border-radius:18px;
+    background:
+      radial-gradient(circle at 18% 20%,rgba(143,124,255,.12),transparent 32%),
+      linear-gradient(180deg,rgba(7,11,18,.78),rgba(5,8,14,.66));
+    box-shadow:0 18px 52px rgba(0,0,0,.24);
+    backdrop-filter:blur(22px) saturate(130%);
+  }
+  #game .d20{width:66px;height:66px;flex-basis:66px}
+
+  body[data-world-genre="黑暗奇幻"] #game .scene-art{
+    background:
+      linear-gradient(180deg,rgba(8,5,9,.02),rgba(5,4,7,.90)),
+      radial-gradient(circle at 76% 14%,rgba(145,70,103,.26),transparent 20%),
+      linear-gradient(135deg,#311d2a,#17121a 48%,#08090d);
+  }
+  body[data-world-genre="東方幻想"] #game .scene-art{
+    background:
+      linear-gradient(180deg,rgba(5,9,10,.02),rgba(4,8,9,.88)),
+      radial-gradient(circle at 76% 14%,rgba(128,184,175,.24),transparent 20%),
+      linear-gradient(135deg,#294044,#132528 48%,#071014);
+  }
+  body[data-world-genre="蒸汽魔法"] #game .scene-art{
+    background:
+      linear-gradient(180deg,rgba(10,7,4,.02),rgba(7,5,4,.90)),
+      radial-gradient(circle at 76% 14%,rgba(212,145,74,.27),transparent 20%),
+      linear-gradient(135deg,#49331d,#241a11 48%,#0c0b09);
+  }
+  body[data-world-genre="末日異世界"] #game .scene-art{
+    background:
+      linear-gradient(180deg,rgba(8,8,5,.02),rgba(6,6,4,.90)),
+      radial-gradient(circle at 76% 14%,rgba(151,145,84,.24),transparent 20%),
+      linear-gradient(135deg,#3a3c2f,#1b1f17 48%,#0b0d0a);
+  }
+
+  @media(max-width:1100px){
+    #game .game-shell{--hud-w:220px}
+    #game .sidebar{width:var(--hud-w);padding:13px 11px}
+    #game .scene-copy{left:calc(var(--hud-w) + 48px);right:34px}
+    #game .decision-panel{left:calc(var(--hud-w) + 48px);right:28px;grid-template-columns:1fr 220px}
+    #game .choices{grid-template-columns:1fr 1fr}
+    #game .scene-copy h2{font-size:clamp(38px,5vw,58px)}
+  }
+}
