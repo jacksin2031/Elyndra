@@ -51,7 +51,7 @@ function conditionMet(state,c){
  if(c.type==="FACT_KNOWN")return (state.knowledge||[]).some(k=>k.factId===c.id);
  if(c.type==="ITEM_OWNED"){const amount=(state.inventory||[]).filter(x=>x.id===c.id||x.name===c.id).reduce((n,x)=>n+(Number(x.quantity)||1),0);return c.value==null?amount>0:cmp(amount,c.op,c.value)}
  if(["ITEM_USED","ITEM_SHOWN","ITEM_GIVEN"].includes(c.type)){const eventType={ITEM_USED:"ITEM_USED",ITEM_SHOWN:"ITEM_SHOWN",ITEM_GIVEN:"ITEM_GIVEN"}[c.type];return (state.events||[]).some(e=>e.type===eventType&&(e.itemId===c.id||e.itemName===c.id)&&(!c.field||cmp(e[c.field],c.op,c.value)))}
- if(c.type==="PLAYER_STATE"){const key=String(c.field||"").toUpperCase(),s=state.player?.survival||{},actual={HP:state.player?.hp,HUNGER:s.hunger,FATIGUE:s.fatigue,EXPOSURE:s.exposure,INJURY:s.injury,MAGIC_STRAIN:state.player?.magic?.strain}[key];return actual!=null&&cmp(actual,c.op,c.value)}
+ if(c.type==="PLAYER_STATE"){const key=String(c.field||"").toUpperCase(),s=state.player?.survival||{},actual={HP:state.player?.hp,SATIETY:s.satiety,HUNGER:Number.isFinite(Number(s.satiety))?100-Number(s.satiety):undefined,FATIGUE:s.fatigue,EXPOSURE:s.exposure,INJURY:s.injury,MAGIC_STRAIN:state.player?.magic?.strain}[key];return actual!=null&&cmp(actual,c.op,c.value)}
  if(c.type==="ENTITY_KNOWN")return [...r.locations,...r.npcs,...r.factions,...r.sideQuests].some(x=>x.id===c.id&&x.known===true);
  if(c.type==="EVENT_OCCURRED")return (state.events||[]).some(x=>x.id===c.id||x.type===c.id);
  if(c.type==="LOCATION_STATE"){const x=r.locations.find(x=>x.id===c.id);return Boolean(x&&cmp(x.worldState?.[c.field],c.op,c.value))}
