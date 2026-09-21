@@ -938,3 +938,21 @@ body[data-world-genre="末日異世界"]{
     text-rendering:geometricPrecision;
   }
 }
+
+
+/* In-game Debug diagnostics v0.33.6 */
+.debug-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.debug-stat{display:flex;flex-direction:column;gap:4px;padding:13px 14px;border:1px solid rgba(215,179,106,.16);border-radius:12px;background:rgba(5,9,15,.58)}
+.debug-stat small{letter-spacing:.12em;opacity:.7}
+.debug-stat strong{font-size:16px;overflow-wrap:anywhere}
+.debug-stat span{font-size:12px;opacity:.74;overflow-wrap:anywhere}
+.debug-actions{flex-wrap:wrap;margin:12px 0 16px}
+.debug-section{margin-top:18px}
+.debug-section h3{margin:0 0 8px}
+.debug-table-wrap{overflow:auto;max-height:330px;border:1px solid rgba(215,179,106,.12);border-radius:10px;background:rgba(2,5,9,.46)}
+.debug-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.debug-table th,.debug-table td{padding:8px 9px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top}
+.debug-table th{position:sticky;top:0;background:rgba(9,14,22,.96);z-index:1;font-size:11px;letter-spacing:.06em}
+.debug-table td:nth-child(3){white-space:normal;min-width:180px;max-width:420px;overflow-wrap:anywhere}
+@media(max-width:900px){.debug-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.debug-card-grid{grid-template-columns:1fr}.debug-table{font-size:11px}}
