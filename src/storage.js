@@ -1,7 +1,8 @@
 import {assertSaveState} from "./state-validator.js?v=276";
 import {ensureItemRuntime} from "./item-engine.js?v=320";
 import {ensureNotes} from "./notes-engine.js?v=320";
-const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=11;
+import {ensurePlayerOrigin} from "./player-origin.js?v=320";
+const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=12;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);const MIGRATION_RENOWN={PERSONAL:1,LOCAL:4,REGIONAL:10,FACTION:15,WORLD:25};const LEGACY_SUGGESTIONS=["觀察目前環境","確認自己的狀態","尋找可以安全前進的方向"];
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
@@ -51,7 +52,12 @@ export function migrateSave(input){
   if(s.quests?.main){s.quests.main.stage=Math.max(0,Math.min(5,Math.round(Number(s.quests.main.stage)||0)));s.quests.main.stageKey??=["SURVIVE","ORIENT","CONTACT","INVESTIGATE","CRISIS","CLIMAX"][s.quests.main.stage]}
   v=11
  }
- ensureItemRuntime(s);ensureNotes(s);
+ if(v<12){
+  const surv=s.player?.survival;if(surv){if(!Number.isFinite(Number(surv.satiety)))surv.satiety=Number.isFinite(Number(surv.hunger))?Math.max(0,Math.min(100,100-Number(surv.hunger))):100;delete surv.hunger}
+  s.crafting??={version:1,recipes:[]};s.notes=Array.isArray(s.notes)?s.notes:[];
+  ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);v=12
+ }
+ ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);
  s.formatVersion=FORMAT_VERSION;return s
 }
 async function putSave(state,id="autosave",label=""){const clean=migrateSave(state);assertSaveState(clean);if(id==="autosave")Object.assign(state,clean);const record={...structuredClone(clean),id,savedAt:new Date().toISOString(),saveLabel:String(label||"").slice(0,80),formatVersion:FORMAT_VERSION};await tx("readwrite",s=>s.put(record));return record}
