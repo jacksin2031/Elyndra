@@ -27,7 +27,8 @@ test("both direct and server world paths canonicalize theme before Engine valida
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../api/world.js",import.meta.url),"utf8")
  ]);
- assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);\n assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
+ assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);
+ assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
  assert.match(server,/normalizeWorldCoreCandidate\(JSON\.parse\(raw\)\)/);
 });
 
