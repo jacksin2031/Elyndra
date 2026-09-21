@@ -205,11 +205,11 @@ async function runAction(action,customText=""){
  if(aiBusy)return;
  if(gameState.combat?.active){gameState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}
  if(gameState.player.status==="DOWNED"){recoverFromDefeat(gameState);gameState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";gameState.sceneTitle=deriveSceneTitle(gameState,"醒來");gameState.suggestions=fallbackActionButtons("醒來");await persist();return refresh()}
- const requested=String(customText||action||"").trim()||"觀察目前環境";
+ const requested=String(customText||action||"").trim()||"觀察目前環境",debugTurnStarted=Date.now();recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:gameState.world?.state?.day||1,location:gameState.player?.location||""});
  if(!aiStatus.aiConfigured){gameState.narrative="目前沒有可用的 AI Provider，無法先判定這個行動是否符合角色狀態與場景條件。請先在 AI 設定連線。";await refresh();return}
  let assessment;
  setAIThinking(true,"AI 正在根據角色狀態、物品與場景判定行動是否合理…");
- try{assessment=await assessPlayerAction(gameState,requested)}
+ try{assessment=await assessPlayerAction(gameState,requested);recordDebug("ACTION_ASSESSMENT",{action:requested,verdict:assessment?.verdict,kind:assessment?.kind,source:assessment?.source,confidence:assessment?.confidence,reason:assessment?.reason,latencyFromTurnStartMs:Date.now()-debugTurnStarted})}
  catch(e){
   console.warn("action feasibility failed",e);
   gameState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
@@ -223,7 +223,7 @@ async function runAction(action,customText=""){
   const localLore=resolveLocalLoreAction(gameState,effective);
   if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});await persist();await refresh();return}
  }
- const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;
+ const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;recordDebug("ENGINE_ACTION_RESULT",{action:effective,blocked:Boolean(actionResult.blocked),deterministic:Boolean(actionResult.deterministic),roll:roll?{natural:roll.natural,total:roll.total,dc:roll.dc,grade:roll.grade,success:roll.success,kind:roll.profile?.kind}:null,elapsedMs:Date.now()-debugTurnStarted});
  if(actionResult.blocked||actionResult.deterministic){
   const itemResult=actionResult.ruleEffects?.item;
   if(actionResult.deterministic&&itemResult?.ok&&["ITEM_SHOWN","ITEM_GIVEN"].includes(itemResult.action)&&itemResult.npcId&&aiStatus.aiConfigured){
@@ -259,7 +259,7 @@ async function runAction(action,customText=""){
     }});
     if(gameState?.world?.id===turnWorldId){
      applyTurnCandidate(gameState,candidate,{action:label,roll});
-     gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});
+     gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"TURN_DIRECTOR_MODE",visibility:"INTERNAL",action:label,mode:candidate.directorMode||"DEEP",day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("TURN_COMMIT",{action:label,directorMode:candidate.directorMode||"DEEP",elapsedMs:Date.now()-debugTurnStarted,foregroundQueue:foregroundQueue.length,deferredQueue:deferredDirector.queue.length});
      if(candidate.directorMode==="DEFERRED")scheduleDeferredDirector({action:label,roll,queuedAt:Date.now()},650)
     }
    }else{gameState.narrative=localText;gameState.sceneTitle=deriveSceneTitle(gameState,label);gameState.suggestions=fallbackActionButtons(label)}
@@ -374,7 +374,7 @@ $("#aiClear").onclick=async()=>{clearAISettings(provider.value);const fresh=load
 $("#saveToolsBtn").onclick=()=>openSaveManagerUI(gameState,openModal,{onLoad:async loaded=>{gameState=migrate(loaded);await refresh();$("#modal").classList.add("hidden");show("game")},onImport:()=>$("#importFile").click()});
 $("#importFile").onchange=async e=>{try{gameState=migrate(await importWorld(e.target.files[0]));await refresh();$("#modal").classList.add("hidden");show("game")}catch(err){alert(err.message)}finally{e.target.value=""}};
 $("#resetBtn").onclick=async()=>{if(confirm("確定要刪除目前的本地世界嗎？")){await deleteWorld();gameState=null;await refresh();show("landing")}};
-$("#gameMenuBtn")?.addEventListener("click",()=>openModal(`<div class="eyebrow">選單</div><h2>旅程設定</h2><p class="muted">一般冒險期間把系統設定收起，避免打斷場景。</p><div class="lore-list"><button class="secondary" data-system-open="aiSettingsBtn">AI 設定</button><button class="secondary" data-system-open="saveToolsBtn">存檔管理</button><button class="ghost" data-system-open="helperBtn">旅途助手</button><button class="ghost" data-system-open="runtimeBtn">異界狀態</button><button class="ghost" data-system-open="historyBtn">旅程紀錄</button><button class="ghost" data-system-open="impactBtn">世界留下的痕跡</button><button class="ghost danger-ghost" data-system-open="resetBtn">重置世界</button></div>`));
+$("#gameMenuBtn")?.addEventListener("click",()=>openModal(`<div class="eyebrow">選單</div><h2>旅程設定</h2><p class="muted">一般冒險期間把系統設定收起，避免打斷場景。</p><div class="lore-list"><button class="secondary" data-system-open="aiSettingsBtn">AI 設定</button><button class="secondary" data-system-open="saveToolsBtn">存檔管理</button><button class="ghost" data-system-open="helperBtn">旅途助手</button><button class="ghost" data-system-open="runtimeBtn">異界狀態</button><button class="ghost" data-system-open="historyBtn">旅程紀錄</button><button class="ghost" data-system-open="debugBtn">Debug 診斷</button><button class="ghost" data-system-open="impactBtn">世界留下的痕跡</button><button class="ghost danger-ghost" data-system-open="resetBtn">重置世界</button></div>`));
 $("#modalContent")?.addEventListener("click",e=>{const id=e.target.closest("[data-system-open]")?.dataset.systemOpen;if(id)document.getElementById(id)?.click()});
 $("#moreBtn")?.addEventListener("click",()=>$("#gameMenuBtn")?.click());
 qsa("[data-nav-home]").forEach(b=>b.addEventListener("click",()=>{$("#modal")?.classList.add("hidden");$(".scene")?.scrollIntoView({behavior:"smooth",block:"start"})}));
