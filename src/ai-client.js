@@ -1,13 +1,13 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=273";
-import {seedDirective} from "./seed-contract.js?v=273";
-import {recognitionForNpc} from "./recognition-engine.js?v=273";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=273";
-import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=273";
-import {sanitizePlayerText} from "./runtime-guard.js?v=273";
-import {helperSnapshot} from "./helper-context.js?v=273";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=273";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=273";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=273";
+import {hasDirectAI,directChat} from "./ai-settings.js?v=274";
+import {seedDirective} from "./seed-contract.js?v=274";
+import {recognitionForNpc} from "./recognition-engine.js?v=274";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "./world-compiler.js?v=274";
+import {sceneTurnSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=274";
+import {sanitizePlayerText} from "./runtime-guard.js?v=274";
+import {helperSnapshot} from "./helper-context.js?v=274";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=274";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=274";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=274";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body){const r=await fetch(apiPath(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -29,10 +29,25 @@ async function worldStage(stage,args){
  try{return await withWorldAiSlot(async()=>parseJSON(await directChat(args)))}
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
-function compilerTimedOut(err){return /AI_TIMEOUT|WORLD_[A-Z_]+_FAILED:\s*AI_TIMEOUT/.test(String(err?.message||err||""))}
+function compilerRecoverable(err){return /AI_TIMEOUT|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|WORLD_[A-Z_]+_FAILED:\s*(AI_TIMEOUT|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d))/.test(String(err?.message||err||""))}
 async function resilientWorldStage(stage,args,fallback){
  try{return await worldStage(stage,args)}
- catch(err){if(compilerTimedOut(err))return structuredClone(typeof fallback==="function"?fallback():fallback);throw err}
+ catch(err){if(compilerRecoverable(err))return structuredClone(typeof fallback==="function"?fallback():fallback);throw err}
+}
+function identityFallback(expected,seed){
+ return normalizeWorldIdentity({},expected,seed)
+}
+function coreRulesFallback(identity){
+ const highMagic=identity.magic>=4,highCiv=identity.danger>=0&&identity.politics>=0&&identity.scale&&identity.magic>=0;
+ const civLevel=Math.max(1,Math.min(5,Math.round((identity.magic+identity.politics+2)/2)));
+ let communication;
+ if(highMagic)communication={name:"共鳴信標",medium:"刻印水晶與共鳴節點",description:"以本世界力量規則驅動的有限遠距聯絡網，只能聯絡已建立關係的人或節點。",latency:"NEAR_INSTANT",range:civLevel>=4?"WORLD":"REGIONAL",accessRule:"ENCOUNTERED",constraints:"需要穩定節點與能量，危機或異常天候會干擾"};
+ else if(civLevel>=4)communication={name:"驛塔訊鏈",medium:"固定驛塔與信號中繼",description:"依賴成熟基建逐站傳遞訊息，速度快但不是即時通訊。",latency:"DELAYED",range:"REGIONAL",accessRule:"ENCOUNTERED",constraints:"只覆蓋主要聚落與道路，斷路時失效"};
+ else communication={name:"行旅信使",medium:"信使、商隊與地方驛點",description:"訊息必須跟隨實際旅程移動，符合較低文明的交通條件。",latency:"DELAYED",range:"LOCAL",accessRule:"ENCOUNTERED",constraints:"受道路、天候與危險地區影響"};
+ return {worldBible:{era:"現世紀",centralConflict:`「${identity.worldTheme}」造成的資源、制度與生存方式衝突正逐步失衡。`,magicCost:`任何超常力量都必須支付與「${identity.worldTheme}」直接相關的可觀察代價，無法無限免費使用。`,ancientTruth:`現代社會對「${identity.worldTheme}」的理解只掌握表層，真正起源仍被歷史斷層掩埋。`,currentCrisis:`維持現有秩序的機制正在失效，使「${identity.worldTheme}」由背景規則變成迫近所有人的危機。`,tone:"陌生、探索、因果明確且帶有生存壓力",civilization:{level:civLevel,stage:civLevel<=2?"地方聚落文明":civLevel<=4?"區域網絡文明":"高度組織文明",infrastructure:civLevel<=2?"道路與地方設施有限":civLevel<=4?"主要聚落間有穩定交通與公共設施":"跨區域基建成熟但仍受世界規則限制",literacy:civLevel<=2?"知識主要由口述、宗教或少數書記保存":"多數聚落具有制度化記錄與教育",mobility:civLevel<=2?"主要依靠步行、獸力與商隊":"主要區域之間存在固定交通網"},communication}}
+}
+function coreAnchorFallback(identity){
+ return {summary:`「${identity.worldTheme}」不只是傳說，而係會直接改變文明生活、地理環境與危機走向的世界規則。`,worldBible:{startingRegion:`${identity.worldName}邊境域`,startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{identity:`天候會受到「${identity.worldTheme}」直接影響，出現現實世界不存在的異常現象。`,source:identity.worldTheme,cycle:"隨地區、世界狀態與危機程度變化",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆相風",observableName:"風向與落物方向短暫相反",description:"局部空間規則出現偏移，風與輕物會違反平常方向。",sensoryCue:"衣角與塵埃同時逆向飄動",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"界鳴霧",observableName:"霧中遠近聲音次序混亂",description:"霧層令聲音傳播次序失常，使距離判斷變得不可靠。",sensoryCue:"近處聲音延遲、遠處聲音反而清晰",rarity:"RARE",danger:2}]},},publicFacts:[`居民普遍知道「${identity.worldTheme}」會影響日常生活與出行。`,"不同地區會用各自方法適應異常環境，沒有全世界通用的制度。"],hiddenFacts:[`「${identity.worldTheme}」目前的表現並非世界最初狀態。`,"當前危機與被遺忘的舊世界機制存在直接因果關係。"]}
 }
 function historyFallback(anchor){
  return [
@@ -64,41 +79,41 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract;
  const chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
  if(hasDirectAI()){
-  report(42,"世界核心","AI 正在建立精簡世界核心與 Seed Contract");
-  let core=normalizeWorldCoreCandidate(await worldStage("CORE",{
-   timeoutMs:95000,
-   retryOnTimeout:false,
-   maxOutputTokens:2200,
-   system:`你是 Elyndra World Architect · Core Compiler。你只負責世界核心，不生成曆法、Timeline、地點列表、NPC列表或任務列表。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時必須遵守玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation；worldviewMode=ai 時必須自行決定 genre/theme/scale/danger/magic/politics，六者形成有因果的一致世界觀。不得採用現實地球公曆、現實國家制度或全球統一金幣作預設。你必須先定義 civilization.level 1-5，再設計符合「文明程度 + 魔法普及度 + 世界文化」的聯絡方式；低文明低魔法只可有信使／驛站等延遲通訊，只有文明或魔法足以支持時才可有即時或近即時遠距對話，不得無理由直接套用現實互聯網。你亦必須定義本世界獨有 Weather Canon：天氣不必遵循現實地球，可由魔力、天體、浮游物質、世界法則或其他設定形成；至少一種現象必須明顯屬於這個異世界，而不是單純晴雨雪換名。CORE 只需輸出每種天氣的身份、感官、稀有度與危險度；duration、weight、actionModifiers、tags、transitions 由 Engine 正規化補預設，禁止為這些欄位浪費輸出。seed.playerName 有值必須原樣保留。只輸出 JSON，不要 Markdown。`,
-   user:JSON.stringify({seed,seedDirective:{contract:directive.contract,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy},required:{
-    worldName:"string",worldTheme:"具體核心主題",playerName:"string",summary:"80-160字世界概要",
-    seedCompliance:{
-     genre:{value:chosen(expected.genre),evidence:"12-40字具體 evidence"},
-     theme:{value:"必須與 worldTheme 完全相同",evidence:"12-40字具體 evidence"},
-     scale:{value:chosen(expected.scale),evidence:"12-40字具體 evidence"},
-     danger:{value:auto?"1-5整數":expected.danger,evidence:"12-40字具體 evidence"},
-     magic:{value:auto?"1-5整數":expected.magic,evidence:"12-40字具體 evidence"},
-     politics:{value:auto?"1-5整數":expected.politics,evidence:"12-40字具體 evidence"},
-     ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"如何落實玩家自訂要求"}}:{})
-    },
-    worldBible:{era:"世界自己的時代稱呼",centralConflict:"核心衝突",magicCost:"魔法硬規則與代價",startingRegion:"真實開局區域",startingSettlement:"附近第一個文明聚落",startingLocation:"玩家真實出生位置名稱",ancientTruth:"玩家未知深層真相",currentCrisis:"正在發展中的危機",tone:"敘事氣氛",civilization:{level:"1-5整數，1=分散聚落，5=高度網絡化",stage:"世界內文明階段名稱",infrastructure:"基建程度",literacy:"教育／識字狀況",mobility:"人口與交通流動方式"},communication:{name:"符合文明與魔法程度的遠距聯絡方式",medium:"世界內媒介",description:"如何運作且為何符合文明程度",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"},weatherSystem:{identity:"這個世界的天氣法則，20-60字",source:"天氣來源",cycle:"如何隨時間或地區變化",forecastability:"LOW|MEDIUM|HIGH",phenomena:Array.from({length:2},(_,i)=>({id:`WTH-${i+1}`,name:"世界內正式名稱",observableName:"玩家感官描述",description:"20-40字",sensoryCue:"可直接感知變化",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}))}},
-    publicFacts:["2-3項簡潔公開事實"],
-    hiddenFacts:["2-3項簡潔真正秘密"]
-   }})
-  }));
-  let coreIssues=worldCoreIssues(core);
+  report(42,"世界身份","先用短請求鎖定唯一 World Identity；失敗時由 Seed Contract 安全補上");
+  const identityRaw=await resilientWorldStage("IDENTITY",{
+   timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:500,
+   system:`你是 Elyndra World Identity Compiler。只決定最小世界身份，不生成文明細節、天氣、歷史、地點、NPC 或任務。worldviewMode=style 時 genre/scale/danger/magic/politics 必須完全遵守 expected；worldviewMode=ai 時可自行決定，但所有值必須互相形成同一個世界主題。worldTheme 必須具體、可驅動世界規則與衝突。只輸出 JSON。`,
+   user:JSON.stringify({seed,expected,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy,required:{worldName:"2-12字世界名",worldTheme:"具體核心主題",playerName:seed.playerName||"",genre:chosen(expected.genre),scale:chosen(expected.scale),danger:auto?"1-5":expected.danger,magic:auto?"1-5":expected.magic,politics:auto?"1-5":expected.politics,premise:"30-70字，解釋主題如何成為世界規則"}})
+  },()=>identityFallback(expected,seed));
+  const identity=normalizeWorldIdentity(identityRaw,expected,seed);
+
+  report(47,"雙 AI 世界核心","最多兩個 AI 同時生成規則與開局 Anchor；兩邊共享同一 World Identity Contract");
+  let [rulesRaw,anchorRaw]=await Promise.all([
+   resilientWorldStage("CORE_RULES",{
+    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:900,
+    system:`你是 Elyndra Core Rules Compiler。只能根據 identity 與 Seed Contract 補充世界硬規則：時代、核心衝突、魔法代價、古代真相、當前危機、敘事氣氛、文明程度與遠距通訊。不得改 worldName/worldTheme，不得生成地點、Weather、歷史 Timeline、NPC 或任務。civilization 與 communication 必須互相合理；低文明／低魔法不可無理由出現即時全球網絡。所有規則都必須直接服務 identity.worldTheme。只輸出 JSON。`,
+    user:JSON.stringify({identity,seedContract:expected,styleFoundation:directive.styleFoundation,required:{worldBible:{era:"世界自己的時代稱呼",centralConflict:"40-80字，直接源於 worldTheme",magicCost:"至少20字硬規則與代價",ancientTruth:"40-80字深層真相",currentCrisis:"40-80字正在發展危機",tone:"敘事氣氛",civilization:{level:"1-5",stage:"文明階段名稱",infrastructure:"基建程度",literacy:"教育／識字狀況",mobility:"交通與人口流動"},communication:{name:"世界內聯絡方式",medium:"媒介",description:"如何運作且為何符合文明／魔法程度",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}}}})
+   },()=>coreRulesFallback(identity)),
+   resilientWorldStage("CORE_ANCHOR",{
+    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1000,
+    system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
+    user:JSON.stringify({identity,seedContract:expected,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"玩家真實出生位置",weatherSystem:{identity:"20-50字天氣法則",source:"天氣來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項與 worldTheme 直接相關的公開事實"],hiddenFacts:["2-3項與 worldTheme/current premise 直接相關的秘密"]}})
+   },()=>coreAnchorFallback(identity))
+  ]);
+
+  const rulesRequired=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
+  let rules=rulesRaw;
+  if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication)rules=coreRulesFallback(identity);
+  let coreAnchor=anchorRaw;
+  if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts))coreAnchor=coreAnchorFallback(identity);
+
+  let core=mergeCoreWave(identity,expected,rules,coreAnchor),coreIssues=coreWaveIssues(identity,rules,coreAnchor,core);
   if(coreIssues.length){
-   report(50,"修復世界核心","核心回覆缺少必要欄位，正在局部修補而不重跑整個世界");
-   const repair=normalizeWorldCoreCandidate(await worldStage("CORE_REPAIR",{
-    timeoutMs:70000,
-    retryOnTimeout:false,
-    maxOutputTokens:1800,
-    system:`你是 Elyndra World Architect · Core Repair。上一輪已回傳合法 JSON，但 CORE 有缺欄位或不完整。你只修復 CORE，不生成曆法、Timeline、地點、NPC、任務。保留 previousCore 已有且合理的設定，只補 missingOrInvalid；必須回傳一份完整可獨立使用的 CORE JSON。世界主題、文明、通訊與 Weather Canon 必須互相一致；weatherSystem 至少 2 種代表性 phenomena，其中至少 1 種明顯屬於異世界；其餘 runtime 天候由 Engine 補足。publicFacts 與 hiddenFacts 各至少 2 項。只輸出 JSON，不要 Markdown。`,
-    user:JSON.stringify({seed,seedDirective:{contract:directive.contract,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy},missingOrInvalid:coreIssues,previousCore:core,required:{worldName:"string",worldTheme:"string",playerName:"string",summary:"80-160字",seedCompliance:"完整保留／補齊原 Seed Contract 對應值與 evidence",worldBible:{era:"string",centralConflict:"string",magicCost:"string",startingRegion:"string",startingSettlement:"string",startingLocation:"string",ancientTruth:"string",currentCrisis:"string",tone:"string",civilization:{level:"1-5",stage:"string",infrastructure:"string",literacy:"string",mobility:"string"},communication:{name:"string",medium:"string",description:"string",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"string"},weatherSystem:{identity:"string",source:"string",cycle:"string",forecastability:"LOW|MEDIUM|HIGH",phenomena:"至少2個精簡 objects；每個只需 id,name,observableName,description,sensoryCue,rarity,danger"}},publicFacts:["至少2項"],hiddenFacts:["至少2項"]}})
-   }));
-   core=mergeWorldCoreCandidates(core,repair);coreIssues=worldCoreIssues(core)
+   rules=coreRulesFallback(identity);coreAnchor=coreAnchorFallback(identity);
+   core=mergeCoreWave(identity,expected,rules,coreAnchor);coreIssues=coreWaveIssues(identity,rules,coreAnchor,core)
   }
   if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);
+  report(52,"世界核心完成","Identity、Rules、Anchor 已合併成單一 World Anchor Contract");
 
   const anchor=buildWorldAnchorContract(core,directive.timelinePacing);
   report(56,"雙 AI 編譯 Wave 1","最多兩個 AI 同時生成：過去歷史與開局地理；兩者共享同一 World Anchor Contract");
