@@ -63,7 +63,7 @@ function scheduleDeferredDirector(task,delay=900,{persistTask=true}={}){
  const queued={...task,id:task.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2),attempts:Number(task.attempts)||0,queuedAt:task.queuedAt||Date.now()};
  if(!deferredDirector.queue.some(x=>x.id===queued.id))deferredDirector.queue.push(queued);
  if(persistTask){gameState.world.deferredTurns??=[];if(!gameState.world.deferredTurns.some(x=>x.id===queued.id))gameState.world.deferredTurns.push(structuredClone(queued))}
- gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_QUEUED",visibility:"INTERNAL",action:queued.action,taskId:queued.id,day:gameState.world?.state?.day||1,at:Date.now()});
+ if(persistTask){gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"DEFERRED_TURN_QUEUED",visibility:"INTERNAL",action:queued.action,taskId:queued.id,day:gameState.world?.state?.day||1,at:Date.now()})}
  if(deferredDirector.timer)clearTimeout(deferredDirector.timer);
  deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},Math.max(250,Number(delay)||900))
 }
