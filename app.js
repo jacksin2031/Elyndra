@@ -15,7 +15,7 @@ import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/know
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=35000";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=37000";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=276";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=35000";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=37000";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=320";
 import {ensureCrisis} from "./src/crisis-engine.js?v=276";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=276";
