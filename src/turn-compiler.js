@@ -24,6 +24,11 @@ export function sceneTurnSnapshot(snapshot={}){
  }
 }
 
+export function sceneTurnPreview(scene,roll={},context={}){
+ const fallback=fallbackNarrative(context.action,roll),narrative=sanitizePlayerText(scene?.narrative,1200,fallback),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,""),suggestions=sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]);
+ return {narrative:narrative||fallback,sceneTitle,suggestions}
+}
+
 export function mergeTurnCandidates(scene,state,roll={},context={}){
  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("TURN_STATE_REQUIRED");
  const fallback=fallbackNarrative(context.action,roll),sceneText=sanitizePlayerText(scene?.narrative,1200,""),stateText=sanitizePlayerText(state.outcomeSummary,1200,"");
