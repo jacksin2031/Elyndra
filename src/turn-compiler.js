@@ -34,6 +34,7 @@ export function sceneTurnSnapshot(snapshot={}){
   companions:snapshot.companions,
   priorSuggestions:(snapshot.priorSuggestions||[]).slice(0,4),
   priorSuggestionIntents:(snapshot.priorSuggestionIntents||[]).slice(0,4),
+  knowledgeLayers:snapshot.knowledgeLayers?{version:snapshot.knowledgeLayers.version||1,playerKnowledge:structuredClone(snapshot.knowledgeLayers.playerKnowledge||{})}:null,
   recognition:{
    tier:snapshot.recognition?.tier,
    titles:snapshot.recognition?.titles||[],
