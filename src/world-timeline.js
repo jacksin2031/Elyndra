@@ -18,7 +18,7 @@ export function createTimelinePacing(playHours=15){
  }}
 }
 export function timelineAuthoringSlots(pacing=createTimelinePacing()){
- const count=Math.max(1,Math.round(Number(pacing.majorEventCount)||1)),horizon=Math.max(2,Math.round(Number(pacing.horizonDays)||2),),gap=Math.max(1,Math.round(Number(pacing.averageGapDays)||1)),out=[];
+ const count=Math.max(1,Math.round(Number(pacing.majorEventCount)||1)),horizon=Math.max(2,Math.round(Number(pacing.horizonDays)||2)),gap=Math.max(1,Math.round(Number(pacing.averageGapDays)||1)),out=[];
  let previous=2;
  for(let i=0;i<count;i++){
   const ratio=count===1?0:i/(count-1),target=Math.round(2+Math.max(0,horizon-2)*ratio),radius=Math.max(0,Math.floor(gap/2));
