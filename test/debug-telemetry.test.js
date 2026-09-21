@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {normalizeProviderUsage,estimateTextTokens,recordAIUsage,telemetryEntries,telemetrySummary,debugBundle,clearDebugTelemetry} from "../src/debug-telemetry.js";
+import {PROVIDERS,saveAISettings,clearAISettings,directChat} from "../src/ai-settings.js";
 
 function memoryStorage(){
  const data=new Map();
@@ -74,4 +75,22 @@ test("in-game Debug UI exposes token accounting and JSON TXT export",async()=>{
  assert.match(css,/\.debug-table/);
  assert.match(settings,/recordAIUsage/);
  assert.match(settings,/usageMetadata|debug-telemetry/)
+});
+
+
+test("direct OpenAI-compatible response writes real API usage into telemetry",async()=>{
+ const priorStorage=globalThis.localStorage,priorFetch=globalThis.fetch;globalThis.localStorage=memoryStorage();
+ try{
+  clearDebugTelemetry();clearAISettings();
+  saveAISettings({provider:"openai",apiKey:"k",endpoint:PROVIDERS.openai.endpoint,optimization:"standard"});
+  globalThis.fetch=async()=>({ok:true,json:async()=>({choices:[{message:{content:"OK"}}],usage:{prompt_tokens:33,completion_tokens:7,total_tokens:40,completion_tokens_details:{reasoning_tokens:3}}})});
+  assert.equal(await directChat({aiTask:"scene",system:"s",user:"u",timeoutMs:5000,retryOnTimeout:false}),"OK");
+  const row=telemetryEntries().filter(x=>x.type==="AI_REQUEST").at(-1);
+  assert.equal(row.data.provider,"openai");
+  assert.equal(row.data.task,"scene");
+  assert.equal(row.data.usage.source,"API");
+  assert.equal(row.data.usage.total,40);
+  assert.equal(row.data.usage.reasoning,3);
+  assert.equal(row.data.responsePreview,"OK")
+ }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
 });
