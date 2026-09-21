@@ -1,6 +1,6 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=273";
-import {recordCausalEvent} from "./knowledge-graph.js?v=273";
-import {localCurrencyReward} from "./world-locality.js?v=273";
+import {ensureWorldRegistry} from "./world-registry.js?v=274";
+import {recordCausalEvent} from "./knowledge-graph.js?v=274";
+import {localCurrencyReward} from "./world-locality.js?v=274";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const CONDITION_TYPES=new Set(["FACT_KNOWN","ITEM_OWNED","ENTITY_KNOWN","EVENT_OCCURRED","LOCATION_STATE","NPC_STATE","FACTION_STATE"]);
