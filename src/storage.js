@@ -1,4 +1,4 @@
-import {assertSaveState} from "./state-validator.js?v=272";
+import {assertSaveState} from "./state-validator.js?v=273";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=11;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);const MIGRATION_RENOWN={PERSONAL:1,LOCAL:4,REGIONAL:10,FACTION:15,WORLD:25};const LEGACY_SUGGESTIONS=["觀察目前環境","確認自己的狀態","尋找可以安全前進的方向"];
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}

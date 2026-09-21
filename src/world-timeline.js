@@ -41,7 +41,8 @@ export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
   if(!title||directorTruth.length<8||observableEffect.length<8)continue;
   const id=clean(x.id,100)||"TL-"+(i+1)+"-"+hash(title+"|"+earliestDay+"|"+latestDay);
   const triggerDay=earliestDay+(hash(id+"|"+title)%(latestDay-earliestDay+1));
-  out.push({id,title,category:clean(x.category,60)||"WORLD_EVENT",earliestDay,latestDay,triggerDay,baseTriggerDay:triggerDay,impactOffsetDays:0,intensityModifier:0,impactHistory:[],directorTruth,observableEffect,pressure:clamp(Math.round(Number(x.pressure)||0),0,15),status:"SCHEDULED",triggeredDay:null})
+  const links=x.links&&typeof x.links==="object"&&!Array.isArray(x.links)?{historyRefs:[...new Set((Array.isArray(x.links.historyRefs)?x.links.historyRefs:[]).map(v=>clean(v,100)).filter(Boolean))].slice(0,4),locationRefs:[...new Set((Array.isArray(x.links.locationRefs)?x.links.locationRefs:[]).map(v=>clean(v,120)).filter(Boolean))].slice(0,4)}:{historyRefs:[],locationRefs:[]};
+  out.push({id,title,category:clean(x.category,60)||"WORLD_EVENT",earliestDay,latestDay,triggerDay,baseTriggerDay:triggerDay,impactOffsetDays:0,intensityModifier:0,impactHistory:[],directorTruth,observableEffect,pressure:clamp(Math.round(Number(x.pressure)||0),0,15),links,status:"SCHEDULED",triggeredDay:null})
  }
  return out
 }

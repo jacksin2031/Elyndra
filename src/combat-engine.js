@@ -1,9 +1,9 @@
-import {d20} from "./world-engine.js?v=272";
-import {advanceTime} from "./world-clock.js?v=272";
-import {tickWorld} from "./world-simulation.js?v=272";
-import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=272";
-import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=272";
-import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=272";
+import {d20} from "./world-engine.js?v=273";
+import {advanceTime} from "./world-clock.js?v=273";
+import {tickWorld} from "./world-simulation.js?v=273";
+import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=273";
+import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=273";
+import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=273";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const ABILITY_KINDS=new Set(["ATTACK","HEAVY","STATUS","HEAL"]);

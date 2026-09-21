@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate} from "../src/world-compiler.js";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "../src/world-compiler.js";
 import {normalizeWeatherSystem} from "../src/weather-engine.js";
 
 test("AI-selected worldTheme becomes the single canonical seed-compliance theme",()=>{
@@ -62,4 +62,34 @@ test("two authored isekai weather phenomena are enough for Core and Engine expan
  assert.equal(runtime.phenomena.length,4);
  assert.equal(runtime.phenomena[0].name,"倒雨");
  assert.equal(runtime.phenomena[1].name,"聲霧")
+});
+
+
+test("two-agent waves share one anchor and Engine validates cross-stage references",()=>{
+ const core={worldName:"潮界",worldTheme:"天空潮汐",publicFacts:["燈塔會預報潮向","旅人依鐘聲辨路"],worldBible:{startingRegion:"灰岸",startingSettlement:"燈港",startingLocation:"潮門",centralConflict:"王庭控制潮汐預報",currentCrisis:"預報開始失真",magicCost:"施術會遺失最近記憶",era:"潮紀",tone:"未知與壓迫",civilization:{level:3},communication:{name:"燈鏈"},weatherSystem:{phenomena:[{id:"WTH-1",name:"倒雨"},{id:"WTH-2",name:"聲霧"}]}}};
+ const anchor=buildWorldAnchorContract(core,{majorEventCount:4,horizonDays:8});
+ const history=[{id:"HIST-1"},{id:"HIST-2"},{id:"HIST-3"}];
+ const geography={openingHook:"潮聲由頭頂傳來。",location:{name:"潮門",region:"灰岸",type:"港門",description:"石門向天空滴水。"}};
+ const society={locationRef:"潮門",historyRefs:["HIST-1"],locationCulture:{identity:"以潮汐鐘聲維持生活"},locationTrade:{mode:"barter"},faction:{name:"燈港會",goal:"維持預報",locationName:"潮門",historyRefs:["HIST-1"]}};
+ const future={worldTimeline:[{title:"預報斷裂",links:{historyRefs:["HIST-2"],locationRefs:["STARTING_REGION"]}}]};
+ const cast={npcs:[{name:"米拉",locationName:"潮門",historyRefs:["HIST-1"]}],sideQuests:[{title:"找回舊潮表",locationName:"潮門",historyRefs:["HIST-2"]}]};
+ assert.equal(anchor.startingLocation,"潮門");
+ assert.equal(mergeOpeningRegion(anchor,geography,society).locations[0].culture.identity,"以潮汐鐘聲維持生活");
+ assert.deepEqual(worldGenerationLinkIssues({anchor,history,geography,society,future,cast}),[]);
+ const broken={...society,historyRefs:["HIST-NOPE"]};
+ assert.ok(worldGenerationLinkIssues({anchor,history,geography,society:broken,future,cast}).includes("SOCIETY_HISTORY_REF_INVALID"))
+});
+
+
+test("link validation rejects disconnected future events and cast content",()=>{
+ const anchor={startingLocation:"潮門",startingRegion:"灰岸"};
+ const history=[{id:"HIST-1"},{id:"HIST-2"},{id:"HIST-3"}];
+ const geography={location:{name:"潮門",region:"灰岸"}};
+ const society={locationRef:"潮門",historyRefs:["HIST-1"],faction:{name:"燈港會",locationName:"潮門"}};
+ const future={worldTimeline:[{title:"無來源事件",links:{historyRefs:[],locationRefs:[]}}]};
+ const cast={npcs:[{name:"米拉",locationName:"其他地方",historyRefs:[]}],sideQuests:[{title:"無關支線",historyRefs:[]}]};
+ const issues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
+ assert.ok(issues.includes("FUTURE_0_LINK_REQUIRED"));
+ assert.ok(issues.includes("CAST_NPC_0_LOCATION_INVALID"));
+ assert.ok(issues.includes("CAST_QUEST_0_LINK_REQUIRED"))
 });
