@@ -5,6 +5,7 @@ const uniq=v=>[...new Set(v)];
 const hash=s=>{let h=2166136261;for(let i=0;i<String(s).length;i++){h^=String(s).charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0};
 const rng=seed=>{let x=hash(seed)||0x9e3779b9;return()=>{x+=0x6D2B79F5;let t=x;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}};
 const pick=(r,rows)=>rows[Math.min(rows.length-1,Math.floor(r()*rows.length))];
+export const BLUEPRINT_SOURCES=Object.freeze({USER:"USER",STYLE:"STYLE",RANDOM:"RANDOM",AI_INFERRED:"AI_INFERRED"});
 
 export const DIFFICULTY_PRESETS=Object.freeze({
  easy:Object.freeze({id:"easy",label:"簡單",hunger:false,fatigue:false,statusEffects:false,hpFloor:1,savePolicy:"FREE",languageBarrier:"LOW",injuryRecovery:"FAST",carryWeight:"RELAXED",environment:"RELAXED",permadeath:false}),
@@ -93,7 +94,7 @@ export function createWorldCreationDraft(raw={}){
 
 function resolveField(f,key,styleBase,r,opts={}){
  const mode=f?.mode||"style",min=opts.min??1,max=opts.max??5,locked=f?.locked===true;
- let value=f?.value,source=locked?"player_locked":mode==="fixed"?"player_explicit":mode==="random"?"random":"style_inferred";
+ let value=f?.value,source=locked||mode==="fixed"?BLUEPRINT_SOURCES.USER:mode==="random"?BLUEPRINT_SOURCES.RANDOM:BLUEPRINT_SOURCES.STYLE;
  if(!locked&&mode==="style"&&styleBase?.[key]!=null)value=styleBase[key];
  if(!locked&&mode==="random"){
   if(opts.values)value=pick(r,opts.values);
@@ -126,7 +127,7 @@ export function resolveWorldBlueprint(draft){
  return {
   schemaVersion:2,
   masterSeed:d.masterSeed,
-  style:{value:style,source:d.basic.worldStyle.mode==="fixed"?"player_explicit":"style_inferred",locked:d.basic.worldStyle.locked===true},
+  style:{value:style,source:d.basic.worldStyle.locked===true||d.basic.worldStyle.mode==="fixed"?BLUEPRINT_SOURCES.USER:d.basic.worldStyle.mode==="random"?BLUEPRINT_SOURCES.RANDOM:BLUEPRINT_SOURCES.STYLE,locked:d.basic.worldStyle.locked===true},
   scale,
   targetPlayHours:d.basic.targetPlayHours,
   difficulty:d.basic.difficulty,
@@ -164,6 +165,34 @@ function originProfile(origin){
  }
 }
 
+export function worldBlueprintProfile(blueprint){
+ const b=blueprint,d=DIFFICULTY_PRESETS[b.difficulty]||DIFFICULTY_PRESETS.normal,a=b.advanced,origin=ORIGIN_PRESETS[b.player.origin.type]||ORIGIN_PRESETS.custom,role=ROLE_PRESETS[b.player.role.type]||ROLE_PRESETS.custom;
+ const row=x=>({value:x?.value,source:x?.source||BLUEPRINT_SOURCES.AI_INFERRED,locked:x?.locked===true});
+ return {
+  version:1,
+  origin:{type:origin.id,source:BLUEPRINT_SOURCES.USER,knowledgePolicy:origin.knowledgePolicy,languagePolicy:origin.languagePolicy},
+  playerRole:{type:role.id,source:BLUEPRINT_SOURCES.USER},
+  difficulty:{value:b.difficulty,source:BLUEPRINT_SOURCES.USER},
+  civilizationLevel:row(a.civilizationLevel),
+  technologyLevel:row(a.technologyLevel),
+  magicLevel:row(a.magicLevel),
+  civilizationCount:row(a.civilizationCount),
+  speciesCount:row(a.speciesCount),
+  languageCount:row(a.languageCount),
+  politicalUnity:row(a.politicalUnity),
+  religionInfluence:row(a.religionInfluence),
+  resourceAbundance:row(a.resourceAbundance),
+  worldDanger:row(a.worldDanger),
+  warState:row(a.warState),
+  unknownRatio:row(a.unknownRatio),
+  survivalIntensity:row(a.survivalIntensity),
+  languageDifficulty:{value:d.languageBarrier,source:BLUEPRINT_SOURCES.USER},
+  survivalRules:{hunger:d.hunger,fatigue:d.fatigue,statusEffects:d.statusEffects,hpFloor:d.hpFloor,injuryRecovery:d.injuryRecovery,carryWeight:d.carryWeight,environment:d.environment,permadeath:d.permadeath},
+  mustExist:[...b.rules.required],mayExist:[...b.rules.allowed],forbidden:[...b.rules.forbidden],storyTendencies:[...b.storyPreferences],
+  inspiration:clean(b.customWorldDescription,500),targetPlayHours:b.targetPlayHours
+ }
+}
+
 export function compileWorldCreation(draft){
  const blueprint=resolveWorldBlueprint(draft),constitution=buildWorldConstitution(blueprint),difficultyRules=structuredClone(DIFFICULTY_PRESETS[blueprint.difficulty]),role=ROLE_PRESETS[blueprint.player.role.type]||ROLE_PRESETS.custom;
  const advanced=blueprint.advanced;
@@ -176,7 +205,7 @@ export function compileWorldCreation(draft){
   blueprint.storyPreferences.length&&`故事傾向：${clean(blueprint.storyPreferences.join("；"),220)}`,
   blueprint.customWorldDescription&&`世界願望：${clean(blueprint.customWorldDescription,320)}`
  ].filter(Boolean);
- const creationV2={schemaVersion:2,draft:structuredClone(draft),blueprint,constitution,difficultyRules,originProfile:originProfile(blueprint.player.origin),role:{id:role.id,label:role.label,custom:blueprint.player.role.custom,bias:structuredClone(role.bias)},contract:null};
+ const blueprintProfile=worldBlueprintProfile(blueprint),creationV2={schemaVersion:2,draft:structuredClone(draft),blueprint,blueprintProfile,constitution,difficultyRules,originProfile:originProfile(blueprint.player.origin),role:{id:role.id,label:role.label,custom:blueprint.player.role.custom,bias:structuredClone(role.bias)},contract:null};
  return {
   playerName:blueprint.player.name,
   worldviewMode:"style",
@@ -188,6 +217,7 @@ export function compileWorldCreation(draft){
   playHours:blueprint.targetPlayHours,
   prompt:clean(clauses.join("\n"),800),
   worldCreationSeed:blueprint.masterSeed,
+  blueprintProfile,
   creationV2
  }
 }
@@ -203,10 +233,11 @@ function positiveMention(source,term){
  return false
 }
 export function validateWorldCreationCandidate(seed,candidate){
- const creation=seed?.creationV2,errors=[];if(!creation)return {valid:true,errors};
- const rules=creation.blueprint?.rules||{required:[],forbidden:[]};
+ const creation=seed?.creationV2,errors=[];if(!creation)return {valid:true,errors,compliance:{}};
+ const rules=creation.blueprint?.rules||{required:[],forbidden:[]},expected=creation.blueprintProfile||worldBlueprintProfile(creation.blueprint),actual=candidate?.worldBible?.blueprintProfile;
+ const bible={...(candidate?.worldBible||{})};delete bible.blueprintProfile;
  const searchable=JSON.stringify({
-  worldTheme:candidate?.worldTheme||"",summary:candidate?.summary||"",worldBible:candidate?.worldBible||{},
+  worldTheme:candidate?.worldTheme||"",summary:candidate?.summary||"",worldBible:bible,
   publicFacts:candidate?.publicFacts||[],hiddenFacts:candidate?.hiddenFacts||[],worldHistory:candidate?.worldHistory||[],
   generation:candidate?.generation||{}
  }).toLocaleLowerCase();
@@ -216,7 +247,25 @@ export function validateWorldCreationCandidate(seed,candidate){
   history:candidate?.worldHistory||[],generation:candidate?.generation||{}
  });
  for(const term of rules.forbidden||[])if(term&&positiveMention(generated,term))errors.push("WC2_FORBIDDEN_PRESENT:"+term);
- return {valid:errors.length===0,errors}
+ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),pass=(ok,evidence)=>({status:ok?"PASS":"FAIL",evidence});
+ const originOk=same(actual?.origin,expected.origin),techOk=same(actual?.technologyLevel,expected.technologyLevel),civOk=same(actual?.civilizationLevel,expected.civilizationLevel)&&same(actual?.civilizationCount,expected.civilizationCount),difficultyOk=same(actual?.difficulty,expected.difficulty)&&same(actual?.languageDifficulty,expected.languageDifficulty)&&same(actual?.survivalRules,expected.survivalRules);
+ if(!actual)errors.push("BLUEPRINT_PROFILE_REQUIRED");
+ else{
+  if(!originOk)errors.push("BLUEPRINT_ORIGIN_MISMATCH");
+  if(!techOk)errors.push("BLUEPRINT_TECH_MISMATCH");
+  if(!civOk)errors.push("BLUEPRINT_CIVILIZATION_MISMATCH");
+  if(!difficultyOk)errors.push("BLUEPRINT_DIFFICULTY_MISMATCH")
+ }
+ const forbiddenOk=!errors.some(x=>x.startsWith("WC2_FORBIDDEN_PRESENT:")),mustOk=!errors.some(x=>x.startsWith("WC2_REQUIRED_MISSING:"));
+ const compliance={
+  ORIGIN_COMPLIANCE:pass(originOk,`origin=${expected.origin.type}`),
+  TECH_COMPLIANCE:pass(techOk,`technologyLevel=${expected.technologyLevel.value}; source=${expected.technologyLevel.source}`),
+  CIVILIZATION_COMPLIANCE:pass(civOk,`civilizationLevel=${expected.civilizationLevel.value}; count=${expected.civilizationCount.value}`),
+  DIFFICULTY_COMPLIANCE:pass(difficultyOk,`difficulty=${expected.difficulty.value}; language=${expected.languageDifficulty.value}`),
+  MUST_EXIST_COMPLIANCE:pass(mustOk,`required=${expected.mustExist.join("、")||"none"}`),
+  FORBIDDEN_CONTENT_COMPLIANCE:pass(forbiddenOk,`forbidden=${expected.forbidden.join("、")||"none"}`)
+ };
+ return {valid:errors.length===0,errors:[...new Set(errors)],compliance}
 }
 
 export function applyWorldCreationState(state,seed){
