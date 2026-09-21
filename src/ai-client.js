@@ -1,12 +1,12 @@
 import {hasDirectAI,directChat} from "./ai-settings.js?v=340";
-import {seedDirective} from "./seed-contract.js?v=276";
+import {seedDirective} from "./seed-contract.js?v=37000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=332";
+import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=37000";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=37000";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=35000";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=276";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=37000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance} from "./world-quality.js?v=300";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
@@ -188,7 +188,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const identityRaw=await resilientWorldStage("IDENTITY",{
    timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:500,
    system:`你是 Elyndra World Identity Compiler。只決定最小世界身份，不生成文明細節、天氣、歷史、地點、NPC 或任務。worldviewMode=style 時 genre/scale/danger/magic/politics 必須完全遵守 expected；worldviewMode=ai 時可自行決定，但所有值必須互相形成同一個世界主題。worldTheme 必須具體、可驅動世界規則與衝突。只輸出 JSON。`,
-   user:JSON.stringify({seed,expected,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy,required:{worldName:"2-12字世界名",worldTheme:"具體核心主題",playerName:seed.playerName||"",genre:chosen(expected.genre),scale:chosen(expected.scale),danger:auto?"1-5":expected.danger,magic:auto?"1-5":expected.magic,politics:auto?"1-5":expected.politics,premise:"30-70字，解釋主題如何成為世界規則"}})
+   user:JSON.stringify({seed,expected,blueprintProfile:directive.blueprintProfile,styleFoundation:directive.styleFoundation,randomEntropy:directive.randomEntropy,required:{worldName:"2-12字世界名",worldTheme:"具體核心主題",playerName:seed.playerName||"",genre:chosen(expected.genre),scale:chosen(expected.scale),danger:auto?"1-5":expected.danger,magic:auto?"1-5":expected.magic,politics:auto?"1-5":expected.politics,premise:"30-70字，解釋主題如何成為世界規則"}})
   },()=>identityFallback(expected,seed));
   const identity=normalizeWorldIdentity(identityRaw,expected,seed);
 
@@ -196,8 +196,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   let [rulesRaw,anchorRaw]=await Promise.all([
    resilientWorldStage("CORE_RULES",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:900,
-    system:`你是 Elyndra Core Rules Compiler。只能根據 identity 與 Seed Contract 補充世界硬規則：時代、核心衝突、魔法代價、古代真相、當前危機、敘事氣氛、文明程度與遠距通訊。不得改 worldName/worldTheme，不得生成地點、Weather、歷史 Timeline、NPC 或任務。civilization 與 communication 必須互相合理；低文明／低魔法不可無理由出現即時全球網絡。所有規則都必須直接服務 identity.worldTheme。只輸出 JSON。`,
-    user:JSON.stringify({identity,seedContract:expected,styleFoundation:directive.styleFoundation,required:{worldBible:{era:"世界自己的時代稱呼",centralConflict:"40-80字，直接源於 worldTheme",magicCost:"至少20字硬規則與代價",ancientTruth:"40-80字深層真相",currentCrisis:"40-80字正在發展危機",tone:"敘事氣氛",civilization:{level:"1-5",stage:"文明階段名稱",infrastructure:"基建程度",literacy:"教育／識字狀況",mobility:"交通與人口流動"},communication:{name:"世界內聯絡方式",medium:"媒介",description:"如何運作且為何符合文明／魔法程度",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}}}})
+    system:`你是 Elyndra Core Rules Compiler。blueprintProfile 是 Engine 已解析的硬性 World Blueprint，所有 resolved value 與 source 都不得改寫；你的工作是把它具體化為一致世界。只能根據 identity、Seed Contract 與 blueprintProfile 補充世界硬規則：時代、核心衝突、魔法代價、古代真相、當前危機、敘事氣氛、文明程度與遠距通訊。不得改 worldName/worldTheme，不得生成地點、Weather、歷史 Timeline、NPC 或任務。civilization 與 communication 必須互相合理；低文明／低魔法不可無理由出現即時全球網絡。所有規則都必須直接服務 identity.worldTheme。只輸出 JSON。`,
+    user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,styleFoundation:directive.styleFoundation,required:{worldBible:{era:"世界自己的時代稱呼",centralConflict:"40-80字，直接源於 worldTheme",magicCost:"至少20字硬規則與代價",ancientTruth:"40-80字深層真相",currentCrisis:"40-80字正在發展危機",tone:"敘事氣氛",civilization:{level:"1-5",stage:"文明階段名稱",infrastructure:"基建程度",literacy:"教育／識字狀況",mobility:"交通與人口流動"},communication:{name:"世界內聯絡方式",medium:"媒介",description:"如何運作且為何符合文明／魔法程度",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}}}})
    },()=>coreRulesFallback(identity)),
    resilientWorldStage("CORE_ANCHOR",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1000,
@@ -233,8 +233,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>({worldHistory:historyFallback(anchor)})),
    resilientWorldStage("GEOGRAPHY",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:800,
-    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的視角固定是一名來自現代地球的普通成年人：可以用現代常識辨認傷勢、材質、火、水、天氣、簡單機械與危險，但不可知道任何異世界專有名詞、魔法規則、地方文化、貨幣、歷史或人物；第一反應應是確認安全、身體與環境，再保留對超常現象的懷疑。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常，例如有人逃跑、鐘聲突然停止、傷者求助、入口封閉、追逐或突發破壞；玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
-    user:JSON.stringify({anchor,required:{openingHook:"80-160字零知識感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"地點類型",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
+    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的玩家起源只以 payload.playerOrigin 為權威；不得自行假設玩家來自現代地球。只可使用 playerOrigin.commonKnowledge、initialAssumptions 與 worldKnowledgeBoundary 決定玩家能理解甚麼；任何未授權異世界專有名詞、歷史、人物、魔法規則或地方文化都不可提前知道。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常，例如有人逃跑、鐘聲突然停止、傷者求助、入口封閉、追逐或突發破壞；玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
+    user:JSON.stringify({anchor,playerOrigin:seed.creationV2?.originProfile||null,required:{openingHook:"80-160字零知識感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"地點類型",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
    },()=>geographyFallback(anchor))
   ]);
   const historyReport=validateWorldHistory(historyRaw?.worldHistory);if(!historyReport.valid)markWorldFallback("HISTORY","VALIDATION_FAILED:"+historyReport.errors.join(","));const history=historyReport.valid?historyReport.history:historyFallback(anchor);
@@ -246,8 +246,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const [futureRaw,societyRaw]=await Promise.all([
    resilientWorldStage("FUTURE",{
     timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1450,
-    system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history 與 geography 生成世界曆法及未來 Timeline。每個未來事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要計日數。只輸出 JSON。`,
-    user:JSON.stringify({anchor,history,geography,timelineSlots:slots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`事件${i+1}`,category:"類型",directorTruth:"20-50字隱藏因果",observableEffect:"20-50字可觀察影響",pressure:"0-15",links:{historyRefs:["至少1個 HIST id"],locationRefs:["STARTING_LOCATION|STARTING_REGION 或 anchor 名稱"]}}))}})
+    system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history、geography 與 blueprintProfile.storyTendencies 生成世界曆法及「可能發生」的未來 Timeline。故事偏好不是固定劇情；每個事件必須提供 activationConditions / cancelConditions / escalationConditions，條件只可使用 DAY>=n、EVENT:TYPE、FACT:id、FLAG:key、LOCATION:name 及 NOT: 前綴。玩家能否阻止／加速以 playerCanPrevent / playerCanAccelerate 表示。每個事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要計日數。只輸出 JSON。`,
+    user:JSON.stringify({anchor,history,geography,blueprintProfile:directive.blueprintProfile,timelineSlots:slots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`事件${i+1}`,category:"類型",directorTruth:"20-50字隱藏因果",observableEffect:"20-50字可觀察影響",pressure:"0-15",activationConditions:["DAY>=2"],cancelConditions:["可空；EVENT:PEACE_TREATY 等"],escalationConditions:["可空；FLAG:war_tension 等"],playerCanPrevent:true,playerCanAccelerate:true,links:{historyRefs:["至少1個 HIST id"],locationRefs:["STARTING_LOCATION|STARTING_REGION 或 anchor 名稱"]}}))}})
    },()=>futureFallback(anchor,history,directive.timelinePacing)),
    resilientWorldStage("SOCIETY",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:950,
