@@ -111,6 +111,18 @@ async function runAction(action,customText=""){
  }
  const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;
  if(actionResult.blocked||actionResult.deterministic){
+  const itemResult=actionResult.ruleEffects?.item;
+  if(actionResult.deterministic&&itemResult?.ok&&["ITEM_SHOWN","ITEM_GIVEN"].includes(itemResult.action)&&itemResult.npcId&&aiStatus.aiConfigured){
+   const npc=findNpc(gameState,itemResult.npcId);
+   if(npc){
+    setAIThinking(true,`${npc.name} 正在對你展示的物品作出反應…`);
+    try{
+     const message=itemResult.action==="ITEM_GIVEN"?`我把「${itemResult.itemName}」交給你。`:`我向你展示「${itemResult.itemName}」。`;
+     const answer=await talkToDynamicNpc(gameState,npc,message,{mode:"LOCAL",communication:worldCommunication(gameState)});
+     if(answer)gameState.narrative+=(gameState.narrative?"\n\n":"")+answer
+    }catch(e){console.warn("item npc reaction fallback",e)}finally{setAIThinking(false)}
+   }
+  }
   gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);await persist();await refresh();return
  }
  if(aiStatus.aiConfigured){
