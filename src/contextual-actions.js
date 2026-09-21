@@ -41,7 +41,15 @@ export function normalizeContextualSuggestion(row={}){
   consequenceHint:clean(row.consequenceHint,90)||null,
   causalBasis:clean(row.causalBasis,180)||null,
   requirementsSatisfied:row.requirementsSatisfied!==false,
-  source:clean(row.source,30)||"AI"
+  source:clean(row.source,30)||"AI",
+  prevalidated:row.prevalidated===true,
+  validatedContext:row.validatedContext&&typeof row.validatedContext==="object"?{
+   worldId:String(row.validatedContext.worldId||""),
+   location:String(row.validatedContext.location||""),
+   day:Number(row.validatedContext.day)||1,
+   eventCount:Math.max(0,Number(row.validatedContext.eventCount)||0),
+   targetId:clean(row.validatedContext.targetId,100)||null
+  }:null
  }
 }
 function progressionSuggestion(state){
@@ -69,12 +77,20 @@ function fallbackByApproach(state,approach){
  if(approach==="BOLD")return normalizeContextualSuggestion({label:"冒險靠近最明顯的危險源",action:`直接靠近${loc}目前最明顯的危險或阻礙，嘗試在被迫撤退前確認它後面是否有可利用的通路或線索`,kind:"RISKY",risk:"HIGH",skillHint:"敏捷 / 體能",approach:"BOLD",consequenceHint:"可能受傷或暴露位置",causalBasis:"玩家可以選擇主動承擔場景風險",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`先觀察${loc}的出入口與新痕跡`,action:`保持可撤退距離，觀察${loc}的出入口、人流與最新痕跡，先確認哪個方向最值得行動`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前位置可直接觀察",requirementsSatisfied:true,source:"ENGINE"})
 }
+function contextSealCurrent(state,v){
+ if(!v)return false;
+ return String(v.worldId||"")===String(state.world?.id||"")
+  &&String(v.location||"")===String(state.player?.location||"")
+  &&Number(v.day)===(Number(state.world?.state?.day)||1)
+  &&Number(v.eventCount)===(Array.isArray(state.events)?state.events.length:0)
+}
 function seal(state,row){
  const x=normalizeContextualSuggestion(row);if(!x||x.requirementsSatisfied===false||(x.source==="AI"&&!x.causalBasis))return null;
+ if(x.prevalidated&&x.validatedContext)return contextSealCurrent(state,x.validatedContext)?x:null;
  return {...x,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:Array.isArray(state.events)?state.events.length:0,targetId:x.targetId||null}}
 }
 export function buildContextualActionSet(state,input=[]){
- const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&x.requirementsSatisfied!==false&&(x.source!=="AI"||Boolean(x.causalBasis))),8);
+ const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&x.requirementsSatisfied!==false&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))),8);
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))||progressionSuggestion(state);
  const personalized=personalizedSuggestion(state);
  const main=[];
@@ -103,7 +119,7 @@ export function buildContextualActionSet(state,input=[]){
 export function trustedSuggestionAssessment(state,row){
  const x=normalizeContextualSuggestion(row),v=row?.validatedContext;
  if(!x||row?.prevalidated!==true||!v)return null;
- if(String(v.worldId||"")!==String(state.world?.id||"")||String(v.location||"")!==String(state.player?.location||"")||Number(v.day)!==(Number(state.world?.state?.day)||1)||Number(v.eventCount)!==(Array.isArray(state.events)?state.events.length:0))return null;
+ if(!contextSealCurrent(state,v))return null;
  if(state.combat?.active||state.player?.status==="DOWNED")return null;
  if(v.targetId){
   const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===v.targetId);
