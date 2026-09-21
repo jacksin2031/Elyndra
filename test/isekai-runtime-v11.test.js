@@ -26,7 +26,7 @@ const game=()=>newGame(seed);
 
 test("save v11 migration initializes the new runtime without invalid state",()=>{
  const s=migrateSave(game());
- assert.equal(s.formatVersion,11);
+ assert.equal(s.formatVersion,12);
  assert.ok(s.world.travel);assert.ok(s.world.dungeons);assert.ok(s.world.magic);
  assert.ok(s.player.survival);assert.ok(s.player.magic);assert.ok(Array.isArray(s.player.talents));
  assert.equal(validateSaveState(s).valid,true)
