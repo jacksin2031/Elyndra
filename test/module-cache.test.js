@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.37.0 AI runtime dependency chain uses the 37000 cache generation",async()=>{
+test("v0.37.1 reloads changed world creation modules without invalidating unchanged runtime modules",async()=>{
  const [html,app,client,adventure,worldEngine,worldSimulation,worldImpact,gameEngine,npcConversation]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -22,8 +22,9 @@ test("v0.37.0 AI runtime dependency chain uses the 37000 cache generation",async
   readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=37000/);assert.match(html,/creator\.css\?v=37000/);
- for(const path of ["version","world-engine","ai-client","turn-compiler","adventure-engine","game-engine","world-simulation","npc-conversation","world-style-presets","world-creation","world-impact"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replace("-","\\-")+"\\.js\\?v=37000"),path);
+ assert.match(html,/app\.js\?v=37001/);assert.match(html,/creator\.css\?v=37000/);
+ for(const path of ["version","ai-client","world-creation"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replace("-","\\-")+"\\.js\\?v=37001"),path);
+ for(const path of ["world-engine","turn-compiler","adventure-engine","game-engine","world-simulation","npc-conversation","world-style-presets","world-impact"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replace("-","\\-")+"\\.js\\?v=37000"),path);
  for(const path of ["seed-contract","world-compiler","turn-compiler","world-timeline","action-intent","turn-outcome","ai-runtime-contracts"])assert.match(client,new RegExp("\\.\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=37000"),path);
  for(const path of ["world-timeline","world-impact","turn-compiler","knowledge-layers"])assert.match(adventure,new RegExp("\\.\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=37000"),path);
  assert.match(worldEngine,/\.\/seed-contract\.js\?v=37000/);assert.match(worldEngine,/\.\/world-timeline\.js\?v=37000/);

@@ -227,6 +227,22 @@ export function compileWorldCreation(draft){
  }
 }
 
+const REQUIRED_TERM_ALIASES=Object.freeze({
+ "人工智慧":["人工智慧","人工智能","artificial intelligence"],
+ "網絡通訊":["網絡通訊","網路通訊","網絡通信","網路通信","通訊網絡","通訊網路","通信網絡","通信網路","network communication","network communications"]
+});
+function normalizeRequirementText(value){
+ return String(value||"").normalize("NFKC").toLocaleLowerCase().replace(/[「」『』【】〈〉《》"'\`´’‘“”·・\\/\s_\-—–、，,。.!！？?：:；;（）()\[\]{}]+/g,"")
+}
+function requiredElementMentioned(source,term){
+ const raw=String(source||""),canonical=normalizeRequirementText(term);if(!canonical)return false;
+ const normalized=normalizeRequirementText(raw);
+ if(normalized.includes(canonical))return true;
+ const aliases=REQUIRED_TERM_ALIASES[String(term||"").trim()]||[];
+ if(aliases.some(alias=>normalized.includes(normalizeRequirementText(alias))))return true;
+ if(canonical==="人工智慧"&&/(^|[^a-z0-9])a\.?i\.?([^a-z0-9]|$)/i.test(raw))return true;
+ return false
+}
 function positiveMention(source,term){
  const s=String(source||"").toLocaleLowerCase(),t=String(term||"").toLocaleLowerCase();if(!t)return false;
  let at=s.indexOf(t);
@@ -246,7 +262,7 @@ export function validateWorldCreationCandidate(seed,candidate){
   publicFacts:candidate?.publicFacts||[],hiddenFacts:candidate?.hiddenFacts||[],worldHistory:candidate?.worldHistory||[],
   generation:candidate?.generation||{}
  }).toLocaleLowerCase();
- for(const term of rules.required||[])if(term&&!searchable.includes(String(term).toLocaleLowerCase()))errors.push("WC2_REQUIRED_MISSING:"+term);
+ for(const term of rules.required||[])if(term&&!requiredElementMentioned(searchable,term))errors.push("WC2_REQUIRED_MISSING:"+term);
  const generated=JSON.stringify({
   theme:candidate?.worldTheme||"",summary:candidate?.summary||"",facts:[...(candidate?.publicFacts||[]),...(candidate?.hiddenFacts||[])],
   history:candidate?.worldHistory||[],generation:candidate?.generation||{}
