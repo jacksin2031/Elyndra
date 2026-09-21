@@ -8,6 +8,7 @@ import {validateWorldHistory} from "./world-history.js?v=276";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=276";
 import {modernEarthOriginProfile} from "./player-origin.js?v=320";
 import {applyOpeningExperience} from "./player-experience.js?v=35000";
+import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=40000";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -51,13 +52,14 @@ export function validateWorld(world){
 }
 export function newGame(seed){
  const {world,report}=compileWorld(seed),requestedName=clean(seed?.playerName,40);
- return {formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationDiagnostics:null,quality:null,evolution:{lastMinute:-9999,lastVersion:0,count:0,lastReason:""}},integrity:report,
+ const state={formatVersion:1,world:{...world,registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationDiagnostics:null,quality:null,evolution:{lastMinute:-9999,lastVersion:0,count:0,lastReason:""}},integrity:report,
   player:{name:requestedName||"無名者",nameSource:requestedName?"USER":"AI_PENDING",worldNameKnown:false,calendarKnown:false,hp:100,maxHp:100,gold:0,wallet:{},knowledgeScore:0,location:"未知地點",origin:modernEarthOriginProfile(),stats:{strength:2,agility:2,mind:2,presence:2,instinct:2},skills:{OBSERVE:1,SOCIAL:1,TRAVEL:0,RISKY:0,GENERAL:1},skillProgress:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0,GENERAL:0}},
   inventory:[],knowledge:[],npcs:{},
   quests:{main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}},
   discoveries:0,suggestions:[],
   events:[{id:uuid(),type:"WORLD_CREATED",visibility:"PLAYER_KNOWN",day:1,at:Date.now()}],
-  narrative:"你在陌生的環境中醒來。作為一個來自現代地球的普通人，你第一反應是確認自己有沒有受傷、附近有沒有危險，以及眼前環境是否能用熟悉的常識解釋。你不知道這是哪裡，也不知道這個世界叫甚麼；任何異世界名稱、魔法、制度與文化都必須重新觀察和學習。你身上沒有任何預設物品，也沒有任何預設同伴。"}
+  narrative:"你在陌生的環境中醒來。作為一個來自現代地球的普通人，你第一反應是確認自己有沒有受傷、附近有沒有危險，以及眼前環境是否能用熟悉的常識解釋。你不知道這是哪裡，也不知道這個世界叫甚麼；任何異世界名稱、魔法、制度與文化都必須重新觀察和學習。你身上沒有任何預設物品，也沒有任何預設同伴。"};
+ ensureCausalWorldCore(state);return state
 }
 export function d20(dc,bonus=0){const natural=1+Math.floor(Math.random()*20),total=natural+bonus;const grade=natural===20?"CRITICAL_SUCCESS":natural===1?"CRITICAL_FAILURE":total>=dc?"SUCCESS":"FAILURE";return {natural,bonus,total,dc,grade,success:natural!==1&&(natural===20||total>=dc)}}
 export function discover(state,item,score=3){
@@ -92,5 +94,5 @@ export function applyWorldCandidate(state,candidate){
  const opening=sanitizePlayerText(candidate.openingHook,1000,"你在陌生的環境中醒來，只能先從眼前可見的事物判斷身處何方。");
  const suggestions=sanitizeSuggestions(candidate.suggestions,[]);
  const openingExperience=applyOpeningExperience(state,opening,suggestions);state.narrative=openingExperience.narrative;if(openingExperience.suggestions.length)state.suggestions=openingExperience.suggestions;
- state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;return report
+ state.world.version++;state.world.graph??={nodes:[],edges:[],expansions:[]};const report=validateWorld(state.world);if(!report.valid)throw new Error(report.errors.join(","));state.integrity=report;registerCanonizedWorld(state);return report
 }

@@ -2,6 +2,7 @@ import {assertSaveState} from "./state-validator.js?v=320";
 import {ensureItemRuntime} from "./item-engine.js?v=39000";
 import {ensureNotes} from "./notes-engine.js?v=320";
 import {ensurePlayerOrigin} from "./player-origin.js?v=320";
+import {ensureCausalWorldCore} from "./causal-world-core.js?v=40000";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=12;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);const MIGRATION_RENOWN={PERSONAL:1,LOCAL:4,REGIONAL:10,FACTION:15,WORLD:25};const LEGACY_SUGGESTIONS=["觀察目前環境","確認自己的狀態","尋找可以安全前進的方向"];
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}
@@ -57,7 +58,7 @@ export function migrateSave(input){
   s.crafting??={version:1,recipes:[]};s.notes=Array.isArray(s.notes)?s.notes:[];
   ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);v=12
  }
- ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);
+ ensurePlayerOrigin(s.player);ensureItemRuntime(s);ensureNotes(s);ensureCausalWorldCore(s);
  s.formatVersion=FORMAT_VERSION;return s
 }
 async function putSave(state,id="autosave",label=""){const clean=migrateSave(state);assertSaveState(clean);if(id==="autosave")Object.assign(state,clean);const record={...structuredClone(clean),id,savedAt:new Date().toISOString(),saveLabel:String(label||"").slice(0,80),formatVersion:FORMAT_VERSION};await tx("readwrite",s=>s.put(record));return record}

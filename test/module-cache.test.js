@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.39.0 Engine authority dependency chain uses cache generation 39000",async()=>{
+test("v0.40.0 causal core refreshes changed browser entrypoints",async()=>{
  const [html,app,client,adventure,game,simulation,npcConversation,npcDialogue,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -22,9 +22,14 @@ test("v0.39.0 Engine authority dependency chain uses cache generation 39000",asy
   readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=39000/);
+ assert.match(html,/app\.js\?v=40000/);
  assert.match(html,/styles\.css\?v=38001/);
- for(const path of ["version","ai-client","adventure-engine","game-engine","world-simulation","npc-conversation","world-impact","item-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=39000"),path);
+ assert.match(app,/\.\/src\/version\.js\?v=40000/);
+ assert.match(app,/\.\/src\/world-engine\.js\?v=40000/);
+ assert.match(app,/\.\/src\/storage\.js\?v=40000/);
+ for(const path of ["adventure-engine","game-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=40000"),path);
+ for(const path of ["ai-client","world-simulation","npc-conversation","world-impact","item-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=39000"),path);
+ assert.match(app,/\.\/src\/combat-engine\.js\?v=40000/);
  assert.match(client,/\.\/ai-runtime-contracts\.js\?v=39000/);
  assert.match(adventure,/\.\/world-impact\.js\?v=39000/);assert.match(adventure,/\.\/item-engine\.js\?v=39000/);
  assert.match(game,/\.\/world-simulation\.js\?v=39000/);assert.match(game,/\.\/item-engine\.js\?v=39000/);
