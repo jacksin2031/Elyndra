@@ -29,7 +29,7 @@ test("both direct and server world paths canonicalize theme before Engine valida
  ]);
  assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);
  assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
- assert.match(server,/normalizeWorldCoreCandidate\(JSON\.parse\(raw\)\)/);
+ assert.match(server,/import \{parseModelJSON\} from "\.\.\/src\/model-json\.js"/);\n assert.match(server,/normalizeWorldCoreCandidate\(parseModelJSON\(raw\)\)/);
 });
 
 
