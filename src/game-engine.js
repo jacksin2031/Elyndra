@@ -41,9 +41,18 @@ function localNarrative(label,roll,profile){
  if(roll.success)return `你完成了「${label}」，並取得可以直接確認的進展。`;
  return `你嘗試「${label}」，但這次沒有達成預期目的。從眼前反應看來，換一個方法會更有機會。`
 }
-export function performAction(state,action="free",customText=""){
+export function performAction(state,action="free",customText="",assessment=null){
  ensure(state);
- const label=clean(customText||action)||"觀察目前環境",profile=actionProfile(label),directItem=resolveItemAction(state,label,{success:true});
+ const originalLabel=clean(customText||action)||"觀察目前環境";
+ if(assessment?.verdict==="BLOCK"){
+  const reason=clean(assessment.reason,320)||"以你目前的狀態與條件，這個行動無法合理執行。",requirements=Array.isArray(assessment.requirements)?assessment.requirements.slice(0,4):[];
+  const text=requirements.length?`${reason}\n需要先滿足：${requirements.join("、")}`:reason;
+  state.narrative=text;state.events.push({id:id(),type:"PLAYER_ACTION_REJECTED",visibility:"PLAYER_KNOWN",action:"free",customText:originalLabel,reason,requirements,day:state.world.state.day,at:Date.now()});
+  return {blocked:true,feasibilityBlocked:true,roll:null,text,minutes:0,actionKind:String(assessment.kind||"GENERAL"),check:null,training:null,ruleEffects:{assessment}}
+ }
+ const label=assessment?.verdict==="ADJUST"&&clean(assessment.normalizedAction,180)?clean(assessment.normalizedAction,180):originalLabel;
+ const baseProfile=actionProfile(label),assessedKind=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].includes(String(assessment?.kind||"").toUpperCase())?String(assessment.kind).toUpperCase():baseProfile.kind;
+ const profile={...baseProfile,kind:baseProfile.kind==="RISKY"?"RISKY":assessedKind},directItem=resolveItemAction(state,label,{success:true});
  if(directItem?.handled){
   const minutes=Math.max(1,Math.round(Number(directItem.minutes)||2));advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL"}),questProgress=evaluateQuestState(state);
   const text=directItem.ok?(directItem.output?`你完成了「${directItem.recipe?.name||label}」，取得「${directItem.output.name}」。`:directItem.effects?`你使用了「${directItem.itemName}」。`:`你完成了「${label}」。`):directItem.reason==="MATERIALS_MISSING"?"材料不足，無法完成這項合成。":directItem.reason==="ITEM_NOT_USABLE"?"這件物品目前沒有可以直接使用的效果。":directItem.reason==="ITEM_NOT_OWNED"?"你目前沒有指定的物品。":"目前無法完成這個物品操作。";
@@ -60,7 +69,7 @@ export function performAction(state,action="free",customText=""){
  const culture=applyCultureAction(state,label,roll),magic=resolveMagicAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
  const text=localNarrative(label,roll,profile);
  state.narrative=text;
- state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
+ state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,originalAction:originalLabel,actionAssessment:assessment?{verdict:assessment.verdict,kind:assessment.kind,reason:assessment.reason,confidence:assessment.confidence}:null,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
  return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress}}
 }
