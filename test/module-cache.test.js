@@ -10,25 +10,29 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.38.3 refreshes contextual action seal and dual-AI timeout modules",async()=>{
- const [html,app,client,adventure,contextual]=await Promise.all([
+test("v0.39.0 Engine authority dependency chain uses cache generation 39000",async()=>{
+ const [html,app,client,adventure,game,simulation,npcConversation,npcDialogue,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8")
+  readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=38003/);
+ assert.match(html,/app\.js\?v=39000/);
  assert.match(html,/styles\.css\?v=38001/);
- assert.match(app,/\.\/src\/version\.js\?v=38003/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=38003/);
- assert.match(app,/\.\/src\/adventure-engine\.js\?v=38003/);
- assert.match(app,/\.\/src\/contextual-actions\.js\?v=38003/);
- assert.match(app,/\.\/src\/turn-compiler\.js\?v=38000/);
+ for(const path of ["version","ai-client","adventure-engine","game-engine","world-simulation","npc-conversation","world-impact","item-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=39000"),path);
+ assert.match(client,/\.\/ai-runtime-contracts\.js\?v=39000/);
+ assert.match(adventure,/\.\/world-impact\.js\?v=39000/);assert.match(adventure,/\.\/item-engine\.js\?v=39000/);
+ assert.match(game,/\.\/world-simulation\.js\?v=39000/);assert.match(game,/\.\/item-engine\.js\?v=39000/);
+ assert.match(simulation,/\.\/world-impact\.js\?v=39000/);
+ assert.match(npcConversation,/\.\/world-simulation\.js\?v=39000/);
+ assert.match(npcDialogue,/\.\/world-simulation\.js\?v=39000/);
+ assert.match(progression,/\.\/item-engine\.js\?v=39000/);
  assert.match(app,/\.\/src\/world-creation\.js\?v=37001/);
  assert.match(client,/\.\/world-compiler\.js\?v=38001/);
- assert.match(client,/\.\/turn-compiler\.js\?v=38000/);
- assert.match(client,/\.\/ai-runtime-contracts\.js\?v=38000/);
- assert.match(adventure,/\.\/contextual-actions\.js\?v=38003/);
- assert.match(contextual,/\.\/action-intent\.js\?v=38000/)
+ assert.match(app,/\.\/src\/contextual-actions\.js\?v=38003/)
 });
