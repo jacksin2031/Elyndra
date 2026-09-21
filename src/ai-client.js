@@ -293,6 +293,30 @@ export async function askTravelHelper(state,question){
  if(hasDirectAI()){const raw=await directChat({timeoutMs:30000,maxOutputTokens:700,temperature:.25,system,user:JSON.stringify({question:q,snapshot})});return sanitizePlayerText(raw,900,"目前沒有足夠情報確認。")}
  const raw=(await post("/api/helper",{question:q,snapshot})).text;return sanitizePlayerText(raw,900,"目前沒有足夠情報確認。")
 }
+function normalizeActionAssessment(raw,action){
+ const r=raw&&typeof raw==="object"?raw:{},verdict=["ALLOW","ADJUST","BLOCK"].includes(String(r.verdict||"").toUpperCase())?String(r.verdict).toUpperCase():"ALLOW",kind=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].includes(String(r.kind||"").toUpperCase())?String(r.kind).toUpperCase():"GENERAL";
+ return {verdict,kind,normalizedAction:sanitizePlayerText(r.normalizedAction,180,action)||action,reason:sanitizePlayerText(r.reason,320,""),requirements:Array.isArray(r.requirements)?r.requirements.map(x=>sanitizePlayerText(x,120,"")).filter(Boolean).slice(0,4):[],confidence:Math.max(0,Math.min(100,Math.round(Number(r.confidence)||70)))}
+}
+export async function assessPlayerAction(state,action){
+ const label=String(action||"").trim().slice(0,180);if(!label)throw new Error("ACTION_REQUIRED");
+ const snapshot=buildSnapshot(state),payload={action:label,snapshot};
+ if(!hasDirectAI())return {verdict:"ALLOW",kind:"GENERAL",normalizedAction:label,reason:"AI feasibility review unavailable; Engine hard rules still apply.",requirements:[],confidence:0,source:"LOCAL_FALLBACK"};
+ const raw=parseJSON(await directChat({
+  timeoutMs:28000,maxOutputTokens:650,temperature:.15,
+  system:`你是 Elyndra Action Feasibility Judge。你只判斷玩家提出的行動「目前是否可以合理嘗試」，不決定成功或失敗，不擲骰，不改任何狀態，也不創造 Canon。
+你必須根據 snapshot.player（HP、origin、checks）、snapshot.survival（satiety 100=完全飽、0=極度飢餓；fatigue 0=精神充足、100=極度疲勞；injury/exposure）、inventory、crafting、registry、travel、magic、knownFacts、knowledge、目前位置與附近可互動 NPC 判定。
+規則：
+1. 普通現代人可以嘗試合理的日常行動；技能低、疲勞高、受傷或環境惡劣通常不是 BLOCK，而應 ALLOW，之後由 Engine 的 DC/修正決定結果。
+2. 只有明確不可能或缺少必要前提時 BLOCK，例如使用不存在的物品、展示/交付未持有物品、對不在場且無遠距手段的 NPC 直接互動、前往完全未知/不存在地點、施展未學會能力、在沒有工具/能力下完成明顯超越普通人的事情。
+3. 玩家描述含糊但可合理解讀時用 ADJUST，normalizedAction 改寫成最接近原意而且可執行的版本，不得替玩家增加重大新意圖。
+4. 不可因現代地球常識而認定任何異世界專有知識為已知。不可使用 director-only 資訊替玩家判定。
+5. kind 只可 OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL。高危攀爬、破壞、偷竊、闖入、戰鬥外危險動作應 RISKY；單純移動為 TRAVEL。
+只輸出 JSON：{"verdict":"ALLOW|ADJUST|BLOCK","kind":"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL","normalizedAction":"可執行行動","reason":"簡短繁體中文理由","requirements":["若 BLOCK，列出玩家已知的缺少前提"],"confidence":0-100}。`,
+  user:JSON.stringify(payload)
+ }));
+ return {...normalizeActionAssessment(raw,label),source:"AI"}
+}
+
 export async function generateTurn(action,roll,snapshot){
  if(hasDirectAI()){
   const sceneInput={action,roll,snapshot:sceneTurnSnapshot(snapshot)};
