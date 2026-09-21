@@ -26,7 +26,7 @@ import {playerWeatherSnapshot,directorWeatherSnapshot} from "./weather-engine.js
 import {playerOriginSnapshot} from "./player-origin.js?v=320";
 import {normalizeSuggestionIntents} from "./turn-compiler.js?v=38000";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=37000";
-import {buildContextualActionSet} from "./contextual-actions.js?v=38000";
+import {buildContextualActionSet} from "./contextual-actions.js?v=38003";
 import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=320";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
