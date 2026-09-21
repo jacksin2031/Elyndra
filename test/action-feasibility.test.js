@@ -14,6 +14,21 @@ test("Engine fast path runs before AI requirement and before action execution",a
  assert.match(run,/ACTION_ASSESSMENT_FAILED/)
 });
 
+
+test("prevalidated AI suggestion bypasses feasibility AI and goes directly to Engine",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ const run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
+ const trusted=run.indexOf("trustedSuggestionAssessment(gameState,options.suggestion)");
+ const fast=run.indexOf("fastLocalActionAssessment(gameState,requested)");
+ const assess=run.indexOf("await assessPlayerAction(gameState,requested)");
+ const perform=run.indexOf("performAction(gameState");
+ assert.ok(trusted>=0&&trusted<fast);
+ assert.ok(fast<assess&&assess<perform);
+ assert.match(run,/if\(!assessment\)assessment=fastLocalActionAssessment/);
+ assert.match(run,/if\(!assessment\)\{[\s\S]*await assessPlayerAction/);
+ assert.match(run,/AI_SUGGESTION_PREVALIDATED|SUGGESTED_ACTION_PREVALIDATED/);
+});
+
 test("shared Action Intent feasibility contract separates semantics from dice",async()=>{
  const [client,contracts]=await Promise.all([
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
