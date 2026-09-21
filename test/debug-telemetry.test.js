@@ -55,7 +55,7 @@ test("telemetry sums token usage and redacts credentials without hiding gameplay
   assert.equal(summary.tokenTotals.reasoning,4);
   assert.equal(summary.aiLatencyMsAverage,200);
   assert.equal(summary.gameplayEvents,1);
-  const bundle=debugBundle({appVersion:"0.33.7",aiSettings:{apiKey:"secret-key",authorization:"Bearer xx",model:"m"},gameState:{world:{secretLore:"KEEP_ME"},events:[{type:"PLAYER_ACTION"}]},runtime:{turnSyncBusy:true}});
+  const bundle=debugBundle({appVersion:"0.34.0",aiSettings:{apiKey:"secret-key",authorization:"Bearer xx",model:"m"},gameState:{world:{secretLore:"KEEP_ME"},events:[{type:"PLAYER_ACTION"}]},runtime:{turnSyncBusy:true}});
   assert.equal(bundle.aiSettings.apiKey,"[REDACTED]");
   assert.equal(bundle.aiSettings.authorization,"[REDACTED]");
   assert.equal(bundle.gameState.world.secretLore,"KEEP_ME");
