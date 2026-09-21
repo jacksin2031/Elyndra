@@ -20,7 +20,8 @@ test("v0.31.0 adds Agnes mode without invalidating recovery compiler modules",as
  ]);
  assert.match(html,/app\.js\?v=310/);
  assert.match(app,/\.\/src\/version\.js\?v=310/);
- assert.match(app,/\.\/src\/ai-settings\.js\?v=310/);\n assert.match(app,/\.\/src\/ai-client\.js\?v=300/);
+ assert.match(app,/\.\/src\/ai-settings\.js\?v=310/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=300/);
  assert.match(app,/\.\/src\/world-randomizer\.js\?v=290/);
  for(const mod of ["world-engine","world-registry"])assert.match(app,new RegExp("\\.\\/src\\/"+mod+"\\.js\\?v=280"));
  assert.match(app,/\.\/src\/world-quality\.js\?v=300/);
