@@ -1,4 +1,4 @@
-import {assertSaveState} from "./state-validator.js?v=276";
+import {assertSaveState} from "./state-validator.js?v=320";
 import {ensureItemRuntime} from "./item-engine.js?v=320";
 import {ensureNotes} from "./notes-engine.js?v=320";
 import {ensurePlayerOrigin} from "./player-origin.js?v=320";
