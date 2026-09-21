@@ -81,6 +81,12 @@ function removeQuantity(state,item,quantity=1){
  if((item.quantity||1)>q){item.quantity-=q;return true}
  state.inventory.splice(idx,1);return true
 }
+export function consumeInventoryQuantity(state,itemId,quantity=1){
+ ensureItemRuntime(state);const item=state.inventory.find(x=>x.id===itemId||x.name===itemId);if(!item)return {ok:false,reason:"ITEM_NOT_OWNED"};
+ const q=Math.max(1,Math.round(Number(quantity)||1));if((Number(item.quantity)||1)<q)return {ok:false,reason:"ITEM_QUANTITY_INSUFFICIENT",item};
+ if(item.equipped)return {ok:false,reason:"ITEM_EQUIPPED",item};
+ const name=item.name;removeQuantity(state,item,q);return {ok:true,itemName:name,quantity:q}
+}
 function applyEffect(state,effect){
  const amount=Math.max(1,Number(effect.amount)||1),s=ensureSurvival(state);
  if(effect.type==="RESTORE_HP"){const before=Number(state.player.hp)||0;state.player.hp=Math.min(Number(state.player.maxHp)||100,before+amount);return state.player.hp-before}
