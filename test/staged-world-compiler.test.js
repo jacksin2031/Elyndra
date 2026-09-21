@@ -55,7 +55,7 @@ test("world creation progress represents real compiler boundaries instead of a f
 
 test("staged compiler loads timeout settings through current cache generation",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/ai-settings\.js\?v=272/);
- assert.match(client,/seed-contract\.js\?v=272/);
- assert.match(client,/recognition-engine\.js\?v=272/);
+ assert.match(client,/ai-settings\.js\?v=273/);
+ assert.match(client,/seed-contract\.js\?v=273/);
+ assert.match(client,/recognition-engine\.js\?v=273/);
 });
