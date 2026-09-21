@@ -110,3 +110,55 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
  }
  return [...new Set(issues)]
 }
+
+
+const lvl=v=>Math.max(1,Math.min(5,Math.round(Number(v)||3)));
+const scale=v=>["小型","中型","大型"].includes(v)?v:"中型";
+export function normalizeWorldIdentity(identity,expected={},seed={}){
+ const raw=obj(identity)?identity:{},auto=expected.worldviewMode==="ai";
+ const genre=auto?(text(raw.genre)||"奇幻異世界"):text(expected.genre)||"奇幻異世界";
+ const resolvedScale=auto?scale(raw.scale):scale(expected.scale);
+ const danger=auto?lvl(raw.danger):lvl(expected.danger);
+ const magic=auto?lvl(raw.magic):lvl(expected.magic);
+ const politics=auto?lvl(raw.politics):lvl(expected.politics);
+ const worldTheme=text(raw.worldTheme)||text(seed.prompt)||`${genre}世界中失序法則下的文明生存`;
+ const worldName=text(raw.worldName)||`${worldTheme.slice(0,6)}界`;
+ return {worldName,worldTheme,playerName:text(raw.playerName)||text(seed.playerName),genre,scale:resolvedScale,danger,magic,politics,premise:text(raw.premise)||`「${worldTheme}」塑造文明、危機與日常生存規則。`}
+}
+export function buildSeedComplianceFromIdentity(identity,expected={}){
+ const ev=(value,why)=>({value,evidence:why});
+ const out={
+  genre:ev(identity.genre,`世界整體風格以「${identity.genre}」為共同基礎。`),
+  theme:ev(identity.worldTheme,`世界核心主題「${identity.worldTheme}」直接驅動規則、危機與地方生活。`),
+  scale:ev(identity.scale,`世界採用「${identity.scale}」規模，開局只生成最小可玩區域。`),
+  danger:ev(identity.danger,`危險度 ${identity.danger}/5 會影響生存壓力與事件密度。`),
+  magic:ev(identity.magic,`魔法普及度 ${identity.magic}/5 會影響社會用途、取得方式與代價。`),
+  politics:ev(identity.politics,`政治複雜度 ${identity.politics}/5 會影響勢力利益與制度衝突。`)
+ };
+ if(text(expected.prompt))out.prompt=ev(expected.prompt,"玩家自訂要求被固定為世界生成硬條件，後續子編譯器必須共同遵守。");
+ return out
+}
+export function mergeCoreWave(identity,expected,rules,anchor){
+ const r=obj(rules)?rules:{},a=obj(anchor)?anchor:{};
+ return normalizeWorldCoreCandidate({
+  worldName:identity.worldName,worldTheme:identity.worldTheme,playerName:identity.playerName,
+  summary:text(a.summary)||text(r.summary)||identity.premise,
+  seedCompliance:buildSeedComplianceFromIdentity(identity,expected),
+  worldBible:{...(obj(r.worldBible)?r.worldBible:{}),...(obj(a.worldBible)?a.worldBible:{}),
+   civilization:obj(r.worldBible?.civilization)?r.worldBible.civilization:{},
+   communication:obj(r.worldBible?.communication)?r.worldBible.communication:{},
+   weatherSystem:obj(a.worldBible?.weatherSystem)?a.worldBible.weatherSystem:{}
+  },
+  publicFacts:list(a.publicFacts),hiddenFacts:list(a.hiddenFacts)
+ })
+}
+export function coreWaveIssues(identity,rules,anchor,core){
+ const issues=worldCoreIssues(core);
+ if(!identity?.worldName||!identity?.worldTheme)issues.push("IDENTITY_INVALID");
+ const r=rules?.worldBible,a=anchor?.worldBible;
+ for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"])if(!text(r?.[key]))issues.push("CORE_RULES_"+key.toUpperCase());
+ for(const key of ["startingRegion","startingSettlement","startingLocation"])if(!text(a?.[key]))issues.push("CORE_ANCHOR_"+key.toUpperCase());
+ if(text(core?.worldName)!==text(identity?.worldName))issues.push("CORE_WORLD_NAME_DRIFT");
+ if(text(core?.worldTheme)!==text(identity?.worldTheme))issues.push("CORE_THEME_DRIFT");
+ return [...new Set(issues)]
+}
