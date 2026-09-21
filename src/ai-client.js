@@ -17,6 +17,14 @@ export function visibleFacts(state){return state.world.canon.facts.filter(f=>sta
 export function npcKnownFacts(state,npc){const scope=new Set(Array.isArray(npc?.knowledgeScope)?npc.knowledgeScope:[]);return state.world.canon.facts.filter(f=>scope.has(f.id)).map(f=>f.text)}
 export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){const raw=await directChat({timeoutMs:45000,system:"你是 Elyndra 的繁體中文敘事者。玩家只知道 payload 中 visibleFacts、playerLocation 與這次行動能直接感知到的結果。world/Canon 可能存在更多真相，但不可提前說出任何未學會的世界名稱、地名、國家、勢力、歷史或規則。只能描述已由遊戲引擎決定的結果，不可改骰子、Canon、HP、物品。回答80-180字。只使用繁體中文；除既有專有名詞外不要切換成英文、日文、韓文或其他語言，也不要輸出 [世界動向]、【世界動向】、SYSTEM 等系統標籤。",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})});return sanitizePlayerText(raw,700,"")}const raw=(await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})).text;return sanitizePlayerText(raw,700,"")}
 function emitWorldProgress(cb,progress,label,detail){try{cb?.({progress,label,detail})}catch{}}
+const WORLD_AI_CONCURRENCY=2;
+let worldAiActive=0;const worldAiWaiters=[];
+async function withWorldAiSlot(task){
+ if(worldAiActive>=WORLD_AI_CONCURRENCY)await new Promise(resolve=>worldAiWaiters.push(resolve));
+ worldAiActive++;
+ try{return await task()}
+ finally{worldAiActive--;worldAiWaiters.shift()?.()}
+}
 async function worldStage(stage,args){
  try{return parseJSON(await directChat(args))}
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
