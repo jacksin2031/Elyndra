@@ -1,8 +1,21 @@
 const KEY="elyndra:debug-telemetry:v1",MAX_ENTRIES=1600,SESSION_ID=globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2),SESSION_STARTED=Date.now();
 const safeStorage=()=>{try{return globalThis.localStorage||null}catch{return null}};
+const SECRET_STRING_PATTERNS=[
+ [/(\bBearer\s+)[A-Za-z0-9._~+\\/=-]{6,}/gi,"$1[REDACTED]"],
+ [/(\b(?:authorization|x-api-key|api-key)\s*[:=]\s*)[^\\s,;]+/gi,"$1[REDACTED]"],
+ [/([?&](?:key|api_key|apikey|token|access_token|auth|authorization)=)[^&#\\s]+/gi,"$1[REDACTED]"],
+ [/\bsk-[A-Za-z0-9_-]{12,}\b/g,"[REDACTED_API_KEY]"],
+ [/\bAIza[0-9A-Za-z_-]{20,}\b/g,"[REDACTED_API_KEY]"]
+];
+export function scrubDebugText(value=""){
+ let out=String(value??"");
+ for(const [pattern,replacement] of SECRET_STRING_PATTERNS)out=out.replace(pattern,replacement);
+ return out
+}
 function cloneSafe(value,depth=0,seen=new WeakSet()){
  if(depth>20)return "[MAX_DEPTH]";
- if(value==null||typeof value==="string"||typeof value==="number"||typeof value==="boolean")return value;
+ if(value==null||typeof value==="number"||typeof value==="boolean")return value;
+ if(typeof value==="string")return scrubDebugText(value);
  if(typeof value==="bigint")return String(value);
  if(typeof value==="function")return "[FUNCTION]";
  if(typeof value!=="object")return String(value);
@@ -59,5 +72,5 @@ export function debugBundleText(bundle){
 }
 export function installDebugConsoleCapture(){
  if(globalThis.__ELYNDRA_DEBUG_CONSOLE__)return;globalThis.__ELYNDRA_DEBUG_CONSOLE__=true;
- for(const level of ["warn","error"]){const original=console[level]?.bind(console);if(!original)continue;console[level]=(...args)=>{try{recordDebug("CONSOLE_"+level.toUpperCase(),{message:args.map(x=>typeof x==="string"?x:JSON.stringify(cloneSafe(x))).join(" ").slice(0,2500)})}catch{}return original(...args)}}
+ for(const level of ["warn","error"]){const original=console[level]?.bind(console);if(!original)continue;console[level]=(...args)=>{try{recordDebug("CONSOLE_"+level.toUpperCase(),{message:args.map(x=>typeof x==="string"?scrubDebugText(x):JSON.stringify(cloneSafe(x))).join(" ").slice(0,2500)})}catch{}return original(...args)}}
 }
