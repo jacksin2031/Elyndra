@@ -26,7 +26,7 @@ async function withWorldAiSlot(task){
  finally{worldAiActive--;worldAiWaiters.shift()?.()}
 }
 async function worldStage(stage,args){
- try{return parseJSON(await directChat(args))}
+ try{return await withWorldAiSlot(async()=>parseJSON(await directChat(args)))}
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
 function compilerTimedOut(err){return /AI_TIMEOUT|WORLD_[A-Z_]+_FAILED:\s*AI_TIMEOUT/.test(String(err?.message||err||""))}
