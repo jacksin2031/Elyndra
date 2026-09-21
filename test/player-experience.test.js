@@ -69,6 +69,11 @@ test("simple observe and basic talk bypass AI feasibility while consequential ac
  assert.equal(fastLocalActionAssessment(state,"偷走桌上的鑰匙"),null)
 });
 
+test("deterministic utility commands are recognized by the Engine fast path",()=>{
+ const state=baseState();state.player.hp=10;state.player.maxHp=10;state.inventory=[{id:"I1",name:"短劍",category:"EQUIPMENT",quantity:1}];
+ for(const action of ["查看角色狀態","查看任務","查看地圖","裝備短劍","睡覺"])assert.equal(fastLocalActionAssessment(state,action)?.source,"ENGINE_FASTPATH",action)
+});
+
 test("session checkpoint summarizes visible journey events",()=>{
  const state=baseState();
  state.events.push(
