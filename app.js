@@ -1,10 +1,10 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=38002";
+import {APP_VERSION} from "./src/version.js?v=38003";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=37000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,finalizeTurnAIJobs,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=38002";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,finalizeTurnAIJobs,generateDeferredTurnEffects,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=38003";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=38000";
-import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=38000";
+import {buildSnapshot,applyTurnCandidate,applyDeferredTurnEffects} from "./src/adventure-engine.js?v=38003";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
 import {performAction} from "./src/game-engine.js?v=37000";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=34004";
@@ -46,7 +46,7 @@ import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=
 import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=34004";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=340";
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions,sessionCheckpoint} from "./src/player-experience.js?v=35000";
-import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38000";
+import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38003";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
