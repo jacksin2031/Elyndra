@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "../src/world-compiler.js";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate,normalizeWorldIdentity,buildSeedComplianceFromIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "../src/world-compiler.js";
 import {normalizeWeatherSystem} from "../src/weather-engine.js";
 
 test("AI-selected worldTheme becomes the single canonical seed-compliance theme",()=>{
@@ -27,7 +27,7 @@ test("both direct and server world paths canonicalize theme before Engine valida
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../api/world.js",import.meta.url),"utf8")
  ]);
- assert.match(client,/normalizeWorldCoreCandidate\(await worldStage\("CORE"/);
+ assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);\n assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
  assert.match(server,/normalizeWorldCoreCandidate\(JSON\.parse\(raw\)\)/);
 });
 
@@ -92,4 +92,23 @@ test("link validation rejects disconnected future events and cast content",()=>{
  assert.ok(issues.includes("FUTURE_0_LINK_REQUIRED"));
  assert.ok(issues.includes("CAST_NPC_0_LOCATION_INVALID"));
  assert.ok(issues.includes("CAST_QUEST_0_LINK_REQUIRED"))
+});
+
+
+test("linked core agents cannot drift from the Engine-owned world identity",()=>{
+ const expected={worldviewMode:"style",genre:"黑暗奇幻",scale:"中型",danger:4,magic:3,politics:4,prompt:"不要使用地球國家"};
+ const identity=normalizeWorldIdentity({worldName:"灰潮界",worldTheme:"記憶潮侵蝕城市",genre:"科幻",scale:"大型",danger:1,magic:5,politics:1,premise:"錯誤值會被 style contract 收斂"},expected,{playerName:"旅人"});
+ assert.equal(identity.genre,"黑暗奇幻");assert.equal(identity.scale,"中型");assert.equal(identity.danger,4);assert.equal(identity.politics,4);
+ const rules={worldName:"另一世界",worldTheme:"另一主題",worldBible:{era:"灰潮紀",centralConflict:"城市靠消耗居民記憶維持防潮結界。",magicCost:"每次施術都會遺失一段近期記憶，且無法免費恢復。",ancientTruth:"記憶潮原本是古代城市網絡的失控維護機制。",currentCrisis:"防潮結界正在失效，城市開始爭奪可被抽取的記憶。",tone:"壓迫與探索",civilization:{level:3,stage:"城邦網絡",infrastructure:"城牆與驛路",literacy:"書記制度普及",mobility:"商隊與驛站"},communication:{name:"記憶信標",medium:"刻印",description:"只可沿城邦節點傳訊",latency:"DELAYED",range:"REGIONAL",accessRule:"ENCOUNTERED",constraints:"需要維持信標"}}};
+ const anchor={worldName:"漂移世界",worldTheme:"無關主題",summary:"記憶潮決定城市能否生存。",worldBible:{startingRegion:"灰岸",startingSettlement:"石港",startingLocation:"失憶門",weatherSystem:{identity:"記憶潮形成異常天候",source:"記憶潮",cycle:"隨結界衰退",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆憶雨"},{id:"WTH-2",name:"空名霧"}]}},publicFacts:["記憶潮會影響城市","施術有記憶代價"],hiddenFacts:["潮汐來自古代網絡","王庭知道結界真相"]};
+ const core=mergeCoreWave(identity,expected,rules,anchor);
+ assert.equal(core.worldName,"灰潮界");assert.equal(core.worldTheme,"記憶潮侵蝕城市");assert.equal(core.seedCompliance.genre.value,"黑暗奇幻");assert.equal(core.seedCompliance.prompt.value,"不要使用地球國家");
+ assert.deepEqual(coreWaveIssues(identity,rules,anchor,core),[])
+});
+
+test("identity fallback construction always produces complete seed compliance rows",()=>{
+ const expected={worldviewMode:"ai",genre:"AI_DECIDES",scale:"AI_DECIDES",danger:null,magic:null,politics:null,prompt:""};
+ const identity=normalizeWorldIdentity({},expected,{});
+ const compliance=buildSeedComplianceFromIdentity(identity,expected);
+ for(const key of ["genre","theme","scale","danger","magic","politics"]){assert.ok(compliance[key]);assert.ok(String(compliance[key].evidence).length>=8)}
 });
