@@ -24,7 +24,9 @@ test("v0.36.0 world creation keeps dependency cache generations explicit",async(
  assert.match(app,/\.\/src\/ai-settings\.js\?v=340/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=35000/);
  assert.match(app,/\.\/src\/debug-telemetry\.js\?v=340/);
- assert.match(app,/\.\/src\/player-experience\.js\?v=35000/);\n assert.match(app,/\.\/src\/world-creation\.js\?v=36000/);\n assert.match(html,/creator\.css\?v=36000/); 
+ assert.match(app,/\.\/src\/player-experience\.js\?v=35000/);
+ assert.match(app,/\.\/src\/world-creation\.js\?v=36000/);
+ assert.match(html,/creator\.css\?v=36000/); 
  assert.match(app,/\.\/src\/storage\.js\?v=34004/);
  assert.match(app,/\.\/src\/progression-ui\.js\?v=34004/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
