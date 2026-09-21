@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,optimizationTier,providerOptimization} from "../src/ai-settings.js";
+import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,optimizationTier,providerOptimization,providerTokenBudget} from "../src/ai-settings.js";
 
 function memoryStorage(){
  const data=new Map();
@@ -123,5 +123,41 @@ test("adaptive mode retries once without native optimization when a compatible e
   assert.equal(await directChat({system:"s",user:"u",aiTask:"action",timeoutMs:5000,retryOnTimeout:false}),"OK");
   assert.equal(bodies[0].reasoning_effort,"low");
   assert.equal("reasoning_effort" in bodies[1],false)
+ }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
+});
+
+
+test("adaptive reasoning-capable providers reserve visible completion budget",()=>{
+ assert.equal(providerTokenBudget("openai","standard","identity",500),500);
+ assert.ok(providerTokenBudget("openai","adaptive","identity",500)>=1600);
+ assert.ok(providerTokenBudget("openai","adaptive","core_rules",900)>=3600);
+ assert.ok(providerTokenBudget("agnes","adaptive","quality",1200)>=4800);
+ assert.equal(providerTokenBudget("gemini","adaptive","history",1200),1200)
+});
+
+test("empty adaptive OpenAI response retries once without reasoning override",async()=>{
+ const priorStorage=globalThis.localStorage,priorFetch=globalThis.fetch;globalThis.localStorage=memoryStorage();const bodies=[];
+ try{
+  clearAISettings();saveAISettings({provider:"openai",apiKey:"o",endpoint:PROVIDERS.openai.endpoint,optimization:"adaptive"});
+  globalThis.fetch=async(url,init)=>{bodies.push(JSON.parse(init.body));if(bodies.length===1)return {ok:true,json:async()=>({choices:[{finish_reason:"length",message:{content:""}}]})};return {ok:true,json:async()=>({choices:[{finish_reason:"stop",message:{content:'{"ok":true}'}}]})}};
+  const out=await directChat({system:"s",user:"u",aiTask:"identity",maxOutputTokens:500,timeoutMs:5000,retryOnTimeout:false});
+  assert.equal(out,'{"ok":true}');
+  assert.equal(bodies.length,2);
+  assert.equal(bodies[0].reasoning_effort,"low");
+  assert.equal("reasoning_effort" in bodies[1],false);
+  assert.ok(bodies[0].max_completion_tokens>=1600);
+  assert.equal(bodies[1].max_completion_tokens,bodies[0].max_completion_tokens)
+ }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
+});
+
+test("empty adaptive Gemini response retries once without thinkingConfig",async()=>{
+ const priorStorage=globalThis.localStorage,priorFetch=globalThis.fetch;globalThis.localStorage=memoryStorage();const bodies=[];
+ try{
+  clearAISettings();saveAISettings({provider:"gemini",apiKey:"g",endpoint:PROVIDERS.gemini.endpoint,optimization:"adaptive"});
+  globalThis.fetch=async(url,init)=>{bodies.push(JSON.parse(init.body));if(bodies.length===1)return {ok:true,json:async()=>({candidates:[{finishReason:"MAX_TOKENS",content:{parts:[]}}]})};return {ok:true,json:async()=>({candidates:[{finishReason:"STOP",content:{parts:[{text:'{"ok":true}'}]}}]})}};
+  const out=await directChat({system:"s",user:"u",aiTask:"history",maxOutputTokens:1200,timeoutMs:5000,retryOnTimeout:false});
+  assert.equal(out,'{"ok":true}');
+  assert.deepEqual(bodies[0].generationConfig.thinkingConfig,{thinkingLevel:"HIGH"});
+  assert.equal("thinkingConfig" in bodies[1].generationConfig,false)
  }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
 });
