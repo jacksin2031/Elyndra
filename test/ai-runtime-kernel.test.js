@@ -57,7 +57,7 @@ test("future Timeline is potential: activation can block it and cancel condition
   activationConditions:i===0?["FLAG:war_ready"]:[],cancelConditions:i===0?["EVENT:PEACE_TREATY"]:[],escalationConditions:["FLAG:war_tension"],playerCanPrevent:true,playerCanAccelerate:true
  }));
  const timeline=normalizeWorldTimeline(raw,pacing);
- const first=timeline[0],state={world:{state:{day:first.triggerDay,flags:{}},timeline},player:{location:""},knowledge:[],events:[]};
+ const first=timeline[0],state={world:{state:{day:first.triggerDay,flags:{}},timeline:[first]},player:{location:""},knowledge:[],events:[]};
  assert.equal(timelineConditionSnapshot(state,first).activationMet,false);
  assert.equal(triggerDueTimelineEvents(state),null);
  state.events.push({id:"E1",type:"PEACE_TREATY"});
