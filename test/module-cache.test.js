@@ -37,8 +37,8 @@ test("v0.35.0 player experience keeps dependency cache generations explicit",asy
  assert.match(app,/\.\/src\/world-quality\.js\?v=337/);
  assert.match(client,/\.\/ai-settings\.js\?v=340/);
  assert.match(client,/\.\/world-compiler\.js\?v=332/);
- assert.match(client,/\.\/turn-compiler\.js\?v=335/);
- assert.match(client,/\.\/helper-context\.js\?v=320/);
+ assert.match(client,/\.\/turn-compiler\.js\?v=35000/);
+ assert.match(client,/\.\/helper-context\.js\?v=35000/);
  assert.match(client,/\.\/world-quality\.js\?v=300/);
  assert.match(client,/\.\/model-json\.js\?v=281/)
 });
