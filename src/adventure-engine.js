@@ -2,20 +2,20 @@ import {normalizeLore,revealStoredLore} from "./lore-engine.js?v=276";
 import {crisisSnapshot} from "./crisis-engine.js?v=276";
 import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=276";
 import {factionSnapshot,changeReputation} from "./faction-engine.js?v=276";
-import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration,resolvePlayerLocation,canInteractWithNpc} from "./world-registry.js?v=276";
+import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration,resolvePlayerLocation,canInteractWithNpc} from "./world-registry.js?v=320";
 import {tokenBudgetSnapshot} from "./context-manager.js?v=276";
 import {startCombat,canStartEncounter} from "./combat-engine.js?v=276";
-import {evaluateQuestEvidence,tickMainQuest} from "./quest-engine.js?v=276";
+import {evaluateQuestEvidence,tickMainQuest} from "./quest-engine.js?v=320";
 import {playerVisibleEvents} from "./event-visibility.js?v=276";
 import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=276";
 import {directorTimelineSnapshot} from "./world-timeline.js?v=276";
 import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=276";
 import {recognitionSnapshot} from "./recognition-engine.js?v=276";
-import {checkProfileSnapshot,normalizeCheckBonuses} from "./check-engine.js?v=276";
+import {checkProfileSnapshot,normalizeCheckBonuses} from "./check-engine.js?v=320";
 import {sanitizePlayerText,sanitizeSuggestions,fallbackNarrative,fallbackSuggestions,sanitizeLocationName,sanitizeSceneTitle} from "./runtime-guard.js?v=276";
 import {directorHistorySnapshot} from "./world-history.js?v=276";
 import {travelSnapshot} from "./travel-engine.js?v=276";
-import {survivalSnapshot} from "./survival-engine.js?v=276";
+import {survivalSnapshot} from "./survival-engine.js?v=320";
 import {cultureSnapshot} from "./culture-engine.js?v=276";
 import {magicSnapshot,learnSpell} from "./magic-engine.js?v=276";
 import {marketSnapshot} from "./economy-engine.js?v=276";
@@ -23,6 +23,8 @@ import {dungeonSnapshot} from "./dungeon-engine.js?v=276";
 import {pacingSnapshot} from "./world-pacing.js?v=276";
 import {talentSnapshot} from "./talent-engine.js?v=276";
 import {playerWeatherSnapshot,directorWeatherSnapshot} from "./weather-engine.js?v=276";
+import {playerOriginSnapshot} from "./player-origin.js?v=320";
+import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=320";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);
@@ -35,7 +37,7 @@ function registerDiscovery(state,d,context={}){
 }
 export function buildSnapshot(state){
  const recentEvents=playerVisibleEvents(state,12).map(e=>({day:e.day,action:e.customText||e.action,type:e.type,summary:text(e.summary,220)}));
- return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},weather:playerWeatherSnapshot(state),directorWeather:directorWeatherSnapshot(state),directorHistory:directorHistorySnapshot(state,8),directorCanon:(state.world?.canon?.facts||[]).slice(-40).map(f=>({id:f.id,type:f.type,visibility:f.visibility,text:f.text})),player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true,checks:checkProfileSnapshot(state)},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.status==="VERIFIED"&&k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>i.name),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),travel:travelSnapshot(state,{director:true}),survival:survivalSnapshot(state),culture:cultureSnapshot(state),magic:magicSnapshot(state),market:marketSnapshot(state),dungeon:dungeonSnapshot(state,{director:true}),pacing:pacingSnapshot(state),talents:talentSnapshot(state),recognition:recognitionSnapshot(state,{director:true}),priorSuggestions:(state.suggestions||[]).slice(0,4),hiddenFacts:[]})
+ return tokenBudgetSnapshot({world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",summary:state.world.summary||"",day:state.world.state.day,clock:state.world.state.clock||null,simulation:state.world.state.simulation||null,lastWorldEvent:state.world.state.lastWorldEvent||null,location:state.player.location,seedContract:state.world.seedContract||state.world.seed},weather:playerWeatherSnapshot(state),directorWeather:directorWeatherSnapshot(state),directorHistory:directorHistorySnapshot(state,8),directorCanon:(state.world?.canon?.facts||[]).slice(-40).map(f=>({id:f.id,type:f.type,visibility:f.visibility,text:f.text})),player:{name:state.player.name||"無名者",hp:state.player.hp,knowledgeScore:state.player.knowledgeScore,wallet:state.player.wallet||{},calendarKnown:state.player.calendarKnown===true,origin:playerOriginSnapshot(state.player),checks:checkProfileSnapshot(state)},knownFacts:state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.status==="VERIFIED"&&k.factId===f.id)).map(f=>f.text).slice(-30),knowledge:state.knowledge.slice(-20).map(k=>({title:k.title,text:k.text})),inventory:state.inventory.slice(-20).map(i=>({id:i.id,name:i.name,category:i.category,quantity:i.quantity,description:i.description,identified:i.identified!==false,equipped:i.equipped===true,useEffects:i.useEffects||[],craftingTags:i.craftingTags||[],evidenceFactId:i.evidenceFactId||null})),crafting:craftingSnapshot(state),quest:state.quests?.main,recentEvents,runtimeSummary:state.runtimeSummary||"",crisis:crisisSnapshot(state),knowledgeGraph:graphSnapshot(state),causalContext:causalContext(state),factions:factionSnapshot(state,{visibleOnly:true}),registry:registrySnapshot(state,{visibleOnly:true}),companions:companionSnapshot(state),directorRegistry:directorRegistrySnapshot(state),directorTimeline:directorTimelineSnapshot(state,4),worldImpact:impactSnapshot(state,{director:true}),travel:travelSnapshot(state,{director:true}),survival:survivalSnapshot(state),culture:cultureSnapshot(state),magic:magicSnapshot(state),market:marketSnapshot(state),dungeon:dungeonSnapshot(state,{director:true}),pacing:pacingSnapshot(state),talents:talentSnapshot(state),recognition:recognitionSnapshot(state,{director:true}),priorSuggestions:(state.suggestions||[]).slice(0,4),hiddenFacts:[]})
 }
 export function validateTurnCandidate(c){
  const errors=[];if(!c||typeof c!=="object"||Array.isArray(c))return {valid:false,errors:["CANDIDATE_INVALID"]};
@@ -43,7 +45,7 @@ export function validateTurnCandidate(c){
  if(c.location!=null&&typeof c.location!=="string")errors.push("LOCATION_INVALID");if(c.sceneTitle!=null&&typeof c.sceneTitle!=="string")errors.push("SCENE_TITLE_INVALID");
  if(c.worldNameKnown!=null&&typeof c.worldNameKnown!=="boolean")errors.push("WORLD_NAME_KNOWLEDGE_INVALID");if(c.calendarKnown!=null&&typeof c.calendarKnown!=="boolean")errors.push("CALENDAR_KNOWLEDGE_INVALID");
  if(c.discoveries!=null&&!Array.isArray(c.discoveries))errors.push("DISCOVERIES_INVALID");
- if(c.items!=null&&!Array.isArray(c.items))errors.push("ITEMS_INVALID");
+ if(c.items!=null&&!Array.isArray(c.items))errors.push("ITEMS_INVALID");if(c.recipes!=null&&!Array.isArray(c.recipes))errors.push("RECIPES_INVALID");
  if(c.magicLearning!=null&&!Array.isArray(c.magicLearning))errors.push("MAGIC_LEARNING_INVALID");
  if(c.npcChanges!=null&&!Array.isArray(c.npcChanges))errors.push("NPC_CHANGES_INVALID");
  if(c.factionChanges!=null&&!Array.isArray(c.factionChanges))errors.push("FACTION_CHANGES_INVALID");if(c.companionChanges!=null&&!Array.isArray(c.companionChanges))errors.push("COMPANION_CHANGES_INVALID");
@@ -55,6 +57,7 @@ export function validateTurnCandidate(c){
  const gv=validateGeneration(c.generation);if(!gv.valid)errors.push(...gv.errors);
  for(const d of c.discoveries||[])if(!d||typeof d.title!=="string"||typeof d.text!=="string")errors.push("DISCOVERY_SHAPE_INVALID");
  for(const i of c.items||[])if(!i||typeof i.name!=="string"||(i.evidenceFactId!=null&&typeof i.evidenceFactId!=="string"))errors.push("ITEM_SHAPE_INVALID");else if(i.lore!=null&&!normalizeLore(i.lore))errors.push("ITEM_LORE_INVALID");
+ for(const r of c.recipes||[])if(!r||typeof r.name!=="string"||!Array.isArray(r.inputs)||!r.output||typeof r.output.name!=="string")errors.push("RECIPE_SHAPE_INVALID");
  for(const m of c.magicLearning||[])if(!m||typeof m.name!=="string"||typeof m.sourceFactId!=="string"||!m.sourceFactId)errors.push("MAGIC_LEARNING_SHAPE_INVALID");
  for(const n of c.npcChanges||[])if(!n||typeof n.npcId!=="string"||!Number.isInteger(n.trustDelta)||n.trustDelta < -2||n.trustDelta > 2)errors.push("NPC_CHANGE_SHAPE_INVALID");
  for(const f of c.factionChanges||[])if(!f||typeof f.factionId!=="string"||!Number.isInteger(f.reputationDelta)||f.reputationDelta < -5||f.reputationDelta > 5)errors.push("FACTION_CHANGE_SHAPE_INVALID");for(const x of c.companionChanges||[])if(!x||typeof x.npcId!=="string"||!["OFFER","LEAVE"].includes(String(x.action||"").toUpperCase()))errors.push("COMPANION_CHANGE_SHAPE_INVALID");
@@ -68,7 +71,8 @@ export function applyTurnCandidate(state,c,context={}){
  const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);
  if(rollSucceeded&&c.worldNameKnown===true)state.player.worldNameKnown=true;if(rollSucceeded&&c.calendarKnown===true)state.player.calendarKnown=true;
  const verifiedDiscoveries=[];for(const d of (c.discoveries||[]).slice(0,2)){const entry=registerDiscovery(state,d,context);if(entry?.status==="VERIFIED")verifiedDiscoveries.push(entry)}
- const acquiredItems=[];for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,1)){const name=sanitizePlayerText(item.name,100,""),evidenceFactId=verifiedDiscoveries.some(d=>d.factId===item.evidenceFactId)?item.evidenceFactId:null;if(name&&!state.inventory.some(i=>i.name===name)){const stored={id:id(),name,description:sanitizePlayerText(item.description,300,""),identified:true,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false,source:"AI_TURN",evidenceFactId};state.inventory.push(stored);acquiredItems.push(stored)}}
+ const acquiredItems=[];for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,2)){const name=sanitizePlayerText(item.name,100,""),evidenceFactId=verifiedDiscoveries.some(d=>d.factId===item.evidenceFactId)?item.evidenceFactId:null;if(name){const stored=addInventoryItem(state,{...item,name,description:sanitizePlayerText(item.description,300,""),identified:item.identified!==false,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false,source:"AI_TURN",evidenceFactId},{source:"AI_TURN"});if(stored)acquiredItems.push(stored)}}
+ if(rollSucceeded)for(const recipe of (c.recipes||[]).slice(0,2))learnRecipe(state,recipe,{source:"AI_TURN"});
  const generation=c.generation?structuredClone(c.generation):c.generation;
  if(!rollSucceeded&&generation)for(const key of ["locations","npcs","factions","sideQuests"])for(const x of generation[key]||[])x.known=false;
  canonizeGeneration(state,generation);

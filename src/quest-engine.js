@@ -3,7 +3,7 @@ import {recordCausalEvent} from "./knowledge-graph.js?v=276";
 import {localCurrencyReward} from "./world-locality.js?v=276";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const CONDITION_TYPES=new Set(["FACT_KNOWN","ITEM_OWNED","ENTITY_KNOWN","EVENT_OCCURRED","LOCATION_STATE","NPC_STATE","FACTION_STATE"]);
+const CONDITION_TYPES=new Set(["FACT_KNOWN","ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","ENTITY_KNOWN","EVENT_OCCURRED","LOCATION_STATE","NPC_STATE","FACTION_STATE","PLAYER_STATE"]);
 const TRUSTED_EVIDENCE=new Set(["CANON_EVIDENCE","ITEM","NPC_TESTIMONY","ENGINE_EVENT","WORLD_STATE"]);
 const MAIN=[
  {key:"SURVIVE",title:"在陌生世界活下來",objective:"理解自己身處何地，先確保能夠行動。"},
@@ -49,7 +49,9 @@ function cmp(actual,op,value){if(op==="GTE")return Number(actual)>=Number(value)
 function conditionMet(state,c){
  const r=ensureWorldRegistry(state);
  if(c.type==="FACT_KNOWN")return (state.knowledge||[]).some(k=>k.factId===c.id);
- if(c.type==="ITEM_OWNED")return (state.inventory||[]).some(x=>x.id===c.id||x.name===c.id);
+ if(c.type==="ITEM_OWNED"){const amount=(state.inventory||[]).filter(x=>x.id===c.id||x.name===c.id).reduce((n,x)=>n+(Number(x.quantity)||1),0);return c.value==null?amount>0:cmp(amount,c.op,c.value)}
+ if(["ITEM_USED","ITEM_SHOWN","ITEM_GIVEN"].includes(c.type)){const eventType={ITEM_USED:"ITEM_USED",ITEM_SHOWN:"ITEM_SHOWN",ITEM_GIVEN:"ITEM_GIVEN"}[c.type];return (state.events||[]).some(e=>e.type===eventType&&(e.itemId===c.id||e.itemName===c.id)&&(!c.field||cmp(e[c.field],c.op,c.value)))}
+ if(c.type==="PLAYER_STATE"){const key=String(c.field||"").toUpperCase(),s=state.player?.survival||{},actual={HP:state.player?.hp,SATIETY:s.satiety,HUNGER:Number.isFinite(Number(s.satiety))?100-Number(s.satiety):undefined,FATIGUE:s.fatigue,EXPOSURE:s.exposure,INJURY:s.injury,MAGIC_STRAIN:state.player?.magic?.strain}[key];return actual!=null&&cmp(actual,c.op,c.value)}
  if(c.type==="ENTITY_KNOWN")return [...r.locations,...r.npcs,...r.factions,...r.sideQuests].some(x=>x.id===c.id&&x.known===true);
  if(c.type==="EVENT_OCCURRED")return (state.events||[]).some(x=>x.id===c.id||x.type===c.id);
  if(c.type==="LOCATION_STATE"){const x=r.locations.find(x=>x.id===c.id);return Boolean(x&&cmp(x.worldState?.[c.field],c.op,c.value))}

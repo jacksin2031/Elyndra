@@ -15,6 +15,11 @@ const FACTION_FIELDS=new Set(["resources","influence","stability"]);
 const NPC_FIELDS=new Set(["trust"]);
 const WORLD_FIELDS=new Set(["tension","crisisPressure"]);
 const STRUCTURE_STATES=new Set(["ACTIVE","OPEN","RESTORED","STABILIZED","DAMAGED","DESTROYED","CLOSED","FLOODED","ABANDONED","CORRUPTED","TRANSFORMED"]);
+const ITEM_CATEGORIES=new Set(["MATERIAL","CONSUMABLE","TOOL","EQUIPMENT","KEY","QUEST","ARTIFACT"]);
+const ITEM_EFFECTS=new Set(["RESTORE_HP","RESTORE_SATIETY","REDUCE_FATIGUE","REDUCE_EXPOSURE","REDUCE_INJURY","REDUCE_MAGIC_STRAIN"]);
+function validItem(x){return obj(x)&&typeof x.id==="string"&&Boolean(x.id)&&typeof x.name==="string"&&Boolean(x.name.trim())&&ITEM_CATEGORIES.has(String(x.category||""))&&Number.isInteger(Number(x.quantity))&&Number(x.quantity)>=1&&Number(x.quantity)<=999&&arr(x.useEffects||[])&&(x.useEffects||[]).every(e=>obj(e)&&ITEM_EFFECTS.has(String(e.type||""))&&finite(Number(e.amount))&&Number(e.amount)>0)}
+function validRecipe(x){return obj(x)&&typeof x.id==="string"&&typeof x.name==="string"&&Boolean(x.name.trim())&&arr(x.inputs)&&x.inputs.length>0&&x.inputs.every(i=>obj(i)&&typeof i.name==="string"&&Number.isInteger(Number(i.quantity))&&Number(i.quantity)>=1)&&validItem(x.output)}
+
 function validMutation(kind,m){
  if(!obj(m))return false;const op=String(m.op||"").toUpperCase(),field=String(m.field||"");
  if(op==="STRUCTURE"){const x=m.value;return ["location","faction","world"].includes(kind)&&field==="structure"&&obj(x)&&typeof x.id==="string"&&Boolean(x.id)&&typeof x.label==="string"&&Boolean(x.label)&&STRUCTURE_STATES.has(String(x.state||"").toUpperCase())}
@@ -75,13 +80,16 @@ export function validateSaveState(s){
  if(!obj(s.player)||typeof s.player.name!=="string"||!s.player.name.trim()||typeof s.player.worldNameKnown!=="boolean"||typeof s.player.calendarKnown!=="boolean"||!finite(s.player.hp)||!finite(s.player.maxHp)||!finite(s.player.gold)||!finite(s.player.knowledgeScore)||typeof s.player.location!=="string"||!obj(s.player.wallet||{}))errors.push("PLAYER_INVALID");
  if(s.player?.hp<0||s.player?.hp>s.player?.maxHp)errors.push("PLAYER_HP_INVALID");
  if(s.player?.level!=null&&(!Number.isInteger(s.player.level)||s.player.level<1))errors.push("PLAYER_LEVEL_INVALID");
- const survival=s.player?.survival;if(survival!=null&&(!obj(survival)||!["hunger","fatigue","exposure","injury"].every(k=>bounded(Number(survival[k])))||!arr(survival.conditions||[])||!finite(survival.lastMinute)))errors.push("PLAYER_SURVIVAL_INVALID");
+ const survival=s.player?.survival;if(survival!=null&&(!obj(survival)||!["satiety","fatigue","exposure","injury"].every(k=>bounded(Number(survival[k])))||!arr(survival.conditions||[])||!finite(survival.lastMinute)))errors.push("PLAYER_SURVIVAL_INVALID");
  const magic=s.player?.magic;if(magic!=null&&(!obj(magic)||!finite(magic.capacity)||magic.capacity<1||!finite(magic.strain)||magic.strain<0||magic.strain>magic.capacity||!arr(magic.knownSpells||[])||!arr(magic.attunements||[])))errors.push("PLAYER_MAGIC_INVALID");
  if(s.player?.cultureStanding!=null&&!obj(s.player.cultureStanding))errors.push("PLAYER_CULTURE_INVALID");
  if(s.player?.talents!=null&&!arr(s.player.talents))errors.push("PLAYER_TALENTS_INVALID");if(s.player?.talentPoints!=null&&(!finite(s.player.talentPoints)||s.player.talentPoints<0))errors.push("PLAYER_TALENT_POINTS_INVALID");
  const stats=s.player?.stats;if(stats!=null&&(!obj(stats)||!["strength","agility","mind","presence","instinct"].every(k=>finite(stats[k])&&stats[k]>=0&&stats[k]<=20)))errors.push("PLAYER_STATS_INVALID");
  const skills=s.player?.skills,skillProgress=s.player?.skillProgress;if(skills!=null&&(!obj(skills)||!["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].every(k=>Number.isInteger(skills[k])&&skills[k]>=0&&skills[k]<=5)))errors.push("PLAYER_SKILLS_INVALID");if(skillProgress!=null&&(!obj(skillProgress)||!["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].every(k=>finite(skillProgress[k])&&skillProgress[k]>=0)))errors.push("PLAYER_SKILL_PROGRESS_INVALID");
- if(!arr(s.inventory)||s.inventory.some(x=>!obj(x)||typeof x.name!=="string"))errors.push("INVENTORY_INVALID");
+ if(!arr(s.inventory)||s.inventory.some(x=>!validItem(x)))errors.push("INVENTORY_INVALID");
+ if(s.crafting!=null&&(!obj(s.crafting)||!arr(s.crafting.recipes)||s.crafting.recipes.some(x=>!validRecipe(x))))errors.push("CRAFTING_INVALID");
+ if(s.notes!=null&&(!arr(s.notes)||s.notes.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string")))errors.push("NOTES_INVALID");
+ const origin=s.player?.origin;if(origin!=null&&(!obj(origin)||typeof origin.id!=="string"||!arr(origin.commonKnowledge)||!arr(origin.defaultValues)||!arr(origin.initialAssumptions)))errors.push("PLAYER_ORIGIN_INVALID");
  if(!arr(s.knowledge)||s.knowledge.some(x=>!obj(x)||typeof x.id!=="string"||typeof x.title!=="string"||typeof x.text!=="string"))errors.push("KNOWLEDGE_INVALID");
  if(!arr(s.events)||s.events.some(x=>!obj(x)||typeof x.type!=="string"))errors.push("EVENTS_INVALID");
  if(!obj(s.npcs))errors.push("NPC_INVALID");else for(const npc of Object.values(s.npcs)){if(!obj(npc)||!arr(npc.memories||[]))errors.push("NPC_INVALID")}
