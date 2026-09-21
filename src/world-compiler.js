@@ -44,7 +44,7 @@ export function worldCoreIssues(core){
  if(!obj(weather))issues.push("worldBible.weatherSystem");
  else{
   if(!text(weather.identity))issues.push("worldBible.weatherSystem.identity");
-  if(!Array.isArray(weather.phenomena)||weather.phenomena.length<4)issues.push("worldBible.weatherSystem.phenomena>=4")
+  if(!Array.isArray(weather.phenomena)||weather.phenomena.length<2)issues.push("worldBible.weatherSystem.phenomena>=2")
  }
  if(!Array.isArray(c.publicFacts)||c.publicFacts.filter(x=>text(x)).length<2)issues.push("publicFacts>=2");
  if(!Array.isArray(c.hiddenFacts)||c.hiddenFacts.filter(x=>text(x)).length<2)issues.push("hiddenFacts>=2");
