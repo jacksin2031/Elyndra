@@ -15,7 +15,7 @@ test("runtime world evolution is automatic background work and never awaited by 
  assert.match(app,/WORLD_EVOLUTION_BACKGROUND_APPLIED/);
  assert.match(app,/preemptBackgroundWorldEvolution\(\)/);
  assert.doesNotMatch(run,/await generateRegionExpansion\(/);
- assert.match(run,/scheduleWorldEvolution\(effective\|\|"player_exploration",700\)/)
+ assert.match(run,/scheduleWorldEvolution\(effective\|\|"player_exploration",5000\)/)
 });
 
 test("foreground AI preempts low-priority background world work",async()=>{
@@ -46,14 +46,21 @@ test("timed-out background world evolution enters exponential cooldown instead o
  assert.match(app,/cooldownRemainingMs/);
 });
 
-test("scene narration can preview before State Director finishes",async()=>{
+test("Player Action narration is rendered before State Sync commit",async()=>{
  const [app,client]=await Promise.all([
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(client,/options\?\.onScene\?\.\(scene\)/);
- assert.match(app,/sceneTurnPreview\(scene,roll/);
- assert.match(app,/void refresh\(\)/);
+ assert.match(client,/export function startTurnAIJobs/);
+ assert.match(client,/const playerAction=directChat/);
+ assert.match(client,/const stateSync=directChat/);
+ const run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
+ const playerAwait=run.indexOf("await playerActionResult");
+ const previewAt=run.indexOf("sceneTurnPreview(scene,roll");
+ const refreshAt=run.indexOf("await refresh()",previewAt);
+ const stateAwait=run.indexOf("await stateSyncResult");
+ const commitAt=run.indexOf("applyTurnCandidate",stateAwait);
+ assert.ok(playerAwait>=0&&previewAt>playerAwait&&refreshAt>previewAt&&stateAwait>refreshAt&&commitAt>stateAwait);
  const preview=sceneTurnPreview({narrative:"你看見門後有微光。",sceneTitle:"檢查門後",suggestions:["靠近觀察","先後退"]},{success:true},{action:"看門",priorSuggestions:[]});
  assert.equal(preview.narrative,"你看見門後有微光。");
  assert.equal(preview.sceneTitle,"檢查門後");
