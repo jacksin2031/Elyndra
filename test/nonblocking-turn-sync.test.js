@@ -54,5 +54,6 @@ test("queued player input records wait diagnostics",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/type:"ACTION_QUEUED"/);
  assert.match(app,/type:"ACTION_QUEUE_DRAINED"/);
- assert.match(app,/waitMs:Math\.max\(0,Date\.now\(\)-Number\(next\.queuedAt/)
+ assert.match(app,/waitMs=Math\.max\(0,Date\.now\(\)-Number\(next\.queuedAt/);
+ assert.match(app,/type:"ACTION_QUEUE_DRAINED".*waitMs/s)
 });
