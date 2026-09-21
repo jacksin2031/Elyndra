@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate,normalizeWorldIdentity,buildSeedComplianceFromIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,worldGenerationLinkIssues} from "../src/world-compiler.js";
+import {normalizeWorldCoreCandidate,worldCoreIssues,mergeWorldCoreCandidates,validWorldCoreCandidate,normalizeWorldIdentity,buildSeedComplianceFromIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "../src/world-compiler.js";
 import {normalizeWeatherSystem} from "../src/weather-engine.js";
 
 test("AI-selected worldTheme becomes the single canonical seed-compliance theme",()=>{
@@ -115,4 +115,31 @@ test("identity fallback construction always produces complete seed compliance ro
  const identity=normalizeWorldIdentity({},expected,{});
  const compliance=buildSeedComplianceFromIdentity(identity,expected);
  for(const key of ["genre","theme","scale","danger","magic","politics"]){assert.ok(compliance[key]);assert.ok(String(compliance[key].evidence).length>=8)}
+});
+
+
+test("future links salvage known anchor aliases and drop invented locations without discarding valid history links",()=>{
+ const anchor={startingLocation:"堡壘地窖囚室",startingRegion:"蝕淵盆地",startingSettlement:"灰誓堡壘"};
+ const history=[{id:"HIST-1"},{id:"HIST-2"},{id:"HIST-3"}];
+ const future={worldTimeline:[
+  {title:"事件一",links:{historyRefs:["HIST-1"],locationRefs:["STARTING_REGION"]}},
+  {title:"事件二",links:{historyRefs:["HIST-2"],locationRefs:["灰誓堡壘"]}},
+  {title:"事件三",links:{historyRefs:["HIST-3"],locationRefs:["AI憑空創造的第二城市"]}},
+  {title:"事件四",links:{historyRefs:["HIST-NOPE","HIST-1"],locationRefs:["STARTING_LOCATION","不存在地點"]}}
+ ]};
+ const out=normalizeFutureLinksToAnchor(future,anchor,history);
+ assert.deepEqual(out.worldTimeline[0].links,{historyRefs:["HIST-1"],locationRefs:["蝕淵盆地"]});
+ assert.deepEqual(out.worldTimeline[1].links,{historyRefs:["HIST-2"],locationRefs:["灰誓堡壘"]});
+ assert.deepEqual(out.worldTimeline[2].links,{historyRefs:["HIST-3"],locationRefs:[]});
+ assert.deepEqual(out.worldTimeline[3].links,{historyRefs:["HIST-1"],locationRefs:["堡壘地窖囚室"]});
+ const geography={location:{name:"堡壘地窖囚室",region:"蝕淵盆地"}};
+ const society={locationRef:"堡壘地窖囚室",historyRefs:["HIST-1"],faction:{name:"共同體",locationName:"堡壘地窖囚室"}};
+ assert.deepEqual(worldGenerationLinkIssues({anchor,history,geography,society,future:out}),[])
+});
+
+test("future link validator accepts starting settlement as a canonical anchor target",()=>{
+ const anchor={startingLocation:"潮門",startingRegion:"灰岸",startingSettlement:"燈港"};
+ const history=[{id:"HIST-1"}],geography={location:{name:"潮門",region:"灰岸"}},society={locationRef:"潮門",historyRefs:["HIST-1"],faction:{locationName:"潮門"}};
+ const future={worldTimeline:[{title:"港口封鎖",links:{historyRefs:["HIST-1"],locationRefs:["燈港"]}}]};
+ assert.deepEqual(worldGenerationLinkIssues({anchor,history,geography,society,future}),[])
 });
