@@ -496,3 +496,11 @@ weatherProfile: {
 - `npm test` 自動 syntax-check 全部 `api/`、`src/` runtime JS，再執行完整 Node regression suite。
 
 > The world is not merely lore the AI can describe. It is a ruleset the player must live inside.
+
+## V0.27.1 — World Core Compiler Hotfix
+
+- CORE 編譯輸出瘦身：AI 只需定義 2 個代表性異世界天候，Engine 會補足到 4 個 runtime weather states。
+- CORE direct-AI timeout 調整為 95 秒，而且 timeout 不再把同一重型請求自動重試兩次。
+- 新增 World Core 欄位正規化、缺欄位診斷與 semantic repair；合法 JSON 但漏欄位時只局部修補 CORE。
+- Weather Canon 在 Engine 套用前會經 `normalizeWeatherSystem()`，補足 duration、weight、modifiers 等 runtime 欄位。
+- Browser cache generation 升至 `v271`，避免正式站繼續載入舊版 `ai-client.js`。

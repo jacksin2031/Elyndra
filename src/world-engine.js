@@ -1,11 +1,11 @@
-import {revealStoredLore} from "./lore-engine.js?v=270";
-import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=270";
-import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=270";
-import {normalizeCalendar} from "./world-locality.js?v=270";
-import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=270";
-import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./communication-engine.js?v=270";
-import {validateWorldHistory} from "./world-history.js?v=270";
-import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=270";
+import {revealStoredLore} from "./lore-engine.js?v=271";
+import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=271";
+import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=271";
+import {normalizeCalendar} from "./world-locality.js?v=271";
+import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=271";
+import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./communication-engine.js?v=271";
+import {validateWorldHistory} from "./world-history.js?v=271";
+import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=271";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -67,7 +67,7 @@ export function discover(state,item,score=3){
  revealStoredLore(state);return true
 }
 export function applyWorldCandidate(state,candidate){
- if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");if(!candidate.worldCalendar||typeof candidate.worldCalendar!=="object"||Array.isArray(candidate.worldCalendar))throw new Error("WORLD_CALENDAR_REQUIRED");if(!candidate.worldBible?.weatherSystem||!Array.isArray(candidate.worldBible.weatherSystem.phenomena)||candidate.worldBible.weatherSystem.phenomena.length<4)throw new Error("WORLD_WEATHER_REQUIRED");
+ if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");if(!candidate.worldCalendar||typeof candidate.worldCalendar!=="object"||Array.isArray(candidate.worldCalendar))throw new Error("WORLD_CALENDAR_REQUIRED");if(!candidate.worldBible?.weatherSystem)throw new Error("WORLD_WEATHER_REQUIRED");candidate.worldBible.weatherSystem=normalizeWeatherSystem(candidate.worldBible.weatherSystem,state.world.seedContract||state.world.seed);
  const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));const pacing=createTimelinePacing(compliance.expected.targetPlayHours);const timelineReport=validateWorldTimeline(candidate.worldTimeline,pacing);if(!timelineReport.valid)throw new Error("WORLD_TIMELINE_FAILED:"+timelineReport.errors.join(","));const historyReport=validateWorldHistory(candidate.worldHistory);if(!historyReport.valid)throw new Error("WORLD_HISTORY_FAILED:"+historyReport.errors.join(","));
  state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;state.world.timelinePacing=timelineReport.pacing;state.world.timeline=timelineReport.timeline;state.world.history=historyReport.history;state.world.calendar=normalizeCalendar(candidate.worldCalendar);
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;
