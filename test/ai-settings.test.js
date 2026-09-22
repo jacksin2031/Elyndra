@@ -87,7 +87,8 @@ test("adaptive optimization raises reasoning with task importance for every prov
  assert.deepEqual(providerOptimization("gemini","adaptive","history"),{thinkingConfig:{thinkingLevel:"HIGH"}});
  assert.deepEqual(providerOptimization("agnes","adaptive","npc"),{reasoning_effort:"low"});
  assert.deepEqual(providerOptimization("agnes","adaptive","recovery"),{reasoning_effort:"high"});
- assert.deepEqual(providerOptimization("openai","standard","quality"),{});\n assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{reasoning_effort:"low"})
+ assert.deepEqual(providerOptimization("openai","standard","quality"),{});
+ assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{reasoning_effort:"low"})
 });
 
 test("adaptive OpenAI and Agnes requests use native reasoning_effort while keeping fixed models",async()=>{
