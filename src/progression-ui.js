@@ -4,7 +4,7 @@ import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSn
 import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=320";
 import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=50000";
 import {historyClueSnapshot} from "./history-future.js?v=48000";
-import {playerFutureSignals} from "./future-runtime.js?v=47000";
+import {playerFutureSignals} from "./future-runtime.js?v=50000";
 import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
 
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
