@@ -61,7 +61,7 @@ function generationCircuit(diagnostics=activeGenerationDiagnostics){
 function noteGenerationTimeout(stage,reason){
  if(!/AI_TIMEOUT/.test(String(reason||"")))return;
  const circuit=generationCircuit();circuit.timeoutCount+=1;
- if(circuit.timeoutCount>=2&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=stage}
+ if(circuit.timeoutCount>=3&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=stage}
 }
 function generationCircuitOpen(diagnostics=activeGenerationDiagnostics){return diagnostics?.providerCircuit?.open===true}
 const CORE_TIMEOUT_RETRY=new Set(["CORE_RULES","CORE_ANCHOR"]);
