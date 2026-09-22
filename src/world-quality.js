@@ -1,4 +1,5 @@
 import {ensureVisibilityLocks,backgroundMutableFields,canBackgroundMutateEntity} from "./visibility-lock.js?v=51000";
+import {generationClaimsSnapshot} from "./generation-claims.js?v=52000";
 const obj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
@@ -236,6 +237,7 @@ export function worldEvolutionNeed(state){
  state.world.evolution??={lastMinute:-9999,lastVersion:0,count:0,lastReason:""};
  const evo=state.world.evolution,minutes=Number(state.world?.state?.clock?.totalMinutes)||0,elapsed=minutes-(Number(evo.lastMinute)||0),health=worldHealthSnapshot(state),reasons=[];
  if(state.world?.state?.flags?.requestExpansion)reasons.push("PLAYER_REQUEST");
+ const pendingClaims=generationClaimsSnapshot(state,{pendingOnly:true}).filter(x=>["UNMATERIALIZED","FAILED"].includes(x.status));if(pendingClaims.length&&elapsed>=60)reasons.push("CLAIM_MATERIALIZATION");
  if((state.world?.registry?.locations||[]).length<2)reasons.push("WORLD_EDGE_UNDERDEFINED");
  if(health.score<80&&elapsed>=120)reasons.push("WORLD_QUALITY_DROP");
  if(Number(state.world?.version)>Number(evo.lastVersion||0)&&elapsed>=360)reasons.push("PERIODIC_CANON_REVIEW");
