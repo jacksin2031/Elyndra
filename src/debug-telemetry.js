@@ -52,10 +52,17 @@ export function recordAIUsage({provider,model,task,tier,status="SUCCESS",latency
 export function telemetryEntries(){return read().entries.slice()}
 export function clearDebugTelemetry(){write({entries:[]});recordDebug("DEBUG_CLEARED",{at:Date.now()})}
 export function telemetrySummary(entries=telemetryEntries()){
- const ai=entries.filter(x=>x.type==="AI_REQUEST"),gameplay=entries.filter(x=>String(x.type||"").startsWith("GAME_")),ok=ai.filter(x=>x.data?.status==="SUCCESS"),billable=ai.filter(x=>Number(x.data?.usage?.total)>0),errors=entries.filter(x=>/ERROR|FAILED/.test(x.type)||x.data?.status==="ERROR");
+ const ai=entries.filter(x=>x.type==="AI_REQUEST"),gameplay=entries.filter(x=>String(x.type||"").startsWith("GAME_")),ok=ai.filter(x=>x.data?.status==="SUCCESS"),billable=ai.filter(x=>Number(x.data?.usage?.total)>0);
+ const preemptions=entries.filter(x=>x.type==="AI_CALL_FAILED"&&(x.data?.aborted===true||/AI_ABORTED/.test(String(x.data?.error||""))));
+ const mirroredFailure=entry=>{
+  const type=String(entry?.type||"");if(!["PLAYER_ACTION_AI_FAILED","STATE_SYNC_AI_FAILED"].includes(type))return false;
+  const task=type==="PLAYER_ACTION_AI_FAILED"?"scene":String(entry?.data?.mode||"").toUpperCase()==="DEEP"?"turn_state_deep":"turn_state_fast",at=Number(entry?.at)||0;
+  return entries.some(x=>x.type==="AI_CALL_FAILED"&&String(x.data?.task||"")===task&&Math.abs((Number(x.at)||0)-at)<=5000)
+ };
+ const errors=entries.filter(x=>!preemptions.includes(x)&&!mirroredFailure(x)&&(/ERROR|FAILED/.test(String(x.type||""))||x.data?.status==="ERROR"));
  const tokens=billable.reduce((a,x)=>{const u=x.data?.usage||{};a.input+=Number(u.input)||0;a.output+=Number(u.output)||0;a.reasoning+=Number(u.reasoning)||0;a.cached+=Number(u.cached)||0;a.total+=Number(u.total)||0;a.api+=(u.source==="API");a.estimated+=(u.source!=="API");return a},{input:0,output:0,reasoning:0,cached:0,total:0,api:0,estimated:0});
  const latency=ok.reduce((a,x)=>a+(Number(x.data?.latencyMs)||0),0);
- return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,gameplayEvents:gameplay.length,aiRequests:ai.length,aiSuccess:ok.length,aiUsageResponses:billable.length,errorCount:errors.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
+ return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,gameplayEvents:gameplay.length,aiRequests:ai.length,aiSuccess:ok.length,aiUsageResponses:billable.length,errorCount:errors.length,preemptionCount:preemptions.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
 }
 export function debugBundle({appVersion="",gameState=null,aiSettings=null,runtime={}}={}){
  const entries=telemetryEntries(),currentEntries=entries.filter(x=>x.sessionId===SESSION_ID),summary={...telemetrySummary(currentEntries),historyEntryCount:entries.length};
