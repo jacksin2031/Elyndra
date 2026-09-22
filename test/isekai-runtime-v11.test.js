@@ -35,7 +35,7 @@ test("save v11 migration initializes the new runtime without invalid state",()=>
 test("hidden canon cannot become scored knowledge through an AI discovery",()=>{
  const s=game(),hidden=s.world.canon.facts.find(f=>f.visibility==="hidden");
  applyTurnCandidate(s,{narrative:"你似乎注意到某種規律。",discoveries:[{title:"可疑規律",text:hidden.text,factId:hidden.id,evidenceType:"OBSERVED"}],suggestions:["繼續觀察"]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"觀察"});
- assert.equal(s.knowledge.at(-1).status,"OBSERVATION");assert.equal(s.knowledge.at(-1).factId,null);assert.equal(s.player.knowledgeScore,0)
+ assert.equal(s.knowledge.at(-1).status,"UNCONFIRMED");assert.equal(s.knowledge.at(-1).evidenceType,"OBSERVATION");assert.equal(s.knowledge.at(-1).factId,null);assert.equal(s.player.knowledgeScore,0)
 });
 
 test("public canon needs successful evidence and then becomes verified knowledge",()=>{
