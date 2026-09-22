@@ -488,7 +488,7 @@ async function runAction(action,customText="",options={}){
  try{await persist();await refresh()}
  finally{scheduleWorldEvolution(effective||"player_exploration",5000);scheduleWorldQualityCritic("post_player_action",2600);scheduleHistoryDeepening("post_player_action",2200)}
 }
-$("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game");scheduleWorldQualityCritic("continue_world",1200)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
+$("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game");scheduleWorldQualityCritic("continue_world",1200);scheduleHistoryDeepening("continue_world",1500)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
 function requestWorldReadyNotificationPermission(){
  if(!("Notification" in window)||Notification.permission!=="default")return;
@@ -633,7 +633,7 @@ $("#generateBtn").onclick=async()=>{
   const accepted=await confirmWorldContract(contract);
   if(!accepted){gameState=null;worldProgress(0,"已返回修改","這次編譯結果尚未建立正式存檔；修改設定後可重新生成。");return}
   worldProgress(96,"正在建立正式存檔","保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon");
-  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game");scheduleWorldQualityCritic("post_creation",1000)
+  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game");scheduleWorldQualityCritic("post_creation",1000);scheduleHistoryDeepening("post_creation",1500)
  }catch(e){worldProgress(0,"世界生成失敗",e.message);alert("世界編譯失敗："+e.message)}
  finally{btn.disabled=false}
 };
