@@ -53,5 +53,5 @@ export function registerTimelineFutures(state){
  return ensureFutureEngine(state)
 }
 export function futureSnapshot(state,{director=false}={}){
- return ensureFutureEngine(state).map(x=>({id:x.id,title:x.title,stage:x.stage,pressure:x.pressure,impactScope:x.impactScope,intensity:x.intensity,domains:x.domains,playerCanPrevent:x.playerCanPrevent,playerCanAccelerate:x.playerCanAccelerate,playerCanMitigate:x.playerCanMitigate,playerCanRedirect:x.playerCanRedirect,...(director?{hiddenCause:x.hiddenCause,activationConditions:x.activationConditions,cancelConditions:x.cancelConditions,historicalLinks:x.historicalLinks}:{})}))
+ return ensureFutureEngine(state).map(x=>({id:x.id,title:x.title,stage:x.stage,pressure:x.pressure,impactScope:x.impactScope,intensity:x.intensity,domains:x.domains,playerCanPrevent:x.playerCanPrevent,playerCanAccelerate:x.playerCanAccelerate,playerCanMitigate:x.playerCanMitigate,playerCanRedirect:x.playerCanRedirect,...(director?{affectedRegions:[...(x.affectedRegions||[])],duration:x.duration??null,hiddenCause:x.hiddenCause,activationConditions:x.activationConditions,cancelConditions:x.cancelConditions,historicalLinks:x.historicalLinks}:{})}))
 }
