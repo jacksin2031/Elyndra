@@ -78,7 +78,7 @@ export function validateLazyGenerationCandidate(state,generation,plan,options={}
  if(Number(plan.generationRevision)!==Number(root.generationRevision)+1)errors.push("LAZY_STALE_GENERATION_REVISION");
  for(const key of ["generationRevision","worldSeedFingerprint","entitySeed","generationSlot","promptVersion","validationVersion","generatedAtWorldTime"])if(plan[key]==null)errors.push("LAZY_REPLAY_METADATA_MISSING:"+key);
  if(plan.promptVersion!==LAZY_PROMPT_VERSION)errors.push("LAZY_PROMPT_VERSION_MISMATCH");if(plan.validationVersion!==LAZY_VALIDATION_VERSION)errors.push("LAZY_VALIDATION_VERSION_MISMATCH");
- const allowedHistory=new Set([...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
+ const allowedHistory=new Set([...(state.world?.history||[]).map(x=>x?.id).filter(Boolean),...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
  for(const key of ["locations","npcs","factions","sideQuests","definitions"]){
   const rows=groupRows(generation,key),limit=Math.max(0,Number(plan.slots?.[key])||0);if(rows.length>limit)errors.push("LAZY_SLOT_EXCEEDED:"+key);
   const existing=existingNames(state,key),canonized=new Set((effectiveAdded?.[key]||[]).map(x=>rowIdentity(key,x)).filter(Boolean)),candidateNames=new Set();
