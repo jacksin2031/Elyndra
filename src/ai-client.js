@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54006";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54008";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
@@ -11,13 +11,14 @@ import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=51000";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=54007";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
-import {normalizeActionIntent} from "./action-intent.js?v=54001";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54006";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54006";
+import {normalizeActionIntent} from "./action-intent.js?v=54008";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54008";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54008";
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=54006";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54001";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -354,7 +355,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
 
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
   let cast=await resilientWorldStage("CAST",{
-   timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:950,
+   timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:1600,
    system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
    user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"具體身份或職責；不得輸出「角色」",description:"40-80字",personality:"具體人格特徵；不得輸出「簡短」",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"具體可執行目標；不得輸出「簡短」",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
   },()=>castFallback(anchor,history,region,society));
@@ -544,36 +545,91 @@ export async function generateDeferredTurnEffects(action,roll,snapshot,options={
 
 export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",civilization:b.civilization||null,communication:b.communication||null,weatherSystem:b.weatherSystem||null}}
 export function regionExpansionPayload(state,reason="player_exploration",plan=null){const catalog=state.world?.catalog||{};return {reason,lazyPlan:plan?{id:plan.id,seed:plan.seed,reason:plan.reason,region:plan.region,slots:plan.slots,forbiddenTerms:plan.forbiddenTerms||[],historyRefs:plan.historyRefs,claims:plan.claims,legacyEchoes:plan.legacyEchoes||[],generationRevision:plan.generationRevision,worldSeedFingerprint:plan.worldSeedFingerprint,entitySeed:plan.entitySeed,generationSlot:plan.generationSlot,promptVersion:plan.promptVersion,validationVersion:plan.validationVersion,generatedAtWorldTime:plan.generatedAtWorldTime}:null,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},directorHistory:directorHistorySnapshot(state,8),directorHistoryDepth:historyDepthSnapshot(state,{director:true}).filter(x=>x.depth!=="SKELETON").slice(-4),existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8),sideQuests:(state.world.registry?.sideQuests||[]).map(x=>x.title).slice(-8),definitions:[...(catalog.civilizations||[]),...(catalog.species||[]),...(catalog.languages||[])].map(x=>({kind:x.kind,name:x.name})).slice(-24)},publicFacts:visibleFacts(state).slice(-12)}}
+const RUNTIME_GENERATION_KEYS=["locations","npcs","factions","sideQuests","definitions"];
+function emptyRuntimeGeneration(){return {locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]}}
+function runtimeRoot(value){return value&&typeof value==="object"&&!Array.isArray(value)?(value.generation&&typeof value.generation==="object"&&!Array.isArray(value.generation)?value.generation:value):{}}
+function runtimeRows(value,key,limit=0){const rows=Array.isArray(runtimeRoot(value)?.[key])?runtimeRoot(value)[key]:[];return rows.slice(0,Math.max(0,Number(limit)||0))}
+function runtimeRefs(rows,key){return new Set((rows||[]).flatMap(row=>Array.isArray(row?.[key])?row[key]:[]).map(String).filter(Boolean))}
+function runtimeProgressErrors(state,plan,generation){
+ const report=validateLazyGenerationCandidate(state,generation,plan);
+ return (report.errors||[]).filter(x=>!/^LAZY_RESERVED_(?:CLAIM|ECHO)_UNBOUND:/.test(String(x)))
+}
+function assertRuntimeProgress(state,plan,generation,label){const errors=runtimeProgressErrors(state,plan,generation);if(errors.length)throw new Error(label+"_INVALID:"+errors.join(","))}
+function runtimeRemainingClaims(plan,generation){
+ const used=runtimeRefs(RUNTIME_GENERATION_KEYS.flatMap(key=>generation[key]||[]),"claimRefs");
+ return (plan?.claims||[]).filter(x=>!used.has(String(x.id)))
+}
+function runtimeRemainingEchoes(plan,generation){
+ const used=runtimeRefs(RUNTIME_GENERATION_KEYS.flatMap(key=>generation[key]||[]),"echoRefs");
+ return (plan?.legacyEchoes||[]).filter(x=>!used.has(String(x.id)))
+}
+async function runtimeExpansionStage(stage,{signal,system,user,maxOutputTokens=1200,temperature=.45,apply,state,plan}){
+ let lastError=null;
+ for(let attempt=1;attempt<=2;attempt++){
+  try{
+   const value=await worldStage(stage,{aiTask:"runtime_expansion",signal,timeoutMs:45000,retryOnTimeout:false,maxOutputTokens,temperature,system:system+(attempt>1?"\n上一輪未通過 Engine 驗證。只修正本階段 JSON，不得改動先前已鎖定的內容。":""),user:JSON.stringify(typeof user==="function"?user():user)});
+   const generation=apply(value);assertRuntimeProgress(state,plan,generation,stage);return generation
+  }catch(e){lastError=e}
+ }
+ throw lastError||new Error(stage+"_FAILED")
+}
+function applyRuntimeLocationDetails(current,value){
+ const root=runtimeRoot(value),details=Array.isArray(root.locationDetails)?root.locationDetails:[],byName=new Map(details.map(x=>[String(x?.locationName||""),x]));
+ const locations=current.locations.map(loc=>{const detail=byName.get(String(loc.name||""));if(!detail?.culture||!detail?.trade)throw new Error("RUNTIME_SOCIETY_LOCATION_DETAIL_MISSING:"+String(loc.name||""));return {...loc,culture:detail.culture,trade:detail.trade}});
+ return {...current,locations}
+}
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
- const signal=options?.signal;
- const expansion=await worldStage("RUNTIME_EXPANSION",{
-  signal,timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1800,temperature:.65,
-  system:'你是 Elyndra Progressive World Architect。Engine 已在 lazyPlan 決定本次允許生成的 slots、可引用的 claims 與 deterministic seed；你不能擴大 slots、不能自創 claim id、不能改 plan。world.seedContract 是不可違反的玩家世界設定；新內容必須保持同一世界因果。payload.directorHistoryDepth 若存在，代表玩家研究後才生成的隱藏歷史細節；可用它令新 Location/NPC/遺跡與該段歷史一致，但不得因此把 hidden detail 自動揭露給玩家。每個新 Location、NPC、Faction 都必須提供至少1個有效 historyRefs，且只能引用 directorHistory 中存在的 HIST id；不得只在 prose 提到歷史。lazyPlan.forbiddenTerms 是 World Constitution 的絕對禁止項目，generation 任何名稱、描述、lore、definition 都不得出現。若 lazyPlan.claims 非空，每個 claim 必須以 claimRefs:["CLAIM-..."] 明確綁定，而且綁定內容必須真的滿足 claim 語義：BLUEPRINT_DEFINITION 只能由 generation.definitions 中 kind 與 claim.definitionKind 相同的 definition 綁定；REQUIRED_ELEMENT 的綁定內容名稱／描述必須實際包含該要求；HISTORY/FUTURE claim 必須有對應 historyRefs。claimRefs 只能引用 lazyPlan.claims。若 lazyPlan.legacyEchoes 非空，MEMORIAL echo 必須由 Location 以 echoRefs:["HECHO-..."] 綁定，ORAL_TRADITION echo 必須由 NPC 以 echoRefs 綁定；不得把 echo 自動當作玩家已知內容。不得重建 existing。每個新地點／勢力要有 culture 與 trade；每個地點要有 weatherProfile，affinities / suppressions 只可引用既有 Weather id。需要鑰匙、通行證、證據或先前事件才能進入的地點，可加入 accessRequirements，type 只可 ITEM_OWNED|ITEM_USED|ITEM_SHOWN|ITEM_GIVEN|FACT_KNOWN|EVENT_OCCURRED，hint 不得洩漏秘密。任何新 NPC 都要有 companionProfile。只輸出 JSON：{"region":"新區域名稱","reason":"因果連接","generation":{"locations":[{"name":"...","type":"...","region":"...","description":"...","historyRefs":["HIST-1"],"claimRefs":["CLAIM-..."],"echoRefs":["HECHO-..."],"known":false,"accessRequirements":[],"weatherProfile":{"zone":"...","affinities":[],"suppressions":[]},"culture":{"identity":"..."},"trade":{"mode":"barter","currencies":[],"commonBarter":[],"foreignAcceptance":[],"priceCulture":"...","questReward":0,"combatReward":0},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"npcs":[{"name":"...","role":"...","description":"...","historyRefs":["HIST-1"],"claimRefs":["CLAIM-..."],"echoRefs":["HECHO-..."],"knowledgeScope":[],"known":false,"companionProfile":{"joinThreshold":35,"leaveThreshold":10,"motives":[],"boundaries":[]},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"factions":[{"name":"...","goal":"...","description":"...","historyRefs":["HIST-1"],"claimRefs":[],"known":false,"culture":{"identity":"..."},"trade":{"mode":"barter","currencies":[],"commonBarter":[],"foreignAcceptance":[],"priceCulture":"...","questReward":0,"combatReward":0},"lore":{"story":"...","unlockKeywords":["線索"],"minMatches":1}}],"sideQuests":[{"title":"...","objective":"...","historyRefs":["HIST-1"],"claimRefs":[],"known":false,"evidenceKeywords":["線索"],"conditions":[],"target":2}],"definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"...","description":"...","traits":[],"regions":[],"historyRefs":[],"claimRefs":["CLAIM-..."]}]}}。各陣列數量必須小於或等於 lazyPlan.slots 對應上限；definitions 只用於 Director World Catalog，不代表玩家已知。不得改寫 World Bible、不得洩漏 hidden secrets。',
-  user:JSON.stringify(payload)
+ if(!plan)throw new Error("RUNTIME_EXPANSION_PLAN_REQUIRED");
+ const signal=options?.signal,slots=plan.slots||{},baseRules="Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。只輸出 JSON。";
+ let generation=emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
+
+ generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
+  signal,state,plan,maxOutputTokens:1600,temperature:.5,
+  system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
+  user:()=>({payload,stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL")}),
+  apply:value=>{
+   const root=runtimeRoot(value),locations=runtimeRows(value,"locations",slots.locations),definitions=runtimeRows(value,"definitions",slots.definitions);
+   if((Number(slots.locations)||0)>0&&locations.length<Number(slots.locations))throw new Error("RUNTIME_GEOGRAPHY_LOCATION_COUNT");
+   if((Number(slots.definitions)||0)>0&&definitions.length<Number(slots.definitions))throw new Error("RUNTIME_GEOGRAPHY_DEFINITION_COUNT");
+   const blueprint=(plan.claims||[]).filter(x=>x.type==="BLUEPRINT_DEFINITION").map(x=>String(x.id)),bound=runtimeRefs(definitions,"claimRefs");
+   for(const id of blueprint)if(!bound.has(id))throw new Error("RUNTIME_GEOGRAPHY_BLUEPRINT_CLAIM_UNBOUND:"+id);
+   const memorial=(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL").map(x=>String(x.id)),echoBound=runtimeRefs(locations,"echoRefs");
+   for(const id of memorial)if(!echoBound.has(id))throw new Error("RUNTIME_GEOGRAPHY_MEMORIAL_UNBOUND:"+id);
+   region=String(root.region||region);stageReason=String(root.reason||stageReason);return {...generation,locations,definitions}
+  }
  });
- let provenance=validateExpansionProvenance(state,expansion?.generation),quality;
- try{
-  quality=normalizeWorldEvaluation(await worldStage("RUNTIME_QUALITY_CRITIC",{
-   signal,timeoutMs:25000,retryOnTimeout:false,maxOutputTokens:900,temperature:.2,
-   system:"你是 Elyndra Runtime World Critic。評估今次 expansion 與既有世界的因果一致性、歷史連結、文化差異、可玩性與模板化程度。overall 0-100；findings 最多5項。historyRefs 缺失或無效必須列 HIGH。只輸出與 World Critic 相同 JSON 格式。",
-   user:JSON.stringify({payload,expansion,provenance})
-  }),{source:"AI"})
- }catch(e){
-  quality=normalizeWorldEvaluation({overall:provenance.valid?78:55,dimensions:{historyIntegration:provenance.valid?80:35,internalConsistency:75,worldDepth:70,playability:75},findings:provenance.issues.map(x=>({severity:"HIGH",targetType:"PROVENANCE",problem:x,recommendation:"補上有效 historyRefs",requiresRegeneration:true}))},{source:"FALLBACK",reason:e?.message||String(e)})
+
+ generation=await runtimeExpansionStage("RUNTIME_SOCIETY",{
+  signal,state,plan,maxOutputTokens:1400,temperature:.45,
+  system:"你是 Elyndra Runtime Society Architect。地理與 definitions 已鎖定。今次只為新地點補 culture/trade，並按 slots 生成地方 Faction；不可改地點名稱、物理描述、weatherProfile 或 definitions。Faction 必須引用已鎖定 history/location 因果，並優先實現 remainingClaims。"+baseRules+" 輸出 schema：{locationDetails:[{locationName,culture:{identity,etiquette,taboos,food,beliefs,architecture,clothing,hospitality,namingStyle,languageNotes},trade:{mode,currencies,commonBarter,foreignAcceptance,priceCulture,questReward,combatReward}}],factions:[{name,goal,description,historyRefs,claimRefs,known:false,locationName,culture,trade,lore}]}。",
+  user:()=>({payload,stage:"SOCIETY",locked:{region,locations:generation.locations,definitions:generation.definitions},slots:{factions:slots.factions||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
+  apply:value=>{let next=applyRuntimeLocationDetails(generation,value),factions=runtimeRows(value,"factions",slots.factions);if((Number(slots.factions)||0)>0&&factions.length<Number(slots.factions))throw new Error("RUNTIME_SOCIETY_FACTION_COUNT");return {...next,factions}}
+ });
+
+ if((Number(slots.npcs)||0)>0){
+  generation=await runtimeExpansionStage("RUNTIME_CAST",{
+   signal,state,plan,maxOutputTokens:1500,temperature:.5,
+   system:"你是 Elyndra Runtime Cast Architect。地理、地方社會與勢力已鎖定。今次只生成 NPC，不得新增或改寫 Location/Faction/definition。NPC 必須落在既有或今次已鎖定地點，提供 historyRefs、companionProfile、behaviorProfile、lore；ORAL_TRADITION legacy echo 只能在這一階段由 NPC 綁定。優先實現 remainingClaims。"+baseRules+" 輸出 schema：{npcs:[{name,role,description,personality,goal,locationName,factionName,historyRefs,claimRefs,echoRefs,knowledgeScope,known:false,behaviorProfile,companionProfile,lore}]}。",
+   user:()=>({payload,stage:"CAST",locked:{region,locations:generation.locations,factions:generation.factions,definitions:generation.definitions},slots:{npcs:slots.npcs||0},remainingClaims:runtimeRemainingClaims(plan,generation),legacyEchoes:runtimeRemainingEchoes(plan,generation).filter(x=>x.kind==="ORAL_TRADITION")}),
+   apply:value=>{const npcs=runtimeRows(value,"npcs",slots.npcs);if(npcs.length<Number(slots.npcs))throw new Error("RUNTIME_CAST_NPC_COUNT");const oral=(plan.legacyEchoes||[]).filter(x=>x.kind==="ORAL_TRADITION").map(x=>String(x.id)),bound=runtimeRefs(npcs,"echoRefs");for(const id of oral)if(!bound.has(id))throw new Error("RUNTIME_CAST_ORAL_ECHO_UNBOUND:"+id);return {...generation,npcs}}
+  })
  }
- let final=expansion;
- if(!provenance.valid||quality.overall<75){
-  try{
-   const repaired=await worldStage("RUNTIME_REPAIR",{
-    signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1500,temperature:.4,
-    system:"你是 Elyndra Runtime Repair Architect。只修正這次 expansion，不可改既有 Canon。必須完整遵守 payload.lazyPlan：不得超出 slots、不得新增 claim id 或 echo id、不得出現 lazyPlan.forbiddenTerms；原有 claimRefs / echoRefs 必須保留，而且 lazyPlan.claims 中每個 reserved claim 都必須語義吻合（BLUEPRINT_DEFINITION→matching definition kind；REQUIRED_ELEMENT→內容實際包含要求；History/Future→對應 historyRefs），lazyPlan.legacyEchoes 中每個 reserved echo 都必須依指定實體類型綁定。保留既有實體名稱與 region，補足有效 historyRefs、文化／交易／lore 深度及具體內容。historyRefs 只能使用 payload.lazyPlan.historyRefs、claim 自帶 historyRefs 或 directorHistory 中與它們相同的 HIST id；不得創造新 history id。只輸出完整 {generation:{...}} 修正版。",
-    user:JSON.stringify({payload,expansion,quality,provenance})
-   });
-   if(repaired?.generation)final={...expansion,generation:repaired.generation};
-   provenance=validateExpansionProvenance(state,final?.generation)
-  }catch{}
+
+ if((Number(slots.sideQuests)||0)>0){
+  generation=await runtimeExpansionStage("RUNTIME_QUESTS",{
+   signal,state,plan,maxOutputTokens:950,temperature:.4,
+   system:"你是 Elyndra Runtime Quest Architect。世界地理、社會、勢力與人物已鎖定。今次只生成 SideQuest；不得新增任何 Location/NPC/Faction/definition。任務必須引用前面已存在的地點、人物、勢力或 historyRefs，目標要可執行並留下 evidenceKeywords；如仍有 remainingClaims，只有語義真的吻合時才綁定。"+baseRules+" 輸出 schema：{sideQuests:[{title,objective,locationName,npcName,factionName,historyRefs,claimRefs,known:false,evidenceKeywords,conditions,target}]}。",
+   user:()=>({payload,stage:"QUESTS",locked:{region,locations:generation.locations,npcs:generation.npcs,factions:generation.factions,definitions:generation.definitions},slots:{sideQuests:slots.sideQuests||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
+   apply:value=>{const sideQuests=runtimeRows(value,"sideQuests",slots.sideQuests);if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
+  })
  }
+
+ const contract=validateLazyGenerationCandidate(state,generation,plan);if(!contract.valid)throw new Error("RUNTIME_EXPANSION_CONTRACT_FAILED:"+contract.errors.join(","));
+ const expansion={region,reason:stageReason,generation};let provenance=validateExpansionProvenance(state,generation),quality;
  if(!provenance.valid)throw new Error("RUNTIME_EXPANSION_PROVENANCE_FAILED:"+provenance.issues.join(","));
- const ai=loadAISettings();return {...final,quality,provenance,generationSource:{provider:ai.provider||"UNKNOWN",model:ai.model||"UNKNOWN"}}
+ try{
+  quality=normalizeWorldEvaluation(await worldStage("RUNTIME_QUALITY_CRITIC",{aiTask:"runtime_quality",signal,timeoutMs:25000,retryOnTimeout:false,maxOutputTokens:900,temperature:.2,system:"你是 Elyndra Runtime World Critic。你只評估，不生成或重寫世界。檢查四個已鎖定階段之間的因果一致性、historyRefs、文化差異、可玩性與模板化程度。overall 0-100；findings 最多5項。只輸出 World Critic JSON。",user:JSON.stringify({payload,expansion,provenance,stages:["GEOGRAPHY","SOCIETY","CAST","QUESTS"]})}),{source:"AI"})
+ }catch(e){quality=normalizeWorldEvaluation({overall:78,dimensions:{historyIntegration:80,internalConsistency:75,worldDepth:72,playability:76},findings:[]},{source:"FALLBACK",reason:e?.message||String(e)})}
+ const ai=loadAISettings();return {...expansion,quality,provenance,generationSource:{provider:ai.provider||"UNKNOWN",model:ai.model||"UNKNOWN"}}
 }

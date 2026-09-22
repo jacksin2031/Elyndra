@@ -1,4 +1,4 @@
-// v0.54.7 release contract
+// v0.54.8 release contract
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -9,9 +9,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.54.7");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.54.8");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=54007/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=54007"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=54008/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=54008"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History/Future/character systems remain available after v0.53",async()=>{
@@ -50,7 +50,7 @@ test("v0.53.0 hardens Knowledge, background races, Claims and Ledger causality",
   readFile(new URL("../src/world-ledger.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),
   readFile(new URL("../src/causal-integrity.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-client\.js\?v=54007/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=54008/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
  assert.match(lazy,/LAZY_STALE_WORLD_VERSION/);assert.match(lazy,/LAZY_STALE_GENERATION_REVISION/);
  assert.match(claims,/MATERIALIZATION_DRIFT/);assert.match(ledger,/compactLedgerEntries/);assert.match(ledger,/HISTORIC/);
  assert.match(integrity,/auditCausalIntegrity/);assert.match(integrity,/VERIFIED_KNOWLEDGE_ORPHAN/);assert.match(integrity,/CLAIM_RESERVATION_ORPHAN/);assert.match(integrity,/FUTURE_HISTORY_REF_ORPHAN/);
@@ -58,12 +58,12 @@ test("v0.53.0 hardens Knowledge, background races, Claims and Ledger causality",
 });
 
 
-test("v0.54 Developer AI autotest remains available after v0.54.7 provider hardening",async()=>{
+test("v0.54 Developer AI autotest remains available after v0.54.8 provider hardening",async()=>{
  const [app,autotest]=await Promise.all([
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=54007/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=54008/);
  assert.match(app,/startDeveloperAutotest/);
  assert.match(autotest,/playerVisibleAutotestSnapshot/);
  assert.match(autotest,/buildAutotestReport/)

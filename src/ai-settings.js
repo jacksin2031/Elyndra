@@ -27,7 +27,7 @@ const AI_TASK_TIER={
 export function optimizationTier(aiTask="general"){
  return AI_TASK_TIER[String(aiTask||"").toLowerCase()]||"BALANCED"
 }
-const AGNES_STRUCTURED_OUTPUT_FLOORS={action:800,scene:1100,turn_state_fast:800,identity:900,geography:900,society:1100,cast:1200,core_anchor:1200,core_rules:1100,future:1600};
+const AGNES_STRUCTURED_OUTPUT_FLOORS={action:800,scene:1100,turn_state_fast:800,identity:900,geography:900,society:1100,cast:1800,core_anchor:1200,core_rules:1100,future:1600,runtime_expansion:1600,runtime_quality:900};
 const agnesStructuredOutputFloor=aiTask=>AGNES_STRUCTURED_OUTPUT_FLOORS[String(aiTask||"").toLowerCase()]||0;
 export function providerOptimization(provider,optimization="standard",aiTask="general"){
  const tier=optimizationTier(aiTask);
