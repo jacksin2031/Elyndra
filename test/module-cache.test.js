@@ -35,6 +35,6 @@ test("v0.48.0 propagates Future scope changes through the browser cache graph",a
  assert.match(storage,/\.\/item-engine\.js\?v=48000/);assert.match(storage,/\.\/causal-world-core\.js\?v=48000/);
  assert.match(game,/\.\/world-engine\.js\?v=48000/);assert.match(game,/\.\/world-simulation\.js\?v=48000/);assert.match(game,/\.\/item-engine\.js\?v=48000/);
  assert.match(combat,/\.\/world-engine\.js\?v=48000/);assert.match(combat,/\.\/world-simulation\.js\?v=48000/);
- assert.match(adventure,/\.\/combat-engine\.js\?v=48000/);assert.match(adventure,/\.\/world-timeline\.js\?v=48000/);assert.match(adventure,/\.\/world-impact\.js\?v=48000/);
+ assert.match(adventure,/\.\/combat-engine\.js\?v=48000/);assert.match(adventure,/\.\/world-timeline\.js\?v=48000/);assert.match(adventure,/\.\/world-impact\.js\?v=48000/);assert.match(adventure,/\.\/item-engine\.js\?v=48000/);
  assert.match(progression,/\.\/item-engine\.js\?v=48000/);assert.match(progression,/\.\/storage\.js\?v=48000/);assert.match(timeline,/IMPACT_SCOPES/)
 });
