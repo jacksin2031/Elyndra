@@ -85,7 +85,7 @@ test("World Compiler preserves must-exist labels in Canon prompts",async()=>{
 
 test("staged compiler loads timeout settings through current cache generation",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/ai-settings\\.js\\?v=53001/);
+ assert.match(client,/ai-settings\.js\?v=53001/);
  assert.match(client,/seed-contract\.js\?v=48000/);
  assert.match(client,/world-compiler\.js\?v=48000/);
  assert.match(client,/recognition-engine\.js\?v=276/);
