@@ -26,7 +26,7 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  assert.match(client,/PROVIDER_TIMEOUT_CIRCUIT_OPEN/);
  assert.match(client,/generationCircuitOpen/);
  assert.match(client,/compilerRecoverable/);
- assert.match(client,/INVALID_MODEL_JSON/);
+ assert.match(client,/INVALID_MODEL_JSON/);\n assert.match(client,/Failed to fetch/);assert.match(client,/generationTransportFailure/);assert.match(client,/transportStages/);assert.match(client,/circuit\.transportCount>=2/);
  for(const legacy of ["CORE","CORE_REPAIR","CHRONOLOGY","REGION"])assert.doesNotMatch(client,new RegExp(`worldStage\\("${legacy}"`));
 });
 
@@ -57,4 +57,16 @@ test("server world generation timeout is longer than ordinary narration",async()
  assert.doesNotMatch(turn,/timeoutMs:60000/);
  assert.match(narrate,/timeoutMs:45000/);
  assert.match(npc,/timeoutMs:45000/);
+});
+
+
+test("browser transport failures are recoverable world-compiler failures and open a two-stage circuit",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const recover=client.slice(client.indexOf("function generationTransportFailure"),client.indexOf("let activeGenerationDiagnostics"));
+ assert.match(recover,/Failed to fetch/);assert.match(recover,/NetworkError/);assert.match(recover,/ERR_NETWORK/);
+ const circuit=client.slice(client.indexOf("function generationCircuit"),client.indexOf("function worldStageFallback"));
+ assert.match(circuit,/transportStages/);assert.match(circuit,/transportCount>=2/);
+ const resilient=client.slice(client.indexOf("async function resilientWorldStage"),client.indexOf("function fallbackClause"));
+ assert.match(resilient,/if\(transportFailed\)noteGenerationTransportFailure/);
+ assert.match(resilient,/if\(generationTransportFailure\(retryReason\)\)noteGenerationTransportFailure/)
 });
