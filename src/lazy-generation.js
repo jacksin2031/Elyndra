@@ -47,12 +47,16 @@ function existingNames(state,key){
 }
 export function validateLazyGenerationCandidate(state,generation,plan){
  const errors=[];if(!plan||plan.status!=="PLANNED")return {valid:false,errors:["LAZY_PLAN_NOT_ACTIVE"]};
+ const allowedHistory=new Set([...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
  for(const key of ["locations","npcs","factions","sideQuests"]){
   const rows=groupRows(generation,key),limit=Math.max(0,Number(plan.slots?.[key])||0);if(rows.length>limit)errors.push("LAZY_SLOT_EXCEEDED:"+key);
-  const names=existingNames(state,key);
+  const existing=existingNames(state,key),candidateNames=new Set();
   for(const row of rows){
-   const name=String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase();if(name&&names.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
+   const name=String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase();
+   if(name&&existing.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
+   if(name&&candidateNames.has(name))errors.push("LAZY_DUPLICATE_CANDIDATE:"+key+":"+name);if(name)candidateNames.add(name);
    const refs=uniq(row?.historyRefs,8);if((state.world?.history||[]).length&&refs.length===0)errors.push("LAZY_HISTORY_REF_REQUIRED:"+key);
+   for(const id of refs)if(allowedHistory.size&&!allowedHistory.has(id))errors.push("LAZY_HISTORY_REF_OUTSIDE_PLAN:"+id);
    const claimRefs=uniq(row?.claimRefs,6);for(const id of claimRefs)if(!plan.claimIds.includes(id))errors.push("LAZY_CLAIM_NOT_RESERVED:"+id)
   }
  }
