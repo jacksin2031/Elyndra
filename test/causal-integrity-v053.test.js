@@ -57,6 +57,12 @@ test("Generation Claims reopen when their materialized entity disappears",()=>{
  assert.equal(claim.status,"UNMATERIALIZED");assert.deepEqual(claim.entityRefs,[]);assert.equal(claim.failureReason,"MATERIALIZATION_DRIFT")
 });
 
+test("Integrity repair reports reopened materialization drift",()=>{
+ const s=world();s.world.constitution.push({id:"REQ-DRIFT",kind:"REQUIRE",term:"魔法學院"});s.world.registry.locations.push({id:"LOC-DRIFT",name:"魔法學院",description:"教授魔法的學院",historyRefs:[],known:false});
+ syncGenerationClaimsFromConstitution(s);reconcileGenerationClaims(s);const claim=s.world.generationClaims.claims.find(x=>x.label==="魔法學院");assert.equal(claim.status,"MATERIALIZED");
+ s.world.registry.locations=[];const result=repairCausalIntegrity(s);assert.equal(result.repaired,true);assert.ok(result.repairs.includes("CLAIM_MATERIALIZATION_DRIFT:"+claim.id));assert.equal(claim.status,"UNMATERIALIZED")
+});
+
 test("Ledger compaction never discards pinned historical causal anchors",()=>{
  const s=world(),event={id:"EV-PIN",type:"WORLD_IMPACT",visibility:"PLAYER_KNOWN",summary:"改變王國邊境的事件",day:1,at:1};
  const pinned=appendWorldLedger(s,event,{significance:"HISTORIC",sourceEventId:event.id});
