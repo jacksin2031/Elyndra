@@ -251,3 +251,75 @@ export function markWorldEvolution(state,meta={}){
  evo.lastQuality=worldHealthSnapshot(state);
  return evo
 }
+
+
+function unseenRepairTargets(state){
+ const r=state?.world?.registry||{},current=clean(state?.player?.location||state?.world?.state?.location,160);
+ return {
+  locations:(r.locations||[]).filter(x=>x?.known!==true&&clean(x?.name,160)!==current).map(x=>({id:x.id,name:x.name,region:x.region,description:x.description,culture:x.culture||null,trade:x.trade||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
+  npcs:(r.npcs||[]).filter(x=>x?.known!==true&&x?.encountered!==true).map(x=>({id:x.id,name:x.name,role:x.role,description:x.description,personality:x.personality,goal:x.goal,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
+  factions:(r.factions||[]).filter(x=>x?.known!==true).map(x=>({id:x.id,name:x.name,description:x.description,goal:x.goal,culture:x.culture||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)}))
+ }
+}
+export function backgroundQualitySnapshot(state){
+ const w=state?.world||{},targets=unseenRepairTargets(state);
+ return {
+  worldVersion:Number(w.version)||1,
+  core:{name:w.name||"",theme:w.theme||"",summary:w.summary||"",seedContract:w.seedContract||w.seed||null,bible:w.bible||null,creation:w.creation?{blueprintProfile:w.creation.blueprintProfile||null,constitution:w.creation.constitution||null}:null},
+  history:(w.history||[]).slice(0,16).map(x=>({id:x.id,title:x.title,summary:x.summary,causes:x.causes,legacies:x.legacies,regions:x.regions,factions:x.factions})),
+  timeline:(w.timeline||[]).slice(0,16).map(x=>({id:x.id,title:x.title,category:x.category,observableEffect:x.observableEffect,links:x.links,activationConditions:x.activationConditions,cancelConditions:x.cancelConditions,escalationConditions:x.escalationConditions})),
+  generationDiagnostics:w.generationDiagnostics||null,
+  currentQuality:w.quality||null,
+  unseenRepairTargets:targets,
+  immutableBoundary:{worldIdentity:true,blueprint:true,constitution:true,historySkeleton:true,timelineRules:true,seenContent:true}
+ }
+}
+function safeObject(value){return obj(value)?structuredClone(value):null}
+function mergeSafe(target,patch,fields){
+ let changed=false;
+ for(const field of fields){
+  if(patch?.[field]===undefined)continue;
+  const next=typeof patch[field]==="string"?clean(patch[field],field==="description"?500:300):safeObject(patch[field]);
+  if(next==null)continue;
+  if(JSON.stringify(target[field])===JSON.stringify(next))continue;
+  target[field]=next;changed=true
+ }
+ return changed
+}
+export function applyUnseenWorldRepair(state,input={}){
+ const patch=obj(input?.patch)?input.patch:input,targets=unseenRepairTargets(state),allowed={
+  locations:new Set(targets.locations.map(x=>x.id)),npcs:new Set(targets.npcs.map(x=>x.id)),factions:new Set(targets.factions.map(x=>x.id))
+ },r=state?.world?.registry||{},modified=[];
+ const groups=[
+  ["locations",r.locations||[],["description","culture","trade","lore"]],
+  ["npcs",r.npcs||[],["description","personality","goal","lore"]],
+  ["factions",r.factions||[],["description","culture","lore"]]
+ ];
+ for(const [group,rows,fields] of groups){
+  for(const proposed of Array.isArray(patch?.registry?.[group])?patch.registry[group]:[]){
+   const id=clean(proposed?.id,160);if(!id||!allowed[group].has(id))continue;
+   const entity=rows.find(x=>x.id===id);if(!entity)continue;
+   if(mergeSafe(entity,proposed,fields))modified.push({group,id})
+  }
+ }
+ if(modified.length){state.world.version=Math.max(1,Number(state.world.version)||1)+1;state.events??=[];state.events.push({id:"EV-QUALITY-"+Date.now(),type:"BACKGROUND_QUALITY_REPAIR_APPLIED",visibility:"INTERNAL",modified:modified.map(x=>x.id),day:Number(state.world?.state?.day)||1,at:Date.now()})}
+ return {applied:modified.length>0,modified}
+}
+export function backgroundQualityNeed(state){
+ const bg=state?.world?.quality?.background,last=Number(bg?.reviewedWorldVersion)||0,current=Number(state?.world?.version)||1;
+ if(bg?.running===true)return {required:false,reason:"RUNNING"};
+ if(!bg?.reviewedAt)return {required:true,reason:"INITIAL_BACKGROUND_REVIEW"};
+ if(current>last)return {required:true,reason:"WORLD_VERSION_ADVANCED"};
+ return {required:false,reason:"UP_TO_DATE"}
+}
+export function recordBackgroundQualityReview(state,{evaluation=null,repair=null,error=""}={}){
+ state.world??={};state.world.quality=obj(state.world.quality)?state.world.quality:{};
+ const prior=obj(state.world.quality.background)?state.world.quality.background:{};
+ state.world.quality.background={
+  ...prior,running:false,reviewedAt:Date.now(),reviewedWorldVersion:Number(state.world.version)||1,
+  evaluation:evaluation?structuredClone(evaluation):prior.evaluation||null,
+  lastRepair:repair?structuredClone(repair):null,error:clean(error,300),
+  runs:Math.max(0,Number(prior.runs)||0)+1
+ };
+ return state.world.quality.background
+}

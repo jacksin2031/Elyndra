@@ -1,7 +1,7 @@
 import {json,methodGuard,safeBody,callModel} from "./_ai.js";
 import {seedDirective} from "../src/seed-contract.js";
 import {normalizeWorldCoreCandidate} from "../src/world-compiler.js";
-import {normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch} from "../src/world-quality.js";
+import {fallbackWorldEvaluation} from "../src/world-quality.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {validateWorldCreationCandidate} from "../src/world-creation.js";
 export default async function handler(req,res){
@@ -9,7 +9,7 @@ export default async function handler(req,res){
  try{
   const {seed,constitution}=safeBody(req);if(!seed)return json(res,400,{error:"INVALID_REQUEST"});
   const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract,chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
-  const system="你是 Elyndra World Architect。seedDirective.blueprintProfile 是 Engine 已解析並鎖定的 World Blueprint；USER / STYLE / RANDOM resolved values 都不可改寫，你只能把它們具體化。seed.creationV2.originProfile 是玩家起源的唯一權威，不得自行假設玩家來自現代地球。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時，玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation 是硬性世界基礎；worldviewMode=ai 時，genre/theme/scale/danger/magic/politics 全部由你自行決定並形成一致的因果世界觀。seedCompliance 必須回傳實際採用的具體值與不同 evidence，禁止把 AI_DECIDES 當成答案。不得採用現實地球公曆、現實國家制度或全世界統一金幣作預設；世界要有自己的曆法。必須先定義 civilization.level 1-5，再根據文明程度、魔法普及度與文化設計聯絡方式；低文明低魔法只可有信使／驛站等延遲通訊，只有文明或魔法足以支持時才可有即時／近即時聯絡，不得無理由直接套用現實互聯網；你亦必須生成本世界獨有 Weather Canon，天氣可由魔力、天體、浮游物質或世界法則形成，至少一種必須明顯不是單純現實晴雨雪換名；每個首次生成地點／勢力要有 culture 與 trade，每個地點要有 weatherProfile。玩家開局世界知識為 0，openingHook 與 suggestions 只能使用當下能直接感知的資訊，且 suggestions 不可使用固定預設按鈕。只生成開局所需最小世界，後續採 lazy generation。輸出嚴格 JSON，不要 Markdown。";
+  const system="你是 Elyndra World Architect。seedDirective.blueprintProfile 是 Engine 已解析並鎖定的 World Blueprint；USER / STYLE / RANDOM resolved values 都不可改寫，你只能把它們具體化。seed.creationV2.originProfile 是玩家起源的唯一權威，不得自行假設玩家來自現代地球。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時，玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation 是硬性世界基礎；worldviewMode=ai 時，genre/theme/scale/danger/magic/politics 全部由你自行決定並形成一致的因果世界觀。seedCompliance 必須回傳實際採用的具體值與不同 evidence，禁止把 AI_DECIDES 當成答案。不得採用現實地球公曆、現實國家制度或全世界統一金幣作預設；世界要有自己的曆法。必須先定義 civilization.level 1-5，再根據文明程度、魔法普及度與文化設計聯絡方式；低文明低魔法只可有信使／驛站等延遲通訊，只有文明或魔法足以支持時才可有即時／近即時聯絡，不得無理由直接套用現實互聯網；你亦必須生成本世界獨有 Weather Canon，天氣可由魔力、天體、浮游物質或世界法則形成，至少一種必須明顯不是單純現實晴雨雪換名；每個首次生成地點／勢力要有 culture 與 trade，每個地點要有 weatherProfile。玩家開局知識必須嚴格遵守 seed.creationV2.originProfile：EARTH_ONLY/AMNESIA 不可預先知道地方 Canon；PARTIAL_LOCAL/LOCAL_BASELINE/BRIEFED_PARTIAL 只可使用該 Origin 合理授權的有限地方知識；不得把 World Theme、hidden facts 或 Director Truth 當成玩家知識。openingHook 與 suggestions 必須符合這個 Origin knowledge boundary，且 suggestions 不可使用固定預設按鈕。只生成開局所需最小世界，後續採 lazy generation。輸出嚴格 JSON，不要 Markdown。";
   const user=JSON.stringify({seed,seedDirective:directive,constitution,required:{
    worldName:"string",worldTheme:"AI 自行創造的具體核心主題",playerName:"string",summary:"string",
    seedCompliance:{
@@ -28,20 +28,9 @@ export default async function handler(req,res){
   const raw=await callModel({system,user,temperature:.8,timeoutMs:120000});let candidate;try{candidate=normalizeWorldCoreCandidate(parseModelJSON(raw));candidate.worldBible??={};if(directive.blueprintProfile)candidate.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile)}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}
   if(!candidate.summary||!candidate.seedCompliance||!candidate.worldTheme||!candidate.worldBible?.weatherSystem||!Array.isArray(candidate.worldBible.weatherSystem.phenomena)||candidate.worldBible.weatherSystem.phenomena.length<4||!Array.isArray(candidate.worldHistory)||candidate.worldHistory.length<3||!candidate.worldCalendar||!Array.isArray(candidate.worldTimeline)||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts)||!candidate.openingHook||!Array.isArray(candidate.suggestions)||candidate.suggestions.length<2)return json(res,422,{error:"INVALID_WORLD_CANDIDATE"});
   const diagnostics={version:1,startedAt:Date.now(),finishedAt:Date.now(),quality:"HEALTHY",stages:{WORLD_ARCHITECT:{source:"AI",reason:"",latencyMs:0,attempts:1,fallbackUsed:false}},summary:{stageCount:1,aiSucceeded:1,fallbackCount:0,failedCount:0}};
-  const evaluate=async current=>{
-   try{
-    const reviewRaw=await callModel({system:"你是 Elyndra World Critic。評分 internalConsistency、originality、worldDepth、historyIntegration、geography、societyCulture、magicSystem、factions、characters、futureEvents、playability、knowledgeBoundary 與 overall 0-100，列出最多8個 structured findings。特別檢查 opening knowledge leak、模板化、事件性、魔法規則與 Location/NPC/Faction historyRefs。只輸出 JSON。",user:JSON.stringify({candidate:current,generationDiagnostics:diagnostics}),temperature:.2,timeoutMs:50000});
-    return normalizeWorldEvaluation(parseModelJSON(reviewRaw),{source:"AI"})
-   }catch(e){return fallbackWorldEvaluation(current,diagnostics,e?.message||String(e))}
-  };
-  let evaluation=await evaluate(candidate),repairHistory=[];
-  for(let pass=1;pass<=2&&evaluation.overall<80&&evaluation.findings.some(x=>x.requiresRegeneration);pass++){
-   try{
-    const repair=parseModelJSON(await callModel({system:"你是 Elyndra World Repair Architect。只修補 Critic 指出的弱點；禁止改 worldName/worldTheme/seedCompliance/worldHistory/worldCalendar/startingRegion/startingSettlement/startingLocation；Timeline 日期窗口與 links 不得改；不可新增或重新命名 generation 實體，historyRefs 必須保留。只輸出 {patch:{...},changedTargets:[...]}.",user:JSON.stringify({candidate,evaluation}),temperature:.4,timeoutMs:65000}));
-    const before=evaluation.overall;candidate=applyWorldRepairPatch(candidate,repair);evaluation=await evaluate(candidate);repairHistory.push({pass,before,after:evaluation.overall,targets:repair.changedTargets||evaluation.repairTargets,at:Date.now()})
-   }catch{break}
-  }
-  candidate.worldBible??={};if(directive.blueprintProfile)candidate.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);const blueprintValidation=validateWorldCreationCandidate(seed,candidate);if(!blueprintValidation.valid)return json(res,422,{error:"BLUEPRINT_COMPLIANCE_FAILED",details:blueprintValidation.errors});candidate.blueprintCompliance=blueprintValidation.compliance;candidate.generationDiagnostics=diagnostics;candidate.worldQuality={...evaluation,repairHistory};
+  candidate.worldBible??={};if(directive.blueprintProfile)candidate.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);
+  const blueprintValidation=validateWorldCreationCandidate(seed,candidate);if(!blueprintValidation.valid)return json(res,422,{error:"BLUEPRINT_COMPLIANCE_FAILED",details:blueprintValidation.errors});
+  candidate.blueprintCompliance=blueprintValidation.compliance;candidate.generationDiagnostics=diagnostics;candidate.worldQuality={...fallbackWorldEvaluation(candidate,diagnostics,"BACKGROUND_AI_CRITIC_PENDING"),backgroundPending:true,repairHistory:[]};
   return json(res,200,{candidate});
  }catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message})}
 }

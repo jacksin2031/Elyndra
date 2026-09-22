@@ -1,8 +1,8 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=45000";
+import {APP_VERSION} from "./src/version.js?v=46000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=45000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=45000";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=46000";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=44000";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=45000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
@@ -38,7 +38,7 @@ import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276"
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=45000";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=46000";
 import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=43000";
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
@@ -58,6 +58,7 @@ window.addEventListener("unhandledrejection",e=>recordDebug("UNHANDLED_REJECTION
 const deferredDirector={timer:0,running:false,controller:null,queue:[]};
 const nonblockingScene={controller:null,revision:null,worldId:null};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false,failures:0,cooldownUntil:0};
+const worldQualityBackground={timer:0,running:false,controller:null,lastReason:"background_quality",failures:0};
 let gameplayDebugSnapshot=null;
 function gameplayDebugClock(state){
  const clock=state?.world?.state?.clock||{};
@@ -117,6 +118,9 @@ function recordGameplayStateChanges(state,reason="refresh"){
 function preemptBackgroundWorldEvolution(){
  const ctrl=worldBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Higher-priority gameplay has priority","AbortError"))
 }
+function preemptBackgroundWorldQuality(){
+ const ctrl=worldQualityBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Higher-priority gameplay has priority","AbortError"))
+}
 function preemptDeferredDirector(){
  const ctrl=deferredDirector.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
 }
@@ -124,7 +128,7 @@ function preemptNonblockingScene(){
  const ctrl=nonblockingScene.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Newer player action has priority","AbortError"));
  nonblockingScene.controller=null;nonblockingScene.revision=null;nonblockingScene.worldId=null
 }
-function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptDeferredDirector()}
+function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptBackgroundWorldQuality();preemptDeferredDirector()}
 function commitStatePatch(state,patch,plan,context={}){
  const valid=validateStatePatch(patch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
  if(!Array.isArray(patch.operations)||!patch.operations.length)return {applied:false,empty:true,revision:currentStateRevision(state)};
@@ -172,6 +176,7 @@ function resumeDeferredDirectorQueue(){
 async function runDeferredDirector(){
  if(!gameState||!aiStatus.aiConfigured||deferredDirector.running||!deferredDirector.queue.length)return;
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||document.hidden){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},1500);return}
+ if(worldQualityBackground.running){preemptBackgroundWorldQuality();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
  if(worldBackground.running){preemptBackgroundWorldEvolution();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
  const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=new AbortController(),debugStarted=Date.now();
  deferredDirector.running=true;deferredDirector.controller=ctrl;
@@ -196,6 +201,38 @@ async function runDeferredDirector(){
   else scheduleWorldEvolution("post_deferred_turn",5000)
  }
 }
+function scheduleWorldQualityCritic(reason="background_quality",delay=1400){
+ if(!gameState||!aiStatus.aiConfigured)return;const need=backgroundQualityNeed(gameState);if(!need.required)return;
+ worldQualityBackground.lastReason=String(reason||need.reason||"background_quality").slice(0,180);
+ if(worldQualityBackground.timer)clearTimeout(worldQualityBackground.timer);
+ worldQualityBackground.timer=setTimeout(()=>{worldQualityBackground.timer=0;void runBackgroundWorldQualityCritic()},Math.max(350,Number(delay)||1400))
+}
+async function runBackgroundWorldQualityCritic(){
+ if(!gameState||!aiStatus.aiConfigured||worldQualityBackground.running)return;
+ const need=backgroundQualityNeed(gameState);if(!need.required)return;
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||gameState.combat?.active||document.hidden){scheduleWorldQualityCritic(need.reason,2600);return}
+ const worldId=gameState.world?.id,baseVersion=Number(gameState.world?.version)||1,ctrl=new AbortController(),startedAt=Date.now();
+ worldQualityBackground.running=true;worldQualityBackground.controller=ctrl;
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"BACKGROUND_QUALITY_CRITIC_STARTED",visibility:"INTERNAL",reason:need.reason,worldVersion:baseVersion,day:gameState.world?.state?.day||1,at:Date.now()});
+ recordDebug("BACKGROUND_QUALITY_CRITIC_STARTED",{reason:need.reason,worldVersion:baseVersion});
+ try{
+  const result=await runWorldQualityCritic(gameState,{signal:ctrl.signal});
+  if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
+  if(!result){recordBackgroundQualityReview(gameState,{error:"BACKGROUND_CRITIC_UNAVAILABLE"});return}
+  if(Number(gameState.world?.version)!==baseVersion){recordDebug("BACKGROUND_QUALITY_CRITIC_STALE_DISCARDED",{baseVersion,currentVersion:gameState.world?.version});scheduleWorldQualityCritic("stale_retry",1800);return}
+  const repair=result.repairPatch?applyUnseenWorldRepair(gameState,result.repairPatch):{applied:false,modified:[]};
+  recordBackgroundQualityReview(gameState,{evaluation:result.evaluation,repair});
+  if(repair.applied)bumpStateRevision(gameState,"BACKGROUND_QUALITY_REPAIR");
+  worldQualityBackground.failures=0;
+  gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"BACKGROUND_QUALITY_CRITIC_COMPLETED",visibility:"INTERNAL",overall:result.evaluation?.overall??null,repairCount:repair.modified?.length||0,day:gameState.world?.state?.day||1,at:Date.now()});
+  recordDebug("BACKGROUND_QUALITY_CRITIC_COMPLETED",{overall:result.evaluation?.overall??null,repairCount:repair.modified?.length||0,elapsedMs:Date.now()-startedAt});
+  await persist();if(repair.applied)await refresh()
+ }catch(e){
+  if(!ctrl.signal.aborted){worldQualityBackground.failures=Math.min(4,(Number(worldQualityBackground.failures)||0)+1);recordBackgroundQualityReview(gameState,{error:e?.message||String(e)});recordDebug("BACKGROUND_QUALITY_CRITIC_FAILED",{error:e?.message||String(e),elapsedMs:Date.now()-startedAt})}
+ }finally{
+  if(worldQualityBackground.controller===ctrl)worldQualityBackground.controller=null;worldQualityBackground.running=false
+ }
+}
 function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
  if(!gameState||!aiStatus.aiConfigured)return;worldBackground.lastReason=String(reason||"background_gameplay").slice(0,180);worldBackground.queued=true;
  if(worldBackground.timer)clearTimeout(worldBackground.timer);
@@ -204,7 +241,7 @@ function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
 }
 async function runBackgroundWorldEvolution(){
  if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
- if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldQualityBackground.running||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
  const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),plan=planLazyGeneration(gameState,{reason}),ctrl=new AbortController(),debugStarted=Date.now();
@@ -216,7 +253,7 @@ async function runBackgroundWorldEvolution(){
   if(!ex?.generation)throw new Error("RUNTIME_EXPANSION_EMPTY");
   const lazyValidation=validateLazyGenerationCandidate(gameState,ex.generation,plan);if(!lazyValidation.valid)throw new Error("LAZY_GENERATION_CONTRACT_FAILED:"+lazyValidation.errors.join(","));
   const added=canonizeGeneration(gameState,ex.generation),committed=commitLazyGeneration(gameState,plan,ex.generation,added);if(!committed.ok)throw new Error("LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
-  recordExpansion(gameState,ex.region||plan.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,planId:plan.id,claimIds:committed.claimIds,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,planId:plan.id,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist()
+  recordExpansion(gameState,ex.region||plan.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,planId:plan.id,claimIds:committed.claimIds,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,planId:plan.id,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist();scheduleWorldQualityCritic("post_world_evolution",1800)
  }catch(e){
   if(plan.status==="PLANNED")abortLazyGeneration(gameState,plan,e?.message||"BACKGROUND_FAILED");
   if(!ctrl.signal.aborted){
@@ -411,9 +448,9 @@ async function runAction(action,customText="",options={}){
   if(aiBusy)setAIThinking(false);if(turnSyncBusy)setTurnSyncing(false)
  }
  try{await persist();await refresh()}
- finally{scheduleWorldEvolution(effective||"player_exploration",5000)}
+ finally{scheduleWorldEvolution(effective||"player_exploration",5000);scheduleWorldQualityCritic("post_player_action",2600)}
 }
-$("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game")};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
+$("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game");scheduleWorldQualityCritic("continue_world",1200)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
 function requestWorldReadyNotificationPermission(){
  if(!("Notification" in window)||Notification.permission!=="default")return;
@@ -558,7 +595,7 @@ $("#generateBtn").onclick=async()=>{
   const accepted=await confirmWorldContract(contract);
   if(!accepted){gameState=null;worldProgress(0,"已返回修改","這次編譯結果尚未建立正式存檔；修改設定後可重新生成。");return}
   worldProgress(96,"正在建立正式存檔","保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon");
-  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game")
+  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game");scheduleWorldQualityCritic("post_creation",1000)
  }catch(e){worldProgress(0,"世界生成失敗",e.message);alert("世界編譯失敗："+e.message)}
  finally{btn.disabled=false}
 };
