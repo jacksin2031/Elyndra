@@ -48,23 +48,26 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
  root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
 }
 function groupRows(g,key){return Array.isArray(g?.[key])?g[key]:[]}
+function rowIdentity(key,row){
+ return key==="definitions"?(String(row?.kind||"").toUpperCase()+":"+String(row?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase()
+}
 function existingNames(state,key){
  const r=state.world?.registry||{},catalog=state.world?.catalog||{},rows=key==="sideQuests"?(r.sideQuests||[]):key==="definitions"?[...(catalog.civilizations||[]),...(catalog.species||[]),...(catalog.languages||[])]:r[key]||[];
- return new Set(rows.map(x=>key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase()).filter(Boolean))
+ return new Set(rows.map(x=>rowIdentity(key,x)).filter(Boolean))
 }
 const normalizeForbidden=v=>String(v||"").normalize("NFKC").toLocaleLowerCase().replace(/[\s_\-—–、，,。.!！？?：:；;（）()\[\]{}「」『』【】〈〉《》"'\`´’‘“”·・\\/]+/g,"");
 function forbiddenMatch(row,terms=[]){const hay=normalizeForbidden(JSON.stringify(row??{}));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
-export function validateLazyGenerationCandidate(state,generation,plan){
+export function validateLazyGenerationCandidate(state,generation,plan,options={}){
  const errors=[];if(!plan||plan.status!=="PLANNED")return {valid:false,errors:["LAZY_PLAN_NOT_ACTIVE"]};
  for(const key of ["generationRevision","worldSeedFingerprint","entitySeed","generationSlot","promptVersion","validationVersion","generatedAtWorldTime"])if(plan[key]==null)errors.push("LAZY_REPLAY_METADATA_MISSING:"+key);
  if(plan.promptVersion!==LAZY_PROMPT_VERSION)errors.push("LAZY_PROMPT_VERSION_MISMATCH");if(plan.validationVersion!==LAZY_VALIDATION_VERSION)errors.push("LAZY_VALIDATION_VERSION_MISMATCH");
  const allowedHistory=new Set([...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
  for(const key of ["locations","npcs","factions","sideQuests","definitions"]){
   const rows=groupRows(generation,key),limit=Math.max(0,Number(plan.slots?.[key])||0);if(rows.length>limit)errors.push("LAZY_SLOT_EXCEEDED:"+key);
-  const existing=existingNames(state,key),candidateNames=new Set();
+  const existing=existingNames(state,key),canonized=new Set((options?.added?.[key]||[]).map(x=>rowIdentity(key,x)).filter(Boolean)),candidateNames=new Set();
   for(const row of rows){
-   const name=key==="definitions"?(String(row?.kind||"").toUpperCase()+":"+String(row?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase();
-   if(name&&existing.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
+   const name=rowIdentity(key,row);
+   if(name&&existing.has(name)&&!canonized.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
    if(name&&candidateNames.has(name))errors.push("LAZY_DUPLICATE_CANDIDATE:"+key+":"+name);if(name)candidateNames.add(name);
    const forbidden=forbiddenMatch(row,plan.forbiddenTerms||[]);if(forbidden)errors.push("LAZY_FORBIDDEN_TERM:"+forbidden);
    const refs=uniq(row?.historyRefs,8);if(key!=="definitions"&&(state.world?.history||[]).length&&refs.length===0)errors.push("LAZY_HISTORY_REF_REQUIRED:"+key);
@@ -89,7 +92,7 @@ function addedIdFor(raw,added,key){
  const hit=rows.find(x=>(key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase())===name);return hit?.id||null
 }
 export function commitLazyGeneration(state,plan,generation,added,meta={}){
- const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan);if(!v.valid)return {ok:false,errors:v.errors};
+ const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan,{added});if(!v.valid)return {ok:false,errors:v.errors};
  const bindings={},echoBindings={};
  for(const key of ["locations","npcs","factions","sideQuests","definitions"])for(const raw of groupRows(generation,key)){
   const id=addedIdFor(raw,added,key);if(!id)continue;
