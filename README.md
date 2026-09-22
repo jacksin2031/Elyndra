@@ -63,6 +63,17 @@ Save Manager → IndexedDB / .elyndra
 
 > AI proposes. Game Engine decides. Database remembers.
 
+
+### v0.54.9 — Sequential World Foundation
+
+世界觀建立改為真正的 **Progressive World Building**。不論瀏覽器 Direct AI 或 server `/api/world`，都不再一次要求 AI 寫完整世界，也不再把互相有依賴的世界觀部分並行生成。
+
+`Identity → Core Rules → Core Anchor → History → Geography → Future → Society → Cast`
+
+每一階段只可讀取前面已鎖定並通過 Engine 驗證的結果；例如 Geography 必須讀取已驗證 History，Society 必須讀取已驗證 Geography/Future，Cast 最後才建立人物與支線。遊玩期間的 Runtime Expansion 則維持 v0.54.8 的 `Geography/Definitions → Society/Faction → Cast/NPC → Side Quest` 四段式。
+
+這使局部 AI 失敗只影響當前 stage，已確認的 Canon 不會被後面的 AI 一次重寫。
+
 ### v0.40.0 — Causal World Core
 
 Elyndra 現在加入 World Ledger、Generation Claims、Evidence/Belief/Truth 分離，以及多事件 Future Engine。現有 crisis / VERIFIED knowledge / Save v12 保持向後相容，詳細架構見 `docs/causal-world-core-v040.md`.
