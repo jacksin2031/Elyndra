@@ -33,10 +33,10 @@ test("v0.54.5 keeps runtime hardening and Developer Autotest cache graphs cohere
  assert.match(app,/\.\/src\/version\.js\?v=54005/);
  assert.match(app,/\.\/src\/ai-autotest\.js\?v=54005/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=54005/);
- for(const path of ["world-engine","turn-compiler","adventure-engine","session-maintenance","game-engine","world-simulation","npc-engine","npc-conversation","combat-engine","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
+ for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
- for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
+ for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure","adventure-engine","combat-engine","dungeon-engine","faction-engine","game-engine","npc-conversation","npc-engine","quest-engine","world-map","world-registry","world-simulation"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
  assert.match(app,/\.\/src\/ai-settings\.js\?v=54005/);
  assert.match(client,/\.\/ai-settings\.js\?v=54005/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);
@@ -50,7 +50,7 @@ test("v0.54.5 keeps runtime hardening and Developer Autotest cache graphs cohere
  assert.match(causal,/\.\/causal-integrity\.js\?v=54001/);
  assert.match(integrity,/\.\/knowledge-model\.js\?v=54001/);
  assert.match(integrity,/\.\/lazy-generation\.js\?v=54001/);
- assert.match(simulation,/\.\/npc-engine\.js\?v=54001/);
+ assert.match(simulation,/\.\/npc-engine\.js\?v=54005/);
  assert.match(storage,/\.\/causal-world-core\.js\?v=54001/);
  assert.match(storage,/\.\/item-engine\.js\?v=54005/);
  assert.match(progression,/\.\/storage\.js\?v=54005/);
