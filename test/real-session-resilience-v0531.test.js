@@ -7,7 +7,7 @@ test("v0.53.1 lets core world compiler retry once after parallel provider timeou
  assert.match(client,/CORE_TIMEOUT_RETRY=new Set\(\["CORE_RULES","CORE_ANCHOR"\]\)/);
  assert.match(client,/allowCoreTimeoutRetry=timedOut&&CORE_TIMEOUT_RETRY\.has\(stage\)/);
  assert.match(client,/noteGenerationSuccess\(\)/);
- assert.match(client,/circuit\.timeoutCount=0;circuit\.timeoutStages=\[\];circuit\.open=false/);
+ assert.match(client,/circuit\.timeoutCount=0;circuit\.timeoutStages=\[\];circuit\.transportCount=0;circuit\.transportStages=\[\];circuit\.open=false/);
  assert.match(client,/Math\.min\(35000,Number\(args\.timeoutMs\)/)
 });
 
