@@ -49,11 +49,13 @@ export function tickNpcs(state){
  for(const npc of roundRobin(state,npcs,"npcCursor",4)){
   if(!npc.alive||now-npc.lastActionMinute<120)continue;
   npc.lastActionMinute=now;evaluateCompanionAutonomy(state,npc,crisis);const life=npc.life;
-  if(npc.companion.status==="ACTIVE"){life.energy=clamp(life.energy-2,0,100);life.schedulePhase="TRAVEL_WITH_PLAYER";const playerLoc=(state.world.registry?.locations||[]).find(x=>x.name===state.player?.location);if(playerLoc)npc.locationId=playerLoc.id}
-  else{const move=chooseMove(state,npc,crisis);if(move&&now-life.lastMoveMinute>=240){const from=npc.locationId;npc.locationId=move.id;life.lastMoveMinute=now;life.energy=clamp(life.energy-6,0,100);life.schedulePhase="TRAVEL";state.events.push({id:id(),type:"NPC_MOVED",visibility:"INTERNAL",npcId:npc.id,fromLocationId:from,toLocationId:move.id,summary:npc.name+" 因自己的目標與環境狀況移動到 "+move.name+"。",day:state.world.state.day,at:Date.now()})}}
+  let memorableSummary="";
+  if(npc.companion.status==="ACTIVE"){life.energy=clamp(life.energy-2,0,100);life.schedulePhase="TRAVEL_WITH_PLAYER";const playerLoc=(state.world.registry?.locations||[]).find(x=>x.name===state.player?.location);if(playerLoc&&npc.locationId!==playerLoc.id){npc.locationId=playerLoc.id;memorableSummary=npc.name+" 跟隨玩家移動到 "+playerLoc.name+"。"}}
+  else{const move=chooseMove(state,npc,crisis);if(move&&now-life.lastMoveMinute>=240){const from=npc.locationId;npc.locationId=move.id;life.lastMoveMinute=now;life.energy=clamp(life.energy-6,0,100);life.schedulePhase="TRAVEL";memorableSummary=npc.name+" 因自己的目標與環境狀況移動到 "+move.name+"。";state.events.push({id:id(),type:"NPC_MOVED",visibility:"INTERNAL",npcId:npc.id,fromLocationId:from,toLocationId:move.id,summary:memorableSummary,day:state.world.state.day,at:Date.now()})}}
   const summary=workAtLocation(state,npc)||npc.name+" 根據自己的目標調整了今天的行動。";
   const ev={id:id(),type:"NPC_AUTONOMOUS_ACTION",visibility:"INTERNAL",npcId:npc.id,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),at:Date.now()};
-  npc.memories.push({id:id(),type:"autonomous",summary,day:state.world.state.day});npc.memories=npc.memories.slice(-20);state.events.push(ev);recordCausalEvent(state,ev,{entityIds:[npc.id,npc.factionId].filter(Boolean)});out.push(ev)
+  if(memorableSummary){npc.memories.push({id:id(),type:"autonomous",summary:memorableSummary,day:state.world.state.day});npc.memories=npc.memories.slice(-20)}
+  state.events.push(ev);recordCausalEvent(state,ev,{entityIds:[npc.id,npc.factionId].filter(Boolean)});out.push(ev)
  }
  return out
 }
