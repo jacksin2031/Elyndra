@@ -11,7 +11,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
 });
 
 test("v0.54.6 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
- const [html,app,client,stateSync,actions,settings,adventure,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
+ const [html,app,client,stateSync,actions,settings,adventure,turnOutcome,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
@@ -19,6 +19,7 @@ test("v0.54.6 keeps structured AI and Developer Autotest cache graphs coherent",
   readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/turn-outcome.js",import.meta.url),"utf8"),
   readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8"),
   readFile(new URL("../src/knowledge-model.js",import.meta.url),"utf8"),
   readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
@@ -40,9 +41,9 @@ test("v0.54.6 keeps structured AI and Developer Autotest cache graphs coherent",
  assert.match(app,/\.\/src\/ai-settings\.js\?v=54006/);
  assert.match(client,/\.\/ai-settings\.js\?v=54006/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);assert.match(client,/\.\/turn-outcome\.js\?v=54006/);
- assert.match(client,/\.\/action-intent\.js\?v=54001/);
+ assert.match(client,/\.\/action-intent\.js\?v=54001/);assert.match(client,/\.\/state-sync\.js\?v=54006/);
  assert.match(client,/\.\/knowledge-model\.js\?v=54001/);
- assert.match(app,/\.\/src\/state-sync\.js\?v=54006/);assert.match(app,/\.\/src\/adventure-engine\.js\?v=54006/);assert.match(adventure,/\.\/state-sync\.js\?v=54006/);
+ assert.match(app,/\.\/src\/state-sync\.js\?v=54006/);assert.match(app,/\.\/src\/adventure-engine\.js\?v=54006/);assert.match(adventure,/\.\/state-sync\.js\?v=54006/);assert.match(turnOutcome,/\.\/state-sync\.js\?v=54006/);
  assert.match(adventure,/\.\/contextual-actions\.js\?v=54001/);
  assert.match(worldEngine,/\.\/causal-world-core\.js\?v=54001/);
  assert.match(causal,/\.\/knowledge-model\.js\?v=54001/);
