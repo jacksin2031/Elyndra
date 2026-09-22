@@ -1,6 +1,6 @@
 import {ensureWorldLedger} from "./world-ledger.js?v=53000";
 import {ensureGenerationClaims,reconcileGenerationClaims,validateGenerationClaims,materialSatisfiesClaim,forbiddenTermMatch} from "./generation-claims.js?v=53000";
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=53000";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
 import {ensureFutureEngine} from "./future-engine.js?v=48000";
 import {ensureHistoryLegacy} from "./history-legacy.js?v=50000";
 import {ensureWorldCatalog,worldCatalogDefinitions} from "./world-catalog.js?v=52000";
