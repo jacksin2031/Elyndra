@@ -55,7 +55,7 @@ test("AI settings UI exposes Agnes as a selectable mode",async()=>{
  assert.match(app,/Elyndra 自適應優化/);
  assert.match(app,/目前模型/);
  assert.doesNotMatch(app,/id="aiModel"/);
- assert.match(app,/ai-settings\.js\?v=54005/)
+ assert.match(app,/ai-settings\.js\?v=54006/)
 });
 
 
@@ -87,13 +87,19 @@ test("adaptive optimization raises reasoning with task importance for every prov
  assert.deepEqual(providerOptimization("gemini","adaptive","action"),{thinkingConfig:{thinkingLevel:"LOW"}});
  assert.deepEqual(providerOptimization("gemini","adaptive","history"),{thinkingConfig:{thinkingLevel:"HIGH"}});
  assert.deepEqual(providerOptimization("agnes","adaptive","npc"),{reasoning_effort:"low"});
+ assert.deepEqual(providerOptimization("agnes","adaptive","action"),{});
+ assert.deepEqual(providerOptimization("agnes","adaptive","scene"),{});
+ assert.deepEqual(providerOptimization("agnes","adaptive","turn_state_fast"),{});
+ assert.deepEqual(providerOptimization("agnes","adaptive","core_anchor"),{});
+ assert.deepEqual(providerOptimization("agnes","adaptive","core_rules"),{});
+ assert.deepEqual(providerOptimization("agnes","adaptive","future"),{});
  assert.deepEqual(providerOptimization("agnes","adaptive","identity"),{});
  assert.deepEqual(providerOptimization("agnes","adaptive","geography"),{});
  assert.deepEqual(providerOptimization("agnes","adaptive","society"),{});
  assert.deepEqual(providerOptimization("agnes","adaptive","cast"),{});
  assert.deepEqual(providerOptimization("agnes","adaptive","recovery"),{reasoning_effort:"high"});
  assert.deepEqual(providerOptimization("openai","standard","quality"),{});
- assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{reasoning_effort:"low"})
+ assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{})
 });
 
 test("adaptive OpenAI and Agnes requests use native reasoning_effort while keeping fixed models",async()=>{
@@ -103,9 +109,9 @@ test("adaptive OpenAI and Agnes requests use native reasoning_effort while keepi
    clearAISettings();let request;
    saveAISettings({provider,apiKey:"test-key",endpoint:PROVIDERS[provider].endpoint,model:"ignored",optimization:"adaptive"});
    globalThis.fetch=async(url,init)=>{request={url,body:JSON.parse(init.body)};return {ok:true,json:async()=>({choices:[{message:{content:"OK"}}]})}};
-   await directChat({system:"s",user:"u",aiTask:"action",timeoutMs:5000,retryOnTimeout:false});
+   await directChat({system:"s",user:"u",aiTask:"action",timeoutMs:5000,retryOnTimeout:false,maxOutputTokens:700});
    assert.equal(request.body.model,PROVIDERS[provider].model);
-   assert.equal(request.body.reasoning_effort,"low");
+   if(provider==="openai")assert.equal(request.body.reasoning_effort,"low");else{assert.equal("reasoning_effort" in request.body,false);assert.equal(request.body.max_tokens,800)}
    await directChat({system:"s",user:"u",aiTask:"quality",timeoutMs:5000,retryOnTimeout:false});
    assert.equal(request.body.reasoning_effort,"high")
   }
@@ -129,7 +135,7 @@ test("adaptive mode retries once without native optimization when a compatible e
  try{
   clearAISettings();saveAISettings({provider:"agnes",apiKey:"a",endpoint:"https://proxy.invalid/chat",optimization:"adaptive"});
   globalThis.fetch=async(url,init)=>{bodies.push(JSON.parse(init.body));if(bodies.length===1)return {ok:false,status:400,json:async()=>({error:{message:"unsupported field"}})};return {ok:true,json:async()=>({choices:[{message:{content:"OK"}}]})}};
-  assert.equal(await directChat({system:"s",user:"u",aiTask:"action",timeoutMs:5000,retryOnTimeout:false}),"OK");
+  assert.equal(await directChat({system:"s",user:"u",aiTask:"npc",timeoutMs:5000,retryOnTimeout:false}),"OK");
   assert.equal(bodies[0].reasoning_effort,"low");
   assert.equal("reasoning_effort" in bodies[1],false)
  }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
@@ -141,6 +147,11 @@ test("adaptive reasoning-capable providers reserve visible completion budget",()
  assert.equal(providerTokenBudget("openai","adaptive","identity",500),500);
  assert.equal(providerTokenBudget("agnes","adaptive","identity",500),900);
  assert.equal(providerTokenBudget("agnes","standard","geography",800),900);
+ assert.equal(providerTokenBudget("agnes","adaptive","scene",760),1100);
+ assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),800);
+ assert.equal(providerTokenBudget("agnes","adaptive","core_rules",900),1100);
+ assert.equal(providerTokenBudget("agnes","adaptive","core_anchor",1000),1200);
+ assert.equal(providerTokenBudget("agnes","adaptive","future",1200),1600);
  assert.ok(providerTokenBudget("openai","adaptive","core_rules",900)>=3600);
  assert.ok(providerTokenBudget("agnes","adaptive","quality",1200)>=4800);
  assert.equal(providerTokenBudget("gemini","adaptive","history",1200),1200)
@@ -204,13 +215,15 @@ test("hard provider deadline accepts timeoutMs=0 as no automatic timeout",async(
 });
 
 
-test("Agnes structured FAST requests keep completion budget for JSON instead of reasoning",async()=>{
+test("Agnes structured JSON requests keep completion budget instead of reasoning",async()=>{
  const priorStorage=globalThis.localStorage,priorFetch=globalThis.fetch;globalThis.localStorage=memoryStorage();let body;
  try{
   clearAISettings();saveAISettings({provider:"agnes",apiKey:"a",endpoint:PROVIDERS.agnes.endpoint,optimization:"adaptive"});
   globalThis.fetch=async(url,init)=>{body=JSON.parse(init.body);return {ok:true,json:async()=>({choices:[{finish_reason:"stop",message:{content:'{"ok":true}'}}]})}};
-  assert.equal(await directChat({system:"s",user:"u",aiTask:"identity",maxOutputTokens:500,timeoutMs:5000,retryOnTimeout:false}),'{"ok":true}');
-  assert.equal("reasoning_effort" in body,false);
-  assert.equal(body.max_tokens,900)
+  for(const [task,requested,expected] of [["identity",500,900],["scene",760,1100],["turn_state_fast",650,800],["core_rules",900,1100],["core_anchor",1000,1200],["future",1200,1600]]){
+   assert.equal(await directChat({system:"s",user:"u",aiTask:task,maxOutputTokens:requested,timeoutMs:5000,retryOnTimeout:false}),'{"ok":true}');
+   assert.equal("reasoning_effort" in body,false,task);
+   assert.equal(body.max_tokens,expected,task)
+  }
  }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
 });
