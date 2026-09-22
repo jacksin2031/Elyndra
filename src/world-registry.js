@@ -122,6 +122,20 @@ function resolveKnowledgeScope(state,input){
  }
  return out.slice(0,12)
 }
+export function enrichGeneratedLocations(state,rows=[]){
+ const r=ensureWorldRegistry(state),updated=[];
+ for(const raw of Array.isArray(rows)?rows:[]){
+  const name=clean(raw?.name,80),loc=r.locations.find(x=>String(x.name||"").toLowerCase()===name.toLowerCase());if(!loc)continue;
+  if(raw?.culture)loc.culture=normalizeCultureProfile(raw.culture);
+  if(raw?.trade)loc.trade=normalizeTradeProfile(raw.trade);
+  updated.push(loc)
+ }
+ if(updated.length){
+  state.world.version=(Number(state.world.version)||1)+1;
+  state.events??=[];state.events.push({id:uid("EV"),type:"WORLD_CANON_ENRICHED",visibility:"INTERNAL",day:state.world.state.day,summary:"locations enriched +"+updated.length,at:Date.now()})
+ }
+ return updated
+}
 export function canonizeGeneration(state,g){
  const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));const forbidden=forbiddenTermMatch(state,g);if(forbidden)throw new Error("WORLD_CONSTITUTION_FORBID:"+forbidden);
  const r=ensureWorldRegistry(state),added={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
