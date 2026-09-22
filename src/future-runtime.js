@@ -1,5 +1,5 @@
 import {ensureFutureEngine,applyFuturePressure,recomputeFutureStage,mirrorLegacyCrisisToFuture} from "./future-engine.js?v=40000";
-import {ensureHistoryFutureLinks} from "./history-future.js?v=42000";
+import {ensureHistoryFutureLinks} from "./history-future.js?v=47000";
 import {appendWorldLedger,promoteLedgerEntryToHistory,ensureWorldLedger} from "./world-ledger.js?v=40000";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
