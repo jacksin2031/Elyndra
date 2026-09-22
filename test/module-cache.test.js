@@ -10,37 +10,31 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.42.0 refreshes the causal Future dependency chain without invalidating StatePatch",async()=>{
- const [html,app,simulation,game,combat,adventure,npc,npcDialogue,futureRuntime,historyFuture,client,storage]=await Promise.all([
+test("v0.43.0 refreshes Item Heritage and persistence dependency chain",async()=>{
+ const [html,app,item,world,storage,game,combat,adventure,progression,causal,documents,recognition]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/item-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
   readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/future-runtime.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/history-future.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/storage.js",import.meta.url),"utf8")
+  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/document-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/item-recognition.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=42000/);
- assert.match(app,/\.\/src\/version\.js\?v=42000/);
- assert.match(app,/\.\/src\/world-simulation\.js\?v=42000/);
- assert.match(app,/\.\/src\/game-engine\.js\?v=42000/);
- assert.match(app,/\.\/src\/combat-engine\.js\?v=42000/);
- assert.match(app,/\.\/src\/adventure-engine\.js\?v=42000/);
- assert.match(app,/\.\/src\/npc-conversation\.js\?v=42000/);
- assert.match(simulation,/\.\/future-runtime\.js\?v=42000/);
- assert.match(game,/\.\/world-simulation\.js\?v=42000/);
- assert.match(combat,/\.\/world-simulation\.js\?v=42000/);
- assert.match(adventure,/\.\/combat-engine\.js\?v=42000/);
- assert.match(npc,/\.\/world-simulation\.js\?v=42000/);
- assert.match(npcDialogue,/\.\/world-simulation\.js\?v=42000/);
- assert.match(futureRuntime,/\.\/history-future\.js\?v=42000/);
- assert.match(futureRuntime,/\.\/future-engine\.js\?v=40000/);
- assert.match(historyFuture,/\.\/future-engine\.js\?v=40000/);
- assert.match(client,/\.\/state-sync\.js\?v=41000/);
- assert.match(storage,/\.\/causal-world-core\.js\?v=40000/);
+ assert.match(html,/app\.js\?v=43000/);
+ for(const path of ["version","world-engine","adventure-engine","game-engine","storage","combat-engine","item-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=43000"),path);
+ assert.match(world,/\.\/causal-world-core\.js\?v=43000/);
+ assert.match(storage,/\.\/item-engine\.js\?v=43000/);assert.match(storage,/\.\/causal-world-core\.js\?v=43000/);
+ assert.match(game,/\.\/world-engine\.js\?v=43000/);assert.match(game,/\.\/item-engine\.js\?v=43000/);
+ assert.match(combat,/\.\/world-engine\.js\?v=43000/);
+ assert.match(adventure,/\.\/combat-engine\.js\?v=43000/);assert.match(adventure,/\.\/item-engine\.js\?v=43000/);
+ assert.match(progression,/\.\/item-engine\.js\?v=43000/);assert.match(progression,/\.\/storage\.js\?v=43000/);
+ assert.match(item,/\.\/item-heritage\.js\?v=43000/);assert.match(item,/\.\/item-recognition\.js\?v=43000/);
+ assert.match(causal,/\.\/item-heritage\.js\?v=43000/);assert.match(causal,/\.\/document-engine\.js\?v=43000/);
+ assert.match(documents,/\.\/history-future\.js\?v=42000/);
+ assert.match(recognition,/\.\/item-heritage\.js\?v=43000/)
 });
