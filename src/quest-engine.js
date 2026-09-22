@@ -1,4 +1,4 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=52000";
+import {ensureWorldRegistry} from "./world-registry.js?v=53000";
 import {recordCausalEvent} from "./knowledge-graph.js?v=276";
 import {localCurrencyReward} from "./world-locality.js?v=276";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);

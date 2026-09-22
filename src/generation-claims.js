@@ -120,7 +120,12 @@ function exactRequiredMatches(state,claim){
  return [...registryEntities(state),...worldCatalogDefinitions(state)].filter(e=>materialSatisfiesClaim(claim,e)).map(e=>e.id)
 }
 export function reconcileGenerationClaims(state){
- const root=ensureGenerationClaims(state),entities=registryEntities(state),defs=worldCatalogDefinitions(state);
+ const root=ensureGenerationClaims(state),entities=registryEntities(state),defs=worldCatalogDefinitions(state),materials=[...entities,...defs],byId=new Map(materials.map(x=>[x.id,x]));
+ for(const claim of root.claims.filter(x=>x.status==="MATERIALIZED")){
+  const valid=uniq((claim.entityRefs||[]).filter(id=>{const row=byId.get(id);return row&&materialSatisfiesClaim(claim,row)}));
+  if(valid.length){claim.entityRefs=valid;continue}
+  claim.status="UNMATERIALIZED";claim.entityRefs=[];claim.materializedRevision=null;claim.reservation=null;claim.failureReason="MATERIALIZATION_DRIFT"
+ }
  const usedDefinitions=new Set(root.claims.filter(x=>x.status==="MATERIALIZED"&&x.type==="BLUEPRINT_DEFINITION").flatMap(x=>x.entityRefs||[]));
  for(const claim of root.claims){
   if(claim.status==="MATERIALIZED")continue;let refs=[];

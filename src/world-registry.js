@@ -5,7 +5,7 @@ import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=276
 import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=320";
 import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=51000";
 import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=52000";
-import {forbiddenTermMatch} from "./generation-claims.js?v=52000";
+import {forbiddenTermMatch} from "./generation-claims.js?v=53000";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);

@@ -12,7 +12,7 @@ const seed={worldviewMode:"style",genre:"王道奇幻",scale:"中型",danger:3,m
 
 test("new worlds initialize the causal core and ledger the creation event",()=>{
  const s=newGame(seed);
- assert.equal(s.world.causalCore.version,1);
+ assert.equal(s.world.causalCore.version,2);
  assert.equal(s.world.ledger.version,1);
  assert.ok(s.world.ledger.entries.some(x=>x.type==="WORLD_CREATED"));
  assert.ok(Array.isArray(s.world.futures));

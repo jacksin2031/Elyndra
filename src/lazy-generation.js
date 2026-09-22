@@ -1,4 +1,4 @@
-import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=52000";
+import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=53000";
 import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=50000";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
@@ -59,6 +59,9 @@ const normalizeForbidden=v=>String(v||"").normalize("NFKC").toLocaleLowerCase().
 function forbiddenMatch(row,terms=[]){const hay=normalizeForbidden(JSON.stringify(row??{}));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
 export function validateLazyGenerationCandidate(state,generation,plan,options={}){
  const errors=[];if(!plan||plan.status!=="PLANNED")return {valid:false,errors:["LAZY_PLAN_NOT_ACTIVE"]};
+ const root=ensureLazyGeneration(state),canonizedDelta=Object.values(options?.added||{}).some(rows=>Array.isArray(rows)&&rows.length)?1:0,expectedWorldVersion=(Number(plan.worldVersion)||1)+canonizedDelta,currentWorldVersion=Number(state.world?.version)||1;
+ if(currentWorldVersion!==expectedWorldVersion)errors.push("LAZY_STALE_WORLD_VERSION");
+ if(Number(plan.generationRevision)!==Number(root.generationRevision)+1)errors.push("LAZY_STALE_GENERATION_REVISION");
  for(const key of ["generationRevision","worldSeedFingerprint","entitySeed","generationSlot","promptVersion","validationVersion","generatedAtWorldTime"])if(plan[key]==null)errors.push("LAZY_REPLAY_METADATA_MISSING:"+key);
  if(plan.promptVersion!==LAZY_PROMPT_VERSION)errors.push("LAZY_PROMPT_VERSION_MISMATCH");if(plan.validationVersion!==LAZY_VALIDATION_VERSION)errors.push("LAZY_VALIDATION_VERSION_MISMATCH");
  const allowedHistory=new Set([...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
