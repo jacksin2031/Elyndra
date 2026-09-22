@@ -1,8 +1,8 @@
 import {questSnapshot} from "./quest-engine.js?v=320";
 import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=320";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=47000";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=48000";
 import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=320";
-import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=47000";
+import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=48000";
 
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const $=s=>document.querySelector(s);
