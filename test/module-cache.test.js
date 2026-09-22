@@ -31,7 +31,7 @@ test("v0.54.1 keeps Developer Autotest and real-session hotfix cache graphs cohe
  ]);
  assert.match(html,/app\.js\?v=54001/);
  assert.match(app,/\.\/src\/version\.js\?v=54001/);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=54000/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=54001/);
  for(const path of ["ai-settings","world-engine","ai-client","turn-compiler","adventure-engine","session-maintenance","game-engine","storage","world-simulation","npc-engine","npc-conversation","combat-engine","world-creation","item-engine","progression-ui","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
