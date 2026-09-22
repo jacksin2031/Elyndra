@@ -8,7 +8,7 @@ import {helperSnapshot} from "./helper-context.js?v=44000";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=37000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance} from "./world-quality.js?v=45000";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=46000";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=37000";
@@ -309,8 +309,9 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
 
   report(84,"整合世界","三個 Wave 完成；任何時候最多兩個 AI 並行，Engine 正在驗證跨階段引用");
   const draft={...core,originOpening,worldHistory:history,worldCalendar:future.worldCalendar,worldTimeline:future.worldTimeline,openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}};
-  const recovered=await recoverFallbackWorldCandidate(draft,diagnostics,report);
-  const reviewed=await reviewAndRepairWorldCandidate(recovered,diagnostics,report);activeGenerationDiagnostics=null;return reviewed
+  draft.generationDiagnostics=finalizeGenerationDiagnostics(diagnostics);
+  draft.worldQuality={...fallbackWorldEvaluation(draft,diagnostics,"BACKGROUND_AI_CRITIC_PENDING"),backgroundPending:true,repairHistory:[]};
+  activeGenerationDiagnostics=null;report(86,"世界骨架完成","Engine 驗證完成；AI Quality Critic 將在玩家進入世界後背景執行，不阻塞穿越。");return draft
 
  }
  activeGenerationDiagnostics=null;
@@ -319,6 +320,28 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  report(85,"AI 世界評審","伺服器已完成世界品質評分與必要的定點修復");
  return candidate
 }
+export async function runWorldQualityCritic(state,options={}){
+ if(!hasDirectAI())return null;const signal=options?.signal,snapshot=backgroundQualitySnapshot(state);
+ const evaluation=normalizeWorldEvaluation(await worldStage("QUALITY_CRITIC",{
+  signal,timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1300,temperature:.2,
+  system:`你是 Elyndra Background World Critic。這次工作絕對不能阻塞玩家，也不能改世界核心。評估 internalConsistency、originality、worldDepth、historyIntegration、geography、societyCulture、magicSystem、factions、characters、futureEvents、playability、knowledgeBoundary，每項0-100，overall 0-100。snapshot.immutableBoundary 全部視為不可修改 Canon；你可以指出問題，但 repair 只能針對 snapshot.unseenRepairTargets。不要把已看見或正在使用內容列為可修復目標。findings 最多8項，只輸出 World Critic JSON。`,
+  user:JSON.stringify(snapshot)
+ }),{source:"AI_BACKGROUND"});
+ let repairPatch=null;
+ const unseen=snapshot.unseenRepairTargets||{},hasTargets=["locations","npcs","factions"].some(k=>(unseen[k]||[]).length);
+ if(evaluation.overall<80&&evaluation.findings.some(x=>x.requiresRegeneration)&&hasTargets){
+  try{
+   const repaired=await worldStage("QUALITY_REPAIR",{
+    signal,timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1300,temperature:.35,
+    system:`你是 Elyndra Background Unseen Repair Architect。只可以修改 payload.snapshot.unseenRepairTargets 中列出的實體，而且必須以既有 id 指定目標。禁止新增／刪除／重新命名實體；禁止修改位置、known、encountered、historyRefs、knowledgeScope、數值、Quest 規則、Future、Timeline、History、World Identity、Blueprint、Constitution、World Bible。Location 只可提議 description/culture/trade/lore；NPC 只可 description/personality/goal/lore；Faction 只可 description/culture/lore。任何不在 unseenRepairTargets 的 id 都不可輸出。只輸出 JSON：{"patch":{"registry":{"locations":[{"id":"...","description":"...","culture":{},"trade":{},"lore":{}}],"npcs":[{"id":"...","description":"...","personality":"...","goal":"...","lore":{}}],"factions":[{"id":"...","description":"...","culture":{},"lore":{}}]}}}。`,
+    user:JSON.stringify({snapshot,evaluation})
+   });
+   if(repaired?.patch?.registry)repairPatch=repaired
+  }catch{}
+ }
+ return {evaluation,repairPatch,worldVersion:snapshot.worldVersion}
+}
+
 export async function talkToNpc(state,key,message){const npc=state.npcs?.[key];if(!npc)throw new Error("NPC_NOT_FOUND");const knownFacts=npcKnownFacts(state,npc),payload={message,npc,knownFacts,memories:npc.memories||[],scene:{day:state.world.state.day,location:state.player.location}};if(hasDirectAI())return directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。只能使用提供的 knownFacts 與 memories，不知道就表現不知道。繁體中文1-4句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
 export async function talkToDynamicNpc(state,npc,message,contact={}){const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),behavior=npcBehaviorSnapshot(npc),originContext=originNpcContext(state,npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,behavior},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,originContext,contact:{mode:contact.mode||"LOCAL",communication:contact.communication||null},scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location,weather:playerWeatherSnapshot(state)}};if(hasDirectAI()){const raw=await directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal、behavior 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。behavior 是玩家可感受到的一致人格：回答時自然體現其中一項 mannerism、speechPattern、habit、value、fear 或 contradiction，但不要每句都重複同一習慣，也不要把欄位名稱唸出來。若 memories 或 behavior.promises / grudges 與玩家本次說話有關，必須記得並以行為或措辭反映；不要說出 trust 數值或任何內部關係數值。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。originContext 是 Engine 根據玩家 Origin 計算的身份與語言邊界：reaction 只影響演出語氣，不能自行修改 trust；languageMode=GESTURE 時不可讓雙方突然流利理解語言，只能用姿勢、表情、指向與極少量可推斷意思；FRAGMENTED 時可表現詞彙／理解不完整。若 contact.mode=REMOTE，必須自然反映 payload.contact.communication 所定義的世界內通訊媒介與限制，但不要自行發明更高階技術。不知道的事不可捏造。只使用繁體中文1-5句；除既有專有名詞外不要切換其他語言，不要輸出系統標籤。`,user:JSON.stringify(payload)});return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}const raw=(await post("/api/npc",payload)).text;return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}
 export const turnDirectorMode=sharedTurnDirectorMode;
