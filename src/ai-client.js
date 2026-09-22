@@ -142,8 +142,10 @@ export function coreRulesFallback(identity,blueprintProfile={}){
  const mobility=lowOrganization?"長距離交通不穩定，主要依賴地方路線與仍可使用的舊設施":civLevel<=2?"主要依靠步行、獸力與商隊":"主要區域之間存在固定交通網";
  return {worldBible:{era:"現世紀",centralConflict:`「${identity.worldTheme}」造成的資源、制度與生存方式衝突正逐步失衡。`,magicCost:"每次施術都會失去一段最近形成的清晰記憶；連續施術會先出現名字、方向與時間次序混亂，休息只能停止惡化，不能立即取回已失去的記憶。",ancientTruth:`現代社會對「${identity.worldTheme}」的理解只掌握表層，真正起源仍被歷史斷層掩埋。`,currentCrisis:`維持現有秩序的機制正在失效，使「${identity.worldTheme}」由背景規則變成迫近所有人的危機。`,tone:"陌生、探索、因果明確且帶有生存壓力",civilization:{level:civLevel,stage:civLevel<=2?"地方聚落文明":civLevel<=4?"區域網絡文明":"高度組織文明",infrastructure,literacy,mobility},communication}}
 }
-function coreAnchorFallback(identity){
- return {summary:`「${identity.worldTheme}」不只是傳說，而係會直接改變文明生活、地理環境與危機走向的世界規則。`,worldBible:{startingRegion:`${identity.worldName}邊境域`,startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{identity:`天候會受到「${identity.worldTheme}」直接影響，出現現實世界不存在的異常現象。`,source:identity.worldTheme,cycle:"隨地區、世界狀態與危機程度變化",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆相風",observableName:"風向與落物方向短暫相反",description:"局部空間規則出現偏移，風與輕物會違反平常方向。",sensoryCue:"衣角與塵埃同時逆向飄動",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"界鳴霧",observableName:"霧中遠近聲音次序混亂",description:"霧層令聲音傳播次序失常，使距離判斷變得不可靠。",sensoryCue:"近處聲音延遲、遠處聲音反而清晰",rarity:"RARE",danger:2}]},},publicFacts:[`居民普遍知道「${identity.worldTheme}」會影響日常生活與出行。`,"不同地區會用各自方法適應異常環境，沒有全世界通用的制度。"],hiddenFacts:[`「${identity.worldTheme}」目前的表現並非世界最初狀態。`,"當前危機與被遺忘的舊世界機制存在直接因果關係。"]}
+export function coreAnchorFallback(identity,blueprintProfile={}){
+ const required=[...new Set((Array.isArray(blueprintProfile?.mustExist)?blueprintProfile.mustExist:[]).map(x=>String(x||"").trim()).filter(Boolean))];
+ const requiredFact=required.length?`世界中確實存在「${required.join("」、「")}」，但其位置、規模與真正性質仍未被開局角色確認。`:"";
+ return {summary:`「${identity.worldTheme}」不只是傳說，而係會直接改變文明生活、地理環境與危機走向的世界規則。`,worldBible:{startingRegion:`${identity.worldName}邊境域`,startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{identity:`天候會受到「${identity.worldTheme}」直接影響，出現現實世界不存在的異常現象。`,source:identity.worldTheme,cycle:"隨地區、世界狀態與危機程度變化",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆相風",observableName:"風向與落物方向短暫相反",description:"局部空間規則出現偏移，風與輕物會違反平常方向。",sensoryCue:"衣角與塵埃同時逆向飄動",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"界鳴霧",observableName:"霧中遠近聲音次序混亂",description:"霧層令聲音傳播次序失常，使距離判斷變得不可靠。",sensoryCue:"近處聲音延遲、遠處聲音反而清晰",rarity:"RARE",danger:2}]},},publicFacts:[`居民普遍知道「${identity.worldTheme}」會影響日常生活與出行。`,"不同地區會用各自方法適應異常環境，沒有全世界通用的制度。"],hiddenFacts:[`「${identity.worldTheme}」目前的表現並非世界最初狀態。`,"當前危機與被遺忘的舊世界機制存在直接因果關係。",requiredFact].filter(Boolean)}
 }
 function historyFallback(anchor){
  return [
@@ -261,20 +263,20 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1000,
     system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。blueprintProfile.mustExist 的每一項都必須在世界 Canon 實際存在；summary、publicFacts 或 hiddenFacts 至少要有一處保留每個標籤的原詞並說明它如何存在，不可只複製清單。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。出生位置亦必須符合 blueprintProfile.origin：crossing 應像無登記的突然抵達；summoned 應合理接近召喚方可接觸的位置；native/reincarnation 應像既有地方生活的一部分；possession 應符合 host 身份；amnesia 要支援記憶缺口。這只決定地點因果，不可替玩家新增未授權知識。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
     user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"玩家真實出生位置",weatherSystem:{identity:"20-50字天氣法則",source:"天氣來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項與 worldTheme 直接相關的公開事實"],hiddenFacts:["2-3項與 worldTheme/current premise 直接相關的秘密"]}})
-   },()=>coreAnchorFallback(identity))
+   },()=>coreAnchorFallback(identity,directive.blueprintProfile))
   ]);
 
   const rulesRequired=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
   let rules=rulesRaw;
   if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication){markWorldFallback("CORE_RULES","STRUCTURE_INVALID");rules=coreRulesFallback(identity,directive.blueprintProfile)};
   let coreAnchor=anchorRaw;
-  if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity)};
+  if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile)};
 
   let core=mergeCoreWave(identity,expected,rules,coreAnchor),coreIssues=coreWaveIssues(identity,rules,coreAnchor,core);
   if(coreIssues.length){
    markWorldFallback("CORE_RULES","CORE_WAVE_INVALID:"+coreIssues.join(","));
    markWorldFallback("CORE_ANCHOR","CORE_WAVE_INVALID:"+coreIssues.join(","));
-   rules=coreRulesFallback(identity,directive.blueprintProfile);coreAnchor=coreAnchorFallback(identity);
+   rules=coreRulesFallback(identity,directive.blueprintProfile);coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile);
    core=mergeCoreWave(identity,expected,rules,coreAnchor);coreIssues=coreWaveIssues(identity,rules,coreAnchor,core)
   }
   if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);
