@@ -1,6 +1,6 @@
 import {revealStoredLore} from "./lore-engine.js?v=276";
-import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=37000";
-import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=37000";
+import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=48000";
+import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=48000";
 import {normalizeCalendar} from "./world-locality.js?v=276";
 import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=35000";
 import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./communication-engine.js?v=276";
@@ -8,7 +8,7 @@ import {validateWorldHistory} from "./world-history.js?v=47000";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=276";
 import {modernEarthOriginProfile} from "./player-origin.js?v=45000";
 import {applyOpeningExperience} from "./player-experience.js?v=35000";
-import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=47000";
+import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=48000";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));

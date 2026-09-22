@@ -1,5 +1,5 @@
 import {getWorldStylePreset,applyWorldStyleBase} from "./world-style-presets.js?v=37000";
-import {createTimelinePacing} from "./world-timeline.js?v=37000";
+import {createTimelinePacing} from "./world-timeline.js?v=48000";
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const level=v=>Math.max(1,Math.min(5,Math.round(Number(v)||1)));
 const scaleValue=v=>["小型","中型","大型"].includes(v)?v:"中型";

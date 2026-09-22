@@ -3,12 +3,12 @@ import {recordCausalEvent} from "./knowledge-graph.js?v=276";
 import {tickFactions} from "./faction-engine.js?v=276";
 import {tickNpcs} from "./npc-engine.js?v=35000";
 import {ensureClock} from "./world-clock.js?v=276";
-import {triggerDueTimelineEvents,effectiveTimelinePressure} from "./world-timeline.js?v=37000";
-import {processDueConsequences,revealTriggeredConsequences} from "./world-impact.js?v=39000";
+import {triggerDueTimelineEvents,effectiveTimelinePressure} from "./world-timeline.js?v=48000";
+import {processDueConsequences,revealTriggeredConsequences} from "./world-impact.js?v=48000";
 import {processRecognition} from "./recognition-engine.js?v=276";
 import {tickWeather} from "./weather-engine.js?v=276";
 import {pacedTimelinePressure} from "./world-pacing.js?v=276";
-import {advanceFutureSimulation} from "./future-runtime.js?v=47000";
+import {advanceFutureSimulation} from "./future-runtime.js?v=48000";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){
  const clock=ensureClock(state);

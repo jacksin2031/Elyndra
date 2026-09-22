@@ -1,5 +1,5 @@
 import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
-import {ensureHistoryFutureLinks,recordHistoryClueEvidence} from "./history-future.js?v=47000";
+import {ensureHistoryFutureLinks,recordHistoryClueEvidence} from "./history-future.js?v=48000";
 import {signalHistoryResearch} from "./history-depth.js?v=47000";
 
 const clean=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
