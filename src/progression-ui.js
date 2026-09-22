@@ -7,7 +7,11 @@ import {historyClueSnapshot} from "./history-future.js?v=42000";
 import {playerFutureSignals} from "./future-runtime.js?v=42000";
 import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
 
-const esc=s=>Strifunction questProgressLabel(q){
+const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+const $=s=>document.querySelector(s);
+const qsa=s=>Array.from(document.querySelectorAll(s));
+
+function questProgressLabel(q){
  if(q.status==="COMPLETED")return "已完成";
  const progress=Math.max(0,Number(q.progress)||0),target=Math.max(1,Number(q.target)||1),ratio=progress/target;
  return ratio<=0?"剛接下":ratio<.5?"已有線索":ratio<1?"接近收束":"等待確認"
