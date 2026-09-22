@@ -10,7 +10,7 @@ export function ensureGenerationClaims(state){
   c.type=TYPES.has(String(c.type||"").toUpperCase())?String(c.type).toUpperCase():"REQUIRED_ELEMENT";
   c.status=STATUS.has(String(c.status||"").toUpperCase())?String(c.status).toUpperCase():"UNMATERIALIZED";
   c.entityRefs=uniq(c.entityRefs);c.historyRefs=uniq(c.historyRefs,8);c.sourceRef=clean(c.sourceRef,160)||null;
-  c.reservation=c.reservation&&typeof c.reservation==="object"?c.reservation:null
+  c.reservation=c.reservation&&typeof c.reservation==="object"?c.reservation:null;if(c.status==="RESERVED"&&!c.reservation)c.status="UNMATERIALIZED"
  }
  return root
 }
