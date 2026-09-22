@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-test("world creation locks each worldbuilding stage before starting the next",async()=>{
+test("world creation uses bounded two-AI waves with Engine validation between waves",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
  for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
@@ -12,13 +12,13 @@ test("world creation locks each worldbuilding stage before starting the next",as
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  const worldBlock=client.slice(client.indexOf("export async function generateWorldCandidate"),client.indexOf("export async function talkToNpc"));
  assert.match(worldBlock,/resilientWorldStage\("FUTURE",\{[\s\S]*?timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1600/);
- assert.doesNotMatch(worldBlock,/Promise\.all\(\[/);
+ assert.equal([...worldBlock.matchAll(/Promise\.all\(\[/g)].length,3);
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
- const ordered=["CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"].map(stage=>worldBlock.indexOf('resilientWorldStage("'+stage+'"'));
- assert.ok(ordered.every((x,i)=>x>=0&&(i===0||x>ordered[i-1])),"worldbuilding stages must be sequential and ordered");
- assert.match(worldBlock,/lockedRules:rules\.worldBible/);
- assert.match(worldBlock,/JSON\.stringify\(\{anchor,history,playerOrigin:/);
- assert.match(worldBlock,/future:\{worldTimeline:future\.worldTimeline\.map/);
+ assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("CORE_RULES"[\s\S]*?resilientWorldStage\("CORE_ANCHOR"/);
+ assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("HISTORY"[\s\S]*?resilientWorldStage\("GEOGRAPHY"/);
+ assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("FUTURE"[\s\S]*?resilientWorldStage\("SOCIETY"/);
+ assert.match(worldBlock,/const historyReport=validateWorldHistory/);
+ assert.match(worldBlock,/worldGenerationLinkIssues\(\{anchor,history,geography,society,future\}\)/);
  assert.match(client,/const WORLD_AI_CONCURRENCY=2/);
  assert.match(client,/withWorldAiSlot\(async\(\)=>parseJSON\(await directChat\(\{\.\.\.args,aiTask:args\?\.aiTask\|\|worldStageTask\(stage\)\}\)\)\)/);
  assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);
@@ -104,7 +104,7 @@ test("compiler schema prompts forbid literal placeholder echoes",async()=>{
 });
 
 
-test("v0.54.9 normalizes valid top-level Core Rules before structure fallback",async()=>{
+test("v0.54.10 normalizes valid top-level Core Rules before structure fallback",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.match(client,/export function normalizeCoreRulesStage/);
  assert.match(client,/let rules=normalizeCoreRulesStage\(rulesRaw\)/)
