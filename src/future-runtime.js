@@ -1,6 +1,7 @@
 import {ensureFutureEngine,applyFuturePressure,recomputeFutureStage,mirrorLegacyCrisisToFuture} from "./future-engine.js?v=48000";
 import {ensureHistoryFutureLinks} from "./history-future.js?v=48000";
 import {appendWorldLedger,promoteLedgerEntryToHistory,ensureWorldLedger} from "./world-ledger.js?v=40000";
+import {seedHistoryLegacy} from "./history-legacy.js?v=50000";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
@@ -80,7 +81,7 @@ function historicize(state,event){
  if(!entry)entry=appendWorldLedger(state,event,{sourceEventId:event.id,significance,causeRefs:[event.futureId,event.timelineId].filter(Boolean)});
  else if((SIGNIFICANCE_RANK[significance]||0)>(SIGNIFICANCE_RANK[entry.significance]||0))entry.significance=significance;
  const history=promoteLedgerEntryToHistory(state,entry.id,{title:clean(event.summary,120)||event.type,category:event.type,legacies:["此事件成為後續世界狀態與記憶的一部分"],discoverKeywords:[event.type,event.scope,event.subtype].filter(Boolean)});
- return history
+ if(history)seedHistoryLegacy(state,history.id);return history
 }
 function processTimelineImpacts(state,rt,changes){
  for(const timeline of state.world?.timeline||[]){
