@@ -11,7 +11,7 @@ test("world creation uses bounded two-AI waves with Engine validation between wa
  assert.match(client,/generatedTemplateLeak/);assert.match(client,/weatherProfileConflict/);
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  const worldBlock=client.slice(client.indexOf("export async function generateWorldCandidate"),client.indexOf("export async function talkToNpc"));
- assert.match(worldBlock,/resilientWorldStage\("FUTURE",\{[\s\S]*?timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200//);
+ assert.match(worldBlock,/resilientWorldStage\("FUTURE",\{[\s\S]*?timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200/);
  assert.equal([...worldBlock.matchAll(/Promise\.all\(\[/g)].length,3);
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
  assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("CORE_RULES"[\s\S]*?resilientWorldStage\("CORE_ANCHOR"/);
