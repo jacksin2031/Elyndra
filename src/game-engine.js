@@ -1,4 +1,4 @@
-import {d20} from "./world-engine.js?v=43000";
+import {d20} from "./world-engine.js?v=44000";
 import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=320";
 import {advanceTime,ensureClock} from "./world-clock.js?v=276";
 import {tickWorld} from "./world-simulation.js?v=42000";
