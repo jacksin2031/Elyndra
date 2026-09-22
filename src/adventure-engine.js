@@ -29,7 +29,7 @@ import {normalizeSuggestionIntents} from "./turn-compiler.js?v=54001";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=37000";
 import {buildContextualActionSet} from "./contextual-actions.js?v=54001";
 import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=54005";
-import {currentStateRevision} from "./state-sync.js?v=54001";
+import {currentStateRevision} from "./state-sync.js?v=54006";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);
