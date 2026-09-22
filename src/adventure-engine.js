@@ -6,7 +6,7 @@ import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegi
 import {tokenBudgetSnapshot} from "./context-manager.js?v=276";
 import {startCombat,canStartEncounter} from "./combat-engine.js?v=43000";
 import {evaluateQuestEvidence,tickMainQuest} from "./quest-engine.js?v=320";
-import {playerVisibleEvents} from "./event-visibility.js?v=276";
+import {playerVisibleEvents} from "./event-visibility.js?v=44000";
 import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=35000";
 import {directorTimelineSnapshot} from "./world-timeline.js?v=37000";
 import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=39000";
@@ -24,7 +24,7 @@ import {pacingSnapshot} from "./world-pacing.js?v=276";
 import {talentSnapshot} from "./talent-engine.js?v=276";
 import {playerWeatherSnapshot,directorWeatherSnapshot} from "./weather-engine.js?v=276";
 import {playerOriginSnapshot} from "./player-origin.js?v=320";
-import {normalizeSuggestionIntents} from "./turn-compiler.js?v=41000";
+import {normalizeSuggestionIntents} from "./turn-compiler.js?v=44000";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=37000";
 import {buildContextualActionSet} from "./contextual-actions.js?v=38003";
 import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=43000";
