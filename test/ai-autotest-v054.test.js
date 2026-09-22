@@ -65,3 +65,24 @@ test("report identifies generation failures and stagnant runs",()=>{
  assert.ok(report.issues.some(x=>x.type==="WORLD_GENERATION_FAILED"));
  assert.ok(report.issues.some(x=>x.type==="NO_STATE_PROGRESS"));
 });
+
+
+test("autotest report separates completed requests, failed attempts, timeouts and transport failures",()=>{
+ const report=buildAutotestReport({
+  config:{worldCount:1,maxTurns:30},startedAt:1,endedAt:100,
+  worlds:[{index:1,status:"FAILED",phase:"GENERATION",error:"WORLD_HISTORY_FAILED: Failed to fetch",actions:[]}],
+  telemetry:[
+   {type:"AI_REQUEST",data:{task:"identity",status:"EMPTY",latencyMs:14976,usage:{input:10,output:5,reasoning:5,total:15}}},
+   {type:"AI_REQUEST",data:{task:"identity",status:"SUCCESS",latencyMs:3033,usage:{input:10,output:5,total:15}}},
+   {type:"AI_CALL_FAILED",data:{provider:"agnes",task:"core_rules",error:"AI_TIMEOUT: Provider 在 50 秒內未完成回應"}},
+   {type:"AI_CALL_FAILED",data:{provider:"agnes",task:"core_anchor",error:"AI_TIMEOUT: Provider 在 50 秒內未完成回應"}},
+   {type:"AI_CALL_FAILED",data:{provider:"agnes",task:"core_rules",error:"Failed to fetch"}},
+   {type:"AUTOTEST_WORLD_FAILED",data:{error:"WORLD_HISTORY_FAILED: Failed to fetch"}}
+  ]
+ });
+ assert.equal(report.summary.aiRequests,2);assert.equal(report.summary.aiAttempts,5);assert.equal(report.summary.aiFailures,3);
+ assert.equal(report.summary.aiTimeouts,2);assert.equal(report.summary.aiTransportFailures,1);
+ assert.equal(report.issues.filter(x=>x.type==="WORLD_GENERATION_FAILED").length,1);
+ assert.equal(report.issues.some(x=>x.type==="TELEMETRY_AUTOTEST_WORLD_FAILED"),false);
+ assert.ok(report.issues.some(x=>x.type==="TELEMETRY_AI_CALL_FAILED"&&x.task==="core_rules"&&x.provider==="agnes"))
+});
