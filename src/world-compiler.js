@@ -87,7 +87,10 @@ export function normalizeFutureLinksToAnchor(future,anchor={},history=[]){
  const aliases=new Map([["STARTING_LOCATION",start],["STARTING_REGION",region],["STARTING_SETTLEMENT",settlement],[start,start],[region,region],[settlement,settlement]].filter(([a,b])=>a&&b));
  if(Array.isArray(out.worldTimeline))for(const event of out.worldTimeline){
   const links=obj(event?.links)?event.links:{},historyRefs=uniq(links.historyRefs).filter(id=>histIds.has(id)),locationRefs=uniq(links.locationRefs).map(id=>aliases.get(text(id))||"").filter(Boolean);
-  event.links={historyRefs,locationRefs}
+  event.links={historyRefs,locationRefs};
+  const scope=String(event?.impactScope||"REGIONAL").toUpperCase(),broad=["NATIONAL","CONTINENTAL","WORLD"].includes(scope);
+  const affected=uniq(event?.affectedRegions).map(id=>aliases.get(text(id))||text(id)).filter(Boolean);
+  event.affectedRegions=[...new Set(affected.filter(id=>id===region))];if(!event.affectedRegions.length&&!broad&&region)event.affectedRegions=[region]
  }
  return out
 }
@@ -106,7 +109,8 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
   const links=obj(event?.links)?event.links:{};
   if(!uniq(links.historyRefs).length&&!uniq(links.locationRefs).length)issues.push("FUTURE_"+i+"_LINK_REQUIRED");
   if(uniq(links.historyRefs).some(id=>!histIds.has(id)))issues.push("FUTURE_"+i+"_HISTORY_REF_INVALID");
-  if(uniq(links.locationRefs).some(id=>![start,region,settlement,"STARTING_LOCATION","STARTING_REGION","STARTING_SETTLEMENT"].includes(id)))issues.push("FUTURE_"+i+"_LOCATION_REF_INVALID")
+  if(uniq(links.locationRefs).some(id=>![start,region,settlement,"STARTING_LOCATION","STARTING_REGION","STARTING_SETTLEMENT"].includes(id)))issues.push("FUTURE_"+i+"_LOCATION_REF_INVALID");
+  if(uniq(event?.affectedRegions).some(id=>![region,"STARTING_REGION"].includes(id)))issues.push("FUTURE_"+i+"_AFFECTED_REGION_INVALID")
  }
  if(obj(cast)){
   for(const [i,npc] of (Array.isArray(cast.npcs)?cast.npcs:[]).entries()){
