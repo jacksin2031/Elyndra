@@ -219,7 +219,7 @@ async function runBackgroundWorldQualityCritic(){
   const result=await runWorldQualityCritic(gameState,{signal:ctrl.signal});
   if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;
   if(!result){recordBackgroundQualityReview(gameState,{error:"BACKGROUND_CRITIC_UNAVAILABLE"});return}
-  if(Number(gameState.world?.version)!==baseVersion){recordDebug("BACKGROUND_QUALITY_CRITIC_STALE_DISCARDED",{baseVersion,currentVersion:gameState.world?.version});return}
+  if(Number(gameState.world?.version)!==baseVersion){recordDebug("BACKGROUND_QUALITY_CRITIC_STALE_DISCARDED",{baseVersion,currentVersion:gameState.world?.version});scheduleWorldQualityCritic("stale_retry",1800);return}
   const repair=result.repairPatch?applyUnseenWorldRepair(gameState,result.repairPatch):{applied:false,modified:[]};
   recordBackgroundQualityReview(gameState,{evaluation:result.evaluation,repair});
   if(repair.applied)bumpStateRevision(gameState,"BACKGROUND_QUALITY_REPAIR");
@@ -241,7 +241,7 @@ function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
 }
 async function runBackgroundWorldEvolution(){
  if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
- if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldQualityBackground.running||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
  const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),plan=planLazyGeneration(gameState,{reason}),ctrl=new AbortController(),debugStarted=Date.now();
@@ -253,7 +253,7 @@ async function runBackgroundWorldEvolution(){
   if(!ex?.generation)throw new Error("RUNTIME_EXPANSION_EMPTY");
   const lazyValidation=validateLazyGenerationCandidate(gameState,ex.generation,plan);if(!lazyValidation.valid)throw new Error("LAZY_GENERATION_CONTRACT_FAILED:"+lazyValidation.errors.join(","));
   const added=canonizeGeneration(gameState,ex.generation),committed=commitLazyGeneration(gameState,plan,ex.generation,added);if(!committed.ok)throw new Error("LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
-  recordExpansion(gameState,ex.region||plan.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,planId:plan.id,claimIds:committed.claimIds,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,planId:plan.id,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist()
+  recordExpansion(gameState,ex.region||plan.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,planId:plan.id,claimIds:committed.claimIds,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,planId:plan.id,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist();scheduleWorldQualityCritic("post_world_evolution",1800)
  }catch(e){
   if(plan.status==="PLANNED")abortLazyGeneration(gameState,plan,e?.message||"BACKGROUND_FAILED");
   if(!ctrl.signal.aborted){
@@ -448,7 +448,7 @@ async function runAction(action,customText="",options={}){
   if(aiBusy)setAIThinking(false);if(turnSyncBusy)setTurnSyncing(false)
  }
  try{await persist();await refresh()}
- finally{scheduleWorldEvolution(effective||"player_exploration",5000)}
+ finally{scheduleWorldEvolution(effective||"player_exploration",5000);scheduleWorldQualityCritic("post_player_action",2600)}
 }
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game");scheduleWorldQualityCritic("continue_world",1200)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
