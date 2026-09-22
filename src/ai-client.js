@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54001";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54003";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
@@ -55,11 +55,12 @@ function compactRetryArgs(args={},reason=""){
  return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
 }
 function generationCircuit(diagnostics=activeGenerationDiagnostics){
- if(!diagnostics)return {timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],open:false,openedAt:0,stage:""};
- diagnostics.providerCircuit??={timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],open:false,openedAt:0,stage:""};
+ if(!diagnostics)return {timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};
+ diagnostics.providerCircuit??={timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};
  const circuit=diagnostics.providerCircuit;
  circuit.timeoutStages=Array.isArray(circuit.timeoutStages)?[...new Set(circuit.timeoutStages.map(String))]:[];circuit.timeoutCount=circuit.timeoutStages.length;
- circuit.transportStages=Array.isArray(circuit.transportStages)?[...new Set(circuit.transportStages.map(String))]:[];circuit.transportCount=circuit.transportStages.length;return circuit
+ circuit.transportStages=Array.isArray(circuit.transportStages)?[...new Set(circuit.transportStages.map(String))]:[];circuit.transportCount=circuit.transportStages.length;
+ circuit.coreFailureStages=Array.isArray(circuit.coreFailureStages)?[...new Set(circuit.coreFailureStages.map(String))]:[];return circuit
 }
 function noteGenerationTimeout(stage,reason){
  if(!/AI_TIMEOUT/.test(String(reason||"")))return;
@@ -73,10 +74,15 @@ function noteGenerationTransportFailure(stage,reason){
  circuit.transportCount=circuit.transportStages.length;
  if(circuit.transportCount>=2&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=name}
 }
+function noteGenerationCoreFailure(stage){
+ if(!CORE_TIMEOUT_RETRY.has(String(stage||"")))return;
+ const circuit=generationCircuit(),name=String(stage);if(!circuit.coreFailureStages.includes(name))circuit.coreFailureStages.push(name);
+ if(CORE_TIMEOUT_RETRY.size===circuit.coreFailureStages.filter(x=>CORE_TIMEOUT_RETRY.has(x)).length&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=name}
+}
 function generationCircuitOpen(diagnostics=activeGenerationDiagnostics){return diagnostics?.providerCircuit?.open===true}
 const CORE_TIMEOUT_RETRY=new Set(["CORE_RULES","CORE_ANCHOR"]);
 function noteGenerationSuccess(){
- const circuit=generationCircuit();circuit.timeoutCount=0;circuit.timeoutStages=[];circuit.transportCount=0;circuit.transportStages=[];circuit.open=false;circuit.openedAt=0;circuit.stage=""
+ const circuit=generationCircuit();circuit.timeoutCount=0;circuit.timeoutStages=[];circuit.transportCount=0;circuit.transportStages=[];circuit.coreFailureStages=[];circuit.open=false;circuit.openedAt=0;circuit.stage=""
 }
 function worldStageFallback(fallback){return structuredClone(typeof fallback==="function"?fallback():fallback)}
 async function resilientWorldStage(stage,args,fallback){
@@ -107,7 +113,7 @@ async function resilientWorldStage(stage,args,fallback){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
    return value
   }catch(retryErr){
-   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;if(/AI_TIMEOUT/.test(retryReason)||timedOut)noteGenerationTimeout(stage,reason);if(generationTransportFailure(retryReason))noteGenerationTransportFailure(stage,retryReason);
+   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;if(/AI_TIMEOUT/.test(retryReason)||timedOut)noteGenerationTimeout(stage,reason);if(generationTransportFailure(retryReason))noteGenerationTransportFailure(stage,retryReason);noteGenerationCoreFailure(stage);
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,latencyMs:Date.now()-startedAt,attempts:2,fallbackUsed:true});
    return worldStageFallback(fallback)
   }
@@ -120,17 +126,26 @@ function fallbackClause(value,fallback="當前危機",max=42){
 function identityFallback(expected,seed){
  return normalizeWorldIdentity({},expected,seed)
 }
-function coreRulesFallback(identity){
- const highMagic=identity.magic>=4,highCiv=identity.danger>=0&&identity.politics>=0&&identity.scale&&identity.magic>=0;
- const civLevel=Math.max(1,Math.min(5,Math.round((identity.magic+identity.politics+2)/2)));
+export function coreRulesFallback(identity,blueprintProfile={}){
+ const civ10=Math.max(1,Math.min(10,Number(blueprintProfile?.civilizationLevel?.value)||Math.round(((identity.magic+identity.politics+2)/2)*2)));
+ const tech10=Math.max(1,Math.min(10,Number(blueprintProfile?.technologyLevel?.value)||Math.round((identity.politics+identity.magic)*1.2)));
+ const magic10=Math.max(1,Math.min(10,Number(blueprintProfile?.magicLevel?.value)||Math.round(identity.magic*2)));
+ const civLevel=Math.max(1,Math.min(5,Math.ceil(civ10/2))),highMagic=magic10>=7,highTech=tech10>=7,lowOrganization=civ10<=3;
  let communication;
- if(highMagic)communication={name:"共鳴信標",medium:"刻印水晶與共鳴節點",description:"以本世界力量規則驅動的有限遠距聯絡網，只能聯絡已建立關係的人或節點。",latency:"NEAR_INSTANT",range:civLevel>=4?"WORLD":"REGIONAL",accessRule:"ENCOUNTERED",constraints:"需要穩定節點與能量，危機或異常天候會干擾"};
+ if(highTech&&highMagic)communication={name:"遺構共鳴網",medium:"殘存中繼設施、刻印終端與魔力節點",description:lowOrganization?"舊時高技術與魔力網仍有局部節點可用，但現存聚落缺乏能力維持完整網絡。":"高技術中繼設施與魔力節點共同維持跨區域聯絡。",latency:"NEAR_INSTANT",range:civ10>=7?"WORLD":"REGIONAL",accessRule:"ENCOUNTERED",constraints:lowOrganization?"只有少數仍供能節點可用，故障後難以維修，不能視為普遍基建。":"需要穩定供能、中繼節點與維護人員，危機時會降級。"};
+ else if(highMagic)communication={name:"共鳴信標",medium:"刻印水晶與共鳴節點",description:"以本世界力量規則驅動的有限遠距聯絡網，只能聯絡已建立關係的人或節點。",latency:"NEAR_INSTANT",range:civLevel>=4?"WORLD":"REGIONAL",accessRule:"ENCOUNTERED",constraints:"需要穩定節點與能量，危機或異常天候會干擾"};
+ else if(highTech)communication={name:"遺構訊鏈",medium:"殘存訊號塔與固定中繼終端",description:lowOrganization?"舊文明設備仍能局部傳訊，但現存社群只能維護少量節點。":"依賴成熟技術基建逐站中繼訊息。",latency:"DELAYED",range:civ10>=6?"REGIONAL":"LOCAL",accessRule:"ENCOUNTERED",constraints:"覆蓋受可運作節點限制，斷電或設備損毀時失效"};
  else if(civLevel>=4)communication={name:"驛塔訊鏈",medium:"固定驛塔與信號中繼",description:"依賴成熟基建逐站傳遞訊息，速度快但不是即時通訊。",latency:"DELAYED",range:"REGIONAL",accessRule:"ENCOUNTERED",constraints:"只覆蓋主要聚落與道路，斷路時失效"};
  else communication={name:"行旅信使",medium:"信使、商隊與地方驛點",description:"訊息必須跟隨實際旅程移動，符合較低文明的交通條件。",latency:"DELAYED",range:"LOCAL",accessRule:"ENCOUNTERED",constraints:"受道路、天候與危險地區影響"};
- return {worldBible:{era:"現世紀",centralConflict:`「${identity.worldTheme}」造成的資源、制度與生存方式衝突正逐步失衡。`,magicCost:"每次施術都會失去一段最近形成的清晰記憶；連續施術會先出現名字、方向與時間次序混亂，休息只能停止惡化，不能立即取回已失去的記憶。",ancientTruth:`現代社會對「${identity.worldTheme}」的理解只掌握表層，真正起源仍被歷史斷層掩埋。`,currentCrisis:`維持現有秩序的機制正在失效，使「${identity.worldTheme}」由背景規則變成迫近所有人的危機。`,tone:"陌生、探索、因果明確且帶有生存壓力",civilization:{level:civLevel,stage:civLevel<=2?"地方聚落文明":civLevel<=4?"區域網絡文明":"高度組織文明",infrastructure:civLevel<=2?"道路與地方設施有限":civLevel<=4?"主要聚落間有穩定交通與公共設施":"跨區域基建成熟但仍受世界規則限制",literacy:civLevel<=2?"知識主要由口述、宗教或少數書記保存":"多數聚落具有制度化記錄與教育",mobility:civLevel<=2?"主要依靠步行、獸力與商隊":"主要區域之間存在固定交通網"},communication}}
+ const infrastructure=lowOrganization&&highTech?"地方組織與道路網薄弱，但仍散布少量高技術遺構與可運作設施":civLevel<=2?"道路與地方設施有限":civLevel<=4?"主要聚落間有穩定交通與公共設施":"跨區域基建成熟但仍受世界規則限制";
+ const literacy=highTech?"部分社群仍依賴技術記錄與舊資料保存知識":civLevel<=2?"知識主要由口述、宗教或少數書記保存":"多數聚落具有制度化記錄與教育";
+ const mobility=lowOrganization?"長距離交通不穩定，主要依賴地方路線與仍可使用的舊設施":civLevel<=2?"主要依靠步行、獸力與商隊":"主要區域之間存在固定交通網";
+ return {worldBible:{era:"現世紀",centralConflict:`「${identity.worldTheme}」造成的資源、制度與生存方式衝突正逐步失衡。`,magicCost:"每次施術都會失去一段最近形成的清晰記憶；連續施術會先出現名字、方向與時間次序混亂，休息只能停止惡化，不能立即取回已失去的記憶。",ancientTruth:`現代社會對「${identity.worldTheme}」的理解只掌握表層，真正起源仍被歷史斷層掩埋。`,currentCrisis:`維持現有秩序的機制正在失效，使「${identity.worldTheme}」由背景規則變成迫近所有人的危機。`,tone:"陌生、探索、因果明確且帶有生存壓力",civilization:{level:civLevel,stage:civLevel<=2?"地方聚落文明":civLevel<=4?"區域網絡文明":"高度組織文明",infrastructure,literacy,mobility},communication}}
 }
-function coreAnchorFallback(identity){
- return {summary:`「${identity.worldTheme}」不只是傳說，而係會直接改變文明生活、地理環境與危機走向的世界規則。`,worldBible:{startingRegion:`${identity.worldName}邊境域`,startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{identity:`天候會受到「${identity.worldTheme}」直接影響，出現現實世界不存在的異常現象。`,source:identity.worldTheme,cycle:"隨地區、世界狀態與危機程度變化",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆相風",observableName:"風向與落物方向短暫相反",description:"局部空間規則出現偏移，風與輕物會違反平常方向。",sensoryCue:"衣角與塵埃同時逆向飄動",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"界鳴霧",observableName:"霧中遠近聲音次序混亂",description:"霧層令聲音傳播次序失常，使距離判斷變得不可靠。",sensoryCue:"近處聲音延遲、遠處聲音反而清晰",rarity:"RARE",danger:2}]},},publicFacts:[`居民普遍知道「${identity.worldTheme}」會影響日常生活與出行。`,"不同地區會用各自方法適應異常環境，沒有全世界通用的制度。"],hiddenFacts:[`「${identity.worldTheme}」目前的表現並非世界最初狀態。`,"當前危機與被遺忘的舊世界機制存在直接因果關係。"]}
+export function coreAnchorFallback(identity,blueprintProfile={}){
+ const required=[...new Set((Array.isArray(blueprintProfile?.mustExist)?blueprintProfile.mustExist:[]).map(x=>String(x||"").trim()).filter(Boolean))];
+ const requiredFact=required.length?`世界中確實存在「${required.join("」、「")}」，但其位置、規模與真正性質仍未被開局角色確認。`:"";
+ return {summary:`「${identity.worldTheme}」不只是傳說，而係會直接改變文明生活、地理環境與危機走向的世界規則。`,worldBible:{startingRegion:`${identity.worldName}邊境域`,startingSettlement:"邊境聚落",startingLocation:"異界醒轉地",weatherSystem:{identity:`天候會受到「${identity.worldTheme}」直接影響，出現現實世界不存在的異常現象。`,source:identity.worldTheme,cycle:"隨地區、世界狀態與危機程度變化",forecastability:"MEDIUM",phenomena:[{id:"WTH-1",name:"逆相風",observableName:"風向與落物方向短暫相反",description:"局部空間規則出現偏移，風與輕物會違反平常方向。",sensoryCue:"衣角與塵埃同時逆向飄動",rarity:"UNCOMMON",danger:1},{id:"WTH-2",name:"界鳴霧",observableName:"霧中遠近聲音次序混亂",description:"霧層令聲音傳播次序失常，使距離判斷變得不可靠。",sensoryCue:"近處聲音延遲、遠處聲音反而清晰",rarity:"RARE",danger:2}]},},publicFacts:[`居民普遍知道「${identity.worldTheme}」會影響日常生活與出行。`,"不同地區會用各自方法適應異常環境，沒有全世界通用的制度。"],hiddenFacts:[`「${identity.worldTheme}」目前的表現並非世界最初狀態。`,"當前危機與被遺忘的舊世界機制存在直接因果關係。",requiredFact].filter(Boolean)}
 }
 function historyFallback(anchor){
  return [
@@ -243,25 +258,25 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:900,
     system:`你是 Elyndra Core Rules Compiler。blueprintProfile 是 Engine 已解析的硬性 World Blueprint，所有 resolved value 與 source 都不得改寫；你的工作是把它具體化為一致世界。blueprintProfile.mustExist 是硬性世界要素：凡屬規則、科技、文明或通訊層的項目都必須實際具體化，並在對應敘述中至少保留一次該標籤原詞，方便 Engine 驗證；不可只複製清單。只能根據 identity、Seed Contract 與 blueprintProfile 補充世界硬規則：時代、核心衝突、魔法代價、古代真相、當前危機、敘事氣氛、文明程度與遠距通訊。不得改 worldName/worldTheme，不得生成地點、Weather、歷史 Timeline、NPC 或任務。civilization 與 communication 必須互相合理；低文明／低魔法不可無理由出現即時全球網絡。所有規則都必須直接服務 identity.worldTheme。只輸出 JSON。`,
     user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,styleFoundation:directive.styleFoundation,required:{worldBible:{era:"世界自己的時代稱呼",centralConflict:"40-80字，直接源於 worldTheme",magicCost:"至少20字硬規則與代價",ancientTruth:"40-80字深層真相",currentCrisis:"40-80字正在發展危機",tone:"敘事氣氛",civilization:{level:"1-5",stage:"文明階段名稱",infrastructure:"基建程度",literacy:"教育／識字狀況",mobility:"交通與人口流動"},communication:{name:"世界內聯絡方式",medium:"媒介",description:"如何運作且為何符合文明／魔法程度",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制與代價"}}}})
-   },()=>coreRulesFallback(identity)),
+   },()=>coreRulesFallback(identity,directive.blueprintProfile)),
    resilientWorldStage("CORE_ANCHOR",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1000,
     system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。blueprintProfile.mustExist 的每一項都必須在世界 Canon 實際存在；summary、publicFacts 或 hiddenFacts 至少要有一處保留每個標籤的原詞並說明它如何存在，不可只複製清單。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。出生位置亦必須符合 blueprintProfile.origin：crossing 應像無登記的突然抵達；summoned 應合理接近召喚方可接觸的位置；native/reincarnation 應像既有地方生活的一部分；possession 應符合 host 身份；amnesia 要支援記憶缺口。這只決定地點因果，不可替玩家新增未授權知識。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
     user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"玩家真實出生位置",weatherSystem:{identity:"20-50字天氣法則",source:"天氣來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項與 worldTheme 直接相關的公開事實"],hiddenFacts:["2-3項與 worldTheme/current premise 直接相關的秘密"]}})
-   },()=>coreAnchorFallback(identity))
+   },()=>coreAnchorFallback(identity,directive.blueprintProfile))
   ]);
 
   const rulesRequired=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
   let rules=rulesRaw;
-  if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication){markWorldFallback("CORE_RULES","STRUCTURE_INVALID");rules=coreRulesFallback(identity)};
+  if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication){markWorldFallback("CORE_RULES","STRUCTURE_INVALID");rules=coreRulesFallback(identity,directive.blueprintProfile)};
   let coreAnchor=anchorRaw;
-  if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity)};
+  if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile)};
 
   let core=mergeCoreWave(identity,expected,rules,coreAnchor),coreIssues=coreWaveIssues(identity,rules,coreAnchor,core);
   if(coreIssues.length){
    markWorldFallback("CORE_RULES","CORE_WAVE_INVALID:"+coreIssues.join(","));
    markWorldFallback("CORE_ANCHOR","CORE_WAVE_INVALID:"+coreIssues.join(","));
-   rules=coreRulesFallback(identity);coreAnchor=coreAnchorFallback(identity);
+   rules=coreRulesFallback(identity,directive.blueprintProfile);coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile);
    core=mergeCoreWave(identity,expected,rules,coreAnchor);coreIssues=coreWaveIssues(identity,rules,coreAnchor,core)
   }
   if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);

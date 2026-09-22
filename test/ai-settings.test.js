@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,optimizationTier,providerOptimization,providerTokenBudget} from "../src/ai-settings.js";
+import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,hardProviderDeadline,optimizationTier,providerOptimization,providerTokenBudget} from "../src/ai-settings.js";
 
 function memoryStorage(){
  const data=new Map();
@@ -55,7 +55,7 @@ test("AI settings UI exposes Agnes as a selectable mode",async()=>{
  assert.match(app,/Elyndra 自適應優化/);
  assert.match(app,/目前模型/);
  assert.doesNotMatch(app,/id="aiModel"/);
- assert.match(app,/ai-settings\.js\?v=54001/)
+ assert.match(app,/ai-settings\.js\?v=54003/)
 });
 
 
@@ -164,4 +164,15 @@ test("empty adaptive Gemini response retries once without thinkingConfig",async(
   assert.deepEqual(bodies[0].generationConfig.thinkingConfig,{thinkingLevel:"HIGH"});
   assert.equal("thinkingConfig" in bodies[1].generationConfig,false)
  }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
+});
+
+
+test("hard provider deadline resolves independently of a fetch promise that ignores abort",async()=>{
+ const controller=new AbortController(),started=Date.now(),never=new Promise(()=>{});
+ await assert.rejects(
+  hardProviderDeadline(never,{controller,timeoutMs:25}),
+  err=>err?.code==="AI_TIMEOUT"&&/Provider/.test(err.message)
+ );
+ assert.ok(Date.now()-started<500,"hard deadline must not wait for the underlying fetch to settle");
+ assert.equal(controller.signal.aborted,true)
 });

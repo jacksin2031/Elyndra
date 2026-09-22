@@ -9,6 +9,7 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  ]);
  assert.doesNotMatch(settings,/abort\(\),25000/);
  assert.match(settings,/AI_TIMEOUT: Provider/);
+ assert.match(settings,/hardProviderDeadline/);assert.match(settings,/Promise\.race/);
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
  for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
  for(const timeout of [35000,50000,55000,65000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
@@ -70,4 +71,14 @@ test("browser transport failures are recoverable world-compiler failures and ope
  const resilient=client.slice(client.indexOf("async function resilientWorldStage"),client.indexOf("function fallbackClause"));
  assert.match(resilient,/if\(transportFailed\)noteGenerationTransportFailure/);
  assert.match(resilient,/if\(generationTransportFailure\(retryReason\)\)noteGenerationTransportFailure/)
+});
+
+
+test("v0.54.3 opens the compiler circuit after both core stages exhaust their bounded retry",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const circuit=client.slice(client.indexOf("function generationCircuit"),client.indexOf("function worldStageFallback"));
+ assert.match(circuit,/coreFailureStages/);
+ assert.match(circuit,/CORE_TIMEOUT_RETRY\.size===circuit\.coreFailureStages/);
+ const resilient=client.slice(client.indexOf("async function resilientWorldStage"),client.indexOf("function fallbackClause"));
+ assert.match(resilient,/noteGenerationCoreFailure\(stage\)/)
 });
