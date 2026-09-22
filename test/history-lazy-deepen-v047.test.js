@@ -86,11 +86,21 @@ test("aborted or stale History proposals cannot commit",()=>{
 });
 
 test("app runs History Deepening only as preemptible background work",async()=>{
- const [app,client]=await Promise.all([readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")]);
+ const [app,client,api,worldEngine]=await Promise.all([
+  readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../api/history-deepen.js",import.meta.url),"utf8"),readFile(new URL("../src/world-engine.js",import.meta.url),"utf8")
+ ]);
  assert.match(app,/const historyBackground=\{/);assert.match(app,/function preemptBackgroundHistory\(\)/);
  assert.match(app,/function preemptBackgroundAI\(\).*preemptBackgroundHistory\(\)/);
  assert.match(app,/scheduleHistoryDeepening\("knowledge_refresh",2100\)/);
+ assert.match(app,/scheduleHistoryDeepening\("post_player_action",2200\)/);
+ assert.match(app,/scheduleHistoryDeepening\("continue_world",1500\)/);
+ assert.match(app,/scheduleHistoryDeepening\("post_creation",1500\)/);
  assert.match(app,/generateHistoryDeepening\(gameState,plan,\{signal:ctrl\.signal\}\)/);
  assert.match(app,/validateHistoryDeepeningCandidate\(gameState,plan,candidate\)/);assert.match(app,/commitHistoryDeepening\(gameState,plan,candidate\)/);
- assert.match(client,/export async function generateHistoryDeepening/);assert.match(client,/HISTORY_DEEPENING:"history_deepening"/)
+ assert.match(app,/registerHistoryDeepeningDocuments/);assert.match(app,/registerHistoryRelicSeeds/);
+ assert.match(client,/export async function generateHistoryDeepening/);assert.match(client,/HISTORY_DEEPENING:"history_deepening"/);
+ assert.match(client,/post\("\/api\/history-deepen",payload,\{signal\}\)/);
+ assert.match(api,/History Deepening Architect/);assert.match(api,/生成本身絕不代表玩家知道/);
+ assert.match(worldEngine,/History Skeleton/);assert.match(worldEngine,/生成隱藏細節本身不等於玩家已知/)
 });
