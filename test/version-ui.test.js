@@ -8,9 +8,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.46.0");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.47.0");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=46000"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=47000"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("v0.46.0 moves Quality Critic to unseen-only background work",async()=>{
@@ -19,9 +19,24 @@ test("v0.46.0 moves Quality Critic to unseen-only background work",async()=>{
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/world-quality.js",import.meta.url),"utf8"),
   readFile(new URL("../api/world.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=46000/);assert.match(app,/\.\/src\/ai-client\.js\?v=46000/);assert.match(app,/\.\/src\/world-quality\.js\?v=46000/);
+ assert.match(html,/app\.js\?v=47000/);assert.match(app,/\.\/src\/ai-client\.js\?v=46000/);assert.match(app,/\.\/src\/world-quality\.js\?v=46000/);
  assert.match(app,/runBackgroundWorldQualityCritic/);assert.match(app,/preemptBackgroundWorldQuality/);
  assert.match(client,/export async function runWorldQualityCritic/);assert.match(client,/BACKGROUND_AI_CRITIC_PENDING/);
  assert.match(quality,/applyUnseenWorldRepair/);assert.match(quality,/backgroundQualityNeed/);
  assert.match(api,/BACKGROUND_AI_CRITIC_PENDING/);assert.doesNotMatch(api,/World Repair Architect/)
+});
+
+
+test("v0.47.0 adds build identity, diegetic journal, and journey closure",async()=>{
+ const [app,talent,journey,progression]=await Promise.all([
+  readFile(new URL("../app.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/talent-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/journey-closure.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
+ ]);
+ assert.match(app,/\.\/src\/talent-engine\.js\?v=47000/);assert.match(app,/\.\/src\/journey-closure\.js\?v=47000/);
+ assert.match(talent,/buildIdentitySnapshot/);assert.match(talent,/OTHER_PATH_LOCKED/);assert.match(talent,/specializedSkillGain/);
+ assert.match(journey,/maybeJourneyCheckpoint/);assert.match(journey,/recentJourneyCheckpoints/);
+ assert.match(progression,/未解之謎/);assert.match(progression,/傳聞與徵兆/);
+ assert.match(app,/旅人狀態/);assert.match(app,/旅程回顧/);assert.doesNotMatch(app,/WORLD QUALITY/)
 });
