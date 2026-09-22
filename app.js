@@ -1,13 +1,13 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=48000";
+import {APP_VERSION} from "./src/version.js?v=49000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=48000";
 import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=48000";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=44000";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=48000";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=49000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
-import {performAction} from "./src/game-engine.js?v=48000";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=48000";
+import {performAction} from "./src/game-engine.js?v=49000";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=49000";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=48000";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
@@ -15,7 +15,7 @@ import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/know
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=35000";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=48000";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=276";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=48000";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=49000";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=320";
 import {ensureCrisis} from "./src/crisis-engine.js?v=276";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=276";
@@ -27,7 +27,7 @@ import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandi
 import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=276";
 import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=48000";
 import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=276";
-import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=320";
+import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=49000";
 import {deriveSceneTitle} from "./src/runtime-guard.js?v=35000";
 import {worldCommunication} from "./src/communication-engine.js?v=276";
 import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=276";
@@ -35,17 +35,18 @@ import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=320";
 import {ensureMagicRuntime} from "./src/magic-engine.js?v=276";
 import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=320";
 import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=47000";
-import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
+import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=49000";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
 import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=48000";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=48000";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=49000";
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=45000";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=48000";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=49000";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=340";
-import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions,sessionCheckpoint} from "./src/player-experience.js?v=35000";
+import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=35000";
+import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=49000";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38003";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=41000";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=44000";
@@ -359,9 +360,16 @@ async function refresh(){const exists=await hasWorld().catch(()=>false);$("#cont
  if($("#fatigueStat"))$("#fatigueStat").textContent=`${Math.round(survivalInfo.fatigue)} / 100`;
  if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||turnSyncBusy||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":turnSyncBusy?"STATE SYNC：同步完成後即可繼續行動":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy&&!turnSyncBusy){scheduleWorldEvolution("gameplay_idle",1600);scheduleHistoryDeepening("knowledge_refresh",2100)}}
 async function persist(){if(gameState){
- const experience=ensurePlayerExperience(gameState),day=Number(gameState.world?.state?.day)||1;
+ const day=Number(gameState.world?.state?.day)||1;ensurePlayerExperience(gameState);
  const projected=projectObservableWorldChanges(gameState,gameState.narrative);if(projected.projected.length){gameState.narrative=projected.narrative;recordDebug("WORLD_IMPACT_PROJECTED",{events:projected.projected,day,location:gameState.player?.location||""})}
- if(day>Number(experience?.session?.lastCheckpointDay||day)){const recap=sessionCheckpoint(gameState,"新的一天");if(recap){gameState.narrative=(gameState.narrative?gameState.narrative+"\n\n":"")+"旅程小結："+recap.summary+(recap.worldChanges.length?"\n世界留下的變化："+recap.worldChanges.join("；"):"");recordDebug("SESSION_CHECKPOINT",{reason:recap.reason,day:recap.day,worldChanges:recap.worldChanges})}}
+ const recap=maybeJourneyCheckpoint(gameState);if(recap){
+  const lines=["旅程小結："+recap.summary];
+  if(recap.discoveries.length)lines.push("記住的線索："+recap.discoveries.join("；"));
+  if(recap.worldChanges.length)lines.push("世界留下的變化："+recap.worldChanges.join("；"));
+  if(recap.unresolved.length)lines.push("仍放不下的事："+recap.unresolved.slice(0,2).join("；"));
+  gameState.narrative=(gameState.narrative?gameState.narrative+"\n\n":"")+lines.join("\n");
+  recordDebug("SESSION_CHECKPOINT",{reason:recap.reason,day:recap.day,location:recap.location,worldChanges:recap.worldChanges,discoveries:recap.discoveries,unresolved:recap.unresolved})
+ }
  maintainSession(gameState);await saveWorld(gameState)
 }}
 function fallbackActionButtons(action=""){const contextual=roleplayFallbackSuggestions(gameState||{},{action});if(contextual.length)return contextual.slice(0,4);return ["檢查地面與附近物件上最新留下的痕跡","找一個正在避開人群的人，問他剛才看見了甚麼","沿著最明顯的新鮮痕跡走一小段，確認它通往哪裡","找一個能看見出入口的位置觀察人流"]}
@@ -701,38 +709,47 @@ $("#helperBtn")?.addEventListener("click",openHelperModal);
 const STAT_LABEL={strength:"力量",agility:"敏捷",mind:"心智",presence:"魅力",instinct:"直覺"},SKILL_LABEL={OBSERVE:"觀察",SOCIAL:"交涉",TRAVEL:"旅行",RISKY:"冒險",GENERAL:"應變"};
 function bonusText(b={}){const rows=Object.entries(b).filter(([,v])=>Number(v));return rows.length?rows.map(([k,v])=>`${SKILL_LABEL[k]||k} ${signed(v)}`).join(" · "):"沒有判定加成"}
 $("#characterBtn")?.addEventListener("click",()=>{
- const p=checkProfileSnapshot(gameState),survival=survivalSnapshot(gameState),origin=playerOriginSnapshot(gameState.player),magic=gameState.player.magic||{strain:0,capacity:100},active=ensureWorldRegistry(gameState).npcs.filter(x=>x.known===true&&x.alive!==false&&x.companion?.status==="ACTIVE");
- openModal(`<div class="eyebrow">CHARACTER STATUS</div><h2>${esc(gameState.player.name)}</h2><p class="muted">${esc(origin.label)} · 普通現代成年人基準。地球常識不代表你知道異世界的名稱、規則或文化。</p><div class="lore-list">
- <div class="lore-item"><small>VITALS</small><p><strong>生命</strong> ${gameState.player.hp}/${gameState.player.maxHp}<br><strong>飽食度</strong> ${Math.round(survival.satiety)}/100（越高越飽）<br><strong>疲勞</strong> ${Math.round(survival.fatigue)}/100（越高越疲勞）<br><strong>環境暴露</strong> ${Math.round(survival.exposure)}/100<br><strong>傷勢</strong> ${Math.round(survival.injury)}/100<br><strong>魔法負荷</strong> ${Math.round(magic.strain||0)}/${magic.capacity||100}</p></div>
- <div class="lore-item"><small>MODERN EARTH BASELINE</small><p>${origin.commonKnowledge.map(x=>esc(x)).join("<br>")}</p><small>預設價值觀</small><p>${origin.defaultValues.map(x=>esc(x)).join("<br>")}</p></div>
- <div class="lore-item"><small>ATTRIBUTES</small><p>${Object.entries(p.stats).map(([k,v])=>`<strong>${esc(STAT_LABEL[k]||k)}</strong> ${v}`).join(" · ")}</p></div>
- <div class="lore-item"><small>SKILLS</small>${Object.entries(p.skills).map(([k,v])=>`<p><strong>${esc(SKILL_LABEL[k]||k)}</strong> Lv.${v} · 熟練 ${p.skillProgress[k]||0}${v<5?` / ${4+v*3}`:" · MAX"}</p>`).join("")}</div>
- <div class="lore-item"><small>EQUIPPED TOOLS</small><p>${p.equipped.length?p.equipped.map(x=>`${esc(x.name)} · ${esc(bonusText(x.checkBonuses))}`).join("<br>"):"目前沒有具判定加成的裝備"}</p></div>
- <div class="lore-item"><small>ACTIVE COMPANIONS</small><p>${active.length?active.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · 信任 ${x.trust??0}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
+ const p=checkProfileSnapshot(gameState),survival=survivalSnapshot(gameState),origin=playerOriginSnapshot(gameState.player),magic=gameState.player.magic||{strain:0,capacity:100},active=ensureWorldRegistry(gameState).npcs.filter(x=>x.known===true&&x.alive!==false&&x.companion?.status==="ACTIVE"),talentInfo=talentSnapshot(gameState),identity=talentInfo.identity;
+ openModal(`<div class="eyebrow">CHARACTER STATUS</div><h2>${esc(gameState.player.name)}</h2><p class="muted">${esc(origin.label)} · 起源決定你一開始能知道甚麼；長期選擇則會形成你自己的做事方式。</p><div class="lore-list">
+ <div class="lore-item"><small>身體狀況</small><p><strong>生命</strong> ${gameState.player.hp}/${gameState.player.maxHp}<br><strong>飽食度</strong> ${Math.round(survival.satiety)}/100<br><strong>疲勞</strong> ${Math.round(survival.fatigue)}/100<br><strong>環境暴露</strong> ${Math.round(survival.exposure)}/100<br><strong>傷勢</strong> ${Math.round(survival.injury)}/100<br><strong>魔法負荷</strong> ${Math.round(magic.strain||0)}/${magic.capacity||100}</p></div>
+ <div class="lore-item"><small>起源記憶</small><p>${(origin.commonKnowledge||[]).map(x=>esc(x)).join("<br>")||"沒有可直接帶入這個世界的既有常識。"}</p>${origin.defaultValues?.length?`<small>原有價值觀</small><p>${origin.defaultValues.map(x=>esc(x)).join("<br>")}</p>`:""}</div>
+ <div class="lore-item"><small>成長路線</small><h3>${identity.committed?esc(identity.path.name):"尚未定型"}</h3><p>${esc(identity.description)}${identity.committed?`<br><small>較容易成長：${identity.focusedKinds.map(k=>esc(SKILL_LABEL[k]||k)).join("、")}；其他方向需要更大投入。</small>`:""}</p></div>
+ <div class="lore-item"><small>能力基礎</small><p>${Object.entries(p.stats).map(([k,v])=>`<strong>${esc(STAT_LABEL[k]||k)}</strong> ${v}`).join(" · ")}</p></div>
+ <div class="lore-item"><small>累積經驗</small>${Object.entries(p.skills).map(([k,v])=>`<p><strong>${esc(SKILL_LABEL[k]||k)}</strong> Lv.${v} · 熟練 ${p.skillProgress[k]||0}${v<5?` / ${4+v*3}`:" · MAX"}</p>`).join("")}</div>
+ <div class="lore-item"><small>已裝備工具</small><p>${p.equipped.length?p.equipped.map(x=>`${esc(x.name)} · ${esc(bonusText(x.checkBonuses))}`).join("<br>"):"目前沒有具判定加成的裝備"}</p></div>
+ <div class="lore-item"><small>同行者</small><p>${active.length?active.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · ${esc(companionLabel(x)||"同行中")}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
  </div>`)
 });
 $("#runtimeBtn")?.addEventListener("click",()=>{
- const survival=survivalSnapshot(gameState),magic=gameState.player.magic||{strain:0,capacity:100,knownSpells:[]},talents=talentSnapshot(gameState),travel=travelSnapshot(gameState,{director:false}),market=marketSnapshot(gameState),dungeon=dungeonSnapshot(gameState,{director:false}),culture=cultureSnapshot(gameState),registry=ensureWorldRegistry(gameState),locNames=new Map(registry.locations.map(x=>[x.id,x.name])),companions=ensureNpcRuntime(gameState).filter(x=>x.companion?.status==="ACTIVE"),worldHealth=worldHealthSnapshot(gameState),generationDiag=gameState.world.generationDiagnostics?.summary||{},quality=gameState.world.quality;
- const routeText=travel.routes.length?travel.routes.map(r=>`${esc(locNames.get(r.fromId)||"?")} ↔ ${esc(locNames.get(r.toId)||"?")} · ${r.distanceKm}km · ${esc(r.terrain)} · 約 ${r.baseMinutes} 分`).join("<br>"):"尚未掌握可確認路線";
- const marketText=market?.goods?.length?market.goods.map(g=>`${esc(g.name)} · ${g.price} · 庫存 ${g.stock}`).join("<br>"):"目前沒有可確認的地方市場商品";
- const dungeonText=dungeon?.rooms?.length?dungeon.rooms.map(r=>`${esc(r.name)} · ${r.cleared?"已清理":"已發現"}`).join("<br>"):"目前沒有已探索的遺構空間";
- openModal(`<div class="eyebrow">ISEKAI RUNTIME</div><h2>異界狀態</h2><p class="muted">這些不是背景文字，而是目前正在影響判定與世界狀態的規則。</p><div class="lore-list">
- <div class="lore-item"><small>WORLD QUALITY</small><h3>${quality?.overall??worldHealth.score}/100 · ${esc(quality?.status||worldHealth.status)}</h3><p>Structural Integrity: ${gameState.integrity?.valid?"PASS":"CHECK"} · AI stages ${generationDiag.aiSucceeded??"?"}/${generationDiag.stageCount??"?"} · Fallback ${generationDiag.fallbackCount??0}<br><small>Runtime Health ${worldHealth.score}/100 · Evolution Passes ${gameState.world.evolution?.count??0}</small></p></div>
- <div class="lore-item"><small>SURVIVAL</small><p>飽食度 ${Math.round(survival.satiety)} · 疲勞 ${Math.round(survival.fatigue)} · 環境暴露 ${Math.round(survival.exposure)} · 傷勢 ${Math.round(survival.injury)}<br>${survival.conditions.length?survival.conditions.map(esc).join(" · "):"目前狀態穩定"}</p></div>
- <div class="lore-item"><small>MAGIC</small><p>魔法負荷 ${Math.round(magic.strain||0)} / ${magic.capacity||100}<br>${(magic.knownSpells||[]).length?(magic.knownSpells||[]).map(x=>`${esc(x.name)} · 消耗 ${x.cost}`).join("<br>"):"尚未掌握有 Canon 證據支持的術式"}</p></div>
- <div class="lore-item"><small>LOCAL CULTURE</small><p>${culture?esc(culture.identity||"當地文化仍待理解")+"<br>當地適應 "+culture.standing:"目前沒有足夠資料"}</p></div>
- <div class="lore-item"><small>KNOWN ROUTES</small><p>${routeText}</p></div>
- <div class="lore-item"><small>LOCAL MARKET</small><p>${marketText}</p></div>
- <div class="lore-item"><small>RUINS / DUNGEON</small><p>${dungeonText}</p></div>
- <div class="lore-item"><small>ACTIVE COMPANIONS</small><p>${companions.length?companions.map(x=>`${esc(x.name)} · HP ${x.life?.hp??"?"}/${x.life?.maxHp??"?"} · 精力 ${Math.round(x.life?.energy??0)}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
- <div class="lore-item"><small>TALENTS · POINTS ${talents.points}</small><p>${talents.owned.length?talents.owned.map(x=>esc(x.name)).join(" · "):"尚未選擇天賦"}</p>${talents.points&&talents.available.length?`<div class="settings-actions">${talents.available.map(x=>`<button class="secondary" data-learn-talent="${esc(x.id)}">${esc(x.name)}</button>`).join("")}</div>`:""}</div>
+ const survival=survivalSnapshot(gameState),magic=gameState.player.magic||{strain:0,capacity:100,knownSpells:[]},talents=talentSnapshot(gameState),travel=travelSnapshot(gameState,{director:false}),market=marketSnapshot(gameState),dungeon=dungeonSnapshot(gameState,{director:false}),culture=cultureSnapshot(gameState),registry=ensureWorldRegistry(gameState),locNames=new Map(registry.locations.map(x=>[x.id,x.name])),companions=ensureNpcRuntime(gameState).filter(x=>x.companion?.status==="ACTIVE");
+ const routeText=travel.routes.length?travel.routes.map(r=>`${esc(locNames.get(r.fromId)||"?")} ↔ ${esc(locNames.get(r.toId)||"?")} · 約 ${r.baseMinutes} 分 · ${esc(r.terrain)}`).join("<br>"):"尚未掌握可確認路線";
+ const marketText=market?.goods?.length?market.goods.map(g=>`${esc(g.name)} · ${g.price} · ${g.stock>0?"仍有存貨":"暫時缺貨"}`).join("<br>"):"目前沒有可確認的地方市場商品";
+ const dungeonText=dungeon?.rooms?.length?dungeon.rooms.map(r=>`${esc(r.name)} · ${r.cleared?"已走過":"仍待探索"}`).join("<br>"):"目前沒有已探索的遺構空間";
+ const lockedReason=x=>({OTHER_PATH_LOCKED:"其他成長路線的進階能力已鎖定",PREVIOUS_TIER_REQUIRED:"要先走完前一階段",NO_TALENT_POINT:"目前天賦點不足"})[x.reason]||"暫時無法選擇";
+ const talentRows=talents.available.map(x=>`<div class="lore-item"><small>${esc(x.pathName)} · 第 ${x.tier} 階${x.cost<99?` · 需要 ${x.cost} 點`:""}</small><h3>${esc(x.name)}</h3><p>${esc(x.description)}</p><button class="${x.available?"secondary":"ghost"}" data-learn-talent="${esc(x.id)}" ${x.available?"":"disabled"}>${x.available?"選擇這項能力":esc(lockedReason(x))}</button></div>`).join("");
+ openModal(`<div class="eyebrow">TRAVELLER STATUS</div><h2>旅人狀態</h2><p class="muted">只顯示你能理解並用來作決定的狀態；世界完整性、AI 與生成診斷仍保留在 Debug。</p><div class="lore-list">
+ <div class="lore-item"><small>身體狀況</small><p>飽食度 ${Math.round(survival.satiety)} · 疲勞 ${Math.round(survival.fatigue)} · 環境暴露 ${Math.round(survival.exposure)} · 傷勢 ${Math.round(survival.injury)}<br>${survival.conditions.length?survival.conditions.map(esc).join(" · "):"目前狀態穩定"}</p></div>
+ <div class="lore-item"><small>魔法負荷</small><p>${Math.round(magic.strain||0)} / ${magic.capacity||100}<br>${(magic.knownSpells||[]).length?(magic.knownSpells||[]).map(x=>`${esc(x.name)} · 消耗 ${x.cost}`).join("<br>"):"尚未掌握有可靠證據支持的術式"}</p></div>
+ <div class="lore-item"><small>你的路線</small><h3>${talents.identity.committed?esc(talents.identity.path.name):"尚未定型"}</h3><p>${esc(talents.identity.description)}<br><small>可用天賦點：${talents.points}</small></p></div>
+ <div class="lore-item"><small>當地生活</small><p>${culture?esc(culture.identity||"當地文化仍待理解")+"<br>"+esc(culture.standing):"目前沒有足夠資料"}</p></div>
+ <div class="lore-item"><small>已知路線</small><p>${routeText}</p></div>
+ <div class="lore-item"><small>附近補給</small><p>${marketText}</p></div>
+ <div class="lore-item"><small>遺構記錄</small><p>${dungeonText}</p></div>
+ <div class="lore-item"><small>同行者</small><p>${companions.length?companions.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · ${esc(companionLabel(x)||"同行中")}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
+ ${talents.owned.length?`<div class="lore-item"><small>已形成的能力</small><p>${talents.owned.map(x=>`${esc(x.pathName||"")} · ${esc(x.name)}`).join("<br>")}</p></div>`:""}
+ ${talentRows||'<div class="lore-item"><p>目前沒有新的成長選擇。</p></div>'}
  </div>`);
  qsa("#modalContent [data-learn-talent]").forEach(b=>b.onclick=async()=>{const result=learnTalent(gameState,b.dataset.learnTalent);if(result.ok){await persist();await refresh();$("#runtimeBtn").click()}});
 });
 $("#impactBtn")?.addEventListener("click",()=>{const snap=impactSnapshot(gameState),recognition=recognitionSnapshot(gameState),records=playerImpactRecords(gameState,50).reverse(),total=Object.values(snap.influence).reduce((a,b)=>a+(Number(b)||0),0);openModal(`<div class="eyebrow">WORLD IMPACT & REPUTATION</div><h2>我改變過的世界</h2><p class="muted">世界會記住你做過的事，但不同地方、人物與勢力只會知道真正傳到他們耳中的部分。</p><div class="lore-list"><div class="lore-item"><small>CURRENT REACH</small><h3>${esc(impactLabel(snap.capability.maxScope))}級影響 · ${esc(renownLabel(recognition.tier))}</h3><p>累積影響 ${total} · 名聲 ${recognition.renown} · 惡名／戒心 ${recognition.notoriety}</p></div>${recognition.titles.length?`<div class="lore-item"><small>HOW THE WORLD NAMES YOU</small><h3>${recognition.titles.map(x=>esc(x.label)).join(" · ")}</h3></div>`:""}${recognition.activeRumors.length?`<div class="lore-item"><small>ACTIVE RUMORS</small><p>${recognition.activeRumors.slice().reverse().map(x=>`${esc(x.targetName||"世界")}：${esc(x.text)}`).join("<br><br>")}</p></div>`:""}${recognition.marks.length?`<div class="lore-item"><small>LEGACY MARKS</small><p>${recognition.marks.slice().reverse().map(x=>`${esc(x.targetName||"世界")} · ${esc(x.label)}`).join("<br>")}</p></div>`:""}${recognition.reactions.length?`<div class="lore-item"><small>WORLD REACTIONS</small><p>${recognition.reactions.slice().reverse().map(x=>esc(x.summary)).join("<br><br>")}</p></div>`:""}${records.map(x=>`<div class="lore-item"><small>DAY ${x.day} · ${esc(impactLabel(x.scope))} · ${esc(x.targetName||"世界")}</small><h3>${esc(x.title)}</h3><p>${esc(x.summary)}</p></div>`).join("")||"<div class=\"lore-item\"><p>你尚未對世界造成持久改變。繼續探索、建立關係並介入真正重要的事件。</p></div>"}</div>`)});
 $("#journalBtn").onclick=()=>openJournalUI(gameState,openModal,persist,"quests");
 $("#inventoryBtn").onclick=()=>openInventoryUI(gameState,openModal,persist,runAction);
-$("#historyBtn").onclick=()=>{const events=playerVisibleEvents(gameState,30).reverse();openModal(`<div class="eyebrow">CHRONICLE</div><h2>旅程紀錄</h2><p class="muted">只顯示你親身經歷、可觀察或已取得的事件。</p><div class="lore-list">${events.map(e=>`<div class="lore-item"><small>DAY ${e.day}${e.time?` · ${esc(e.time)}`:""} · ${esc(e.type)}</small><p>${e.summary?esc(e.summary):e.action?esc(e.customText||e.action):"你來到了這個陌生世界。"}</p></div>`).join("")}</div>`)};
+$("#historyBtn").onclick=()=>{
+ const recaps=recentJourneyCheckpoints(gameState,12).slice().reverse(),events=playerVisibleEvents(gameState,18).filter(e=>e.type!=="SESSION_CHECKPOINT").reverse();
+ const recapCards=recaps.map(r=>`<div class="lore-item"><small>DAY ${r.day} · ${esc(r.reason)} · ${esc(r.location||"旅途中")}</small><h3>這段旅程發生了甚麼</h3><p>${esc(r.summary)}</p>${r.discoveries?.length?`<small>記住的線索</small><p>${r.discoveries.map(esc).join("<br>")}</p>`:""}${r.worldChanges?.length?`<small>世界留下的變化</small><p>${r.worldChanges.map(esc).join("<br>")}</p>`:""}${r.unresolved?.length?`<small>仍未放下</small><p>${r.unresolved.map(esc).join("<br>")}</p>`:""}</div>`).join("");
+ const recentCards=events.slice(0,8).map(e=>`<div class="lore-item"><small>DAY ${e.day}${e.time?` · ${esc(e.time)}`:""}</small><p>${e.summary?esc(e.summary):e.action?esc(e.customText||e.action):"你繼續走在這個陌生世界裡。"}</p></div>`).join("");
+ openModal(`<div class="eyebrow">JOURNEY MEMORY</div><h2>旅程回顧</h2><p class="muted">以自然停頓點整理旅程，而不是把每個 Engine event 當成日誌。</p><div class="lore-list">${recapCards||recentCards||'<div class="lore-item"><p>旅程才剛開始。</p></div>'}</div>`)
+};
 $("#aiSettingsBtn").onclick=()=>{const s=loadAISettings(),j=loadJevSettings();openModal(`<div class="eyebrow">LOCAL AI CONFIG</div><h2>AI 設定</h2><p class="muted">API Key 只保存在這個瀏覽器。模型由 Elyndra 按 Provider 固定管理，用戶不需要輸入模型名稱。</p><div class="settings-grid"><label>Provider<select id="aiProvider"><option value="openai">OpenAI</option><option value="gemini">Gemini</option><option value="agnes">Agnes 3.0 Flash</option></select></label><label>API Endpoint<input id="aiEndpoint" type="url" value="${esc(s.endpoint)}"></label><label>目前模型<input id="aiModelDisplay" value="${esc(PROVIDERS[s.provider]?.model||s.model)}" readonly></label><label>AI 優化模式<select id="aiOptimization"><option value="standard">標準</option><option value="adaptive">Elyndra 自適應優化</option></select></label><label>API Key<input id="aiKey" type="password" autocomplete="new-password" value="" placeholder="${s.apiKey?"已保存 · 輸入新 Key 才會取代":"尚未設定"}"></label></div><p id="aiProviderHint" class="muted"></p><p id="aiOptimizationHint" class="muted"></p><hr><div class="eyebrow">JEV DECISION ROUTER · OPTIONAL</div><p class="muted">只負責低成本 routing；失敗會自動回本地規則。Jev Key 亦只保存在本瀏覽器。</p><div class="settings-grid"><label>啟用 Jev<input id="jevEnabled" type="checkbox" ${j.enabled?"checked":""}></label><label>Jev Endpoint<input id="jevEndpoint" type="url" value="${esc(j.endpoint)}"></label><label>Jev Model<input id="jevModel" value="${esc(j.model)}"></label><label>Jev API Key<input id="jevKey" type="password" autocomplete="off" value="${esc(j.apiKey)}"></label><label>Confidence Threshold<input id="jevThreshold" type="number" min=".5" max=".95" step=".01" value="${j.threshold}"></label></div><div class="settings-actions"><button id="jevSave" class="secondary">儲存並測試 Jev</button><button id="jevClear" class="ghost">清除 Jev</button></div><p id="jevResult" class="muted"></p><div class="settings-actions"><button id="aiSave" class="primary">儲存並測試</button><button id="aiClear" class="secondary">清除本地 Key</button></div><p id="aiTestResult" class="muted"></p>`);
 const provider=$("#aiProvider"),endpoint=$("#aiEndpoint"),modelDisplay=$("#aiModelDisplay"),optimization=$("#aiOptimization"),key=$("#aiKey"),providerHint=$("#aiProviderHint"),optimizationHint=$("#aiOptimizationHint");
 const syncProviderHint=()=>{const p=PROVIDERS[provider.value];if(!p)return;if(modelDisplay)modelDisplay.value=p.model;if(providerHint)providerHint.textContent=`${p.label} · Elyndra 固定模型：${p.model}`;if(optimizationHint)optimizationHint.textContent=optimization.value==="adaptive"?"自適應優化會按任務重要性分配思考：行動／敘事較快，核心規則／歷史／Timeline 更深入，Critic／Recovery 使用最高保護。":"標準模式不主動指定 Provider 思考強度，使用模型預設行為。"};
