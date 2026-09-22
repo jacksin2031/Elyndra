@@ -56,7 +56,7 @@ function existingNames(state,key){
  return new Set(rows.map(x=>rowIdentity(key,x)).filter(Boolean))
 }
 const normalizeForbidden=v=>String(v||"").normalize("NFKC").toLocaleLowerCase().replace(/[\s_\-—–、，,。.!！？?：:；;（）()\[\]{}「」『』【】〈〉《》"'\`´’‘“”·・\\/]+/g,"");
-function forbiddenMatch(row,terms=[]){const hay=normalizeForbidden(JSON.stringify(row??{}));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
+function forbiddenMatch(row,terms=[]){const semantic={name:row?.name,title:row?.title,type:row?.type,kind:row?.kind,role:row?.role,description:row?.description,objective:row?.objective,goal:row?.goal,traits:row?.traits,regions:row?.regions,culture:row?.culture,trade:row?.trade,lore:row?.lore,companionProfile:row?.companionProfile};const hay=normalizeForbidden(JSON.stringify(semantic));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
 export function validateLazyGenerationCandidate(state,generation,plan,options={}){
  const errors=[];if(!plan||plan.status!=="PLANNED")return {valid:false,errors:["LAZY_PLAN_NOT_ACTIVE"]};
  for(const key of ["generationRevision","worldSeedFingerprint","entitySeed","generationSlot","promptVersion","validationVersion","generatedAtWorldTime"])if(plan[key]==null)errors.push("LAZY_REPLAY_METADATA_MISSING:"+key);
