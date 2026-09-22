@@ -67,7 +67,28 @@ const worldBackground={timer:0,running:false,controller:null,lastReason:"backgro
 const worldQualityBackground={timer:0,running:false,controller:null,lastReason:"background_quality",failures:0};
 const historyBackground={timer:0,running:false,controller:null,lastReason:"history_research",plan:null,failures:0};
 let developerAutotestActive=false;
-const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,batchController:null,lastReport:null,lastMessage:"",logs:[]};
+const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,batchController:null,lastReport:null,lastMessage:"",logs:[],hiddenAt:0,lastVisibleAt:0,backgroundInterruptions:0,backgroundDurationMs:0};
+const AUTOTEST_BACKGROUND_GRACE_MS=15000;
+function autotestNetworkError(error){return /Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|AI_TIMEOUT/i.test(String(error?.message||error||""))}
+function autotestBackgroundAffected(error){return developerAutotest.running&&autotestNetworkError(error)&&(document.hidden||developerAutotest.hiddenAt>0||(developerAutotest.lastVisibleAt&&Date.now()-developerAutotest.lastVisibleAt<=AUTOTEST_BACKGROUND_GRACE_MS))}
+function waitForAutotestVisible(){
+ if(!document.hidden)return Promise.resolve();
+ return new Promise(resolve=>{const done=()=>{if(document.hidden)return;document.removeEventListener("visibilitychange",done);resolve()};document.addEventListener("visibilitychange",done)})
+}
+document.addEventListener("visibilitychange",()=>{
+ if(!developerAutotest.running)return;
+ const now=Date.now();
+ if(document.hidden){
+  developerAutotest.hiddenAt=now;
+  recordDebug("AUTOTEST_VISIBILITY_HIDDEN",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});
+  appendDeveloperAutotestLog("視窗已切到背景；測試會繼續，若瀏覽器暫停網絡則回到前景後自動恢復。")
+ }else{
+  const hiddenDurationMs=developerAutotest.hiddenAt?Math.max(0,now-developerAutotest.hiddenAt):0;
+  developerAutotest.backgroundDurationMs+=hiddenDurationMs;developerAutotest.hiddenAt=0;developerAutotest.lastVisibleAt=now;
+  recordDebug("AUTOTEST_VISIBILITY_VISIBLE",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,hiddenDurationMs});
+  appendDeveloperAutotestLog("視窗已回到前景；如有背景中斷會從安全點繼續。")
+ }
+});
 let gameplayDebugSnapshot=null;
 const BACKGROUND_IDLE_GRACE_MS=10000;let lastForegroundActionAt=0;
 function markForegroundActivity(){lastForegroundActionAt=Date.now()}
@@ -936,7 +957,7 @@ async function startDeveloperAutotest(config){
  if(developerAutotest.running)return;
  aiStatus=await aiHealth();if(!aiStatus.aiConfigured){appendDeveloperAutotestLog("需要先在 AI 設定連接 Provider/API。");openDeveloperAutotestPanel();return}
  const originalState=gameState?structuredClone(gameState):null,originalScreen=document.body.dataset.screen||"landing";
- developerAutotest.running=true;developerAutotestActive=true;developerAutotest.stopRequested=false;developerAutotest.results=[];developerAutotest.startedAt=Date.now();developerAutotest.endedAt=0;developerAutotest.worldIndex=0;developerAutotest.turn=0;developerAutotest.logs=[];developerAutotest.lastReport=null;developerAutotest.config=structuredClone(config);developerAutotest.batchController=new AbortController();setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});
+ developerAutotest.running=true;developerAutotestActive=true;developerAutotest.stopRequested=false;developerAutotest.results=[];developerAutotest.startedAt=Date.now();developerAutotest.endedAt=0;developerAutotest.worldIndex=0;developerAutotest.turn=0;developerAutotest.logs=[];developerAutotest.lastReport=null;developerAutotest.hiddenAt=document.hidden?Date.now():0;developerAutotest.lastVisibleAt=document.hidden?0:Date.now();developerAutotest.backgroundInterruptions=0;developerAutotest.backgroundDurationMs=0;developerAutotest.config=structuredClone(config);developerAutotest.batchController=new AbortController();setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});
  cancelAutotestBackgroundWork();recordDebug("AUTOTEST_BATCH_STARTED",{config});openDeveloperAutotestPanel();appendDeveloperAutotestLog(`開始 ${config.worldCount} 個世界的 ${config.mode==="worlds"?"World Fuzz":"AI Playthrough"} 測試。`);
  try{
   for(let i=1;i<=config.worldCount;i++){
@@ -970,6 +991,12 @@ async function startDeveloperAutotest(config){
      }catch(e){
       developerAutotest.controller=null;
       if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
+      if(!row.decision&&autotestBackgroundAffected(e)){
+       developerAutotest.backgroundInterruptions++;
+       recordDebug("AUTOTEST_EXTERNAL_BACKGROUND_INTERRUPTION",{worldIndex:i,turn,error:e?.message||String(e),phase:"DECISION",retry:true});
+       appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 因背景切換中斷 AI 決策；回到前景後重試同一回合。`);
+       await waitForAutotestVisible();turn--;continue
+      }
       row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;recentActions.push({action:row.decision?.action||row.decision?.combatAction||"",mode:row.decision?.mode||"",kind:row.decision?.kind||"",progression:row.decision?.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_FAILED",{worldIndex:i,turn,error:row.error,durationMs:row.durationMs});appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 發生錯誤：${row.error}`);
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:false},config,{});if(stop){result.stopReason=stop;break}
@@ -985,7 +1012,7 @@ async function startDeveloperAutotest(config){
  }finally{
   developerAutotest.controller=null;developerAutotest.endedAt=Date.now();cancelAutotestBackgroundWork();clearDirectAIRuntimeControl();developerAutotest.batchController=null;
   const runTelemetry=telemetryEntries().filter(e=>Number(e.at)>=developerAutotest.startedAt),report=buildAutotestReport({config,worlds:developerAutotest.results,telemetry:runTelemetry,startedAt:developerAutotest.startedAt,endedAt:developerAutotest.endedAt});
-  developerAutotest.lastReport=report;recordDebug("AUTOTEST_BATCH_COMPLETED",{summary:report.summary,stopRequested:developerAutotest.stopRequested});
+  developerAutotest.lastReport=report;recordDebug("AUTOTEST_BATCH_COMPLETED",{summary:report.summary,stopRequested:developerAutotest.stopRequested,backgroundInterruptions:developerAutotest.backgroundInterruptions,backgroundDurationMs:developerAutotest.backgroundDurationMs});
   try{exportDeveloperAutotestResults(report,developerAutotest.results)}catch(e){recordDebug("AUTOTEST_EXPORT_FAILED",{error:e?.message||String(e)})}
   developerAutotest.running=false;developerAutotestActive=false;developerAutotest.stopRequested=false;gameState=originalState;gameplayDebugSnapshot=null;
   await refresh();if(originalState&&aiStatus.aiConfigured){scheduleWorldQualityCritic("post_autotest_restore",1800);scheduleWorldEvolution("post_autotest_restore",BACKGROUND_IDLE_GRACE_MS);scheduleHistoryDeepening("post_autotest_restore",2400)}if(originalState&&originalScreen==="game")show("game");else if(originalScreen==="creator")show("creator");else show("landing");
