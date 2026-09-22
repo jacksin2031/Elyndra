@@ -856,7 +856,7 @@ async function createDeveloperAutotestWorld(raw,index){
  applyWorldCandidate(state,candidate);canonizeGeneration(state,candidate.generation);applyOriginRuntime(state,{phase:"POST_CANON"});
  const migrated=migrate(state),validation=validateWorld(migrated.world);if(!validation.valid)throw new Error("AUTOTEST_WORLD_INVALID:"+validation.errors.join(","));
  recordDebug("AUTOTEST_WORLD_GENERATION_COMPLETED",{index,worldId:migrated.world?.id,name:migrated.world?.name,genre:migrated.world?.seedContract?.genre||raw.worldStyle});
- return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale},validation}
+ return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale},validation,generationDiagnostics:structuredClone(candidate?.generationDiagnostics||migrated.world?.generationDiagnostics||null)}
 }
 async function executeDeveloperAutotestDecision(decision){
  if(decision.mode==="combat"){await runCombatAction(decision.combatAction||"attack");return}
@@ -889,7 +889,7 @@ async function startDeveloperAutotest(config){
    try{
     appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
     const generated=await createDeveloperAutotestWorld(randomAutotestWorldRaw(Math.random,i),i);
-    result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation};
+    result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
     gameState=generated.state;gameplayDebugSnapshot=null;await refresh();show("game");await waitForAutotestIdle(3000);
     if(config.mode==="worlds"){
      result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
