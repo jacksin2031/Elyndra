@@ -55,6 +55,9 @@ export function materializeSafeHistoryLegacy(state,historyId){
  }
  return {documents,relics}
 }
+export function syncHistoryLegacy(state){
+ const root=ensureHistoryLegacy(state);for(const record of root.records)materializeSafeHistoryLegacy(state,record.historyId);return ensureHistoryLegacy(state)
+}
 export function pendingHistoryLegacyEchoes(state,{limit=12}={}){
  const rows=[];for(const record of ensureHistoryLegacy(state).records)for(const echo of record.echoes)if(["ORAL_TRADITION","MEMORIAL"].includes(echo.kind)&&echo.status==="UNMATERIALIZED")rows.push(structuredClone(echo));
  return rows.sort((a,b)=>Number(a.createdDay)-Number(b.createdDay)||String(a.id).localeCompare(String(b.id))).slice(0,Math.max(0,Number(limit)||0))
