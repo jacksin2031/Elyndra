@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.54.8 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
+test("v0.54.9 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
  const [html,app,client,stateSync,actions,settings,contracts,adventure,turnOutcome,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -31,10 +31,10 @@ test("v0.54.8 keeps structured AI and Developer Autotest cache graphs coherent",
   readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=54008/);
- assert.match(app,/\.\/src\/version\.js\?v=54008/);
+ assert.match(html,/app\.js\?v=54009/);
+ assert.match(app,/\.\/src\/version\.js\?v=54009/);
  assert.match(app,/\.\/src\/ai-autotest\.js\?v=54008/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=54008/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=54009/);
  for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","lazy-generation","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
