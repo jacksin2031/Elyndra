@@ -2,7 +2,8 @@ const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const DIRTY_KEYS=["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","npcRelation","faction","quest","worldImpact","generation","timeline","entityReveal","magicLearning","recipe","companion","encounter"];
 const EFFECTS=new Set(["MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
 const IMPACT_SCALE=new Set(["MINOR","STANDARD","MAJOR"]);
-const PATCH_OPS=new Set(["DISCOVER_FACT","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);\nconst DISCOVERY_SOURCE_KINDS=new Set(["CANON","LOCATION","NPC","EVENT","ITEM"]);
+const PATCH_OPS=new Set(["DISCOVER_FACT","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);
+const DISCOVERY_SOURCE_KINDS=new Set(["CANON","LOCATION","NPC","EVENT","ITEM"]);
 const REBASE_SAFE=new Set(["NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL"]);
 const IMMEDIATE_KEYS=new Set(["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","quest","entityReveal","generation","encounter"]);
 const PERSISTENT_KEYS=new Set(["npcRelation","faction","worldImpact","timeline","magicLearning","recipe","companion"]);
@@ -108,7 +109,12 @@ export function validateStatePatch(patch,plan={}){
  const allowed=new Set(plan.capabilities||[]);
  for(const raw of (patch.operations||[]).slice(0,10)){
   const type=String(raw?.op||"").toUpperCase();if(!PATCH_OPS.has(type)||!allowed.has(type)){errors.push("STATE_PATCH_OPERATION_NOT_ALLOWED:"+type);continue}
-  if(type==="DISCOVER_FACT"){\n   if(!clean(raw.title,100)||!clean(raw.text,500))errors.push("STATE_PATCH_DISCOVERY_INVALID");\n   const sourceKind=String(raw.sourceKind||"").toUpperCase(),sourceId=clean(raw.sourceId,120),factId=clean(raw.factId,120);\n   if(!DISCOVERY_SOURCE_KINDS.has(sourceKind)||!sourceId)errors.push("STATE_PATCH_DISCOVERY_GROUNDING_REQUIRED");\n   if(sourceKind==="CANON"&&(!factId||factId!==sourceId))errors.push("STATE_PATCH_DISCOVERY_CANON_SOURCE_INVALID")\n  }
+  if(type==="DISCOVER_FACT"){
+   if(!clean(raw.title,100)||!clean(raw.text,500))errors.push("STATE_PATCH_DISCOVERY_INVALID");
+   const sourceKind=String(raw.sourceKind||"").toUpperCase(),sourceId=clean(raw.sourceId,120),factId=clean(raw.factId,120);
+   if(!DISCOVERY_SOURCE_KINDS.has(sourceKind)||!sourceId)errors.push("STATE_PATCH_DISCOVERY_GROUNDING_REQUIRED");
+   if(sourceKind==="CANON"&&(!factId||factId!==sourceId))errors.push("STATE_PATCH_DISCOVERY_CANON_SOURCE_INVALID")
+  }
   if(type==="REVEAL_ENTITY"&&(!["location","npc","faction","sideQuest"].includes(raw.kind)||!clean(raw.id,120)))errors.push("STATE_PATCH_REVEAL_INVALID");
   if(type==="MOVE_PLAYER"&&!clean(raw.location,120))errors.push("STATE_PATCH_MOVE_INVALID");
   if(type==="ACQUIRE_ITEM"&&!clean(raw.item?.name,100))errors.push("STATE_PATCH_ITEM_INVALID");
