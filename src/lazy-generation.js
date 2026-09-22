@@ -50,7 +50,7 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
 function groupRows(g,key){return Array.isArray(g?.[key])?g[key]:[]}
 function existingNames(state,key){
  const r=state.world?.registry||{},catalog=state.world?.catalog||{},rows=key==="sideQuests"?(r.sideQuests||[]):key==="definitions"?[...(catalog.civilizations||[]),...(catalog.species||[]),...(catalog.languages||[])]:r[key]||[];
- return new Set(rows.map(x=>String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase()).filter(Boolean))
+ return new Set(rows.map(x=>key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase()).filter(Boolean))
 }
 const normalizeForbidden=v=>String(v||"").normalize("NFKC").toLocaleLowerCase().replace(/[\s_\-—–、，,。.!！？?：:；;（）()\[\]{}「」『』【】〈〉《》"'\`´’‘“”·・\\/]+/g,"");
 function forbiddenMatch(row,terms=[]){const hay=normalizeForbidden(JSON.stringify(row??{}));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
@@ -63,7 +63,7 @@ export function validateLazyGenerationCandidate(state,generation,plan){
   const rows=groupRows(generation,key),limit=Math.max(0,Number(plan.slots?.[key])||0);if(rows.length>limit)errors.push("LAZY_SLOT_EXCEEDED:"+key);
   const existing=existingNames(state,key),candidateNames=new Set();
   for(const row of rows){
-   const name=String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase();
+   const name=key==="definitions"?(String(row?.kind||"").toUpperCase()+":"+String(row?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase();
    if(name&&existing.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
    if(name&&candidateNames.has(name))errors.push("LAZY_DUPLICATE_CANDIDATE:"+key+":"+name);if(name)candidateNames.add(name);
    const forbidden=forbiddenMatch(row,plan.forbiddenTerms||[]);if(forbidden)errors.push("LAZY_FORBIDDEN_TERM:"+forbidden);
@@ -85,8 +85,8 @@ export function validateLazyGenerationCandidate(state,generation,plan){
  return {valid:errors.length===0,errors:[...new Set(errors)],planId:plan.id}
 }
 function addedIdFor(raw,added,key){
- const name=String(key==="sideQuests"?raw?.title:raw?.name||"").trim().toLocaleLowerCase(),rows=added?.[key]||[];
- const hit=rows.find(x=>String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase()===name);return hit?.id||null
+ const name=key==="definitions"?(String(raw?.kind||"").toUpperCase()+":"+String(raw?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?raw?.title:raw?.name||"").trim().toLocaleLowerCase(),rows=added?.[key]||[];
+ const hit=rows.find(x=>(key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase())===name);return hit?.id||null
 }
 export function commitLazyGeneration(state,plan,generation,added,meta={}){
  const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan);if(!v.valid)return {ok:false,errors:v.errors};
