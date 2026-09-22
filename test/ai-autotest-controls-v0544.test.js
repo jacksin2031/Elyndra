@@ -35,3 +35,13 @@ test("v0.54.6 autotest rechecks foreground idle at the timeout boundary",async()
  assert.match(block,/if\(autotestForegroundIdle\(\)\)return true/);
  assert.match(app,/await executeDeveloperAutotestDecision\(decision\);await waitForAutotestIdle\(8000\)/)
 });
+
+
+test("v0.54.7 isolates autotest from quality, evolution and history background AI",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ for(const name of ["scheduleWorldQualityCritic","runBackgroundWorldQualityCritic","scheduleWorldEvolution","runBackgroundWorldEvolution","scheduleHistoryDeepening","runBackgroundHistoryDeepening"]){
+  const start=app.indexOf((name.startsWith("run")?"async function ":"function ")+name);assert.ok(start>=0,name+" missing");
+  const block=app.slice(start,start+280);assert.match(block,/developerAutotestActive/,name+" must gate during autotest")
+ }
+ assert.match(app,/scheduleWorldEvolution\("post_autotest_restore",BACKGROUND_IDLE_GRACE_MS\)/)
+});
