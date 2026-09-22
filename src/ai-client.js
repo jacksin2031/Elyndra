@@ -59,7 +59,8 @@ function generationCircuit(diagnostics=activeGenerationDiagnostics){
  diagnostics.providerCircuit??={timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};
  const circuit=diagnostics.providerCircuit;
  circuit.timeoutStages=Array.isArray(circuit.timeoutStages)?[...new Set(circuit.timeoutStages.map(String))]:[];circuit.timeoutCount=circuit.timeoutStages.length;
- circuit.transportStages=Array.isArray(circuit.transportStages)?[...new Set(circuit.transportStages.map(String))]:[];circuit.transportCount=circuit.transportStages.length;\n circuit.coreFailureStages=Array.isArray(circuit.coreFailureStages)?[...new Set(circuit.coreFailureStages.map(String))]:[];return circuit
+ circuit.transportStages=Array.isArray(circuit.transportStages)?[...new Set(circuit.transportStages.map(String))]:[];circuit.transportCount=circuit.transportStages.length;
+ circuit.coreFailureStages=Array.isArray(circuit.coreFailureStages)?[...new Set(circuit.coreFailureStages.map(String))]:[];return circuit
 }
 function noteGenerationTimeout(stage,reason){
  if(!/AI_TIMEOUT/.test(String(reason||"")))return;
