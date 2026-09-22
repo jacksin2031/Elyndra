@@ -5,8 +5,8 @@ const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
 const hash=value=>{let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
 const REASONS=["PLAYER_REQUEST","WORLD_EDGE_UNDERDEFINED","WORLD_QUALITY_DROP","PERIODIC_CANON_REVIEW","CLAIM_MATERIALIZATION","BACKGROUND_GAMEPLAY"];
-export const LAZY_PROMPT_VERSION="RUNTIME_EXPANSION_V3";
-export const LAZY_VALIDATION_VERSION="LAZY_VALIDATION_V4";
+export const LAZY_PROMPT_VERSION="RUNTIME_EXPANSION_V4";
+export const LAZY_VALIDATION_VERSION="LAZY_VALIDATION_V5";
 function fingerprint(value){return hash(JSON.stringify(value??{})).toString(36)}
 
 export function ensureLazyGeneration(state){
