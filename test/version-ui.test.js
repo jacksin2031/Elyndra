@@ -63,7 +63,7 @@ test("v0.54 Developer AI autotest remains available after v0.54.1 resilience hot
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=54000/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=54001/);
  assert.match(app,/startDeveloperAutotest/);
  assert.match(autotest,/playerVisibleAutotestSnapshot/);
  assert.match(autotest,/buildAutotestReport/)
