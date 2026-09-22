@@ -1,3 +1,4 @@
+import {applyOriginRuntime} from "./origin-runtime.js?v=45000";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=v=>Array.isArray(v)?v.map(x=>clean(x,120)).filter(Boolean):clean(v,1200).split(/[\n,，;；]+/).map(x=>clean(x,120)).filter(Boolean);
@@ -298,7 +299,7 @@ export function applyWorldCreationState(state,seed){
  state.world.constitution=[...(state.world.constitution||[]),...dynamic.filter(x=>!ids.has(x.id))];
  state.player.origin=structuredClone(creation.originProfile);
  state.player.role=structuredClone(creation.role);
- state.player.difficulty=creation.difficultyRules.id;
+ state.player.difficulty=creation.difficultyRules.id;applyOriginRuntime(state,{phase:"PRE_WORLD"});
  return state
 }
 
