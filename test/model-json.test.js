@@ -13,3 +13,8 @@ test("model JSON parser normalizes native JSON syntax errors",()=>{
   /INVALID_MODEL_JSON:.*Expected/
  )
 });
+
+
+test("model JSON parser safely repairs trailing commas outside strings",()=>{
+ assert.deepEqual(parseModelJSON('{"items":[{"id":1,},],"note":"keep ,} inside text"}'),{items:[{id:1}],note:"keep ,} inside text"})
+});
