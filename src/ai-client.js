@@ -192,7 +192,7 @@ async function reviewAndRepairWorldCandidate(candidate,diagnostics,report){
   try{
    repair=await worldStage("QUALITY_REPAIR",{
     timeoutMs:65000,maxOutputTokens:1900,temperature:.45,
-    system:`你是 Elyndra World Repair Architect。根據 critic findings 只輸出需要修補的 patch。禁止改 worldName、worldTheme、seedCompliance、worldHistory、worldCalendar、startingRegion、startingSettlement、startingLocation；禁止更改 Timeline 的 id/日期窗口/links。優先修正模板化內容、具體魔法代價、事件性、文化與角色深度、符合 Origin knowledge boundary 的 openingHook。generation 只能修改既有陣列同 index 的描述性欄位，不可新增、刪除或重新命名實體；historyRefs 必須保留。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
+    system:`你是 Elyndra World Repair Architect。根據 critic findings 只輸出需要修補的 patch。禁止改 worldName、worldTheme、seedCompliance、worldHistory、worldCalendar、startingRegion、startingSettlement、startingLocation；禁止更改 Timeline 的 id/日期窗口/links/impactScope/affectedRegions/intensity/duration/domains/playerCanPrevent/playerCanAccelerate/playerCanMitigate/playerCanRedirect。優先修正模板化內容、具體魔法代價、事件性、文化與角色深度、符合 Origin knowledge boundary 的 openingHook。generation 只能修改既有陣列同 index 的描述性欄位，不可新增、刪除或重新命名實體；historyRefs 必須保留。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
     user:JSON.stringify({candidate:current,evaluation})
    })
   }catch{break}
