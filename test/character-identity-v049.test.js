@@ -69,3 +69,9 @@ test("journal is diegetic rather than an engine dashboard",async()=>{
  assert.match(source,/世界內部數值與隱藏狀態不會出現在手帳/);
  assert.doesNotMatch(source,/Engine 條件 \+q\.conditions|SIDE QUEST ·/)
 });
+
+
+test("journey checkpoint subsystem is safe while world state is being replaced",()=>{
+ assert.equal(maybeJourneyCheckpoint(null),null);
+ assert.deepEqual(recentJourneyCheckpoints(null),[])
+});
