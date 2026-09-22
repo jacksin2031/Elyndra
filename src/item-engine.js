@@ -1,8 +1,8 @@
 import {isNpcPresent} from "./world-registry.js?v=320";
 import {normalizeCheckBonuses} from "./check-engine.js?v=320";
 import {ensureSurvival} from "./survival-engine.js?v=320";
-import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=43000";
-import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=43000";
+import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=47000";
+import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=47000";
 
 const uid=prefix=>prefix+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
