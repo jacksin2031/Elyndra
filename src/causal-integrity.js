@@ -44,7 +44,7 @@ export function repairCausalIntegrity(state){
  const ledger=state.world.ledger,byLedger=new Map(ledger.entries.map(x=>[x.id,x]));
  for(const history of state.world.history||[]){
   const entry=history?.ledgerRef?byLedger.get(history.ledgerRef):null;if(!entry)continue;
-  entry.historyRefs=uniq([...(entry.historyRefs||[]),history.id]);repairs.push("LEDGER_HISTORY_BACKLINK:"+history.id)
+  if(!(entry.historyRefs||[]).includes(history.id)){entry.historyRefs=uniq([...(entry.historyRefs||[]),history.id]);repairs.push("LEDGER_HISTORY_BACKLINK:"+history.id)}
  }
  return {repaired:repairs.length>0,repairs:uniq(repairs)}
 }
