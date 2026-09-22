@@ -1,4 +1,4 @@
-import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=52000";
+import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=53000";
 import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=50000";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
