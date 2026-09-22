@@ -853,7 +853,7 @@ async function startDeveloperAutotest(config){
  try{
   for(let i=1;i<=config.worldCount;i++){
    if(developerAutotest.stopRequested)break;
-   developerAutotest.worldIndex=i;developerAutotest.turn=0;
+   developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();gameState=null;gameplayDebugSnapshot=null;
    const worldStartedAt=Date.now(),result={index:i,status:"RUNNING",phase:"GENERATION",turns:0,stopReason:"",error:"",actions:[],generation:null,summary:null,world:null};
    try{
     appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
