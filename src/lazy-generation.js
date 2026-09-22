@@ -31,8 +31,9 @@ function pendingClaims(state){
 }
 export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
  const root=ensureLazyGeneration(state);syncGenerationClaimsFromCausalStructure(state);
- const normalizedReason=normalizeReason(reason),region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0),claims=pendingClaims(state);
- const key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,claims.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
+ const normalizedReason=normalizeReason(reason),region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0);
+ const active=root.plans.find(x=>x.status==="PLANNED"&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution);if(active)return active;
+ const claims=pendingClaims(state),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,claims.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
  const existing=root.plans.find(x=>x.id===planId&&x.status==="PLANNED");if(existing)return existing;
  const history=(state.world?.history||[]).filter(x=>x?.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))),historyRefs=rotate(history,seed,Math.min(2,history.length)).map(x=>x.id);
  const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),slots=slotsFor(state,normalizedReason,selectedClaims.length>0);
