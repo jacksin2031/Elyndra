@@ -103,3 +103,28 @@ test("autotest report exposes AI completion and fallback coverage from generatio
  assert.equal(report.summary.generationDegradedWorlds,1);
  assert.deepEqual(report.summary.generationStages,{total:4,ai:2,fallback:2,failed:0,aiCompletionRatePct:50,fallbackCoveragePct:50})
 });
+
+
+test("autotest anti-stall overrides repeated low-value observation with a fresh progression action",()=>{
+ const s=state();s.suggestionIntents=[
+  {label:"繼續看地面",action:"繼續看地面",kind:"OBSERVE",progression:false,risk:"LOW"},
+  {label:"走向出口",action:"走向出口",kind:"TRAVEL",progression:true,risk:"LOW"}
+ ];
+ const snap=playerVisibleAutotestSnapshot(s),recent=[{action:"看牆",progressed:false},{action:"看地面",progressed:false}];
+ const out=normalizeAutotestDecision({mode:"suggestion",suggestionIndex:0},snap,recent);
+ assert.equal(out.action,"走向出口");assert.equal(out.kind,"TRAVEL");assert.equal(out.progression,true)
+});
+
+test("autotest meaningful fingerprint ignores clock-only passage",()=>{
+ const s=state(),before=autotestStateFingerprint(s);s.world.state.clock.totalMinutes+=15;s.world.state.clock.hour=9;s.world.state.clock.minute=20;
+ assert.equal(autotestStateFingerprint(s),before)
+});
+
+test("autotest report separates intentional foreground preemption from real AI failures",()=>{
+ const report=buildAutotestReport({config:{worldCount:1},worlds:[{index:1,status:"COMPLETED",phase:"PLAY",actions:[]}],telemetry:[
+  {type:"AI_REQUEST",data:{task:"action",status:"SUCCESS",latencyMs:10,usage:{total:1}}},
+  {type:"AI_CALL_FAILED",data:{task:"quality",aborted:true,error:"AI_ABORTED: request cancelled by higher-priority gameplay"}}
+ ]});
+ assert.equal(report.summary.aiAttempts,2);assert.equal(report.summary.aiFailures,0);assert.equal(report.summary.aiPreemptedAttempts,1);assert.equal(report.summary.aiDegradedAttempts,0);
+ assert.equal(report.summary.stageBreakdown.quality.preempted,1);assert.equal(report.issues.some(x=>x.type==="TELEMETRY_AI_CALL_FAILED"),false)
+});
