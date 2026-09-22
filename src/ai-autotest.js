@@ -188,13 +188,17 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
    if(stagnant>=5){issues.push({severity:"WARN",type:"NO_STATE_PROGRESS",worldIndex:w.index,turn:row.turn,message:"5 consecutive turns produced the same state fingerprint"});stagnant=0}
   }
  }
- const telemetryErrors=list(telemetry).filter(e=>/ERROR|FAILED/.test(String(e?.type||""))||e?.data?.status==="ERROR");
- for(const e of telemetryErrors.slice(0,40))issues.push({severity:"WARN",type:"TELEMETRY_"+String(e.type||"ERROR"),message:text(e?.data?.error||e?.data?.reason||e?.data?.message||"",500)});
- const ai=list(telemetry).filter(e=>e?.type==="AI_REQUEST"),tokenTotals=ai.reduce((out,e)=>{const u=e?.data?.usage||{};out.input+=Number(u.input)||0;out.output+=Number(u.output)||0;out.reasoning+=Number(u.reasoning)||0;out.cached+=Number(u.cached)||0;out.total+=Number(u.total)||0;return out},{input:0,output:0,reasoning:0,cached:0,total:0});
+ const mirroredTypes=new Set(["AUTOTEST_WORLD_FAILED","AUTOTEST_TURN_FAILED"]);
+ const telemetryErrors=list(telemetry).filter(e=>(/ERROR|FAILED/.test(String(e?.type||""))||e?.data?.status==="ERROR")&&!mirroredTypes.has(String(e?.type||"")));
+ for(const e of telemetryErrors.slice(0,40))issues.push({severity:"WARN",type:"TELEMETRY_"+String(e.type||"ERROR"),task:text(e?.data?.task||"",80)||undefined,provider:text(e?.data?.provider||"",80)||undefined,message:text(e?.data?.error||e?.data?.reason||e?.data?.message||"",500)});
+ const ai=list(telemetry).filter(e=>e?.type==="AI_REQUEST"),failedAttempts=list(telemetry).filter(e=>e?.type==="AI_CALL_FAILED");
+ const transportFailures=failedAttempts.filter(e=>/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(e?.data?.error||"")));
+ const timeoutFailures=failedAttempts.filter(e=>/AI_TIMEOUT/.test(String(e?.data?.error||"")));
+ const tokenTotals=ai.reduce((out,e)=>{const u=e?.data?.usage||{};out.input+=Number(u.input)||0;out.output+=Number(u.output)||0;out.reasoning+=Number(u.reasoning)||0;out.cached+=Number(u.cached)||0;out.total+=Number(u.total)||0;return out},{input:0,output:0,reasoning:0,cached:0,total:0});
  const latencyTotal=ai.reduce((n,e)=>n+(Number(e?.data?.latencyMs)||0),0);
  return {
   schema:"elyndra-autotest-report-v1",startedAt:new Date(startedAt||Date.now()).toISOString(),endedAt:new Date(endedAt).toISOString(),durationMs:Math.max(0,endedAt-(startedAt||endedAt)),
-  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,tokenTotals},
+  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiAttempts:ai.length+failedAttempts.length,aiFailures:failedAttempts.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,tokenTotals},
   stopReasons:Object.fromEntries([...new Set(worlds.map(w=>w.stopReason).filter(Boolean))].map(reason=>[reason,worlds.filter(w=>w.stopReason===reason).length])),
   issues,worlds:worlds.map(w=>({index:w.index,status:w.status,phase:w.phase,turns:Number(w.turns)||0,stopReason:w.stopReason||"",error:w.error||"",summary:w.summary||null,generation:w.generation||null}))
  }
