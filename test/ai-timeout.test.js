@@ -43,7 +43,7 @@ test("Player Action and StatePatch do not retry provider timeouts",async()=>{
  assert.match(deferred,/retryOnTimeout:false/)
 });
 
-test("server world generation timeout is longer than ordinary narration",async()=>{
+test("server world generation uses bounded sequential stages instead of one 120s monolith",async()=>{
  const [core,world,turn,narrate,npc]=await Promise.all([
   readFile(new URL("../api/_ai.js",import.meta.url),"utf8"),
   readFile(new URL("../api/world.js",import.meta.url),"utf8"),
@@ -53,7 +53,11 @@ test("server world generation timeout is longer than ordinary narration",async()
  ]);
  assert.match(core,/timeoutMs=30000/);
  assert.match(core,/AI_TIMEOUT: upstream provider exceeded/);
- assert.match(world,/timeoutMs:120000/);
+ assert.doesNotMatch(world,/timeoutMs:120000/);
+ for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(world,new RegExp('stageJSON\\\\(diagnostics,"'+stage+'"'));
+ for(const timeout of [35000,50000,55000,65000])assert.match(world,new RegExp('timeoutMs:'+timeout));
+ assert.match(world,/lockedRules:rulesRaw\.worldBible/);
+ assert.match(world,/history,playerOrigin:/);
  assert.match(turn,/timeoutMs:35000/);
  assert.match(turn,/plan\.mode==="DEEP"\?50000:25000/);
  assert.doesNotMatch(turn,/timeoutMs:60000/);
