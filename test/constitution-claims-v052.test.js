@@ -112,5 +112,5 @@ test("Expansion AI receives definitions slots, semantic claim rules and FORBID c
  assert.match(client,/forbiddenTerms:plan\.forbiddenTerms\|\|\[\]/);
  assert.match(client,/existing:\{locations:[\s\S]*definitions:/);
  assert.match(client,/BLUEPRINT_DEFINITION/);assert.match(client,/generation\.definitions/);assert.match(client,/REQUIRED_ELEMENT/);
- assert.match(client,/forbiddenTerms/);assert.match(client,/"definitions":\[\{"kind":"CIVILIZATION\|SPECIES\|LANGUAGE"/)
+ assert.match(client,/forbiddenTerms/);assert.match(client,/"definitions":\[\{"kind":"CIVILIZATION\|SPECIES\|LANGUAGE"/);\n const lazy=await readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8");assert.match(lazy,/RUNTIME_EXPANSION_V4/);assert.match(lazy,/LAZY_VALIDATION_V5/)
 });
