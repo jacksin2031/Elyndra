@@ -55,11 +55,11 @@ function compactRetryArgs(args={},reason=""){
  return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
 }
 function generationCircuit(diagnostics=activeGenerationDiagnostics){
- if(!diagnostics)return {timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],open:false,openedAt:0,stage:""};
- diagnostics.providerCircuit??={timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],open:false,openedAt:0,stage:""};
+ if(!diagnostics)return {timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};
+ diagnostics.providerCircuit??={timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};
  const circuit=diagnostics.providerCircuit;
  circuit.timeoutStages=Array.isArray(circuit.timeoutStages)?[...new Set(circuit.timeoutStages.map(String))]:[];circuit.timeoutCount=circuit.timeoutStages.length;
- circuit.transportStages=Array.isArray(circuit.transportStages)?[...new Set(circuit.transportStages.map(String))]:[];circuit.transportCount=circuit.transportStages.length;return circuit
+ circuit.transportStages=Array.isArray(circuit.transportStages)?[...new Set(circuit.transportStages.map(String))]:[];circuit.transportCount=circuit.transportStages.length;\n circuit.coreFailureStages=Array.isArray(circuit.coreFailureStages)?[...new Set(circuit.coreFailureStages.map(String))]:[];return circuit
 }
 function noteGenerationTimeout(stage,reason){
  if(!/AI_TIMEOUT/.test(String(reason||"")))return;
@@ -73,10 +73,15 @@ function noteGenerationTransportFailure(stage,reason){
  circuit.transportCount=circuit.transportStages.length;
  if(circuit.transportCount>=2&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=name}
 }
+function noteGenerationCoreFailure(stage){
+ if(!CORE_TIMEOUT_RETRY.has(String(stage||"")))return;
+ const circuit=generationCircuit(),name=String(stage);if(!circuit.coreFailureStages.includes(name))circuit.coreFailureStages.push(name);
+ if(CORE_TIMEOUT_RETRY.size===circuit.coreFailureStages.filter(x=>CORE_TIMEOUT_RETRY.has(x)).length&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=name}
+}
 function generationCircuitOpen(diagnostics=activeGenerationDiagnostics){return diagnostics?.providerCircuit?.open===true}
 const CORE_TIMEOUT_RETRY=new Set(["CORE_RULES","CORE_ANCHOR"]);
 function noteGenerationSuccess(){
- const circuit=generationCircuit();circuit.timeoutCount=0;circuit.timeoutStages=[];circuit.transportCount=0;circuit.transportStages=[];circuit.open=false;circuit.openedAt=0;circuit.stage=""
+ const circuit=generationCircuit();circuit.timeoutCount=0;circuit.timeoutStages=[];circuit.transportCount=0;circuit.transportStages=[];circuit.coreFailureStages=[];circuit.open=false;circuit.openedAt=0;circuit.stage=""
 }
 function worldStageFallback(fallback){return structuredClone(typeof fallback==="function"?fallback():fallback)}
 async function resilientWorldStage(stage,args,fallback){
@@ -107,7 +112,7 @@ async function resilientWorldStage(stage,args,fallback){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
    return value
   }catch(retryErr){
-   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;if(/AI_TIMEOUT/.test(retryReason)||timedOut)noteGenerationTimeout(stage,reason);if(generationTransportFailure(retryReason))noteGenerationTransportFailure(stage,retryReason);
+   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;if(/AI_TIMEOUT/.test(retryReason)||timedOut)noteGenerationTimeout(stage,reason);if(generationTransportFailure(retryReason))noteGenerationTransportFailure(stage,retryReason);noteGenerationCoreFailure(stage);
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,latencyMs:Date.now()-startedAt,attempts:2,fallbackUsed:true});
    return worldStageFallback(fallback)
   }
