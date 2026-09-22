@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.53.0 propagates Causal Integrity changes through the browser cache graph",async()=>{
+test("v0.54.0 preserves causal cache graph and exposes AI autotest modules",async()=>{
  const [html,app,client,creation,worldEngine,simulation,futureRuntime,lazy,causal,integrity,claims,ledger,catalog,storage,game,combat,adventure,progression,npcConversation,npcDialogue,npcEngine,faction,quest,itemEngine,check,registry,quality,visibility]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/world-creation.js",import.meta.url),"utf8"),
