@@ -1,8 +1,8 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=53001";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54001";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=44000";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54001";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=47000";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=47000";
@@ -11,13 +11,13 @@ import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=51000";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
-import {normalizeActionIntent} from "./action-intent.js?v=37000";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=41000";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=41000";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=41000";
+import {normalizeActionIntent} from "./action-intent.js?v=54001";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54001";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54001";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=54001";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=45000";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=40000";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -54,19 +54,20 @@ function compactRetryArgs(args={},reason=""){
  return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
 }
 function generationCircuit(diagnostics=activeGenerationDiagnostics){
- if(!diagnostics)return {timeoutCount:0,open:false,openedAt:0,stage:""};
- diagnostics.providerCircuit??={timeoutCount:0,open:false,openedAt:0,stage:""};
- return diagnostics.providerCircuit
+ if(!diagnostics)return {timeoutCount:0,timeoutStages:[],open:false,openedAt:0,stage:""};
+ diagnostics.providerCircuit??={timeoutCount:0,timeoutStages:[],open:false,openedAt:0,stage:""};
+ const circuit=diagnostics.providerCircuit;circuit.timeoutStages=Array.isArray(circuit.timeoutStages)?[...new Set(circuit.timeoutStages.map(String))]:[];circuit.timeoutCount=circuit.timeoutStages.length;return circuit
 }
 function noteGenerationTimeout(stage,reason){
  if(!/AI_TIMEOUT/.test(String(reason||"")))return;
- const circuit=generationCircuit();circuit.timeoutCount+=1;
- if(circuit.timeoutCount>=3&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=stage}
+ const circuit=generationCircuit(),name=String(stage||"UNKNOWN");if(!circuit.timeoutStages.includes(name))circuit.timeoutStages.push(name);
+ circuit.timeoutCount=circuit.timeoutStages.length;
+ if(circuit.timeoutCount>=4&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=name}
 }
 function generationCircuitOpen(diagnostics=activeGenerationDiagnostics){return diagnostics?.providerCircuit?.open===true}
 const CORE_TIMEOUT_RETRY=new Set(["CORE_RULES","CORE_ANCHOR"]);
 function noteGenerationSuccess(){
- const circuit=generationCircuit();circuit.timeoutCount=0;circuit.open=false;circuit.openedAt=0;circuit.stage=""
+ const circuit=generationCircuit();circuit.timeoutCount=0;circuit.timeoutStages=[];circuit.open=false;circuit.openedAt=0;circuit.stage=""
 }
 function worldStageFallback(fallback){return structuredClone(typeof fallback==="function"?fallback():fallback)}
 async function resilientWorldStage(stage,args,fallback){
@@ -80,13 +81,14 @@ async function resilientWorldStage(stage,args,fallback){
   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",latencyMs:Date.now()-startedAt,attempts:1});
   return value
  }catch(err){
-  const firstReason=err?.message||String(err),timedOut=/AI_TIMEOUT/.test(firstReason),allowCoreTimeoutRetry=timedOut&&CORE_TIMEOUT_RETRY.has(stage);noteGenerationTimeout(stage,firstReason);
+  const firstReason=err?.message||String(err),timedOut=/AI_TIMEOUT/.test(firstReason),allowCoreTimeoutRetry=timedOut&&CORE_TIMEOUT_RETRY.has(stage);
   if(!compilerRecoverable(err)){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FAILED",reason:firstReason,latencyMs:Date.now()-startedAt,attempts:1});
    throw err
   }
   const noTimeoutRetry=args?.retryOnTimeout===false&&timedOut&&!allowCoreTimeoutRetry;
   if(noTimeoutRetry||(generationCircuitOpen()&&!allowCoreTimeoutRetry)){
+   if(timedOut)noteGenerationTimeout(stage,firstReason);
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason:firstReason+(generationCircuitOpen()?" | PROVIDER_TIMEOUT_CIRCUIT_OPEN":""),latencyMs:Date.now()-startedAt,attempts:1,fallbackUsed:true});
    return worldStageFallback(fallback)
   }
@@ -95,7 +97,7 @@ async function resilientWorldStage(stage,args,fallback){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
    return value
   }catch(retryErr){
-   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;noteGenerationTimeout(stage,retryReason);
+   const retryReason=retryErr?.message||String(retryErr),reason=firstReason+" | RETRY: "+retryReason;if(/AI_TIMEOUT/.test(retryReason)||timedOut)noteGenerationTimeout(stage,reason);
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,latencyMs:Date.now()-startedAt,attempts:2,fallbackUsed:true});
    return worldStageFallback(fallback)
   }
@@ -444,7 +446,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
    maxOutputTokens:plan.mode==="DEEP"?1300:650,
    temperature:plan.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(plan),
-   user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)})
+   user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
   }).then(parseJSON).then(patch=>{const v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
   return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"direct"}
  }
@@ -463,7 +465,7 @@ export async function generateStatePatch(action,roll,snapshot,plan,options={}){
    signal:options?.signal,timeoutMs:resolved.mode==="DEEP"?45000:resolved.mode==="DEFERRED"?35000:22000,retryOnTimeout:false,
    maxOutputTokens:resolved.mode==="DEEP"?1300:resolved.mode==="DEFERRED"?900:650,temperature:resolved.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(resolved),
-   user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot)})
+   user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
   });
   const patch=parseJSON(raw),v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
  }
