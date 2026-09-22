@@ -10,15 +10,28 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.46.0 propagates changed Quality Critic modules through browser cache graph",async()=>{
- const [html,app,client]=await Promise.all([
+test("v0.47.0 preserves background Quality Critic and refreshes progression cache graph",async()=>{
+ const [html,app,client,adventure,game,combat,storage,progression,item,check]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/item-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/check-engine.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=46000/);
- assert.match(app,/\.\/src\/version\.js\?v=46000/);
+ assert.match(html,/app\.js\?v=47000/);
+ assert.match(app,/\.\/src\/version\.js\?v=47000/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=46000/);
  assert.match(app,/\.\/src\/world-quality\.js\?v=46000/);
+ for(const path of ["adventure-engine","game-engine","storage","combat-engine","progression-ui","check-engine","talent-engine","item-engine","journey-closure"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=47000"),path);
  assert.match(client,/\.\/world-quality\.js\?v=46000/);
+ assert.match(adventure,/\.\/combat-engine\.js\?v=47000/);assert.match(adventure,/\.\/check-engine\.js\?v=47000/);assert.match(adventure,/\.\/talent-engine\.js\?v=47000/);assert.match(adventure,/\.\/item-engine\.js\?v=47000/);
+ assert.match(game,/\.\/check-engine\.js\?v=47000/);assert.match(game,/\.\/talent-engine\.js\?v=47000/);assert.match(game,/\.\/item-engine\.js\?v=47000/);
+ assert.match(combat,/\.\/check-engine\.js\?v=47000/);assert.match(combat,/\.\/talent-engine\.js\?v=47000/);
+ assert.match(storage,/\.\/item-engine\.js\?v=47000/);assert.match(progression,/\.\/storage\.js\?v=47000/);assert.match(progression,/\.\/item-engine\.js\?v=47000/);
+ assert.match(item,/\.\/check-engine\.js\?v=47000/);assert.match(check,/\.\/talent-engine\.js\?v=47000/)
 });
