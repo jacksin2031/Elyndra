@@ -581,7 +581,7 @@ function applyRuntimeLocationDetails(current,value){
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
  if(!plan)throw new Error("RUNTIME_EXPANSION_PLAN_REQUIRED");
- const signal=options?.signal,slots=plan.slots||{},baseRules="Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。只輸出 JSON。";
+ const signal=options?.signal,slots=plan.slots||{},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions；REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
  let generation=emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
 
  generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
