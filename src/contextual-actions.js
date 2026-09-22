@@ -1,4 +1,4 @@
-import {normalizeActionIntent} from "./action-intent.js?v=38000";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=54001";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const RISK_LABEL=Object.freeze({LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""});
@@ -18,6 +18,19 @@ function currentLocation(state){return clean(state.player?.location,80)||"眼前
 function presentNpcs(state){
  const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),locId=loc?.id;
  return (state.world?.registry?.npcs||[]).filter(n=>n?.known===true&&n?.alive!==false&&(n?.companion?.status==="ACTIVE"||n?.locationId===locId)).slice(0,5)
+}
+function currentLocationRecord(state){
+ const name=String(state.player?.location||""),rows=state.world?.registry?.locations||[];
+ return rows.find(x=>x?.name===name||x?.id===name)||null
+}
+function observableAffordance(state,row){
+ const kind=inferActionKind(row?.action||row?.label||""),event=recentVisibleEvent(state),loc=currentLocationRecord(state);
+ if(kind==="OBSERVE"&&event?.id)return {sourceKind:"EVENT",sourceId:String(event.id),evidenceType:"OBSERVED",title:"已知事件仍可追查",text:clean(event.summary||event.action,300)};
+ if(kind==="OBSERVE"&&loc)return {sourceKind:"LOCATION",sourceId:String(loc.id||loc.name),evidenceType:"OBSERVED",title:`${clean(loc.name,60)||"目前位置"}的可觀察環境`,text:clean(loc.description,300)||`你確認目前位置「${clean(loc.name,80)}」本身仍提供可直接觀察的地形、出入口或活動基準，可用來縮窄下一步調查範圍。`};
+ if(kind==="SOCIAL"&&row?.targetId){
+  const npc=presentNpcs(state).find(n=>n.id===row.targetId);if(npc)return {sourceKind:"NPC",sourceId:String(npc.id),evidenceType:"HEARD",title:`${clean(npc.name,60)}可被直接詢問`,text:`你確認「${clean(npc.name,80)}」目前就在可互動範圍內，可作為後續詢問的既有來源。`}
+ }
+ return null
 }
 function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&PROGRESSION_EVENT_TYPES.has(String(e.type||""))&&clean(e.summary||e.action,220)).slice(-8).reverse()[0]||null}
 function recentPlayerActions(state,limit=8){
@@ -47,6 +60,10 @@ export function normalizeContextualSuggestion(row={}){
   consequenceHint:clean(row.consequenceHint,90)||null,
   causalBasis:clean(row.causalBasis,180)||null,
   requirementsSatisfied:row.requirementsSatisfied!==false,
+  affordance:row.affordance&&typeof row.affordance==="object"?{
+   sourceKind:clean(row.affordance.sourceKind,20).toUpperCase(),sourceId:clean(row.affordance.sourceId,120),
+   evidenceType:clean(row.affordance.evidenceType,20).toUpperCase(),title:clean(row.affordance.title,100),text:clean(row.affordance.text,500)
+  }:null,
   source:clean(row.source,30)||"AI",
   prevalidated:row.prevalidated===true,
   validatedContext:row.validatedContext&&typeof row.validatedContext==="object"?{
@@ -94,7 +111,8 @@ function contextSealCurrent(state,v){
 function seal(state,row){
  const x=normalizeContextualSuggestion(row);if(!x||x.requirementsSatisfied===false||(x.source==="AI"&&!x.causalBasis))return null;
  if(x.prevalidated&&x.validatedContext)return contextSealCurrent(state,x.validatedContext)?x:null;
- return {...x,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null}}
+ const affordance=observableAffordance(state,x);
+ return {...x,affordance,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null}}
 }
 export function buildContextualActionSet(state,input=[]){
  const recent=recentPlayerActions(state),isFresh=x=>freshSuggestion(recent,x);
@@ -134,8 +152,10 @@ export function trustedSuggestionAssessment(state,row){
   const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===v.targetId);
   if(npc&&!(npc.known===true&&npc.alive!==false))return null
  }
- const actionIntent=normalizeActionIntent({kind:x.kind,targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,x.kind,{registry:state.world?.registry||{}});
- return {verdict:"ALLOW",kind:x.kind,normalizedAction:x.action,reason:"此行動由當前場景的 AI 建議系統完成因果與前提預驗證，直接進入 Engine 判定。",requirements:[],confidence:100,source:"AI_SUGGESTION_PREVALIDATED",actionIntent}
+ const engineKind=inferActionKind(x.action),kind=engineKind==="GENERAL"?x.kind:engineKind;
+ const actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});
+ const corrected=kind!==x.kind;
+ return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議的場景前提仍有效，Engine 已重新驗證其語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
 }
 export function suggestionPresentation(state,row){
  const x=normalizeContextualSuggestion(row);if(!x)return {label:"",meta:""};
@@ -144,4 +164,17 @@ export function suggestionPresentation(state,row){
  if(difficulty==="hard")return {label:x.label,meta:RISK_LABEL[x.risk]||""};
  const parts=[x.skillHint,RISK_LABEL[x.risk],x.consequenceHint].filter(Boolean);
  return {label:x.label,meta:parts.join(" · "),approach:APPROACH_LABEL[x.approach]||""}
+}
+
+export function groundedSuggestionFailForward(state,row,roll={}){
+ const x=normalizeContextualSuggestion(row),v=row?.validatedContext,a=x?.affordance;
+ if(!x||row?.prevalidated!==true||!v||!contextSealCurrent(state,v)||roll?.success!==true||x.progression!==true||!a?.sourceKind||!a?.sourceId||!a?.text)return null;
+ if(a.sourceKind==="EVENT"){
+  const event=(state.events||[]).find(e=>String(e?.id)===a.sourceId&&e?.visibility!=="INTERNAL");if(!event)return null
+ }else if(a.sourceKind==="LOCATION"){
+  const loc=currentLocationRecord(state);if(!loc||![String(loc.id||""),String(loc.name||"")].includes(a.sourceId))return null
+ }else if(a.sourceKind==="NPC"){
+  if(!presentNpcs(state).some(n=>String(n.id)===a.sourceId))return null
+ }else return null;
+ return {title:a.title||"成功觀察到的既有線索",text:a.text,factId:"",evidenceType:["OBSERVED","HEARD","READ","EXAMINED"].includes(a.evidenceType)?a.evidenceType:"OBSERVED",sourceKind:a.sourceKind,sourceId:a.sourceId}
 }
