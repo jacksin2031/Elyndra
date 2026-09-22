@@ -9,7 +9,7 @@ import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=48000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=51000";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=282";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=54001";
 import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54006";
@@ -39,6 +39,20 @@ function worldStageTask(stage){
  return ({IDENTITY:"identity",CORE_RULES:"core_rules",CORE_ANCHOR:"core_anchor",HISTORY:"history",GEOGRAPHY:"geography",FUTURE:"future",SOCIETY:"society",CAST:"cast",QUALITY_CRITIC:"quality",QUALITY_REPAIR:"quality_repair",WORLD_RECOVERY:"recovery",RUNTIME_EXPANSION:"runtime_expansion",RUNTIME_QUALITY_CRITIC:"runtime_quality",RUNTIME_REPAIR:"runtime_repair",HISTORY_DEEPENING:"history_deepening"})[stage]||"turn_state"
 }
 const TEMPLATE_PLACEHOLDER=/^\s*(?:\d+\s*-\s*\d+\s*字|地點類型|簡短|可空或穩定ID)(?:\s*[:：]|$)|\bnearby\b/i;
+const CORE_RULE_FIELDS=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
+export function normalizeCoreRulesStage(value){
+ if(!value||typeof value!=="object"||Array.isArray(value)||value.worldBible)return value;
+ if(CORE_RULE_FIELDS.every(k=>String(value[k]||"").trim())&&value.civilization&&value.communication)return {worldBible:structuredClone(value)};
+ return value
+}
+function normalizeGeneratedStatePatch(patch){
+ if(!patch||typeof patch!=="object"||Array.isArray(patch))return patch;
+ const next=structuredClone(patch);
+ for(const op of (Array.isArray(next.operations)?next.operations:[])){
+  if(String(op?.op||"").toUpperCase()==="DISCOVER_FACT"&&String(op?.sourceKind||"").toUpperCase()==="CANON"&&!String(op?.factId||"").trim()&&String(op?.sourceId||"").trim())op.factId=String(op.sourceId).trim()
+ }
+ return next
+}
 function generatedTemplateLeak(value){
  let found=false;const walk=v=>{if(found||v==null)return;if(typeof v==="string"){if(TEMPLATE_PLACEHOLDER.test(v))found=true;return}if(Array.isArray(v)){for(const x of v)walk(x);return}if(typeof v==="object")for(const x of Object.values(v))walk(x)};walk(value);return found
 }
@@ -273,8 +287,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>coreAnchorFallback(identity,directive.blueprintProfile))
   ]);
 
-  const rulesRequired=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
-  let rules=rulesRaw;
+  const rulesRequired=CORE_RULE_FIELDS;
+  let rules=normalizeCoreRulesStage(rulesRaw);
   if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication){markWorldFallback("CORE_RULES","STRUCTURE_INVALID");rules=coreRulesFallback(identity,directive.blueprintProfile)};
   let coreAnchor=anchorRaw;
   if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile)};
@@ -480,7 +494,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
    temperature:plan.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(plan),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
-  }).then(parseJSON).then(patch=>{const v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
+  }).then(parseJSON).then(rawPatch=>{const patch=normalizeGeneratedStatePatch(rawPatch),v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
   return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"direct"}
  }
  const payload={action,intent:actionIntent,roll,snapshot,plan};
@@ -500,7 +514,7 @@ export async function generateStatePatch(action,roll,snapshot,plan,options={}){
    system:statePatchDirectorSystem(resolved),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
   });
-  const patch=parseJSON(raw),v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
+  const patch=normalizeGeneratedStatePatch(parseJSON(raw)),v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
  }
  const response=await post("/api/turn-state",{action,intent:actionIntent,roll,snapshot,plan:resolved},{signal:options?.signal});
  return response.patch
