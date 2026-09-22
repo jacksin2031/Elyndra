@@ -18,7 +18,7 @@ import {planStateSync,validateStatePatch} from "./state-sync.js?v=54006";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54001";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54010";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
