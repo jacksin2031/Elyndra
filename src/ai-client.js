@@ -1,10 +1,10 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54004";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54005";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54001";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
-import {helperSnapshot} from "./helper-context.js?v=47000";
+import {helperSnapshot} from "./helper-context.js?v=54005";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=47000";
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=48000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
@@ -37,6 +37,13 @@ async function withWorldAiSlot(task){
 }
 function worldStageTask(stage){
  return ({IDENTITY:"identity",CORE_RULES:"core_rules",CORE_ANCHOR:"core_anchor",HISTORY:"history",GEOGRAPHY:"geography",FUTURE:"future",SOCIETY:"society",CAST:"cast",QUALITY_CRITIC:"quality",QUALITY_REPAIR:"quality_repair",WORLD_RECOVERY:"recovery",RUNTIME_EXPANSION:"runtime_expansion",RUNTIME_QUALITY_CRITIC:"runtime_quality",RUNTIME_REPAIR:"runtime_repair",HISTORY_DEEPENING:"history_deepening"})[stage]||"turn_state"
+}
+const TEMPLATE_PLACEHOLDER=/^\s*(?:\d+\s*-\s*\d+\s*字|地點類型|簡短|可空或穩定ID)(?:\s*[:：]|$)|\bnearby\b/i;
+function generatedTemplateLeak(value){
+ let found=false;const walk=v=>{if(found||v==null)return;if(typeof v==="string"){if(TEMPLATE_PLACEHOLDER.test(v))found=true;return}if(Array.isArray(v)){for(const x of v)walk(x);return}if(typeof v==="object")for(const x of Object.values(v))walk(x)};walk(value);return found
+}
+function weatherProfileConflict(location){
+ const profile=location?.weatherProfile||{},a=new Set(Array.isArray(profile.affinities)?profile.affinities.map(String):[]),s=new Set(Array.isArray(profile.suppressions)?profile.suppressions.map(String):[]);return [...a].some(id=>s.has(id))
 }
 async function worldStage(stage,args){
  try{return await withWorldAiSlot(async()=>parseJSON(await directChat({...args,aiTask:args?.aiTask||worldStageTask(stage)}))) }
@@ -299,13 +306,14 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   ]);
   const historyReport=validateWorldHistory(historyRaw?.worldHistory);if(!historyReport.valid)markWorldFallback("HISTORY","VALIDATION_FAILED:"+historyReport.errors.join(","));const history=historyReport.valid?historyReport.history:historyFallback(anchor);
   let geography=geographyRaw;
-  if(!geography?.openingHook||!geography?.location||geography.location.name!==anchor.startingLocation||geography.location.region!==anchor.startingRegion){markWorldFallback("GEOGRAPHY","STRUCTURE_OR_ANCHOR_INVALID");geography=geographyFallback(anchor)};
+  const geographySemanticIssues=[];if(generatedTemplateLeak(geography))geographySemanticIssues.push("TEMPLATE_LEAK");if(weatherProfileConflict(geography?.location))geographySemanticIssues.push("WEATHER_PROFILE_CONFLICT");
+  if(!geography?.openingHook||!geography?.location||geography.location.name!==anchor.startingLocation||geography.location.region!==anchor.startingRegion||geographySemanticIssues.length){markWorldFallback("GEOGRAPHY",geographySemanticIssues.length?"SEMANTIC_INVALID:"+geographySemanticIssues.join(","):"STRUCTURE_OR_ANCHOR_INVALID");geography=geographyFallback(anchor)};
   report(64,"雙 AI 編譯 Wave 2","歷史與地理已鎖定；最多兩個 AI 同時生成未來 Timeline 與地方社會，兩者必須引用 Wave 1");
 
   const slots=timelineAuthoringSlots(directive.timelinePacing);
   const [futureRaw,societyRaw]=await Promise.all([
    resilientWorldStage("FUTURE",{
-    timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1450,
+    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1200,
     system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history、geography 與 blueprintProfile.storyTendencies 生成世界曆法及「可能發生」的未來 Timeline。故事偏好不是固定劇情；每個事件必須提供 activationConditions / cancelConditions / escalationConditions，條件只可使用 DAY>=n、EVENT:TYPE、FACT:id、FLAG:key、LOCATION:name 及 NOT: 前綴。你必須同時作者化 impactScope（LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD）、affectedRegions、intensity 0-100、duration（世界日，可 null）、domains，以及 playerCanPrevent / playerCanAccelerate / playerCanMitigate / playerCanRedirect；Scope 與 intensity 必須符合事件內容，不可全部填成同一值。每個事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要自行改 earliest/latest。只輸出 JSON。`,
     user:JSON.stringify({anchor,history,geography,blueprintProfile:directive.blueprintProfile,timelineSlots:slots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`事件${i+1}`,category:"類型",directorTruth:"20-50字隱藏因果",observableEffect:"20-50字可觀察影響",pressure:"0-15",impactScope:"LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD",affectedRegions:["只能用已存在區域；至少包含與事件直接相關區域"],intensity:"0-100",duration:"1-30 世界日或 null",domains:["1-4個，如 SECURITY|POLITICS|SUPPLY|WEATHER|MAGIC|MIGRATION|LAW|ECONOMY"],activationConditions:["DAY>=2"],cancelConditions:["可空；EVENT:PEACE_TREATY 等"],escalationConditions:["可空；FLAG:war_tension 等"],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true,links:{historyRefs:["至少1個 HIST id"],locationRefs:["STARTING_LOCATION|STARTING_REGION 或 anchor 名稱"]}}))}})
    },()=>futureFallback(anchor,history,directive.timelinePacing)),
@@ -317,7 +325,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   ]);
 
   let society=societyRaw;
-  if(!society||typeof society!=="object"||Array.isArray(society)){markWorldFallback("SOCIETY","STRUCTURE_INVALID");society=societyFallback(anchor,history,geography)};
+  if(!society||typeof society!=="object"||Array.isArray(society)||generatedTemplateLeak(society)){markWorldFallback("SOCIETY",generatedTemplateLeak(society)?"SEMANTIC_INVALID:TEMPLATE_LEAK":"STRUCTURE_INVALID");society=societyFallback(anchor,history,geography)};
   let region=mergeOpeningRegion(anchor,geography,society);
   const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
   if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));
@@ -336,7 +344,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
    user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"角色",description:"40-80字",personality:"簡短",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"簡短",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
   },()=>castFallback(anchor,history,region,society));
-  if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2){markWorldFallback("CAST","STRUCTURE_INVALID");cast=castFallback(anchor,history,region,society)};
+  if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2||generatedTemplateLeak(cast)){markWorldFallback("CAST",generatedTemplateLeak(cast)?"SEMANTIC_INVALID:TEMPLATE_LEAK":"STRUCTURE_INVALID");cast=castFallback(anchor,history,region,society)};
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
   if(linkIssues.length){markWorldFallback("CAST","CROSS_STAGE_LINK_INVALID:"+linkIssues.join(","));cast=castFallback(anchor,history,region,society);linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast})}
   if(linkIssues.length)throw new Error("WORLD_CAST_LINK_INVALID:"+linkIssues.join(","));

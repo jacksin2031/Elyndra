@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.54.4 keeps Developer Autotest and hard-deadline cache graphs coherent",async()=>{
+test("v0.54.5 keeps runtime hardening and Developer Autotest cache graphs coherent",async()=>{
  const [html,app,client,stateSync,actions,settings,adventure,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -29,15 +29,16 @@ test("v0.54.4 keeps Developer Autotest and hard-deadline cache graphs coherent",
   readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=54004/);
- assert.match(app,/\.\/src\/version\.js\?v=54004/);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=54004/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=54004/);
- for(const path of ["world-engine","turn-compiler","adventure-engine","session-maintenance","game-engine","storage","world-simulation","npc-engine","npc-conversation","combat-engine","world-creation","item-engine","progression-ui","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
+ assert.match(html,/app\.js\?v=54005/);
+ assert.match(app,/\.\/src\/version\.js\?v=54005/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=54005/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=54005/);
+ for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
- assert.match(app,/\.\/src\/ai-settings\.js\?v=54004/);
- assert.match(client,/\.\/ai-settings\.js\?v=54004/);
+ for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure","adventure-engine","combat-engine","dungeon-engine","faction-engine","game-engine","npc-conversation","npc-engine","quest-engine","world-map","world-registry","world-simulation"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
+ assert.match(app,/\.\/src\/ai-settings\.js\?v=54005/);
+ assert.match(client,/\.\/ai-settings\.js\?v=54005/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);
  assert.match(client,/\.\/action-intent\.js\?v=54001/);
  assert.match(client,/\.\/knowledge-model\.js\?v=54001/);
@@ -49,11 +50,11 @@ test("v0.54.4 keeps Developer Autotest and hard-deadline cache graphs coherent",
  assert.match(causal,/\.\/causal-integrity\.js\?v=54001/);
  assert.match(integrity,/\.\/knowledge-model\.js\?v=54001/);
  assert.match(integrity,/\.\/lazy-generation\.js\?v=54001/);
- assert.match(simulation,/\.\/npc-engine\.js\?v=54001/);
+ assert.match(simulation,/\.\/npc-engine\.js\?v=54005/);
  assert.match(storage,/\.\/causal-world-core\.js\?v=54001/);
- assert.match(storage,/\.\/item-engine\.js\?v=54001/);
- assert.match(progression,/\.\/storage\.js\?v=54001/);
- assert.match(progression,/\.\/item-engine\.js\?v=54001/);
+ assert.match(storage,/\.\/item-engine\.js\?v=54005/);
+ assert.match(progression,/\.\/storage\.js\?v=54005/);
+ assert.match(progression,/\.\/item-engine\.js\?v=54005/);
  assert.match(actions,/groundedSuggestionFailForward/);
  assert.match(stateSync,/groundStatePatch/);
  assert.match(settings,/reasoning_effort:"low"/);

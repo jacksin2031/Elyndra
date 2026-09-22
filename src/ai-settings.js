@@ -21,16 +21,19 @@ export function hasDirectAI(){const s=loadAISettings();return Boolean(s.endpoint
 const AI_TASK_TIER={
  action:"FAST",narration:"FAST",helper:"FAST",npc:"FAST",scene:"FAST",turn_state_fast:"FAST",identity:"FAST",geography:"FAST",society:"FAST",cast:"FAST",
  core_anchor:"BALANCED",turn_state:"BALANCED",turn_deferred:"BALANCED",runtime_expansion:"BALANCED",turn_state_deep:"IMPORTANT",
- core_rules:"IMPORTANT",history:"IMPORTANT",future:"IMPORTANT",
+ core_rules:"IMPORTANT",history:"IMPORTANT",future:"BALANCED",
  quality:"CRITICAL",quality_repair:"CRITICAL",recovery:"CRITICAL",runtime_quality:"CRITICAL",runtime_repair:"CRITICAL"
 };
 export function optimizationTier(aiTask="general"){
  return AI_TASK_TIER[String(aiTask||"").toLowerCase()]||"BALANCED"
 }
+const AGNES_STRUCTURED_FAST_TASKS=new Set(["identity","geography","society","cast"]);
+const agnesStructuredFastTask=aiTask=>AGNES_STRUCTURED_FAST_TASKS.has(String(aiTask||"").toLowerCase());
 export function providerOptimization(provider,optimization="standard",aiTask="general"){
  const tier=optimizationTier(aiTask);
  if(tier==="FAST"){
   if(provider==="gemini")return {thinkingConfig:{thinkingLevel:"LOW"}};
+  if(provider==="agnes"&&agnesStructuredFastTask(aiTask))return {};
   if(provider==="openai"||provider==="agnes")return {reasoning_effort:"low"};
   return {}
  }
@@ -43,6 +46,7 @@ export function providerOptimization(provider,optimization="standard",aiTask="ge
 export function providerTokenBudget(provider,optimization="standard",aiTask="general",requested=0){
  const base=Math.round(Number(requested)||0);if(!base)return 0;
  const bounded=Math.max(256,Math.min(8192,base)),tier=optimizationTier(aiTask);
+ if(provider==="agnes"&&agnesStructuredFastTask(aiTask))return Math.max(900,bounded);
  if(tier==="FAST"||optimization!=="adaptive"||provider==="gemini")return bounded;
  const mult={BALANCED:3.5,IMPORTANT:4.5,CRITICAL:5.5}[tier]||3.5,floor={BALANCED:2200,IMPORTANT:3600,CRITICAL:4800}[tier]||2200;
  return Math.max(256,Math.min(8192,Math.max(floor,Math.round(bounded*mult))))

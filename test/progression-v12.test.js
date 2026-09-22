@@ -131,3 +131,11 @@ test("new protagonist is an ordinary modern-Earth person with zero isekai knowle
  assert.equal(s.player.skills.RISKY,0);
  assert.match(s.player.origin.worldKnowledgeBoundary,/初始知識為零/)
 });
+
+
+test("survival subsystem is safe during transient world reset windows",()=>{
+ assert.equal(ensureSurvival(null),null);
+ assert.equal(tickSurvival(null,30),null);
+ assert.deepEqual(survivalActionGate(null,"TRAVEL"),{ok:true});
+ assert.deepEqual(survivalSnapshot(null),{satiety:100,fatigue:0,exposure:0,injury:0,conditions:[]})
+});

@@ -80,8 +80,9 @@ test("autotest report separates completed requests, failed attempts, timeouts an
    {type:"AUTOTEST_WORLD_FAILED",data:{error:"WORLD_HISTORY_FAILED: Failed to fetch"}}
   ]
  });
- assert.equal(report.summary.aiRequests,2);assert.equal(report.summary.aiAttempts,5);assert.equal(report.summary.aiFailures,3);
+ assert.equal(report.summary.aiRequests,2);assert.equal(report.summary.aiSuccessfulResponses,1);assert.equal(report.summary.aiEmptyResponses,1);assert.equal(report.summary.aiAttempts,5);assert.equal(report.summary.aiFailures,3);assert.equal(report.summary.aiDegradedAttempts,4);
  assert.equal(report.summary.aiTimeouts,2);assert.equal(report.summary.aiTransportFailures,1);
+ assert.equal(report.summary.stageBreakdown.identity.success,1);assert.equal(report.summary.stageBreakdown.identity.empty,1);
  assert.equal(report.issues.filter(x=>x.type==="WORLD_GENERATION_FAILED").length,1);
  assert.equal(report.issues.some(x=>x.type==="TELEMETRY_AUTOTEST_WORLD_FAILED"),false);
  assert.ok(report.issues.some(x=>x.type==="TELEMETRY_AI_CALL_FAILED"&&x.task==="core_rules"&&x.provider==="agnes"))
@@ -93,4 +94,12 @@ test("autotest export selection supports combined, debug-only and world-only out
  assert.deepEqual(autotestExportSelection("debug"),{mode:"debug",debug:true,world:false});
  assert.deepEqual(autotestExportSelection("world"),{mode:"world",debug:false,world:true});
  assert.deepEqual(autotestExportSelection("unexpected"),{mode:"both",debug:true,world:true})
+});
+
+
+test("autotest report exposes AI completion and fallback coverage from generation diagnostics",()=>{
+ const diagnostics={quality:"DEGRADED",stages:{IDENTITY:{source:"AI"},CORE_RULES:{source:"AI"},FUTURE:{source:"FALLBACK"},SOCIETY:{source:"FALLBACK"}}};
+ const report=buildAutotestReport({config:{worldCount:1},worlds:[{index:1,status:"COMPLETED",phase:"GENERATION",generation:{diagnostics},actions:[]}],telemetry:[]});
+ assert.equal(report.summary.generationDegradedWorlds,1);
+ assert.deepEqual(report.summary.generationStages,{total:4,ai:2,fallback:2,failed:0,aiCompletionRatePct:50,fallbackCoveragePct:50})
 });

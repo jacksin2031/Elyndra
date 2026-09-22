@@ -257,6 +257,13 @@ function positiveMention(source,term){
  }
  return false
 }
+const WORLD_TEMPLATE_PLACEHOLDER=/^\s*(?:\d+\s*-\s*\d+\s*字|地點類型|簡短|可空或穩定ID)(?:\s*[:：]|$)|\bnearby\b/i;
+function semanticCandidateErrors(candidate){
+ const errors=[],locations=Array.isArray(candidate?.generation?.locations)?candidate.generation.locations:[];
+ for(const loc of locations){const p=loc?.weatherProfile||{},a=new Set((Array.isArray(p.affinities)?p.affinities:[]).map(String)),s=new Set((Array.isArray(p.suppressions)?p.suppressions:[]).map(String));if([...a].some(id=>s.has(id)))errors.push("WC2_WEATHER_PROFILE_CONFLICT:"+(String(loc?.name||loc?.id||"location").slice(0,80)))}
+ let leaked=false;const walk=v=>{if(leaked||v==null)return;if(typeof v==="string"){if(WORLD_TEMPLATE_PLACEHOLDER.test(v))leaked=true;return}if(Array.isArray(v)){for(const x of v)walk(x);return}if(typeof v==="object")for(const x of Object.values(v))walk(x)};walk({openingHook:candidate?.openingHook||"",generation:candidate?.generation||{}});if(leaked)errors.push("WC2_TEMPLATE_LEAK");
+ return errors
+}
 export function validateWorldCreationCandidate(seed,candidate){
  const creation=seed?.creationV2,errors=[];if(!creation)return {valid:true,errors,compliance:{}};
  const rules=creation.blueprint?.rules||{required:[],forbidden:[]},expected=creation.blueprintProfile||worldBlueprintProfile(creation.blueprint),actual=candidate?.worldBible?.blueprintProfile;
@@ -272,6 +279,7 @@ export function validateWorldCreationCandidate(seed,candidate){
   history:candidate?.worldHistory||[],generation:candidate?.generation||{}
  });
  for(const term of rules.forbidden||[])if(term&&positiveMention(generated,term))errors.push("WC2_FORBIDDEN_PRESENT:"+term);
+ errors.push(...semanticCandidateErrors(candidate));
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),pass=(ok,evidence)=>({status:ok?"PASS":"FAIL",evidence});
  const originOk=same(actual?.origin,expected.origin),techOk=same(actual?.technologyLevel,expected.technologyLevel),civOk=same(actual?.civilizationLevel,expected.civilizationLevel)&&same(actual?.civilizationCount,expected.civilizationCount),difficultyOk=same(actual?.difficulty,expected.difficulty)&&same(actual?.languageDifficulty,expected.languageDifficulty)&&same(actual?.survivalRules,expected.survivalRules);
  if(!actual)errors.push("BLUEPRINT_PROFILE_REQUIRED");
@@ -281,14 +289,15 @@ export function validateWorldCreationCandidate(seed,candidate){
   if(!civOk)errors.push("BLUEPRINT_CIVILIZATION_MISMATCH");
   if(!difficultyOk)errors.push("BLUEPRINT_DIFFICULTY_MISMATCH")
  }
- const forbiddenOk=!errors.some(x=>x.startsWith("WC2_FORBIDDEN_PRESENT:")),mustOk=!errors.some(x=>x.startsWith("WC2_REQUIRED_MISSING:"));
+ const forbiddenOk=!errors.some(x=>x.startsWith("WC2_FORBIDDEN_PRESENT:")),mustOk=!errors.some(x=>x.startsWith("WC2_REQUIRED_MISSING:")),semanticOk=!errors.some(x=>x.startsWith("WC2_WEATHER_PROFILE_CONFLICT:")||x==="WC2_TEMPLATE_LEAK");
  const compliance={
   ORIGIN_COMPLIANCE:pass(originOk,`origin=${expected.origin.type}`),
   TECH_COMPLIANCE:pass(techOk,`technologyLevel=${expected.technologyLevel.value}; source=${expected.technologyLevel.source}`),
   CIVILIZATION_COMPLIANCE:pass(civOk,`civilizationLevel=${expected.civilizationLevel.value}; count=${expected.civilizationCount.value}`),
   DIFFICULTY_COMPLIANCE:pass(difficultyOk,`difficulty=${expected.difficulty.value}; language=${expected.languageDifficulty.value}`),
   MUST_EXIST_COMPLIANCE:pass(mustOk,`required=${expected.mustExist.join("、")||"none"}`),
-  FORBIDDEN_CONTENT_COMPLIANCE:pass(forbiddenOk,`forbidden=${expected.forbidden.join("、")||"none"}`)
+  FORBIDDEN_CONTENT_COMPLIANCE:pass(forbiddenOk,`forbidden=${expected.forbidden.join("、")||"none"}`),
+  SEMANTIC_CLEANLINESS_COMPLIANCE:pass(semanticOk,semanticOk?"no generation template/weather conflicts":"semantic generation defect detected")
  };
  return {valid:errors.length===0,errors:[...new Set(errors)],compliance}
 }

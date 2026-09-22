@@ -168,3 +168,14 @@ test("World Contract is public projection and keeps hidden truth out",()=>{
  assert.ok(contract.unknown.includes("隱藏世界真相"));
  assert.equal(text.includes("玩家其實由古神召喚"),false)
 });
+
+
+test("Blueprint Compliance rejects weather contradictions and prompt-template leakage",()=>{
+ const seed=compileWorldCreation(createWorldCreationDraft(baseRaw()));
+ const bad=validCandidate(seed,{openingHook:"敲響 nearby 殘破鈴鐺",generation:{locations:[{name:"魔法學院",weatherProfile:{affinities:["WTH-1"],suppressions:["WTH-1"]}}],npcs:[{name:"守衛",description:"40-80字：仍未替換的模板"}],factions:[],sideQuests:[]}});
+ const report=validateWorldCreationCandidate(seed,bad);
+ assert.equal(report.valid,false);
+ assert.ok(report.errors.some(x=>x.startsWith("WC2_WEATHER_PROFILE_CONFLICT:")));
+ assert.ok(report.errors.includes("WC2_TEMPLATE_LEAK"));
+ assert.equal(report.compliance.SEMANTIC_CLEANLINESS_COMPLIANCE.status,"FAIL")
+});
