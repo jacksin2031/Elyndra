@@ -93,7 +93,7 @@ test("app runs History Deepening only as preemptible background work",async()=>{
  assert.match(app,/const historyBackground=\{/);assert.match(app,/function preemptBackgroundHistory\(\)/);
  assert.match(app,/function preemptBackgroundAI\(\).*preemptBackgroundHistory\(\)/);
  assert.match(app,/scheduleHistoryDeepening\("knowledge_refresh",2100\)/);
- assert.match(app,/scheduleHistoryDeepening\("post_player_action",2200\)/);
+ assert.match(app,/scheduleHistoryDeepening\("post_player_action",11000\)/);
  assert.match(app,/scheduleHistoryDeepening\("continue_world",1500\)/);
  assert.match(app,/scheduleHistoryDeepening\("post_creation",1500\)/);
  assert.match(app,/generateHistoryDeepening\(gameState,plan,\{signal:ctrl\.signal\}\)/);
