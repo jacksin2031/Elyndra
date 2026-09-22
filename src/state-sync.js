@@ -2,7 +2,7 @@ const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const DIRTY_KEYS=["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","npcRelation","faction","quest","worldImpact","generation","timeline","entityReveal","magicLearning","recipe","companion","encounter"];
 const EFFECTS=new Set(["MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
 const IMPACT_SCALE=new Set(["MINOR","STANDARD","MAJOR"]);
-const PATCH_OPS=new Set(["DISCOVER_FACT","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);
+const PATCH_OPS=new Set(["DISCOVER_FACT","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);\nconst DISCOVERY_SOURCE_KINDS=new Set(["CANON","LOCATION","NPC","EVENT","ITEM"]);
 const REBASE_SAFE=new Set(["NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL"]);
 const IMMEDIATE_KEYS=new Set(["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","quest","entityReveal","generation","encounter"]);
 const PERSISTENT_KEYS=new Set(["npcRelation","faction","worldImpact","timeline","magicLearning","recipe","companion"]);
@@ -82,7 +82,7 @@ export function bumpStateRevision(state,reason="ENGINE"){
 }
 export function statePatchSchema(plan={}){
  const allowed=new Set(plan.capabilities||[]),rows=[];
- if(allowed.has("DISCOVER_FACT"))rows.push('{"op":"DISCOVER_FACT","title":"...","text":"...","factId":"","evidenceType":"OBSERVED|HEARD|READ|EXAMINED"}');
+ if(allowed.has("DISCOVER_FACT"))rows.push('{"op":"DISCOVER_FACT","title":"...","text":"...","factId":"","evidenceType":"OBSERVED|HEARD|READ|EXAMINED","sourceKind":"CANON|LOCATION|NPC|EVENT|ITEM","sourceId":"既有且本回合可觀察的 id"}');
  if(allowed.has("SET_WORLD_NAME_KNOWN"))rows.push('{"op":"SET_WORLD_NAME_KNOWN"}');
  if(allowed.has("SET_CALENDAR_KNOWN"))rows.push('{"op":"SET_CALENDAR_KNOWN"}');
  if(allowed.has("REVEAL_ENTITY"))rows.push('{"op":"REVEAL_ENTITY","kind":"location|npc|faction|sideQuest","id":"既有 id"}');
@@ -108,7 +108,7 @@ export function validateStatePatch(patch,plan={}){
  const allowed=new Set(plan.capabilities||[]);
  for(const raw of (patch.operations||[]).slice(0,10)){
   const type=String(raw?.op||"").toUpperCase();if(!PATCH_OPS.has(type)||!allowed.has(type)){errors.push("STATE_PATCH_OPERATION_NOT_ALLOWED:"+type);continue}
-  if(type==="DISCOVER_FACT"&&(!clean(raw.title,100)||!clean(raw.text,500)))errors.push("STATE_PATCH_DISCOVERY_INVALID");
+  if(type==="DISCOVER_FACT"){\n   if(!clean(raw.title,100)||!clean(raw.text,500))errors.push("STATE_PATCH_DISCOVERY_INVALID");\n   const sourceKind=String(raw.sourceKind||"").toUpperCase(),sourceId=clean(raw.sourceId,120),factId=clean(raw.factId,120);\n   if(!DISCOVERY_SOURCE_KINDS.has(sourceKind)||!sourceId)errors.push("STATE_PATCH_DISCOVERY_GROUNDING_REQUIRED");\n   if(sourceKind==="CANON"&&(!factId||factId!==sourceId))errors.push("STATE_PATCH_DISCOVERY_CANON_SOURCE_INVALID")\n  }
   if(type==="REVEAL_ENTITY"&&(!["location","npc","faction","sideQuest"].includes(raw.kind)||!clean(raw.id,120)))errors.push("STATE_PATCH_REVEAL_INVALID");
   if(type==="MOVE_PLAYER"&&!clean(raw.location,120))errors.push("STATE_PATCH_MOVE_INVALID");
   if(type==="ACQUIRE_ITEM"&&!clean(raw.item?.name,100))errors.push("STATE_PATCH_ITEM_INVALID");
@@ -125,6 +125,34 @@ export function validateStatePatch(patch,plan={}){
  }
  return {valid:errors.length===0,errors:[...new Set(errors)]}
 }
+function currentLocationRecord(state){
+ const rows=state?.world?.registry?.locations||[],name=clean(state?.player?.location||state?.world?.state?.location,120);
+ return rows.find(x=>x?.id===name||x?.name===name)||null
+}
+function discoverySourceGrounded(state,raw){
+ const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),registry=state?.world?.registry||{},current=currentLocationRecord(state);
+ if(!DISCOVERY_SOURCE_KINDS.has(sourceKind)||!sourceId)return false;
+ if(sourceKind==="CANON"){
+  const factId=clean(raw?.factId,120);return factId===sourceId&&(state?.world?.canon?.facts||[]).some(f=>f?.id===sourceId&&String(f?.visibility||"").toLowerCase()==="public")
+ }
+ if(sourceKind==="LOCATION")return Boolean(current&&(current.id===sourceId||current.name===sourceId));
+ if(sourceKind==="NPC"){
+  const npc=(registry.npcs||[]).find(x=>x?.id===sourceId),lock=String(npc?.visibilityLock||"").toUpperCase(),visible=Boolean(npc&&(npc.known===true||npc.encountered===true||["OBSERVED","KNOWN","REVEALED"].includes(lock)));
+  const present=Boolean(npc&&current&&(npc.locationId===current.id||npc.locationName===current.name||npc.location===current.name));
+  return visible&&present
+ }
+ if(sourceKind==="EVENT")return (state?.events||[]).some(e=>e?.id===sourceId&&e?.visibility!=="INTERNAL");
+ if(sourceKind==="ITEM")return (state?.inventory||[]).some(i=>i?.id===sourceId);
+ return false
+}
+export function groundStatePatch(state,patch={}){
+ const next=structuredClone(patch||{}),accepted=[],rejected=[];
+ for(const [index,raw] of (Array.isArray(next.operations)?next.operations:[]).entries()){
+  if(String(raw?.op||"").toUpperCase()!=="DISCOVER_FACT"||discoverySourceGrounded(state,raw))accepted.push(raw);
+  else rejected.push({index,op:"DISCOVER_FACT",sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"})
+ }
+ next.operations=accepted;return {patch:next,rejected}
+}
 function semanticWorldImpact(raw){
  const kind=String(raw.targetKind||""),axis=clean(raw.axis,40),allowed={location:new Set(["safety","prosperity","supply","infrastructure","stability"]),npc:new Set(["trust"]),faction:new Set(["resources","influence","stability"]),world:new Set(["tension","crisisPressure"])};
  if(!allowed[kind]?.has(axis))return null;
@@ -135,7 +163,7 @@ export function statePatchToCandidate(patch,state){
  const timeline=[];
  for(const raw of patch?.operations||[]){
   const type=String(raw?.op||"").toUpperCase();
-  if(type==="DISCOVER_FACT")c.discoveries.push({title:clean(raw.title,100),text:clean(raw.text,500),factId:clean(raw.factId,120),evidenceType:String(raw.evidenceType||"OBSERVED").toUpperCase()});
+  if(type==="DISCOVER_FACT")c.discoveries.push({title:clean(raw.title,100),text:clean(raw.text,500),factId:clean(raw.factId,120),evidenceType:String(raw.evidenceType||"OBSERVED").toUpperCase(),sourceKind:String(raw.sourceKind||"").toUpperCase(),sourceId:clean(raw.sourceId,120)});
   else if(type==="SET_WORLD_NAME_KNOWN")c.worldNameKnown=true;
   else if(type==="SET_CALENDAR_KNOWN")c.calendarKnown=true;
   else if(type==="REVEAL_ENTITY")c.entityReveals.push({kind:raw.kind,id:clean(raw.id,120)});
