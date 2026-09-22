@@ -49,6 +49,7 @@ import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38003";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=41000";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=44000";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=45000";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -549,7 +550,7 @@ $("#generateBtn").onclick=async()=>{
    if(!creationValidation.valid)throw new Error("WORLD_CREATION_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
    applyWorldCandidate(gameState,candidate);
    worldProgress(90,"正在 Canonize 開局內容","只建立世界骨架、出生區域與最小可玩內容；其他地區延遲生成");
-   canonizeGeneration(gameState,candidate.generation)
+   canonizeGeneration(gameState,candidate.generation);applyOriginRuntime(gameState,{phase:"POST_CANON"})
   }catch(e){console.error("AI world generation failed",e);worldProgress(0,"AI 世界生成失敗",e.message);throw e}
   finally{setAIThinking(false)}
   const contract=buildWorldContract(gameState);gameState.world.creation.contract=structuredClone(contract);
