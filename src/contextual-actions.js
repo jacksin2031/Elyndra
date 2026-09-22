@@ -7,6 +7,7 @@ const VALID_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
 const VALID_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 const VALID_APPROACHES=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
 const DECISION_WORDS=/原諒(?:他|她|對方)?|相信(?:他|她|對方)|愛上|憎恨|效忠|宣誓忠誠|決定信任|決定原諒/;
+const PROGRESSION_EVENT_TYPES=new Set(["WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED"]);
 
 function uniq(rows,max=8){
  const out=[];
@@ -18,7 +19,12 @@ function presentNpcs(state){
  const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),locId=loc?.id;
  return (state.world?.registry?.npcs||[]).filter(n=>n?.known===true&&n?.alive!==false&&(n?.companion?.status==="ACTIVE"||n?.locationId===locId)).slice(0,5)
 }
-function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&clean(e.summary||e.action,220)).slice(-8).reverse()[0]||null}
+function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&PROGRESSION_EVENT_TYPES.has(String(e.type||""))&&clean(e.summary||e.action,220)).slice(-8).reverse()[0]||null}
+function recentPlayerActions(state,limit=8){
+ const rows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-Math.max(1,limit));
+ return new Set(rows.flatMap(e=>[clean(e.customText||e.action,180),clean(e.originalAction,180)]).filter(Boolean))
+}
+function freshSuggestion(recent,row){return Boolean(row?.action&&!recent.has(clean(row.action,180)))}
 function inferApproach(row){
  const a=String(row?.approach||"").toUpperCase();if(VALID_APPROACHES.has(a))return a;
  if(row?.kind==="SOCIAL")return "SOCIAL";
@@ -91,12 +97,14 @@ function seal(state,row){
  return {...x,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null}}
 }
 export function buildContextualActionSet(state,input=[]){
- const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&x.requirementsSatisfied!==false&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))),8);
- let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))||progressionSuggestion(state);
+ const recent=recentPlayerActions(state),isFresh=x=>freshSuggestion(recent,x);
+ const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&isFresh(x)&&x.requirementsSatisfied!==false&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))),8);
+ let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk));
+ if(!progression){const candidate=progressionSuggestion(state);if(isFresh(candidate))progression=candidate}
  const personalized=personalizedSuggestion(state);
  const main=[];
  if(progression)main.push(progression);
- if(personalized&&!main.some(x=>x.action===personalized.action))main.push(personalized);
+ if(personalized&&isFresh(personalized)&&!main.some(x=>x.action===personalized.action))main.push(personalized);
  const preferred=["STEADY","SOCIAL","CREATIVE"];
  for(const approach of preferred){
   const x=raw.find(r=>r.approach===approach&&!["HIGH","EXTREME"].includes(r.risk)&&!main.some(m=>m.action===r.action));
@@ -104,16 +112,16 @@ export function buildContextualActionSet(state,input=[]){
   if(main.length>=3)break
  }
  for(const x of raw){if(main.length>=3)break;if(!["HIGH","EXTREME"].includes(x.risk)&&!main.some(m=>m.action===x.action))main.push(x)}
- for(const approach of preferred){if(main.length>=3)break;const x=fallbackByApproach(state,approach);if(x&&!main.some(m=>m.action===x.action))main.push(x)}
+ for(const approach of preferred){if(main.length>=3)break;const x=fallbackByApproach(state,approach);if(x&&isFresh(x)&&!main.some(m=>m.action===x.action))main.push(x)}
  const genericFill=[
   normalizeContextualSuggestion({label:"檢查眼前最不自然的新痕跡",action:`在${currentLocation(state)}比較最新痕跡與周圍環境，找出最不自然的一處`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前場景可直接觀察",requirementsSatisfied:true,source:"ENGINE"}),
   normalizeContextualSuggestion({label:"找一個能提供現場資訊的人",action:`在${currentLocation(state)}尋找目前可接觸、並可能親眼看過剛才變化的人詢問`,kind:"SOCIAL",risk:"LOW",skillHint:"交涉",approach:"SOCIAL",causalBasis:"公開場景允許尋找目擊者",requirementsSatisfied:true,source:"ENGINE"}),
   normalizeContextualSuggestion({label:"換一個角度測試眼前局勢",action:`利用${currentLocation(state)}可見的遮蔽物、人流或聲音，換一個不需要未知資源的方法測試誰會作出反應`,kind:"GENERAL",risk:"MEDIUM",skillHint:"應變",approach:"CREATIVE",causalBasis:"只使用當前可見環境",requirementsSatisfied:true,source:"ENGINE"})
  ];
- for(const x of genericFill){if(main.length>=3)break;if(x&&!main.some(m=>m.action===x.action))main.push(x)}
- if(!main.some(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))){progression=progressionSuggestion(state);main.unshift(progression)}
+ for(const x of genericFill){if(main.length>=3)break;if(x&&isFresh(x)&&!main.some(m=>m.action===x.action))main.push(x)}
+ if(!main.some(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))){const fallbackProgression=progressionSuggestion(state);if(isFresh(fallbackProgression))main.unshift(fallbackProgression)}
  main.splice(3);
- const high=raw.find(x=>["HIGH","EXTREME"].includes(x.risk))||fallbackByApproach(state,"BOLD");
+ const high=raw.find(x=>["HIGH","EXTREME"].includes(x.risk))||(()=>{const x=fallbackByApproach(state,"BOLD");return isFresh(x)?x:null})();
  const selected=uniq([...main.slice(0,3),high],4).map(x=>seal(state,x)).filter(Boolean);
  return {primary:selected.filter(x=>!["HIGH","EXTREME"].includes(x.risk)).slice(0,3),highRisk:selected.filter(x=>["HIGH","EXTREME"].includes(x.risk)).slice(0,1),all:selected}
 }
