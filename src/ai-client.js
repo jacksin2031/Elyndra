@@ -49,7 +49,7 @@ function markWorldFallback(stage,reason){
 }
 function compactRetryArgs(args={},reason=""){
  const base=Math.max(350,Number(args.maxOutputTokens)||900),empty=/EMPTY_AI_RESPONSE|INVALID_MODEL_JSON:\s*empty response/i.test(String(reason)),timedOut=/AI_TIMEOUT/i.test(String(reason));
- const timeoutMs=empty?Math.max(45000,Math.min(70000,Number(args.timeoutMs)||50000)):Math.max(30000,Math.min(50000,Number(args.timeoutMs)||45000));
+ const timeoutMs=empty?Math.max(45000,Math.min(70000,Number(args.timeoutMs)||50000)):timedOut?Math.max(25000,Math.min(35000,Number(args.timeoutMs)||35000)):Math.max(30000,Math.min(50000,Number(args.timeoutMs)||45000));
  const maxOutputTokens=empty?Math.min(3200,Math.max(1200,Math.round(base*1.6))):timedOut?Math.max(500,Math.min(1600,Math.round(base*.85))):Math.min(2200,Math.max(base,Math.round(base*1.15)));
  return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
 }
@@ -64,6 +64,10 @@ function noteGenerationTimeout(stage,reason){
  if(circuit.timeoutCount>=2&&!circuit.open){circuit.open=true;circuit.openedAt=Date.now();circuit.stage=stage}
 }
 function generationCircuitOpen(diagnostics=activeGenerationDiagnostics){return diagnostics?.providerCircuit?.open===true}
+const CORE_TIMEOUT_RETRY=new Set(["CORE_RULES","CORE_ANCHOR"]);
+function noteGenerationSuccess(){
+ const circuit=generationCircuit();circuit.timeoutCount=0;circuit.open=false;circuit.openedAt=0;circuit.stage=""
+}
 function worldStageFallback(fallback){return structuredClone(typeof fallback==="function"?fallback():fallback)}
 async function resilientWorldStage(stage,args,fallback){
  const startedAt=Date.now();
@@ -72,22 +76,22 @@ async function resilientWorldStage(stage,args,fallback){
   return worldStageFallback(fallback)
  }
  try{
-  const value=await worldStage(stage,args);
+  const value=await worldStage(stage,args);noteGenerationSuccess();
   recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",latencyMs:Date.now()-startedAt,attempts:1});
   return value
  }catch(err){
-  const firstReason=err?.message||String(err);noteGenerationTimeout(stage,firstReason);
+  const firstReason=err?.message||String(err),timedOut=/AI_TIMEOUT/.test(firstReason),allowCoreTimeoutRetry=timedOut&&CORE_TIMEOUT_RETRY.has(stage);noteGenerationTimeout(stage,firstReason);
   if(!compilerRecoverable(err)){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FAILED",reason:firstReason,latencyMs:Date.now()-startedAt,attempts:1});
    throw err
   }
-  const noTimeoutRetry=args?.retryOnTimeout===false&&/AI_TIMEOUT/.test(firstReason);
-  if(noTimeoutRetry||generationCircuitOpen()){
+  const noTimeoutRetry=args?.retryOnTimeout===false&&timedOut&&!allowCoreTimeoutRetry;
+  if(noTimeoutRetry||(generationCircuitOpen()&&!allowCoreTimeoutRetry)){
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason:firstReason+(generationCircuitOpen()?" | PROVIDER_TIMEOUT_CIRCUIT_OPEN":""),latencyMs:Date.now()-startedAt,attempts:1,fallbackUsed:true});
    return worldStageFallback(fallback)
   }
   try{
-   const value=await worldStage(stage,compactRetryArgs(args,firstReason));
+   const value=await worldStage(stage,compactRetryArgs(args,firstReason));noteGenerationSuccess();
    recordGenerationStage(activeGenerationDiagnostics,stage,{source:"AI",reason:"RECOVERED_AFTER: "+firstReason,latencyMs:Date.now()-startedAt,attempts:2});
    return value
   }catch(retryErr){
