@@ -34,7 +34,7 @@ test("v0.53.0 propagates Causal Integrity changes through the browser cache grap
  assert.match(client,/\.\/knowledge-model\.js\?v=40000/);assert.match(client,/\.\/world-quality\.js\?v=51000/);
  assert.match(worldEngine,/\.\/causal-world-core\.js\?v=53000/);
  assert.match(causal,/\.\/world-ledger\.js\?v=53000/);assert.match(causal,/\.\/generation-claims\.js\?v=53000/);assert.match(causal,/\.\/lazy-generation\.js\?v=53000/);assert.match(causal,/\.\/causal-integrity\.js\?v=53000/);
- assert.match(integrity,/\.\/world-ledger\.js\?v=53000/);assert.match(integrity,/\.\/generation-claims\.js\?v=53000/);assert.match(integrity,/\.\/lazy-generation\.js\?v=53000/);assert.match(integrity,/\.\/knowledge-model\.js\?v=53000|\.\/knowledge-model\.js\?v=40000/);
+ assert.match(integrity,/\.\/world-ledger\.js\?v=53000/);assert.match(integrity,/\.\/generation-claims\.js\?v=53000/);assert.match(integrity,/\.\/lazy-generation\.js\?v=53000/);assert.match(integrity,/\.\/knowledge-model\.js\?v=40000/);
  assert.match(claims,/\.\/world-catalog\.js\?v=52000/);assert.match(lazy,/\.\/generation-claims\.js\?v=53000/);
  assert.match(registry,/\.\/generation-claims\.js\?v=53000/);assert.match(futureRuntime,/\.\/world-ledger\.js\?v=53000/);
  assert.match(simulation,/\.\/future-runtime\.js\?v=53000/);assert.match(simulation,/\.\/faction-engine\.js\?v=53000/);assert.match(simulation,/\.\/npc-engine\.js\?v=53000/);
