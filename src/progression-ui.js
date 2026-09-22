@@ -1,30 +1,51 @@
 import {questSnapshot} from "./quest-engine.js?v=320";
 import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=320";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=47000";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=49000";
 import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=320";
-import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=47000";
+import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=49000";
+import {historyClueSnapshot} from "./history-future.js?v=47000";
+import {playerFutureSignals} from "./future-runtime.js?v=47000";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
 
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const $=s=>document.querySelector(s);
 const qsa=s=>Array.from(document.querySelectorAll(s));
 
+function questProgressLabel(q){
+ if(q.status==="COMPLETED")return "已完成";
+ const progress=Math.max(0,Number(q.progress)||0),target=Math.max(1,Number(q.target)||1),ratio=progress/target;
+ return ratio<=0?"剛接下":ratio<.5?"已有線索":ratio<1?"接近收束":"等待確認"
+}
+function beliefLabel(value){
+ return ({VERIFIED:"已確認",CORROBORATED:"多方吻合",SUPPORTED:"有佐證",DISPUTED:"說法矛盾",UNCONFIRMED:"未證實"})[String(value||"").toUpperCase()]||"未證實"
+}
+function evidenceLabel(value){
+ return ({TESTIMONY:"口述",DOCUMENT:"文書",OBSERVATION:"親眼觀察",ARTIFACT:"實物"})[String(value||"").toUpperCase()]||"來源未明"
+}
+function clueStatusLabel(value){
+ return ({VERIFIED:"已確認",CORROBORATED:"已有互相印證的證據",DISCOVERED:"已發現但仍未證實",UNDISCOVERED:"尚未發現"})[String(value||"").toUpperCase()]||"仍待確認"
+}
 export function openJournalUI(state,openModal,persist,section="quests"){
- const qs=questSnapshot(state),notes=notesSnapshot(state);
- let tabs='<div class="settings-actions"><button class="'+(section==="quests"?"primary":"ghost")+'" data-journal-section="quests">任務</button><button class="'+(section==="knowledge"?"primary":"ghost")+'" data-journal-section="knowledge">世界知識</button><button class="'+(section==="notes"?"primary":"ghost")+'" data-journal-section="notes">我的筆記</button></div>';
+ const qs=questSnapshot(state),notes=notesSnapshot(state),knowledge=ensureKnowledgeMetadata(state),mysteries=historyClueSnapshot(state,{knownOnly:true}),signals=playerFutureSignals(state,16).slice().reverse();
+ let tabs='<div class="settings-actions"><button class="'+(section==="quests"?"primary":"ghost")+'" data-journal-section="quests">旅途</button><button class="'+(section==="mysteries"?"primary":"ghost")+'" data-journal-section="mysteries">未解之謎</button><button class="'+(section==="knowledge"?"primary":"ghost")+'" data-journal-section="knowledge">線索</button><button class="'+(section==="rumors"?"primary":"ghost")+'" data-journal-section="rumors">傳聞與徵兆</button><button class="'+(section==="notes"?"primary":"ghost")+'" data-journal-section="notes">我的筆記</button></div>';
  let body="";
  if(section==="quests"){
   const side=qs.side||[];
-  body='<div class="lore-list"><div class="lore-item"><small>MAIN QUEST · '+esc(qs.main.status||"ACTIVE")+'</small><h3>'+esc(qs.main.title)+'</h3><p>'+((qs.main.objectives||[]).map(esc).join("<br>")||"目前沒有主線目標")+'</p></div>';
-  body+=side.map(q=>'<div class="lore-item"><small>SIDE QUEST · '+esc(q.status)+' · '+q.progress+'/'+q.target+'</small><h3>'+esc(q.title)+'</h3><p>'+esc(q.objective||"")+'</p><small>'+(q.conditions?'Engine 條件 '+q.conditions+' 項；物品、狀態與事件會自動驗證。':"依據可驗證線索推進。")+'</small></div>').join("");
-  if(!side.length)body+='<div class="lore-item"><p>目前沒有已知支線任務。</p></div>';
+  body='<div class="lore-list"><div class="lore-item"><small>目前牽掛</small><h3>'+esc(qs.main.title)+'</h3><p>'+((qs.main.objectives||[]).map(esc).join("<br>")||"眼前還沒有明確方向。")+'</p></div>';
+  body+=side.map(q=>'<div class="lore-item"><small>'+esc(questProgressLabel(q))+'</small><h3>'+esc(q.title)+'</h3><p>'+esc(q.objective||"")+'</p></div>').join("");
+  if(!side.length)body+='<div class="lore-item"><p>目前沒有其他已答應處理的事情。</p></div>';
   body+='</div>';
+ }else if(section==="mysteries"){
+  body='<div class="lore-list">'+(mysteries.map(group=>'<div class="lore-item"><small>未解之謎</small><h3>'+esc(group.title)+'</h3>'+(group.clues.map(c=>'<p>• '+esc(c.hint)+'<br><small>'+esc(clueStatusLabel(c.status))+'</small></p>').join("")||'<p>你只知道這件事存在，還沒有摸到任何可靠線索。</p>')+'</div>').join("")||'<div class="lore-item"><p>你還沒有遇到足以形成「未解之謎」的可靠線索。</p></div>')+'</div>';
  }else if(section==="knowledge"){
-  body='<div class="lore-list">'+((state.knowledge||[]).map(x=>'<div class="lore-item"><small>'+esc(x.status)+'</small><h3>'+esc(x.title)+'</h3><p>'+esc(x.text)+'</p></div>').join("")||'<div class="lore-item"><p>你尚未確認任何異世界知識。</p></div>')+'</div>';
+  body='<div class="lore-list">'+(knowledge.slice().reverse().map(x=>'<div class="lore-item"><small>'+esc(evidenceLabel(x.evidenceType))+' · '+esc(beliefLabel(x.beliefState||x.status))+'</small><h3>'+esc(x.title)+'</h3><p>'+esc(x.text)+'</p></div>').join("")||'<div class="lore-item"><p>手帳裡還沒有值得保留的異世界線索。</p></div>')+'</div>';
+ }else if(section==="rumors"){
+  body='<div class="lore-list">'+(signals.map(x=>'<div class="lore-item"><small>DAY '+esc(x.day)+' · '+(x.visibility==="RUMOR"?"聽來的傳聞":"親眼可察覺的徵兆")+'</small><p>'+esc(x.summary)+'</p></div>').join("")||'<div class="lore-item"><p>最近沒有明顯到值得記下的世界徵兆。</p></div>')+'</div>';
  }else{
-  body='<form id="noteForm" class="settings-grid"><label>標題<input id="noteTitle" maxlength="120" placeholder="例如：進入古塔前要準備的東西"></label><label class="full">內容<textarea id="noteText" maxlength="2000" placeholder="自由記錄自己的想法、推理或待辦事項"></textarea></label><button class="primary" type="submit">新增筆記</button></form>';
-  body+='<div class="lore-list">'+(notes.map(n=>'<div class="lore-item"><small>DAY '+n.day+' · '+esc(n.location||"未知地點")+'</small><h3>'+esc(n.title)+'</h3><p>'+esc(n.text)+'</p><div class="settings-actions"><button class="ghost" data-note-edit="'+esc(n.id)+'">編輯</button><button class="ghost danger-ghost" data-note-delete="'+esc(n.id)+'">刪除</button></div></div>').join("")||'<div class="lore-item"><p>你仲未寫任何私人筆記。</p></div>')+'</div>';
+  body='<form id="noteForm" class="settings-grid"><label>標題<input id="noteTitle" maxlength="120" placeholder="例如：進入古塔前要準備的東西"></label><label class="full">內容<textarea id="noteText" maxlength="2000" placeholder="自由記錄自己的推理、懷疑或待辦事項"></textarea></label><button class="primary" type="submit">記下來</button></form>';
+  body+='<div class="lore-list">'+(notes.map(n=>'<div class="lore-item"><small>DAY '+n.day+' · '+esc(n.location||"未知地點")+'</small><h3>'+esc(n.title)+'</h3><p>'+esc(n.text)+'</p><div class="settings-actions"><button class="ghost" data-note-edit="'+esc(n.id)+'">修改</button><button class="ghost danger-ghost" data-note-delete="'+esc(n.id)+'">撕掉</button></div></div>').join("")||'<div class="lore-item"><p>你還沒有寫下私人筆記。</p></div>')+'</div>';
  }
- openModal('<div class="eyebrow">WORLD JOURNAL</div><h2>世界手帳</h2><p class="muted">任務由 Engine 驗證；世界知識只包括真正發現的情報；私人筆記只屬於你。</p>'+tabs+body);
+ openModal('<div class="eyebrow">TRAVEL JOURNAL</div><h2>旅途手帳</h2><p class="muted">這裡只保留你能知道、聽到、親眼看見或自己推理出的內容；世界內部數值與隱藏狀態不會出現在手帳。</p>'+tabs+body);
  qsa("#modalContent [data-journal-section]").forEach(b=>b.onclick=()=>openJournalUI(state,openModal,persist,b.dataset.journalSection));
  $("#noteForm")?.addEventListener("submit",async e=>{e.preventDefault();const r=addNote(state,{title:$("#noteTitle")?.value,text:$("#noteText")?.value});if(!r.ok)return;await persist();openJournalUI(state,openModal,persist,"notes")});
  qsa("#modalContent [data-note-delete]").forEach(b=>b.onclick=async()=>{deleteNote(state,b.dataset.noteDelete);await persist();openJournalUI(state,openModal,persist,"notes")});
