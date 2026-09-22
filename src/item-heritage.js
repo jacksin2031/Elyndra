@@ -108,3 +108,17 @@ export function itemStorySnapshot(state,itemId,{director=false}={}){
  if(director)out.directorProvenance=structuredClone(p);
  return out
 }
+
+export function registerHistoryRelicSeeds(state,historyId,seeds=[]){
+ const history=(state.world?.history||[]).find(x=>x.id===historyId);if(!history)return [];
+ const h=ensureItemHeritage(state),out=[];
+ for(const seed of (Array.isArray(seeds)?seeds:[]).slice(0,8)){
+  const label=clean(seed?.label,120);if(!label)continue;
+  const id=clean(seed?.id,140)||("HERITAGE-DEEP-"+history.id+"-"+(h.seeds.length+1));
+  if(h.seeds.some(x=>x.id===id))continue;
+  const row=normalizeSeed({id,kind:"RELIC",label,culture:seed.culture,era:seed.era||history.era,historyRefs:[history.id],futureRefs:seed.futureRefs,status:"UNMATERIALIZED"},h.seeds.length);
+  row.description=clean(seed.description,400);row.significance=clean(seed.significance,500);row.clueRefs=uniq(seed.clueRefs,8);
+  h.seeds.push(row);out.push(row.id)
+ }
+ h.seeds=h.seeds.slice(0,80);return out
+}
