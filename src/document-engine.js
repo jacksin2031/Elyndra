@@ -1,5 +1,6 @@
 import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
-import {ensureHistoryFutureLinks,recordHistoryClueEvidence} from "./history-future.js?v=42000";
+import {ensureHistoryFutureLinks,recordHistoryClueEvidence} from "./history-future.js?v=47000";
+import {signalHistoryResearch} from "./history-depth.js?v=47000";
 
 const clean=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
@@ -40,6 +41,7 @@ export function readDocument(state,docId){
   }
   if(row){row.disputes=claim.disputes===true;recomputeCorroboration(state,row.claimKey);evidence.push(row.id)}
  }
+ for(const historyId of doc.historyRefs||[])signalHistoryResearch(state,historyId,{reason:"DOCUMENT_RESEARCH"});
  state.events??=[];const event={id:uid("EV"),type:"DOCUMENT_READ",visibility:"PLAYER_KNOWN",documentId:doc.id,summary:"你閱讀了「"+doc.title+"」。內容已作為文獻證據記錄，而不是自動視為世界真相。",day:Number(state.world?.state?.day)||1,at:Date.now()};state.events.push(event);
  return {ok:true,documentId:doc.id,evidenceRefs:evidence,reliability:doc.reliability,bias:doc.bias,event}
 }
@@ -54,4 +56,13 @@ export function documentSnapshot(state,{director=false,knownOnly=true}={}){
   id:x.id,title:x.title,author:x.author,era:x.era,culture:x.culture,language:x.language,reliability:x.reliability,bias:x.bias,read:x.read,
   ...(director?{historyRefs:x.historyRefs,clueRefs:x.clueRefs,claims:structuredClone(x.claims)}:{})
  }))
+}
+
+export function registerHistoryDeepeningDocuments(state,historyId,seeds=[]){
+ const history=(state.world?.history||[]).find(x=>x.id===historyId);if(!history)return [];
+ const out=[];for(const seed of (Array.isArray(seeds)?seeds:[]).slice(0,6)){
+  const doc=registerDocument(state,{id:seed.id,title:seed.title,author:seed.author,era:seed.era||history.era,culture:seed.culture,language:seed.language,reliability:seed.reliability,bias:seed.bias,historyRefs:[history.id],clueRefs:(seed.claims||[]).map(x=>x.clueId).filter(Boolean),known:false,claims:(seed.claims||[]).map(x=>({text:x.text,historyId:history.id,clueId:x.clueId,disputes:x.disputes===true}))});
+  if(doc)out.push(doc.id)
+ }
+ return out
 }

@@ -34,12 +34,12 @@ test("FAST and DEEP start Player Action and StatePatch together then commit afte
 
 test("foreground gameplay preempts nonblocking narration Deferred and world background work",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/function preemptBackgroundAI\(\)\{preemptNonblockingScene\(\);preemptBackgroundWorldEvolution\(\);preemptBackgroundWorldQuality\(\);preemptDeferredDirector\(\)\}/);
+ assert.match(app,/function preemptBackgroundAI\(\)\{preemptNonblockingScene\(\);preemptBackgroundWorldEvolution\(\);preemptBackgroundWorldQuality\(\);preemptBackgroundHistory\(\);preemptDeferredDirector\(\)\}/);
  assert.match(app,/async function runAction\(action,customText="",options=\{\}\)\{\s*if\(!gameState\)return;preemptBackgroundAI\(\)/);
  assert.match(app,/async function submitNpcConversation\(npcId,q\)\{preemptBackgroundAI\(\)/);assert.match(app,/async function runCombatAction\(action\)\{preemptBackgroundAI\(\)/)
 });
 
 test("background world evolution waits for Player Action and Deferred work",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/if\(aiBusy\|\|turnSyncBusy\|\|nonblockingScene\.controller\|\|deferredDirector\.running\|\|deferredDirector\.queue\.length\|\|worldQualityBackground\.running\|\|gameState\.combat\?\.active\|\|document\.hidden\)/)
+ assert.match(app,/if\(aiBusy\|\|turnSyncBusy\|\|nonblockingScene\.controller\|\|deferredDirector\.running\|\|deferredDirector\.queue\.length\|\|worldQualityBackground\.running\|\|historyBackground\.running\|\|gameState\.combat\?\.active\|\|document\.hidden\)/)
 });

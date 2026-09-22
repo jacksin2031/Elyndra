@@ -4,7 +4,7 @@ import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {survivalSnapshot} from "./survival-engine.js?v=320";
 import {travelSnapshot} from "./travel-engine.js?v=320";
 import {marketSnapshot} from "./economy-engine.js?v=276";
-import {dungeonSnapshot} from "./dungeon-engine.js?v=276";
+import {dungeonSnapshot} from "./dungeon-engine.js?v=47000";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 

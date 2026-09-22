@@ -1,21 +1,21 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=46000";
+import {APP_VERSION} from "./src/version.js?v=47000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=45000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=46000";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=47000";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=47000";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=44000";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=45000";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=47000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
-import {performAction} from "./src/game-engine.js?v=45000";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=45000";
+import {performAction} from "./src/game-engine.js?v=47000";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=47000";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=42000";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=47000";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
 import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=276";
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=35000";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=42000";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=47000";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=276";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=45000";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=47000";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=320";
 import {ensureCrisis} from "./src/crisis-engine.js?v=276";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=276";
@@ -34,22 +34,25 @@ import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=276
 import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=320";
 import {ensureMagicRuntime} from "./src/magic-engine.js?v=276";
 import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=320";
-import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276";
+import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=47000";
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
 import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=46000";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=43000";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=47000";
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=45000";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=45000";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=47000";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=340";
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions,sessionCheckpoint} from "./src/player-experience.js?v=35000";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38003";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=41000";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=44000";
 import {applyOriginRuntime} from "./src/origin-runtime.js?v=45000";
+import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
+import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=47000";
+import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=47000";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -59,6 +62,7 @@ const deferredDirector={timer:0,running:false,controller:null,queue:[]};
 const nonblockingScene={controller:null,revision:null,worldId:null};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false,failures:0,cooldownUntil:0};
 const worldQualityBackground={timer:0,running:false,controller:null,lastReason:"background_quality",failures:0};
+const historyBackground={timer:0,running:false,controller:null,lastReason:"history_research",plan:null,failures:0};
 let gameplayDebugSnapshot=null;
 function gameplayDebugClock(state){
  const clock=state?.world?.state?.clock||{};
@@ -121,6 +125,9 @@ function preemptBackgroundWorldEvolution(){
 function preemptBackgroundWorldQuality(){
  const ctrl=worldQualityBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Higher-priority gameplay has priority","AbortError"))
 }
+function preemptBackgroundHistory(){
+ const ctrl=historyBackground.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Higher-priority gameplay has priority","AbortError"))
+}
 function preemptDeferredDirector(){
  const ctrl=deferredDirector.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Foreground gameplay has priority","AbortError"))
 }
@@ -128,7 +135,7 @@ function preemptNonblockingScene(){
  const ctrl=nonblockingScene.controller;if(ctrl&&!ctrl.signal.aborted)ctrl.abort(new DOMException("Newer player action has priority","AbortError"));
  nonblockingScene.controller=null;nonblockingScene.revision=null;nonblockingScene.worldId=null
 }
-function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptBackgroundWorldQuality();preemptDeferredDirector()}
+function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptBackgroundWorldQuality();preemptBackgroundHistory();preemptDeferredDirector()}
 function commitStatePatch(state,patch,plan,context={}){
  const valid=validateStatePatch(patch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
  if(!Array.isArray(patch.operations)||!patch.operations.length)return {applied:false,empty:true,revision:currentStateRevision(state)};
@@ -176,6 +183,7 @@ function resumeDeferredDirectorQueue(){
 async function runDeferredDirector(){
  if(!gameState||!aiStatus.aiConfigured||deferredDirector.running||!deferredDirector.queue.length)return;
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||document.hidden){if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},1500);return}
+ if(historyBackground.running){preemptBackgroundHistory();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
  if(worldQualityBackground.running){preemptBackgroundWorldQuality();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
  if(worldBackground.running){preemptBackgroundWorldEvolution();if(deferredDirector.timer)clearTimeout(deferredDirector.timer);deferredDirector.timer=setTimeout(()=>{deferredDirector.timer=0;void runDeferredDirector()},350);return}
  const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=new AbortController(),debugStarted=Date.now();
@@ -201,6 +209,36 @@ async function runDeferredDirector(){
   else scheduleWorldEvolution("post_deferred_turn",5000)
  }
 }
+function scheduleHistoryDeepening(reason="history_research",delay=1800){
+ if(!gameState||!aiStatus.aiConfigured)return;const need=historyDeepeningNeed(gameState);if(!need.required)return;
+ historyBackground.lastReason=String(reason||need.reasons?.[0]||"history_research").slice(0,180);
+ if(historyBackground.timer)clearTimeout(historyBackground.timer);
+ historyBackground.timer=setTimeout(()=>{historyBackground.timer=0;void runBackgroundHistoryDeepening()},Math.max(450,Number(delay)||1800))
+}
+async function runBackgroundHistoryDeepening(){
+ if(!gameState||!aiStatus.aiConfigured||historyBackground.running)return;
+ const need=historyDeepeningNeed(gameState);if(!need.required)return;
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||worldQualityBackground.running||gameState.combat?.active||document.hidden){scheduleHistoryDeepening(historyBackground.lastReason,2600);return}
+ const plan=planHistoryDeepening(gameState,need.historyId);if(!plan)return;
+ const worldId=gameState.world?.id,ctrl=new AbortController(),startedAt=Date.now();historyBackground.running=true;historyBackground.controller=ctrl;historyBackground.plan=plan;
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"HISTORY_DEEPENING_BACKGROUND_STARTED",visibility:"INTERNAL",historyId:plan.historyId,targetDepth:plan.targetDepth,planId:plan.id,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("HISTORY_DEEPENING_BACKGROUND_STARTED",{historyId:plan.historyId,targetDepth:plan.targetDepth,planId:plan.id});
+ try{
+  const candidate=await generateHistoryDeepening(gameState,plan,{signal:ctrl.signal});
+  if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId){abortHistoryDeepening(gameState||{world:{}},plan,"HISTORY_BACKGROUND_PREEMPTED");return}
+  if(!candidate)throw new Error("HISTORY_DEEPENING_EMPTY");
+  const valid=validateHistoryDeepeningCandidate(gameState,plan,candidate);if(!valid.valid)throw new Error("HISTORY_DEEPENING_INVALID:"+valid.errors.join(","));
+  const committed=commitHistoryDeepening(gameState,plan,candidate);if(!committed.ok)throw new Error("HISTORY_DEEPENING_COMMIT_FAILED:"+committed.errors.join(","));
+  const documentIds=registerHistoryDeepeningDocuments(gameState,plan.historyId,committed.added.documents),relicSeedIds=registerHistoryRelicSeeds(gameState,plan.historyId,committed.added.relics);
+  bumpStateRevision(gameState,"HISTORY_DEEPENING");historyBackground.failures=0;
+  recordDebug("HISTORY_DEEPENING_BACKGROUND_COMPLETED",{historyId:plan.historyId,depth:committed.depth,documents:documentIds.length,relicSeeds:relicSeedIds.length,elapsedMs:Date.now()-startedAt});
+  await persist();scheduleWorldQualityCritic("post_history_deepening",2200)
+ }catch(e){
+  if(plan&&gameState)abortHistoryDeepening(gameState,plan,e?.message||"HISTORY_DEEPENING_FAILED");
+  if(!ctrl.signal.aborted){historyBackground.failures=Math.min(4,(Number(historyBackground.failures)||0)+1);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"HISTORY_DEEPENING_BACKGROUND_FAILED",visibility:"INTERNAL",historyId:plan?.historyId,reason:e?.message||String(e),day:gameState?.world?.state?.day||1,at:Date.now()});recordDebug("HISTORY_DEEPENING_BACKGROUND_FAILED",{historyId:plan?.historyId,error:e?.message||String(e),elapsedMs:Date.now()-startedAt})}
+ }finally{
+  if(historyBackground.controller===ctrl)historyBackground.controller=null;historyBackground.running=false;historyBackground.plan=null
+ }
+}
 function scheduleWorldQualityCritic(reason="background_quality",delay=1400){
  if(!gameState||!aiStatus.aiConfigured)return;const need=backgroundQualityNeed(gameState);if(!need.required)return;
  worldQualityBackground.lastReason=String(reason||need.reason||"background_quality").slice(0,180);
@@ -210,7 +248,7 @@ function scheduleWorldQualityCritic(reason="background_quality",delay=1400){
 async function runBackgroundWorldQualityCritic(){
  if(!gameState||!aiStatus.aiConfigured||worldQualityBackground.running)return;
  const need=backgroundQualityNeed(gameState);if(!need.required)return;
- if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||gameState.combat?.active||document.hidden){scheduleWorldQualityCritic(need.reason,2600);return}
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||historyBackground.running||gameState.combat?.active||document.hidden){scheduleWorldQualityCritic(need.reason,2600);return}
  const worldId=gameState.world?.id,baseVersion=Number(gameState.world?.version)||1,ctrl=new AbortController(),startedAt=Date.now();
  worldQualityBackground.running=true;worldQualityBackground.controller=ctrl;
  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"BACKGROUND_QUALITY_CRITIC_STARTED",visibility:"INTERNAL",reason:need.reason,worldVersion:baseVersion,day:gameState.world?.state?.day||1,at:Date.now()});
@@ -241,7 +279,7 @@ function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
 }
 async function runBackgroundWorldEvolution(){
  if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
- if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldQualityBackground.running||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
+ if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldQualityBackground.running||historyBackground.running||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
  if(!expand&&!evolution.required){worldBackground.queued=false;return}
  const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),plan=planLazyGeneration(gameState,{reason}),ctrl=new AbortController(),debugStarted=Date.now();
@@ -319,7 +357,7 @@ async function refresh(){const exists=await hasWorld().catch(()=>false);$("#cont
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
  if($("#fatigueStat"))$("#fatigueStat").textContent=`${Math.round(survivalInfo.fatigue)} / 100`;
- if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||turnSyncBusy||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":turnSyncBusy?"STATE SYNC：同步完成後即可繼續行動":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy&&!turnSyncBusy)scheduleWorldEvolution("gameplay_idle",1600)}
+ if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||turnSyncBusy||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":turnSyncBusy?"STATE SYNC：同步完成後即可繼續行動":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy&&!turnSyncBusy){scheduleWorldEvolution("gameplay_idle",1600);scheduleHistoryDeepening("knowledge_refresh",2100)}}
 async function persist(){if(gameState){
  const experience=ensurePlayerExperience(gameState),day=Number(gameState.world?.state?.day)||1;
  const projected=projectObservableWorldChanges(gameState,gameState.narrative);if(projected.projected.length){gameState.narrative=projected.narrative;recordDebug("WORLD_IMPACT_PROJECTED",{events:projected.projected,day,location:gameState.player?.location||""})}
@@ -448,9 +486,9 @@ async function runAction(action,customText="",options={}){
   if(aiBusy)setAIThinking(false);if(turnSyncBusy)setTurnSyncing(false)
  }
  try{await persist();await refresh()}
- finally{scheduleWorldEvolution(effective||"player_exploration",5000);scheduleWorldQualityCritic("post_player_action",2600)}
+ finally{scheduleWorldEvolution(effective||"player_exploration",5000);scheduleWorldQualityCritic("post_player_action",2600);scheduleHistoryDeepening("post_player_action",2200)}
 }
-$("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game");scheduleWorldQualityCritic("continue_world",1200)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
+$("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{gameState=migrate(await loadWorld());if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert("存檔世界完整性驗證失敗："+report.errors.join(", "));aiStatus=await aiHealth();await refresh();show("game");scheduleWorldQualityCritic("continue_world",1200);scheduleHistoryDeepening("continue_world",1500)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=label;sub.textContent=detail}
 function requestWorldReadyNotificationPermission(){
  if(!("Notification" in window)||Notification.permission!=="default")return;
@@ -595,7 +633,7 @@ $("#generateBtn").onclick=async()=>{
   const accepted=await confirmWorldContract(contract);
   if(!accepted){gameState=null;worldProgress(0,"已返回修改","這次編譯結果尚未建立正式存檔；修改設定後可重新生成。");return}
   worldProgress(96,"正在建立正式存檔","保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon");
-  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game");scheduleWorldQualityCritic("post_creation",1000)
+  await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game");scheduleWorldQualityCritic("post_creation",1000);scheduleHistoryDeepening("post_creation",1500)
  }catch(e){worldProgress(0,"世界生成失敗",e.message);alert("世界編譯失敗："+e.message)}
  finally{btn.disabled=false}
 };
