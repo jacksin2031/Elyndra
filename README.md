@@ -565,3 +565,11 @@ weatherProfile: {
 ### AI 自適應優化
 
 OpenAI、Gemini、Agnes 都可在 AI 設定選擇「標準」或「Elyndra 自適應優化」。自適應模式按任務重要性分配 Provider 原生思考強度：行動判定／敘事／助手採低延遲設定；一般世界內容採中等；核心規則、歷史、Future Timeline 採較深入推理；World Critic、Recovery 與 Repair 採高推理。模型名稱由 Elyndra Provider preset 固定管理，用戶毋須自行輸入。
+
+
+### v0.54.10 — Faster Creation, Progressive Runtime Canon, Action Lock
+
+- 新世界創建改為最多 **2 個 AI 同時生成**：Core Rules + Anchor、History + Geography、Future + Society 各為一個 bounded two-AI wave，wave 之間仍由 Engine 驗證。
+- 玩家遊玩期間的自動世界完善改為真正 checkpoint 模型：Geography 成功即寫入 Canon；Society、Cast、Quest 各自成功即保存，後段失敗不會丟失前段成果，下一次只從未完成 stage 繼續。
+- Runtime Society 明確要求對每個新地點逐字回傳 locationDetails，降低 LOCATION_DETAIL_MISSING。
+- 玩家按下行動後進入 single-flight UI lock；在 Player Action AI 完成前，不會先跳回 fallback／預設行動，也不能重複提交下一個行動。

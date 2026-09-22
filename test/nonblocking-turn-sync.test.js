@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-test("only FAST and DEEP State Sync use the global action lock",async()=>{
+test("all player actions keep a single-flight UI lock until their visible result settles",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/function setPlayerActionControlsLocked\(locked,reason=/);
- const engine=app.slice(app.indexOf('if(syncPlan.mode==="ENGINE_ONLY")'),app.indexOf('if(syncPlan.mode==="DEFERRED")'));
- const deferred=app.slice(app.indexOf('if(syncPlan.mode==="DEFERRED")'),app.indexOf("try{",app.indexOf('if(syncPlan.mode==="DEFERRED")')));
- assert.equal(engine.includes("setTurnSyncing(true"),false);assert.equal(deferred.includes("setTurnSyncing(true"),false);
- assert.match(app,/setTurnSyncing\(true,/)
+ assert.match(app,/const playerActionFlight=\{active:false,label:"",startedAt:0\}/);
+ assert.match(app,/beginPlayerActionFlight\(requested\)/);
+ assert.match(app,/pending-action-group/);
+ assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/);
+ assert.match(app,/playerActionFlight\.active\|\|Boolean\(gameState\.combat\?\.active\)/)
 });
 
 test("blocking State Sync rejects repeated actions without an action queue",async()=>{
@@ -18,11 +19,12 @@ test("blocking State Sync rejects repeated actions without an action queue",asyn
  assert.doesNotMatch(app,/ACTION_QUEUED/);assert.doesNotMatch(app,/foregroundQueue/);assert.doesNotMatch(app,/queueForegroundTask/)
 });
 
-test("ENGINE_ONLY and DEFERRED Player Action narration never blocks controls",async()=>{
+test("ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/function startNonblockingPlayerNarration/);assert.match(app,/currentStateRevision\(gameState\)!==revision/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/);
- assert.match(app,/STATE_SYNC_ENGINE_ONLY/);assert.match(app,/STATE_SYNC_DEFERRED/)
+ assert.match(app,/STATE_SYNC_ENGINE_ONLY/);assert.match(app,/STATE_SYNC_DEFERRED/);
+ assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/)
 });
 
 test("FAST and DEEP commit StatePatch without waiting for Player Action narration",async()=>{

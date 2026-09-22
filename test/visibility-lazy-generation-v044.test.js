@@ -95,12 +95,13 @@ test("causal reconciliation auto-materializes History anchors already represente
  assert.ok(claim);assert.equal(claim.status,"MATERIALIZED");assert.deepEqual(claim.entityRefs,["LOC-A"])
 });
 
-test("background world evolution uses plan validate canonize commit pipeline",async()=>{
+test("background world evolution uses resumable checkpoint canon pipeline",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/planLazyGeneration\(gameState,\{reason\}\)/);
- assert.match(app,/generateRegionExpansion\(gameState,reason,\{signal:ctrl\.signal,plan\}\)/);
- assert.match(app,/validateLazyGenerationCandidate\(gameState,ex\.generation,plan\)/);
- assert.match(app,/canonizeGeneration\(gameState,ex\.generation\)/);
+ assert.match(app,/generateRegionExpansion\(gameState,reason,\{signal:ctrl\.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint\(plan,stage\)\}\)/);
+ assert.match(app,/validateLazyGenerationCandidate\(gameState,ex\.generation,plan,\{added:plan\.checkpoint\?\.added\}\)/);
+ assert.match(app,/plan\.checkpoint\?\.added\|\|canonizeGeneration\(gameState,ex\.generation\)/);
  assert.match(app,/commitLazyGeneration\(gameState,plan,ex\.generation,added,\{sourceProvider:ex\.generationSource\?\.provider,sourceModel:ex\.generationSource\?\.model\}\)/);
- assert.match(app,/abortLazyGeneration\(gameState,plan/);
+ assert.match(app,/checkpointed=hasLazyGenerationCheckpoint\(plan\)/);
+ assert.match(app,/plan\.status==="PLANNED"&&!checkpointed\)abortLazyGeneration\(gameState,plan/);
 });

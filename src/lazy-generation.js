@@ -73,7 +73,7 @@ const normalizeForbidden=v=>String(v||"").normalize("NFKC").toLocaleLowerCase().
 function forbiddenMatch(row,terms=[]){const hay=normalizeForbidden(JSON.stringify(row??{}));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
 export function validateLazyGenerationCandidate(state,generation,plan,options={}){
  const errors=[];if(!plan||plan.status!=="PLANNED")return {valid:false,errors:["LAZY_PLAN_NOT_ACTIVE"]};
- const root=ensureLazyGeneration(state),canonizedDelta=Object.values(options?.added||{}).some(rows=>Array.isArray(rows)&&rows.length)?1:0,expectedWorldVersion=(Number(plan.worldVersion)||1)+canonizedDelta,currentWorldVersion=Number(state.world?.version)||1;
+ const root=ensureLazyGeneration(state),checkpoint=plan.checkpoint&&typeof plan.checkpoint==="object"?plan.checkpoint:null,optionAdded=options?.added&&typeof options.added==="object"?options.added:null,checkpointAdded=checkpoint?.added&&typeof checkpoint.added==="object"?checkpoint.added:{},effectiveAdded=optionAdded||checkpointAdded,canonizedDelta=Object.values(effectiveAdded).some(rows=>Array.isArray(rows)&&rows.length)?1:0,expectedWorldVersion=checkpoint?Math.max(1,Number(checkpoint.worldVersion)||Number(plan.worldVersion)||1):(Number(plan.worldVersion)||1)+canonizedDelta,currentWorldVersion=Number(state.world?.version)||1;
  if(currentWorldVersion!==expectedWorldVersion)errors.push("LAZY_STALE_WORLD_VERSION");
  if(Number(plan.generationRevision)!==Number(root.generationRevision)+1)errors.push("LAZY_STALE_GENERATION_REVISION");
  for(const key of ["generationRevision","worldSeedFingerprint","entitySeed","generationSlot","promptVersion","validationVersion","generatedAtWorldTime"])if(plan[key]==null)errors.push("LAZY_REPLAY_METADATA_MISSING:"+key);
@@ -81,7 +81,7 @@ export function validateLazyGenerationCandidate(state,generation,plan,options={}
  const allowedHistory=new Set([...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
  for(const key of ["locations","npcs","factions","sideQuests","definitions"]){
   const rows=groupRows(generation,key),limit=Math.max(0,Number(plan.slots?.[key])||0);if(rows.length>limit)errors.push("LAZY_SLOT_EXCEEDED:"+key);
-  const existing=existingNames(state,key),canonized=new Set((options?.added?.[key]||[]).map(x=>rowIdentity(key,x)).filter(Boolean)),candidateNames=new Set();
+  const existing=existingNames(state,key),canonized=new Set((effectiveAdded?.[key]||[]).map(x=>rowIdentity(key,x)).filter(Boolean)),candidateNames=new Set();
   for(const row of rows){
    const name=rowIdentity(key,row);
    if(name&&existing.has(name)&&!canonized.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
@@ -104,6 +104,23 @@ export function validateLazyGenerationCandidate(state,generation,plan,options={}
  }
  return {valid:errors.length===0,errors:[...new Set(errors)],planId:plan.id}
 }
+function mergeCheckpointAdded(prior={},added={}){
+ const out={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
+ for(const key of Object.keys(out)){
+  const map=new Map();
+  for(const row of [...(prior?.[key]||[]),...(added?.[key]||[])]){const id=String(row?.id||rowIdentity(key,row)||"");if(id)map.set(id,structuredClone(row))}
+  out[key]=[...map.values()]
+ }
+ return out
+}
+export function recordLazyGenerationCheckpoint(state,plan,{stage,generation,added={}}={}){
+ if(!plan||plan.status!=="PLANNED")return {ok:false,error:"LAZY_PLAN_NOT_ACTIVE"};
+ const prior=plan.checkpoint&&typeof plan.checkpoint==="object"?plan.checkpoint:{},completed=[...new Set([...(prior.completedStages||[]),clean(stage,80)].filter(Boolean))];
+ plan.checkpoint={stage:clean(stage,80)||prior.stage||"",completedStages:completed,generation:structuredClone(generation||prior.generation||{}),added:mergeCheckpointAdded(prior.added,added),worldVersion:Number(state.world?.version)||1,updatedAt:Date.now()};
+ plan.lastAttemptAt=Date.now();return {ok:true,checkpoint:plan.checkpoint}
+}
+export function hasLazyGenerationCheckpoint(plan){return Boolean(plan?.status==="PLANNED"&&plan?.checkpoint?.stage&&plan?.checkpoint?.generation)}
+
 function addedIdFor(raw,added,key){
  const name=key==="definitions"?(String(raw?.kind||"").toUpperCase()+":"+String(raw?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?raw?.title:raw?.name||"").trim().toLocaleLowerCase(),rows=added?.[key]||[];
  const hit=rows.find(x=>(key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase())===name);return hit?.id||null

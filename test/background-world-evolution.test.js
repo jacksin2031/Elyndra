@@ -10,7 +10,7 @@ test("runtime world evolution is automatic background work and never awaited by 
  const run=app.slice(start,end);
  assert.match(app,/async function runBackgroundWorldEvolution\(\)/);
  assert.match(app,/scheduleWorldEvolution\("gameplay_idle",1800\)/);
- assert.match(app,/generateRegionExpansion\(gameState,reason,\{signal:ctrl\.signal,plan\}\)/);
+ assert.ok(app.includes("generateRegionExpansion(gameState,reason,{signal:ctrl.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage)})"));
  assert.match(app,/WORLD_EVOLUTION_BACKGROUND_STARTED/);
  assert.match(app,/WORLD_EVOLUTION_BACKGROUND_APPLIED/);
  assert.match(app,/preemptBackgroundWorldEvolution\(\)/);
