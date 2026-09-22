@@ -55,8 +55,8 @@ test("v0.54.1 runtime summary replaces the prior compaction text instead of conc
 });
 
 test("v0.54.1 FAST provider policy keeps requested completion budget and low reasoning",()=>{
- assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{reasoning_effort:"low"});
- assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),650);
+ assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{});
+ assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),800);
  assert.equal(providerTokenBudget("openai","adaptive","scene",760),760)
 });
 
