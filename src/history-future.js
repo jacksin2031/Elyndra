@@ -1,4 +1,4 @@
-import {ensureFutureEngine,applyFuturePressure} from "./future-engine.js?v=40000";
+import {ensureFutureEngine,applyFuturePressure} from "./future-engine.js?v=48000";
 import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
 import {signalHistoryResearch} from "./history-depth.js?v=47000";
 
