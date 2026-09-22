@@ -1,4 +1,4 @@
-import {discoverHistoryEvidence} from "./world-history.js?v=276";
+import {discoverHistoryEvidence} from "./world-history.js?v=47000";
 import {ensureSurvival} from "./survival-engine.js?v=276";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h)};
