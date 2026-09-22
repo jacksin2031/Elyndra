@@ -45,6 +45,7 @@ export function constitutionForbidTerms(state){
  for(const term of state.world?.creation?.blueprintProfile?.forbidden||[])if(clean(term,160))terms.push(clean(term,160));
  return [...new Set(terms)]
 }
+export function forbiddenTermMatch(state,value){const hay=norm(typeof value==="string"?value:JSON.stringify(value??{}));return constitutionForbidTerms(state).find(term=>{const needle=norm(term);return needle&&hay.includes(needle)})||null}
 function upsert(state,input){
  const root=ensureGenerationClaims(state),key=clean(input.key,220);if(!key)return null;
  let claim=root.claims.find(x=>x.key===key);
