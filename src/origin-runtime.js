@@ -78,8 +78,8 @@ export function originNpcContext(state,npc=null){
  }
 }
 export function originOpeningContract(state){
- const rt=ensureOriginRuntime(state);
- return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true,calendarKnown:state.player?.calendarKnown===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy}
+ const rt=ensureOriginRuntime(state),rules=policy(state);
+ return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true||rules.worldName===true,calendarKnown:state.player?.calendarKnown===true||rules.calendar===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy}
 }
 export function originRuntimeSnapshot(state,{director=false}={}){
  const rt=ensureOriginRuntime(state),base={originId:rt.originId,label:rt.label,knowledgePolicy:rt.knowledgePolicy,legalStatus:rt.legalStatus,identitySignal:rt.identitySignal,spokenLanguages:[...rt.spokenLanguages],readLanguages:[...rt.readLanguages],openingMode:rt.openingMode};
