@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {deriveDirtyFlags,planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,statePatchSchema,validateStatePatch,groundStatePatch,statePatchToCandidate,assessPatchRevision} from "../src/state-sync.js";
+import {deriveDirtyFlags,planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,statePatchSchema,validateStatePatch,groundStatePatch,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "../src/state-sync.js";
 
 const snapshot=()=>({stateRevision:4,recentEvents:[],registry:{npcs:[],locations:[]},world:{location:"石室"}});
 
@@ -85,4 +85,12 @@ test("ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup
  const ok=groundStatePatch(state,patch,{action:"用指尖捏起藍光碎屑並收起"});assert.equal(ok.patch.operations.length,1);
  const invented=groundStatePatch(state,{...patch,operations:[{op:"ACQUIRE_ITEM",item:{name:"古代王冠",category:"ARTIFACT",quantity:1}}]},{action:"用指尖捏起藍光碎屑並收起"});
  assert.equal(invented.patch.operations.length,0);assert.equal(invented.rejected[0].reason,"ITEM_NOT_GROUNDED_IN_PLAYER_ACTION")
+});
+
+
+test("Engine pickup fail-forward extracts only explicit successful physical pickup nouns",()=>{
+ const item=groundedPickupItemFromAction("小心撥開枯草，用指尖捏起那枚藍光碎屑並收起",{success:true});
+ assert.equal(item?.name,"藍光碎屑");assert.equal(item?.identified,false);assert.equal(item?.category,"MATERIAL");
+ assert.equal(groundedPickupItemFromAction("仔細觀察藍光碎屑",{success:true}),null);
+ assert.equal(groundedPickupItemFromAction("捏起那枚藍光碎屑",{success:false}),null)
 });
