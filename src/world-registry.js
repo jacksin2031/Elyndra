@@ -26,7 +26,7 @@ export function repairPlayerLocation(state){
  if(entity){
   state.player.location=entity.name;
   state.world.state.location=entity.name;
-  if(entity.region)state.world.state.region=entity.region
+  if(entity.region)state.world.state.region=entity.region;markEntityObserved(state,"location",entity.id,{reason:"PLAYER_LOCATION_REPAIRED"})
  }else{
   state.player.location="未知地點";
   state.world.state.location="未知地點"
@@ -48,7 +48,7 @@ export function resolvePlayerLocation(state,raw,context={}){
  const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state),entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;
  const internalSetup=Object.keys(context||{}).length===0,result=travelTo(state,entity,{roll:context.roll||null,actionKind:context.actionKind||context.roll?.profile?.kind||"",baseMinutes:Number(context.baseTravelMinutes)||45,force:context.force===true||internalSetup});
  if(!result.ok){state.events.push({id:uid("EV"),type:"TRAVEL_REJECTED",visibility:"INTERNAL",destinationId:entity.id,reason:result.reason,day:state.world.state.day,at:Date.now()});return null}
- return entity
+ markEntityObserved(state,"location",entity.id,{reason:"PLAYER_TRAVEL"});return entity
 }
 export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
