@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {randomAutotestWorldRaw,playerVisibleAutotestSnapshot,normalizeAutotestDecision,autotestStopReason,autotestStateFingerprint,buildAutotestReport} from "../src/ai-autotest.js";
+import {randomAutotestWorldRaw,playerVisibleAutotestSnapshot,normalizeAutotestDecision,autotestStopReason,autotestStateFingerprint,buildAutotestReport,autotestExportSelection} from "../src/ai-autotest.js";
 
 function state(){
  return {
@@ -85,4 +85,12 @@ test("autotest report separates completed requests, failed attempts, timeouts an
  assert.equal(report.issues.filter(x=>x.type==="WORLD_GENERATION_FAILED").length,1);
  assert.equal(report.issues.some(x=>x.type==="TELEMETRY_AUTOTEST_WORLD_FAILED"),false);
  assert.ok(report.issues.some(x=>x.type==="TELEMETRY_AI_CALL_FAILED"&&x.task==="core_rules"&&x.provider==="agnes"))
+});
+
+
+test("autotest export selection supports combined, debug-only and world-only output",()=>{
+ assert.deepEqual(autotestExportSelection("both"),{mode:"both",debug:true,world:true});
+ assert.deepEqual(autotestExportSelection("debug"),{mode:"debug",debug:true,world:false});
+ assert.deepEqual(autotestExportSelection("world"),{mode:"world",debug:false,world:true});
+ assert.deepEqual(autotestExportSelection("unexpected"),{mode:"both",debug:true,world:true})
 });

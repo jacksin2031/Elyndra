@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,hardProviderDeadline,optimizationTier,providerOptimization,providerTokenBudget} from "../src/ai-settings.js";
+import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,hardProviderDeadline,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,optimizationTier,providerOptimization,providerTokenBudget} from "../src/ai-settings.js";
 
 function memoryStorage(){
  const data=new Map();
@@ -55,7 +55,7 @@ test("AI settings UI exposes Agnes as a selectable mode",async()=>{
  assert.match(app,/Elyndra 自適應優化/);
  assert.match(app,/目前模型/);
  assert.doesNotMatch(app,/id="aiModel"/);
- assert.match(app,/ai-settings\.js\?v=54003/)
+ assert.match(app,/ai-settings\.js\?v=54004/)
 });
 
 
@@ -175,4 +175,23 @@ test("hard provider deadline resolves independently of a fetch promise that igno
  );
  assert.ok(Date.now()-started<500,"hard deadline must not wait for the underlying fetch to settle");
  assert.equal(controller.signal.aborted,true)
+});
+
+
+test("Developer Autotest runtime control can disable deadlines while preserving manual abort",async()=>{
+ const priorStorage=globalThis.localStorage,priorFetch=globalThis.fetch;globalThis.localStorage=memoryStorage();
+ const batch=new AbortController();
+ try{
+  clearAISettings();saveAISettings({provider:"openai",apiKey:"o",endpoint:PROVIDERS.openai.endpoint,optimization:"standard"});
+  globalThis.fetch=async()=>new Promise(()=>{});
+  setDirectAIRuntimeControl({disableTimeout:true,signal:batch.signal});
+  const pending=directChat({system:"s",user:"u",aiTask:"action",timeoutMs:5000,retryOnTimeout:false});
+  setTimeout(()=>batch.abort(new DOMException("stop","AbortError")),25);
+  await assert.rejects(pending,err=>err?.code==="AI_ABORTED");
+ }finally{clearDirectAIRuntimeControl();globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
+});
+
+test("hard provider deadline accepts timeoutMs=0 as no automatic timeout",async()=>{
+ const value=await hardProviderDeadline(new Promise(resolve=>setTimeout(()=>resolve("ok"),30)),{timeoutMs:0});
+ assert.equal(value,"ok")
 });
