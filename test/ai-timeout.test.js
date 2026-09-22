@@ -54,7 +54,7 @@ test("server world generation uses bounded sequential stages instead of one 120s
  assert.match(core,/timeoutMs=30000/);
  assert.match(core,/AI_TIMEOUT: upstream provider exceeded/);
  assert.doesNotMatch(world,/timeoutMs:120000/);
- for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(world,new RegExp('stageJSON\\\\(diagnostics,"'+stage+'"'));
+ for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(world,new RegExp('stageJSON\\(diagnostics,"'+stage+'"'));
  for(const timeout of [35000,50000,55000,65000])assert.match(world,new RegExp('timeoutMs:'+timeout));
  assert.match(world,/lockedRules:rulesRaw\.worldBible/);
  assert.match(world,/history,playerOrigin:/);
