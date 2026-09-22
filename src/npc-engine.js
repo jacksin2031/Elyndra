@@ -1,8 +1,8 @@
 import {ensureCrisis} from "./crisis-engine.js?v=276";
 import {recordCausalEvent} from "./knowledge-graph.js?v=276";
-import {ensureWorldRegistry} from "./world-registry.js?v=53000";
+import {ensureWorldRegistry} from "./world-registry.js?v=54005";
 import {ensureClock} from "./world-clock.js?v=276";
-import {ensureTravelNetwork} from "./travel-engine.js?v=276";
+import {ensureTravelNetwork} from "./travel-engine.js?v=54005";
 import {ensureNpcBehaviorProfile} from "./player-experience.js?v=35000";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function simulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:ensureClock(state).totalMinutes,flags:{}};state.world.state.simulation.npcCursor??=0;return state.world.state.simulation}
