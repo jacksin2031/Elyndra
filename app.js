@@ -832,12 +832,14 @@ function bindDeveloperAutotestPanel(){
 function openDeveloperAutotestPanel(){openModal(developerAutotestPanelHtml());bindDeveloperAutotestPanel()}
 $("#developerBtn")?.addEventListener("click",openDeveloperAutotestPanel);
 
+function autotestForegroundIdle(){return !aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running}
 async function waitForAutotestIdle(timeoutMs=12000){
  const started=Date.now();
  while(Date.now()-started<timeoutMs){
-  if(!aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running)return true;
+  if(autotestForegroundIdle())return true;
   await new Promise(r=>setTimeout(r,80))
  }
+ if(autotestForegroundIdle())return true;
  recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});
  return false
 }
@@ -906,7 +908,7 @@ async function startDeveloperAutotest(config){
       appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn}: ${decision.mode==="suggestion"?"[按鈕] ":decision.mode==="combat"?"[戰鬥] ":"[自由] "}${decision.action||decision.combatAction}`);
       recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
       if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
-      await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle();
+      await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle(8000);
       row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push(decision.action||decision.combatAction||"");
       recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
