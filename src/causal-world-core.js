@@ -6,11 +6,11 @@ import {ensureItemHeritage} from "./item-heritage.js?v=48000";
 import {ensureDocumentRuntime} from "./document-engine.js?v=48000";
 import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=44000";
 import {ensureHistoryDepth,historyDepthSnapshot} from "./history-depth.js?v=47000";
-import {ensureHistoryLegacy,historyLegacySnapshot} from "./history-legacy.js?v=50000";
+import {syncHistoryLegacy,historyLegacySnapshot} from "./history-legacy.js?v=50000";
 
 export function ensureCausalWorldCore(state){
  if(!state?.world)throw new Error("CAUSAL_WORLD_STATE_REQUIRED");
- ensureWorldLedger(state);ensureGenerationClaims(state);ensureKnowledgeMetadata(state);ensureFutureEngine(state);ensureItemHeritage(state);ensureDocumentRuntime(state);ensureLazyGeneration(state);ensureHistoryDepth(state);ensureHistoryLegacy(state);
+ ensureWorldLedger(state);ensureGenerationClaims(state);ensureKnowledgeMetadata(state);ensureFutureEngine(state);ensureItemHeritage(state);ensureDocumentRuntime(state);ensureLazyGeneration(state);ensureHistoryDepth(state);syncHistoryLegacy(state);
  seedLedgerFromEvents(state);mirrorLegacyCrisisToFuture(state);syncGenerationClaimsFromCausalStructure(state);reconcileGenerationClaims(state);
  state.world.causalCore??={version:1,initializedAt:Date.now()};state.world.causalCore.version=1;return state.world.causalCore
 }
