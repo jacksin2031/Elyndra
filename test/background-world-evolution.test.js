@@ -15,7 +15,8 @@ test("runtime world evolution is automatic background work and never awaited by 
  assert.match(app,/WORLD_EVOLUTION_BACKGROUND_APPLIED/);
  assert.match(app,/preemptBackgroundWorldEvolution\(\)/);
  assert.doesNotMatch(run,/await generateRegionExpansion\(/);
- assert.match(run,/scheduleWorldEvolution\(effective\|\|"player_exploration",BACKGROUND_IDLE_GRACE_MS\)/);\n assert.match(app,/BACKGROUND_IDLE_GRACE_MS=10000/);assert.match(app,/backgroundIdleRemaining\(\)/)
+ assert.match(run,/scheduleWorldEvolution\(effective\|\|"player_exploration",BACKGROUND_IDLE_GRACE_MS\)/);
+ assert.match(app,/BACKGROUND_IDLE_GRACE_MS=10000/);assert.match(app,/backgroundIdleRemaining\(\)/)
 });
 
 test("foreground AI preempts low-priority background world work",async()=>{
