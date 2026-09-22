@@ -5,6 +5,7 @@ import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=276
 import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=320";
 import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=51000";
 import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=52000";
+import {constitutionForbidTerms} from "./generation-claims.js?v=52000";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
@@ -122,7 +123,7 @@ function resolveKnowledgeScope(state,input){
  return out.slice(0,12)
 }
 export function canonizeGeneration(state,g){
- const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));
+ const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));const forbidden=constitutionForbidTerms(state),hay=String(JSON.stringify(g||{})).normalize("NFKC").toLocaleLowerCase().replace(/[\\s_\\-—–、，,。.!！？?：:；;（）()\\[\\]{}「」『』【】〈〉《》"\'`´’‘“”·・\\\\/]+/g,"");for(const term of forbidden){const needle=String(term).normalize("NFKC").toLocaleLowerCase().replace(/[\\s_\\-—–、，,。.!！？?：:；;（）()\\[\\]{}「」『』【】〈〉《》"\'`´’‘“”·・\\\\/]+/g,"");if(needle&&hay.includes(needle))throw new Error("WORLD_CONSTITUTION_FORBID:"+term)};
  const r=ensureWorldRegistry(state),added={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
  const byName=(arr,name)=>arr.some(x=>String(x.name||"").toLowerCase()===name.toLowerCase());
  for(const x of (g?.locations||[]).slice(0,2)){const name=clean(x.name,80);if(byName(r.locations,name))continue;const o={id:uid("LOC"),name,type:clean(x.type,60)||"未知地點",region:clean(x.region,80)||state.world.state.region||"",description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),weatherProfile:normalizeWeatherProfile(x.weatherProfile,state.world?.bible?.weatherSystem?.phenomena?.map(p=>p.id)||null),accessRequirements:normalizeAccessRequirements(x.accessRequirements),worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]},canonical:true,createdDay:state.world.state.day};r.locations.push(o);added.locations.push(o)}
