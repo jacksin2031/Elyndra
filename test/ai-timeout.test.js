@@ -26,7 +26,8 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  assert.match(client,/PROVIDER_TIMEOUT_CIRCUIT_OPEN/);
  assert.match(client,/generationCircuitOpen/);
  assert.match(client,/compilerRecoverable/);
- assert.match(client,/INVALID_MODEL_JSON/);\n assert.match(client,/Failed to fetch/);assert.match(client,/generationTransportFailure/);assert.match(client,/transportStages/);assert.match(client,/circuit\.transportCount>=2/);
+ assert.match(client,/INVALID_MODEL_JSON/);
+ assert.match(client,/Failed to fetch/);assert.match(client,/generationTransportFailure/);assert.match(client,/transportStages/);assert.match(client,/circuit\.transportCount>=2/);
  for(const legacy of ["CORE","CORE_REPAIR","CHRONOLOGY","REGION"])assert.doesNotMatch(client,new RegExp(`worldStage\\("${legacy}"`));
 });
 
