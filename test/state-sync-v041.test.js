@@ -69,3 +69,11 @@ test("State Revision blocks stale immediate patches but permits safe Deferred re
  const deferred={baseRevision:0,operations:[{op:"NPC_RELATIONSHIP_SIGNAL",npcId:"N1",effect:"MINOR_POSITIVE"}]};
  const r=assessPatchRevision(state,deferred,{mode:"DEFERRED"});assert.equal(r.ok,true);assert.equal(r.rebased,true)
 });
+
+
+test("successful pickup wording enables ACQUIRE_ITEM even when suggestion kind is OBSERVE",()=>{
+ const snapshot=baseSnapshot(),plan=planStateSync({action:"小心撥開枯草，用指尖捏起那枚藍光碎屑並收起",intent:{intent:"OBSERVE",kind:"OBSERVE"},roll:{success:true,grade:"SUCCESS",profile:{kind:"OBSERVE"}},snapshot});
+ assert.equal(plan.mode,"FAST");
+ assert.equal(plan.dirtyFlags.inventory,true);
+ assert.ok(plan.capabilities.includes("ACQUIRE_ITEM"))
+});
