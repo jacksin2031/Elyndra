@@ -17,7 +17,7 @@ import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=41000";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=45000";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=53000";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=40000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
