@@ -94,6 +94,6 @@ test("background world evolution uses plan validate canonize commit pipeline",as
  assert.match(app,/generateRegionExpansion\(gameState,reason,\{signal:ctrl\.signal,plan\}\)/);
  assert.match(app,/validateLazyGenerationCandidate\(gameState,ex\.generation,plan\)/);
  assert.match(app,/canonizeGeneration\(gameState,ex\.generation\)/);
- assert.match(app,/commitLazyGeneration\(gameState,plan,ex\.generation,added\)/);
+ assert.match(app,/commitLazyGeneration\(gameState,plan,ex\.generation,added,\{sourceProvider:ex\.generationSource\?\.provider,sourceModel:ex\.generationSource\?\.model\}\)/);
  assert.match(app,/abortLazyGeneration\(gameState,plan/);
 });
