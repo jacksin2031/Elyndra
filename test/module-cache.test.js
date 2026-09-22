@@ -28,8 +28,8 @@ test("v0.53.0 propagates Causal Integrity changes through the browser cache grap
   readFile(new URL("../src/world-quality.js",import.meta.url),"utf8"),readFile(new URL("../src/visibility-lock.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/app\.js\?v=53001/);
- for(const path of ["version","ai-settings","ai-client","game-engine","contextual-actions","debug-telemetry"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53001"),path);
- for(const path of ["world-engine","adventure-engine","storage","world-simulation","npc-conversation","npc-engine","faction-engine","quest-engine","combat-engine","progression-ui","lazy-generation","world-registry","item-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53000"),path);
+ for(const path of ["version","ai-settings","ai-client","adventure-engine","game-engine","contextual-actions","debug-telemetry"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53001"),path);
+ for(const path of ["world-engine","storage","world-simulation","npc-conversation","npc-engine","faction-engine","quest-engine","combat-engine","progression-ui","lazy-generation","world-registry","item-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53000"),path);
  assert.match(app,/\.\/src\/world-creation\.js\?v=52000/);assert.match(app,/\.\/src\/world-quality\.js\?v=51000/);assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);
 
  assert.match(client,/\.\/knowledge-model\.js\?v=40000/);assert.match(client,/\.\/world-quality\.js\?v=51000/);
