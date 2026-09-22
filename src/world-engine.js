@@ -22,7 +22,7 @@ export const WORLD_CONSTITUTION=[
  {id:"C-007",text:"Engine 不得硬編碼任何特定世界的地名、人物、勢力、貨幣或敵人"},
  {id:"C-008",text:"世界不得默認採用現實地球曆法、國家制度或全球通用貨幣；地方文化與交易制度必須由 Canon 定義"},
  {id:"C-009",text:"世界未來事件在創世時只 Canonize 為 Director 層的潛在事件；Engine 必須同時檢查 activation／cancel／escalation conditions，玩家可以在規則允許時阻止、延遲或加速，不得把偏好當成必然劇情"},
- {id:"C-010",text:"世界過去歷史在創世時 Canonize 並不可改寫；後續內容只能揭露或引用其遺產，不可重寫已發生的歷史"},
+ {id:"C-010",text:"世界過去歷史 Skeleton 在創世時 Canonize 並不可改寫；玩家研究後可 Lazy Deepen 尚未定義的人物、文獻、遺物、地點痕跡與不同記錄版本，但不得改變既有 title、summary、causes、legacies、era、category 或已發生因果；生成隱藏細節本身不等於玩家已知。"},
  {id:"C-011",text:"天氣由世界 Canon 定義並由 Engine 按世界時間與地區推進；天氣可為異世界獨有現象，不得被敘事 AI 臨時改寫"}
 ];
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return h}
