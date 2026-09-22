@@ -10,34 +10,45 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.50.0 preserves v0.49 while propagating Legacy Echo cache graph",async()=>{
- const [html,app,client,worldEngine,simulation,futureRuntime,legacy,lazy,causal,storage,game,combat,adventure,progression,npcConversation,npcDialogue,itemEngine,check]=await Promise.all([
+test("v0.51.0 preserves v0.49/v0.50 while propagating Visibility Lock cache graph",async()=>{
+ const [html,app,client,worldEngine,simulation,futureRuntime,legacy,lazy,causal,quality,storage,game,combat,adventure,progression,npcConversation,npcDialogue,npcEngine,faction,quest,itemEngine,check,registry,visibility]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),readFile(new URL("../src/future-runtime.js",import.meta.url),"utf8"),
   readFile(new URL("../src/history-legacy.js",import.meta.url),"utf8"),readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/item-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/check-engine.js",import.meta.url),"utf8")
+  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/world-quality.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8"),readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/npc-dialogue-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/npc-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/faction-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/quest-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/item-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/check-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-registry.js",import.meta.url),"utf8"),readFile(new URL("../src/visibility-lock.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=50000/);
- for(const path of ["version","world-engine","ai-client","adventure-engine","game-engine","storage","world-simulation","npc-conversation","combat-engine","progression-ui","lazy-generation"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=50000"),path);
- for(const path of ["item-engine","check-engine","talent-engine","journey-closure"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=49000"),path);
- for(const path of ["world-impact","world-quality","document-engine","item-heritage"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=48000"),path);
- assert.match(client,/\.\/world-quality\.js\?v=48000/);assert.match(client,/\.\/world-timeline\.js\?v=48000/);
- assert.match(worldEngine,/\.\/causal-world-core\.js\?v=50000/);
- assert.match(simulation,/\.\/future-runtime\.js\?v=50000/);assert.match(simulation,/\.\/world-timeline\.js\?v=48000/);
+ assert.match(html,/app\.js\?v=51000/);
+ for(const path of ["version","world-engine","ai-client","adventure-engine","game-engine","storage","world-simulation","npc-conversation","npc-engine","faction-engine","quest-engine","combat-engine","progression-ui","lazy-generation","world-registry","world-quality","item-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=51000"),path);
+ for(const path of ["talent-engine","journey-closure"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=49000"),path);
+ for(const path of ["world-impact","document-engine","item-heritage"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=48000"),path);
+
+ assert.match(client,/\.\/world-quality\.js\?v=51000/);assert.match(client,/\.\/world-timeline\.js\?v=48000/);
+ assert.match(worldEngine,/\.\/causal-world-core\.js\?v=51000/);
+ assert.match(simulation,/\.\/future-runtime\.js\?v=50000/);assert.match(simulation,/\.\/faction-engine\.js\?v=51000/);assert.match(simulation,/\.\/npc-engine\.js\?v=51000/);
  assert.match(futureRuntime,/\.\/future-engine\.js\?v=48000/);assert.match(futureRuntime,/\.\/history-future\.js\?v=48000/);assert.match(futureRuntime,/\.\/history-legacy\.js\?v=50000/);
  assert.match(legacy,/\.\/document-engine\.js\?v=48000/);assert.match(legacy,/\.\/item-heritage\.js\?v=48000/);
  assert.match(lazy,/\.\/generation-claims\.js\?v=44000/);assert.match(lazy,/\.\/history-legacy\.js\?v=50000/);
- assert.match(causal,/\.\/lazy-generation\.js\?v=50000/);assert.match(causal,/\.\/history-legacy\.js\?v=50000/);
- assert.match(storage,/\.\/causal-world-core\.js\?v=50000/);assert.match(storage,/\.\/item-engine\.js\?v=49000/);
- assert.match(game,/\.\/world-engine\.js\?v=50000/);assert.match(game,/\.\/world-simulation\.js\?v=50000/);assert.match(game,/\.\/item-engine\.js\?v=49000/);assert.match(game,/\.\/check-engine\.js\?v=49000/);
- assert.match(combat,/\.\/world-engine\.js\?v=50000/);assert.match(combat,/\.\/world-simulation\.js\?v=50000/);assert.match(combat,/\.\/check-engine\.js\?v=49000/);
- assert.match(adventure,/\.\/combat-engine\.js\?v=50000/);assert.match(adventure,/\.\/item-engine\.js\?v=49000/);assert.match(adventure,/\.\/check-engine\.js\?v=49000/);
- assert.match(progression,/\.\/storage\.js\?v=50000/);assert.match(progression,/\.\/item-engine\.js\?v=49000/);assert.match(progression,/\.\/future-runtime\.js\?v=50000/);
- assert.match(npcConversation,/\.\/world-simulation\.js\?v=50000/);assert.match(npcDialogue,/\.\/world-simulation\.js\?v=50000/);
- assert.match(itemEngine,/\.\/check-engine\.js\?v=49000/);assert.match(check,/\.\/talent-engine\.js\?v=49000/)
+ assert.match(causal,/\.\/lazy-generation\.js\?v=51000/);assert.match(causal,/\.\/history-legacy\.js\?v=50000/);assert.match(causal,/\.\/visibility-lock\.js\?v=51000/);
+ assert.match(quality,/\.\/visibility-lock\.js\?v=51000/);
+
+ for(const mod of [faction,npcEngine,quest])assert.match(mod,/\.\/world-registry\.js\?v=51000/);
+ assert.match(npcConversation,/\.\/world-registry\.js\?v=51000/);assert.match(npcConversation,/\.\/quest-engine\.js\?v=51000/);assert.match(npcConversation,/\.\/world-simulation\.js\?v=51000/);
+ assert.match(npcDialogue,/\.\/world-registry\.js\?v=51000/);assert.match(npcDialogue,/\.\/quest-engine\.js\?v=51000/);assert.match(npcDialogue,/\.\/world-simulation\.js\?v=51000/);
+
+ assert.match(storage,/\.\/causal-world-core\.js\?v=51000/);assert.match(storage,/\.\/item-engine\.js\?v=51000/);
+ assert.match(game,/\.\/world-engine\.js\?v=51000/);assert.match(game,/\.\/world-simulation\.js\?v=51000/);assert.match(game,/\.\/item-engine\.js\?v=51000/);assert.match(game,/\.\/check-engine\.js\?v=51000/);assert.match(game,/\.\/world-registry\.js\?v=51000/);assert.match(game,/\.\/quest-engine\.js\?v=51000/);
+ assert.match(combat,/\.\/world-engine\.js\?v=51000/);assert.match(combat,/\.\/world-simulation\.js\?v=51000/);assert.match(combat,/\.\/check-engine\.js\?v=51000/);assert.match(combat,/\.\/npc-engine\.js\?v=51000/);
+ assert.match(adventure,/\.\/world-registry\.js\?v=51000/);assert.match(adventure,/\.\/combat-engine\.js\?v=51000/);assert.match(adventure,/\.\/item-engine\.js\?v=51000/);assert.match(adventure,/\.\/check-engine\.js\?v=51000/);assert.match(adventure,/\.\/faction-engine\.js\?v=51000/);assert.match(adventure,/\.\/npc-engine\.js\?v=51000/);assert.match(adventure,/\.\/quest-engine\.js\?v=51000/);
+ assert.match(progression,/\.\/storage\.js\?v=51000/);assert.match(progression,/\.\/item-engine\.js\?v=51000/);assert.match(progression,/\.\/world-registry\.js\?v=51000/);assert.match(progression,/\.\/quest-engine\.js\?v=51000/);assert.match(progression,/\.\/future-runtime\.js\?v=50000/);
+ assert.match(itemEngine,/\.\/check-engine\.js\?v=51000/);assert.match(itemEngine,/\.\/world-registry\.js\?v=51000/);
+ assert.match(check,/\.\/world-registry\.js\?v=51000/);assert.match(check,/\.\/talent-engine\.js\?v=49000/);
+ assert.match(registry,/\.\/visibility-lock\.js\?v=51000/);assert.match(visibility,/CANON_LOCKED/)
 });

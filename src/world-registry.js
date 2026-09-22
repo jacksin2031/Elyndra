@@ -3,6 +3,7 @@ import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js
 import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=276";
 import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=276";
 import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=320";
+import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=51000";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
@@ -15,7 +16,7 @@ export function ensureWorldRegistry(state){
  r.locations??=[];r.npcs??=[];r.factions??=[];r.sideQuests??=[];
  for(const list of [r.locations,r.npcs,r.factions,r.sideQuests])for(const x of list)if(x.known==null)x.known=true;
  for(const n of r.npcs){if(n.encountered==null)n.encountered=Boolean(n.companion?.status==="ACTIVE"||(n.memories||[]).length||(Number(n.trust)||0)!==0);ensureNpcRemoteContact(state,n)}
- ensureTravelNetwork(state);return r
+ ensureVisibilityLocks(state);ensureTravelNetwork(state);return r
 }
 export function repairPlayerLocation(state){
  const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
@@ -25,7 +26,7 @@ export function repairPlayerLocation(state){
  if(entity){
   state.player.location=entity.name;
   state.world.state.location=entity.name;
-  if(entity.region)state.world.state.region=entity.region
+  if(entity.region)state.world.state.region=entity.region;markEntityObserved(state,"location",entity.id,{reason:"PLAYER_LOCATION_REPAIRED"})
  }else{
   state.player.location="未知地點";
   state.world.state.location="未知地點"
@@ -47,7 +48,7 @@ export function resolvePlayerLocation(state,raw,context={}){
  const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state),entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;
  const internalSetup=Object.keys(context||{}).length===0,result=travelTo(state,entity,{roll:context.roll||null,actionKind:context.actionKind||context.roll?.profile?.kind||"",baseMinutes:Number(context.baseTravelMinutes)||45,force:context.force===true||internalSetup});
  if(!result.ok){state.events.push({id:uid("EV"),type:"TRAVEL_REJECTED",visibility:"INTERNAL",destinationId:entity.id,reason:result.reason,day:state.world.state.day,at:Date.now()});return null}
- return entity
+ markEntityObserved(state,"location",entity.id,{reason:"PLAYER_TRAVEL"});return entity
 }
 export function registrySnapshot(state,{visibleOnly=false}={}){
  const r=ensureWorldRegistry(state),filter=arr=>visibleOnly?arr.filter(x=>x.known===true):arr;
@@ -88,7 +89,7 @@ export function revealRegistryEntities(state,reveals=[],context={}){
  for(const x of Array.isArray(reveals)?reveals.slice(0,6):[]){
   const kind=clean(x?.kind,30),id=clean(x?.id,140),list=maps[kind];if(!list||!id)continue;
   const entity=list.find(v=>v.id===id);if(!entity||!revealAuthorized(state,kind,entity,context))continue;const wasKnown=entity.known===true,wasEncountered=entity.encountered===true;
-  entity.known=true;entity.discoveredDay??=state.world.state.day;if(kind==="npc"&&isNpcPresent(state,entity)){entity.encountered=true;ensureNpcRemoteContact(state,entity)}
+  entity.known=true;entity.discoveredDay??=state.world.state.day;markEntityKnown(state,kind,id,{reason:"ENTITY_REVEALED"});if(kind==="npc"&&isNpcPresent(state,entity)){entity.encountered=true;markEntityObserved(state,"npc",id,{reason:"NPC_ENCOUNTERED"});ensureNpcRemoteContact(state,entity)}
   if(!wasKnown||(!wasEncountered&&entity.encountered===true))out.push({kind,id,name:entity.name||entity.title||""})
  }
  if(out.length){state.events??=[];state.events.push({id:uid("EV"),type:"ENTITY_REVEALED",visibility:"PLAYER_KNOWN",day:state.world.state.day,summary:out.map(x=>x.kind+":"+x.name).join(" · "),at:Date.now()})}
@@ -122,8 +123,8 @@ export function canonizeGeneration(state,g){
  const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));
  const r=ensureWorldRegistry(state),added={locations:[],npcs:[],factions:[],sideQuests:[]};
  const byName=(arr,name)=>arr.some(x=>String(x.name||"").toLowerCase()===name.toLowerCase());
- for(const x of (g?.locations||[]).slice(0,2)){const name=clean(x.name,80);if(byName(r.locations,name))continue;const o={id:uid("LOC"),name,type:clean(x.type,60)||"未知地點",region:clean(x.region,80)||state.world.state.region||"",description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),weatherProfile:normalizeWeatherProfile(x.weatherProfile,state.world?.bible?.weatherSystem?.phenomena?.map(p=>p.id)||null),accessRequirements:normalizeAccessRequirements(x.accessRequirements),worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]},canonical:true,createdDay:state.world.state.day};r.locations.push(o);added.locations.push(o)}
- for(const x of (g?.factions||[]).slice(0,1)){const name=clean(x.name,80);if(byName(r.factions,name))continue;const o={id:uid("FAC"),name,goal:clean(x.goal,200),description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),resources:50,influence:25,playerReputation:0,relations:{},worldState:{stability:50,statusTags:[]},lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};r.factions.push(o);added.factions.push(o)}
+ for(const x of (g?.locations||[]).slice(0,2)){const name=clean(x.name,80);if(byName(r.locations,name))continue;const o={id:uid("LOC"),name,type:clean(x.type,60)||"未知地點",region:clean(x.region,80)||state.world.state.region||"",description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),weatherProfile:normalizeWeatherProfile(x.weatherProfile,state.world?.bible?.weatherSystem?.phenomena?.map(p=>p.id)||null),accessRequirements:normalizeAccessRequirements(x.accessRequirements),worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]},canonical:true,createdDay:state.world.state.day};r.locations.push(o);added.locations.push(o)}
+ for(const x of (g?.factions||[]).slice(0,1)){const name=clean(x.name,80);if(byName(r.factions,name))continue;const o={id:uid("FAC"),name,goal:clean(x.goal,200),description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),resources:50,influence:25,playerReputation:0,relations:{},worldState:{stability:50,statusTags:[]},lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};r.factions.push(o);added.factions.push(o)}
  const locByName=name=>r.locations.find(v=>v.name.toLowerCase()===clean(name,80).toLowerCase());
  const facByName=name=>r.factions.find(v=>v.name.toLowerCase()===clean(name,80).toLowerCase());
  const locIds=new Set(r.locations.map(x=>x.id)),facIds=new Set(r.factions.map(x=>x.id));
@@ -132,10 +133,10 @@ export function canonizeGeneration(state,g){
   const requestedLoc=clean(x.locationId,120),requestedFac=clean(x.factionId,120);
   const resolvedLoc=locIds.has(requestedLoc)?requestedLoc:locByName(x.locationName)?.id||null;
   const resolvedFac=facIds.has(requestedFac)?requestedFac:facByName(x.factionName)?.id||null;
-  const o={id:uid("NPC"),name,role:clean(x.role,100),description:clean(x.description,400),personality:clean(x.personality,240)||"對陌生人保持謹慎",goal:clean(x.goal,240)||"維持自己的生活與安全",locationId:resolvedLoc,factionId:resolvedFac,historyRefs:resolveHistoryRefs(state,x.historyRefs),knowledgeScope:resolveKnowledgeScope(state,x.knowledgeScope),known:x.known===true,encountered:false,remoteContact:{established:false,blocked:false},lore:normalizeLore(x.lore),alive:true,trust:0,companionProfile:{joinThreshold:clamp(Math.round(Number(x.companionProfile?.joinThreshold)||35),5,90),leaveThreshold:clamp(Math.round(Number(x.companionProfile?.leaveThreshold)||10),0,70),motives:Array.isArray(x.companionProfile?.motives)?x.companionProfile.motives.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[],boundaries:Array.isArray(x.companionProfile?.boundaries)?x.companionProfile.boundaries.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""},worldState:{statusTags:[]},memories:[],lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};
+  const o={id:uid("NPC"),name,role:clean(x.role,100),description:clean(x.description,400),personality:clean(x.personality,240)||"對陌生人保持謹慎",goal:clean(x.goal,240)||"維持自己的生活與安全",locationId:resolvedLoc,factionId:resolvedFac,historyRefs:resolveHistoryRefs(state,x.historyRefs),knowledgeScope:resolveKnowledgeScope(state,x.knowledgeScope),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",encountered:false,remoteContact:{established:false,blocked:false},lore:normalizeLore(x.lore),alive:true,trust:0,companionProfile:{joinThreshold:clamp(Math.round(Number(x.companionProfile?.joinThreshold)||35),5,90),leaveThreshold:clamp(Math.round(Number(x.companionProfile?.leaveThreshold)||10),0,70),motives:Array.isArray(x.companionProfile?.motives)?x.companionProfile.motives.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[],boundaries:Array.isArray(x.companionProfile?.boundaries)?x.companionProfile.boundaries.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""},worldState:{statusTags:[]},memories:[],lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};
   r.npcs.push(o);added.npcs.push(o)
  }
- for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const evidenceKeywords=keywords(x.evidenceKeywords),conditions=Array.isArray(x.conditions)?structuredClone(x.conditions.slice(0,5)):[],target=clamp(Number.isInteger(x.target)?x.target:(conditions.length?Math.min(3,conditions.length):evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3),1,5),o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,status:"ACTIVE",progress:0,target,evidence:[],evidenceKeywords,matchedKeywords:[],conditions,matchedConditions:[],historyRefs:resolveHistoryRefs(state,x.historyRefs),createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}
+ for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const evidenceKeywords=keywords(x.evidenceKeywords),conditions=Array.isArray(x.conditions)?structuredClone(x.conditions.slice(0,5)):[],target=clamp(Number.isInteger(x.target)?x.target:(conditions.length?Math.min(3,conditions.length):evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3),1,5),o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",status:"ACTIVE",progress:0,target,evidence:[],evidenceKeywords,matchedKeywords:[],conditions,matchedConditions:[],historyRefs:resolveHistoryRefs(state,x.historyRefs),createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}
  if(added.locations.length)retargetWeather(state);
  if(Object.values(added).some(a=>a.length)){state.world.version++;state.events.push({id:uid("EV"),type:"WORLD_CANON_EXPANDED",visibility:"INTERNAL",day:state.world.state.day,summary:Object.entries(added).filter(([,a])=>a.length).map(([k,a])=>`${k} +${a.length}`).join(" · "),at:Date.now()})}
  return added
