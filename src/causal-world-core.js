@@ -1,9 +1,9 @@
 import {ensureWorldLedger,seedLedgerFromEvents,appendWorldLedger} from "./world-ledger.js?v=40000";
 import {ensureGenerationClaims,syncGenerationClaimsFromCausalStructure,reconcileGenerationClaims} from "./generation-claims.js?v=44000";
 import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.js?v=40000";
-import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=40000";
-import {ensureItemHeritage} from "./item-heritage.js?v=47000";
-import {ensureDocumentRuntime} from "./document-engine.js?v=47000";
+import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=48000";
+import {ensureItemHeritage} from "./item-heritage.js?v=48000";
+import {ensureDocumentRuntime} from "./document-engine.js?v=48000";
 import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=44000";
 import {ensureHistoryDepth,historyDepthSnapshot} from "./history-depth.js?v=47000";
 
