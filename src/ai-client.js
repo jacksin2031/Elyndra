@@ -34,7 +34,7 @@ async function withWorldAiSlot(task){
  finally{worldAiActive--;worldAiWaiters.shift()?.()}
 }
 function worldStageTask(stage){
- return ({IDENTITY:"identity",CORE_RULES:"core_rules",CORE_ANCHOR:"core_anchor",HISTORY:"history",GEOGRAPHY:"geography",FUTURE:"future",SOCIETY:"society",CAST:"cast",QUALITY_CRITIC:"quality",QUALITY_REPAIR:"quality_repair",WORLD_RECOVERY:"recovery",RUNTIME_EXPANSION:"runtime_expansion",RUNTIME_QUALITY_CRITIC:"runtime_quality",RUNTIME_REPAIR:"runtime_repair"})[stage]||"turn_state"
+ return ({IDENTITY:"identity",CORE_RULES:"core_rules",CORE_ANCHOR:"core_anchor",HISTORY:"history",GEOGRAPHY:"geography",FUTURE:"future",SOCIETY:"society",CAST:"cast",QUALITY_CRITIC:"quality",QUALITY_REPAIR:"quality_repair",WORLD_RECOVERY:"recovery",RUNTIME_EXPANSION:"runtime_expansion",RUNTIME_QUALITY_CRITIC:"runtime_quality",RUNTIME_REPAIR:"runtime_repair",HISTORY_DEEPENING:"history_deepening"})[stage]||"turn_state"
 }
 async function worldStage(stage,args){
  try{return await withWorldAiSlot(async()=>parseJSON(await directChat({...args,aiTask:args?.aiTask||worldStageTask(stage)}))) }
@@ -320,6 +320,16 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  report(85,"AI 世界評審","伺服器已完成世界品質評分與必要的定點修復");
  return candidate
 }
+export async function generateHistoryDeepening(state,plan,options={}){
+ if(!hasDirectAI()||!plan?.historyId)return null;const signal=options?.signal;
+ const payload={plan,constitution:state.world?.creation?.constitution||null,world:{name:state.world?.name||"",theme:state.world?.theme||"",bible:state.world?.bible||null},futureRefs:(state.world?.futures||[]).filter(x=>(plan.skeleton?.futureRefs||[]).includes(x.id)).map(x=>({id:x.id,title:x.title,stage:x.stage,impactScope:x.impactScope,domains:x.domains}))};
+ return worldStage("HISTORY_DEEPENING",{
+  signal,timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1900,temperature:.5,
+  system:`你是 Elyndra History Deepening Architect。Engine 已鎖定 plan.skeleton，絕對不可修改、重述成不同因果、覆蓋或重新命名 Skeleton。你的工作只是在玩家已開始研究這段歷史後，為 plan.targetDepth 新增隱藏 Canon detail。只可輸出 plan.quotas 允許數量內的 additions；existingDetail 已經提交過，不能重寫或重複。所有細節必須能由 skeleton.causes / summary / legacies 解釋，並遵守 Constitution。accounts 可以互相矛盾、有偏見或不可靠；documents 只是未來可被找到的證據，不會自動成為玩家知識；relics 只是 Item Heritage seeds，不會自動給玩家。clueRefs 只能引用 plan.clues 中既有 id；futureRefs 只能引用 plan.skeleton.futureRefs。不得生成玩家已經知道了這些新細節的敘述。只輸出 JSON：{"historyId":"與 plan 完全相同","targetDepth":"OUTLINE|DEEP|FULL","additions":{"actors":[{"name":"歷史人物","role":"在事件中的角色","allegiance":"勢力或立場","motive":"動機","fate":"結局","clueRefs":[]}],"places":[{"name":"歷史地點","role":"事件中的作用","modernTrace":"今日仍留下的痕跡","clueRefs":[]}],"chronology":[{"sequence":1,"event":"具體發生事件","causes":[],"consequences":[],"clueRefs":[]}],"accounts":[{"perspective":"記錄者或群體","claim":"其版本說法","reliability":"LOW|MEDIUM|HIGH|UNKNOWN","bias":"偏見來源","clueRefs":[]}],"documents":[{"title":"文獻名","author":"作者或不詳","era":"時代","culture":"文化","language":"COMMON 或世界語言","reliability":"UNKNOWN|LOW|MEDIUM|HIGH|PRIMARY_SOURCE","bias":"立場","claims":[{"text":"文獻主張","clueId":null,"disputes":false}]}],"relics":[{"label":"遺物名","description":"外觀／用途","culture":"文化","era":"時代","significance":"真正歷史意義","clueRefs":[],"futureRefs":[]}],"solutionClues":[{"clueId":"既有 clue id 或 null","interpretation":"這條歷史資訊可能如何影響未來問題","futureRefs":[]}]}}。`,
+  user:JSON.stringify(payload)
+ })
+}
+
 export async function runWorldQualityCritic(state,options={}){
  if(!hasDirectAI())return null;const signal=options?.signal,snapshot=backgroundQualitySnapshot(state);
  const evaluation=normalizeWorldEvaluation(await worldStage("QUALITY_CRITIC",{
