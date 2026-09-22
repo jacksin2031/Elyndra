@@ -33,16 +33,16 @@ test("v0.54.6 keeps structured AI and Developer Autotest cache graphs coherent",
  assert.match(app,/\.\/src\/version\.js\?v=54006/);
  assert.match(app,/\.\/src\/ai-autotest\.js\?v=54006/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=54006/);
- for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
+ for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","contextual-actions","lazy-generation","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
- for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure","adventure-engine","combat-engine","dungeon-engine","faction-engine","game-engine","npc-conversation","npc-engine","quest-engine","world-map","world-registry","world-simulation"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
+ for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure","combat-engine","dungeon-engine","faction-engine","game-engine","npc-conversation","npc-engine","quest-engine","world-map","world-registry","world-simulation"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
  assert.match(app,/\.\/src\/ai-settings\.js\?v=54006/);
  assert.match(client,/\.\/ai-settings\.js\?v=54006/);
- assert.match(client,/\.\/turn-compiler\.js\?v=54001/);
+ assert.match(client,/\.\/turn-compiler\.js\?v=54001/);assert.match(client,/\.\/turn-outcome\.js\?v=54006/);
  assert.match(client,/\.\/action-intent\.js\?v=54001/);
  assert.match(client,/\.\/knowledge-model\.js\?v=54001/);
- assert.match(adventure,/\.\/state-sync\.js\?v=54001/);
+ assert.match(app,/\.\/src\/state-sync\.js\?v=54006/);assert.match(app,/\.\/src\/adventure-engine\.js\?v=54006/);assert.match(adventure,/\.\/state-sync\.js\?v=54006/);
  assert.match(adventure,/\.\/contextual-actions\.js\?v=54001/);
  assert.match(worldEngine,/\.\/causal-world-core\.js\?v=54001/);
  assert.match(causal,/\.\/knowledge-model\.js\?v=54001/);
