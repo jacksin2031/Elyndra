@@ -117,3 +117,15 @@ test("experienced characters receive build-specific suggestions",()=>{
  const s=state(),set=buildContextualActionSet(s,[]);
  assert.ok(set.primary.some(x=>/熟練|觀察經驗/.test(x.label+" "+x.action)))
 });
+
+
+test("recently executed fallback actions are not immediately recycled as fresh choices",()=>{
+ const repeated="利用舊城現有的人流、遮蔽物或聲音製造一個小干擾，藉機觀察誰會對異常作出反應";
+ const s=state({events:[
+  {id:"CP-1",type:"SESSION_CHECKPOINT",visibility:"PLAYER_KNOWN",summary:"旅程小結：剛才只是再次觀察同一處"},
+  {id:"PA-1",type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",customText:repeated,originalAction:repeated}
+ ]});
+ const set=buildContextualActionSet(s,[]);
+ assert.equal(set.all.some(x=>x.action===repeated),false);
+ assert.equal(set.all.some(x=>(x.action||"").includes("旅程小結")),false)
+});

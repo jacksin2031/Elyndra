@@ -38,9 +38,9 @@ function ensure(state){
  state.discoveries??=0;ensureCheckProfile(state);ensureItemRuntime(state)
 }
 function localNarrative(label,roll,profile){
- if(roll.grade==="CRITICAL_SUCCESS")return `你嘗試「${label}」。結果比預期更順利；你取得了明確而可驗證的進展。`;
+ if(roll.grade==="CRITICAL_SUCCESS")return `你嘗試「${label}」。行動本身非常順利，並為後續判斷取得更有利的條件。`;
  if(roll.grade==="CRITICAL_FAILURE")return `你嘗試「${label}」，但結果比預期更差，眼前局勢因此變得更棘手。`;
- if(roll.success)return `你完成了「${label}」，並取得可以直接確認的進展。`;
+ if(roll.success)return `你完成了「${label}」，行動本身成功；是否出現新的可確認資訊，仍以實際觀察與世界狀態為準。`;
  return `你嘗試「${label}」，但這次沒有達成預期目的。從眼前反應看來，換一個方法會更有機會。`
 }
 export function resolveEngineFeasibility(state,label,assessment=null){

@@ -114,3 +114,19 @@ test("direct OpenAI-compatible response writes real API usage into telemetry",as
   assert.equal(row.data.responsePreview,"OK")
  }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
 });
+
+
+test("debug bundle summary only counts the active session while preserving historical telemetry",()=>{
+ const prior=globalThis.localStorage;globalThis.localStorage=memoryStorage();
+ try{
+  globalThis.localStorage.setItem("elyndra:debug-telemetry:v1",JSON.stringify({entries:[
+   {id:"OLD-1",sessionId:"OLD-SESSION",at:1,type:"AI_REQUEST",data:{status:"SUCCESS",latencyMs:999,usage:{source:"API",input:100,output:50,reasoning:0,cached:0,total:150}}}
+  ]}));
+  recordDebug("GAME_STATE_BASELINE",{worldId:"W"});
+  const bundle=debugBundle({appVersion:"0.53.1"});
+  assert.equal(bundle.summary.entryCount,1);
+  assert.equal(bundle.summary.aiRequests,0);
+  assert.equal(bundle.summary.historyEntryCount,2);
+  assert.equal(bundle.telemetry.length,2)
+ }finally{globalThis.localStorage=prior}
+});
