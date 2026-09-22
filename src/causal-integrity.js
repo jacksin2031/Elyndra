@@ -40,7 +40,8 @@ export function repairCausalIntegrity(state){
    echo.status="UNMATERIALIZED";echo.reservation=null;echo.failureReason="ORPHAN_RESERVATION_RECOVERED";repairs.push("LEGACY_ECHO_RESERVATION:"+echo.id)
   }
  }
- reconcileGenerationClaims(state);
+ const materialBefore=new Map(state.world.generationClaims.claims.map(x=>[x.id,{status:x.status,refs:JSON.stringify(x.entityRefs||[])}]));reconcileGenerationClaims(state);
+ for(const claim of state.world.generationClaims.claims){const before=materialBefore.get(claim.id);if(before?.status==="MATERIALIZED"&&claim.status!=="MATERIALIZED")repairs.push("CLAIM_MATERIALIZATION_DRIFT:"+claim.id);else if(before&&before.refs!==JSON.stringify(claim.entityRefs||[]))repairs.push("CLAIM_MATERIAL_RECONCILED:"+claim.id)}
  const ledger=state.world.ledger,byLedger=new Map(ledger.entries.map(x=>[x.id,x]));
  for(const history of state.world.history||[]){
   const entry=history?.ledgerRef?byLedger.get(history.ledgerRef):null;if(!entry)continue;
