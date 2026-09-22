@@ -77,6 +77,7 @@ test("Lazy candidate is bounded by slots, plan history, claim semantics and rese
 test("Lazy commit materializes reserved Generation Claims against semantically matched canonical ids",()=>{
  const s=state(),plan=planLazyGeneration(s,{reason:"WORLD_EDGE_UNDERDEFINED"}),generation=candidateForPlan(plan,"灰塔遺址");
  const added={locations:generation.locations.map((row,i)=>({id:"LOC-GRAY-"+(i+1),name:row.name})),npcs:[],factions:[],sideQuests:[],definitions:[]};
+ s.world.version++; // simulate canonizeGeneration committing one atomic Canon expansion
  const out=commitLazyGeneration(s,plan,generation,added);assert.equal(out.ok,true,out.errors?.join(",")||"");assert.equal(plan.status,"COMMITTED");
  const claims=generationClaimsSnapshot(s);for(let i=0;i<plan.claimIds.length;i++){const c=claims.find(x=>x.id===plan.claimIds[i]);assert.equal(c.status,"MATERIALIZED");assert.deepEqual(c.entityRefs,["LOC-GRAY-"+(i+1)])}
  assert.equal(lazyGenerationSnapshot(s,{director:true}).recentCommits.at(-1).planId,plan.id)
