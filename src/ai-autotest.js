@@ -59,7 +59,7 @@ export function randomAutotestWorldRaw(random=Math.random,index=0){
 
 function visibleSuggestion(row,index){
  if(typeof row==="string")return {index,label:text(row,180),action:text(row,180),risk:""};
- return {index,label:text(row?.label||row?.action||"",180),action:text(row?.action||row?.label||"",180),risk:text(row?.risk||"",30),approach:text(row?.approach||"",120),progression:row?.progression===true}
+ return {index,label:text(row?.label||row?.action||"",180),action:text(row?.action||row?.label||"",180),kind:text(row?.kind||"",30).toUpperCase(),risk:text(row?.risk||"",30),approach:text(row?.approach||"",120),progression:row?.progression===true}
 }
 
 export function playerVisibleAutotestSnapshot(state={}){
@@ -101,6 +101,17 @@ function parseDecision(value){
 function normalizedRecent(recentActions=[]){
  return new Set(list(recentActions).slice(-8).map(x=>text(typeof x==="string"?x:(x?.action||x?.label||""),180).toLowerCase()).filter(Boolean))
 }
+function recentAutotestStalled(recentActions=[]){
+ const rows=list(recentActions).filter(x=>x&&typeof x==="object").slice(-3);
+ return rows.length>=2&&rows.slice(-2).every(x=>x.progressed===false)
+}
+function antiStallSuggestion(suggestions,recent){
+ const fresh=x=>!recent.has(text(x?.action||x?.label,180).toLowerCase()),active=x=>x?.progression===true&&fresh(x);
+ return suggestions.find(x=>active(x)&&!["OBSERVE","GENERAL"].includes(String(x?.kind||"").toUpperCase()))
+  ||suggestions.find(active)
+  ||suggestions.find(x=>fresh(x)&&!["OBSERVE","GENERAL"].includes(String(x?.kind||"").toUpperCase()))
+  ||null
+}
 
 export function normalizeAutotestDecision(value,snapshot={},recentActions=[]){
  const parsed=parseDecision(value),combat=snapshot?.combat?.active===true,suggestions=list(snapshot?.suggestions),recent=normalizedRecent(recentActions);
@@ -110,8 +121,11 @@ export function normalizeAutotestDecision(value,snapshot={},recentActions=[]){
   return {mode:"combat",combatAction,action:combatAction,suggestionIndex:null,reason,goalReached,goalEvidence}
  }
  if(parsed?.mode==="suggestion"&&suggestions.length){
-  const i=clamp(Math.floor(Number(parsed.suggestionIndex)||0),0,suggestions.length-1),chosen=suggestions[i];
-  return {mode:"suggestion",suggestionIndex:i,action:text(chosen?.action||chosen?.label,180),combatAction:null,reason,goalReached,goalEvidence}
+  let i=clamp(Math.floor(Number(parsed.suggestionIndex)||0),0,suggestions.length-1),chosen=suggestions[i];
+  if(recentAutotestStalled(recentActions)&&(chosen?.progression!==true||["OBSERVE","GENERAL"].includes(String(chosen?.kind||"").toUpperCase()))){
+   const alt=antiStallSuggestion(suggestions,recent);if(alt){i=suggestions.indexOf(alt);chosen=alt}
+  }
+  return {mode:"suggestion",suggestionIndex:i,action:text(chosen?.action||chosen?.label,180),kind:text(chosen?.kind||"",30),progression:chosen?.progression===true,combatAction:null,reason,goalReached,goalEvidence}
  }
  if(parsed?.mode==="free"&&text(parsed?.action,180)){
   return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),combatAction:null,reason,goalReached,goalEvidence}
@@ -129,6 +143,7 @@ export async function decideAutotestAction(state,{recentActions=[],customConditi
   "你是 Elyndra 的自動遊玩測試玩家。你的任務不是寫故事，而是像真實玩家一樣根據目前能看見和已知的情報選下一步。",
   "你只能使用 payload.playerVisible 內的情報；不得假設、猜測或利用任何 hidden canon、director state、未探索地點、未知 NPC 或世界真相。",
   "優先選擇能推進目前目標、取得新情報、測試不同系統並避免重複循環的合理行動。",
+  "若 recentActions 最近連續兩回合 progressed=false，視為卡關：不要繼續同類低風險 OBSERVE；優先選 progression=true 的 TRAVEL、SOCIAL、INTERACT、RISKY 或自由行動去接觸人物、出口、道路與任務目標。",
   "mode=suggestion 時用 suggestionIndex 指向現有按鈕；mode=free 時可以自行寫一個玩家真的可以輸入的行動；戰鬥時 mode=combat 並從 attack/defend/retreat 選一個。",
   "不要輸出 Markdown。只輸出 JSON：{\"mode\":\"suggestion|free|combat\",\"suggestionIndex\":0,\"action\":\"...\",\"combatAction\":\"attack|defend|retreat\",\"reason\":\"...\",\"goalReached\":false,\"goalEvidence\":\"...\"}。",
   goal?"另有測試停止條件："+goal+"。只有 playerVisible 已有具體證據證明條件達成時，goalReached 才可為 true；證據不足必須 false。":"沒有額外自訂停止條件。"
@@ -142,7 +157,7 @@ export async function decideAutotestAction(state,{recentActions=[],customConditi
 export function autotestStateFingerprint(state={}){
  const clock=state.world?.state?.clock||{},main=state.quests?.main||{};
  return JSON.stringify({
-  worldId:state.world?.id||null,day:Number(state.world?.state?.day||clock.day)||1,totalMinutes:Number(clock.totalMinutes)||0,
+  worldId:state.world?.id||null,
   location:state.player?.location||"",hp:Number(state.player?.hp)||0,status:state.player?.status||"",level:Number(state.player?.level)||1,
   xp:Number(state.player?.xp)||0,knowledge:Number(state.player?.knowledgeScore)||0,discoveries:Number(state.discoveries)||0,
   questStage:Number(main.stage)||0,questStatus:main.status||"",objective:list(main.objectives)[0]||"",
@@ -194,16 +209,18 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
   }
  }
  const mirroredTypes=new Set(["AUTOTEST_WORLD_FAILED","AUTOTEST_TURN_FAILED"]);
- const telemetryErrors=list(telemetry).filter(e=>(/ERROR|FAILED/.test(String(e?.type||""))||e?.data?.status==="ERROR")&&!mirroredTypes.has(String(e?.type||"")));
+ const intentionalPreemption=e=>e?.type==="AI_CALL_FAILED"&&(e?.data?.aborted===true||/AI_ABORTED: request cancelled by higher-priority gameplay/i.test(String(e?.data?.error||"")));
+ const telemetryErrors=list(telemetry).filter(e=>(/ERROR|FAILED/.test(String(e?.type||""))||e?.data?.status==="ERROR")&&!mirroredTypes.has(String(e?.type||""))&&!intentionalPreemption(e));
  for(const e of telemetryErrors.slice(0,40))issues.push({severity:"WARN",type:"TELEMETRY_"+String(e.type||"ERROR"),task:text(e?.data?.task||"",80)||undefined,provider:text(e?.data?.provider||"",80)||undefined,message:text(e?.data?.error||e?.data?.reason||e?.data?.message||"",500)});
- const ai=list(telemetry).filter(e=>e?.type==="AI_REQUEST"),failedAttempts=list(telemetry).filter(e=>e?.type==="AI_CALL_FAILED");
+ const ai=list(telemetry).filter(e=>e?.type==="AI_REQUEST"),allFailedAttempts=list(telemetry).filter(e=>e?.type==="AI_CALL_FAILED"),preemptedAttempts=allFailedAttempts.filter(intentionalPreemption),failedAttempts=allFailedAttempts.filter(e=>!intentionalPreemption(e));
  const successfulResponses=ai.filter(e=>String(e?.data?.status||"").toUpperCase()==="SUCCESS"),emptyResponses=ai.filter(e=>String(e?.data?.status||"").toUpperCase()==="EMPTY");
  const transportFailures=failedAttempts.filter(e=>/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(e?.data?.error||"")));
  const timeoutFailures=failedAttempts.filter(e=>/AI_TIMEOUT/.test(String(e?.data?.error||"")));
  if(emptyResponses.length)issues.push({severity:"WARN",type:"AI_EMPTY_RESPONSES",message:`${emptyResponses.length} AI attempts consumed tokens but returned no usable response.`});
- const stageBreakdown={};const stageRow=task=>stageBreakdown[task]??={success:0,empty:0,failures:0,timeouts:0,transportFailures:0,latencyMsTotal:0,completedResponses:0};
+ const stageBreakdown={};const stageRow=task=>stageBreakdown[task]??={success:0,empty:0,failures:0,preempted:0,timeouts:0,transportFailures:0,latencyMsTotal:0,completedResponses:0};
  for(const e of ai){const row=stageRow(text(e?.data?.task||"general",80)||"general"),status=String(e?.data?.status||"").toUpperCase();if(status==="SUCCESS")row.success++;if(status==="EMPTY")row.empty++;row.latencyMsTotal+=Number(e?.data?.latencyMs)||0;row.completedResponses++}
  for(const e of failedAttempts){const row=stageRow(text(e?.data?.task||"general",80)||"general"),err=String(e?.data?.error||"");row.failures++;if(/AI_TIMEOUT/.test(err))row.timeouts++;if(/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(err))row.transportFailures++}
+ for(const e of preemptedAttempts)stageRow(text(e?.data?.task||"general",80)||"general").preempted++;
  for(const row of Object.values(stageBreakdown)){row.aiLatencyAverageMs=row.completedResponses?Math.round(row.latencyMsTotal/row.completedResponses):0;delete row.latencyMsTotal;delete row.completedResponses}
  const diagnostics=worlds.map(w=>w?.generation?.diagnostics).filter(d=>d&&typeof d==="object"),stageRows=diagnostics.flatMap(d=>Object.values(d.stages||{}));
  const generationStages={total:stageRows.length,ai:stageRows.filter(x=>x?.source==="AI").length,fallback:stageRows.filter(x=>x?.source==="FALLBACK").length,failed:stageRows.filter(x=>x?.source==="FAILED").length};
@@ -213,7 +230,7 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
  const latencyTotal=ai.reduce((n,e)=>n+(Number(e?.data?.latencyMs)||0),0);
  return {
   schema:"elyndra-autotest-report-v1",startedAt:new Date(startedAt||Date.now()).toISOString(),endedAt:new Date(endedAt).toISOString(),durationMs:Math.max(0,endedAt-(startedAt||endedAt)),
-  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+failedAttempts.length,aiFailures:failedAttempts.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
+  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
   stopReasons:Object.fromEntries([...new Set(worlds.map(w=>w.stopReason).filter(Boolean))].map(reason=>[reason,worlds.filter(w=>w.stopReason===reason).length])),
   issues,worlds:worlds.map(w=>({index:w.index,status:w.status,phase:w.phase,turns:Number(w.turns)||0,stopReason:w.stopReason||"",error:w.error||"",summary:w.summary||null,generation:w.generation||null}))
  }
