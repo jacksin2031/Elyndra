@@ -164,7 +164,7 @@ function presentNpc(state){
 
 export function roleplayFallbackSuggestions(state={},context={}){
  const out=[],npc=presentNpc(state),loc=clean(state.player?.location,80),action=clean(context.action,100);
- const recent=(state.events||[]).filter(e=>e.visibility!=="INTERNAL"&&clean(e.summary,220)).slice(-6).reverse()[0];
+ const recent=(state.events||[]).filter(e=>e.visibility!=="INTERNAL"&&OBSERVABLE_EVENT_TYPES.has(String(e.type||""))&&clean(e.summary,220)).slice(-6).reverse()[0];
  if(npc)out.push(`問${clean(npc.name,60)}剛才最在意的是哪件事`);
  if(recent?.summary)out.push(`沿著「${clean(recent.summary,48)}」留下的影響追查下去`);
  if(action)out.push(`回頭檢查「${action.slice(0,42)}」之後現場多了甚麼變化`);
