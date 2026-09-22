@@ -1,5 +1,5 @@
-import {directChat} from "./ai-settings.js?v=53001";
-import {recordDebug} from "./debug-telemetry.js?v=53001";
+import {directChat} from "./ai-settings.js?v=54001";
+import {recordDebug} from "./debug-telemetry.js?v=54001";
 import {helperSnapshot} from "./helper-context.js?v=47000";
 
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(value))?Number(value):min));
