@@ -1,4 +1,4 @@
-import {directChat} from "./ai-settings.js?v=54003";
+import {directChat} from "./ai-settings.js?v=54004";
 import {recordDebug} from "./debug-telemetry.js?v=54001";
 import {helperSnapshot} from "./helper-context.js?v=47000";
 
@@ -6,6 +6,11 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(va
 const pick=(items,random=Math.random)=>items[Math.min(items.length-1,Math.floor(clamp(random(),0,.999999999999)*items.length))];
 const text=(value,max=240)=>String(value??"").trim().slice(0,max);
 const list=value=>Array.isArray(value)?value:[];
+
+export function autotestExportSelection(value="both"){
+ const mode=["both","debug","world"].includes(String(value))?String(value):"both";
+ return {mode,debug:mode!=="world",world:mode!=="debug"}
+}
 
 const GENRES=["王道奇幻","黑暗奇幻","東方幻想","蒸汽魔法","末日異世界"];
 const SCALES=["小型","中型","大型"];
@@ -118,7 +123,7 @@ export function normalizeAutotestDecision(value,snapshot={},recentActions=[]){
  return {mode:"free",suggestionIndex:null,action:"觀察四周並確認目前最明顯的變化",combatAction:null,reason:"No suggestion available",goalReached,goalEvidence}
 }
 
-export async function decideAutotestAction(state,{recentActions=[],customCondition="",signal}={}){
+export async function decideAutotestAction(state,{recentActions=[],customCondition="",signal,disableTimeout=false}={}){
  const snapshot=playerVisibleAutotestSnapshot(state),goal=text(customCondition,500);
  const system=[
   "你是 Elyndra 的自動遊玩測試玩家。你的任務不是寫故事，而是像真實玩家一樣根據目前能看見和已知的情報選下一步。",
@@ -128,7 +133,7 @@ export async function decideAutotestAction(state,{recentActions=[],customConditi
   "不要輸出 Markdown。只輸出 JSON：{\"mode\":\"suggestion|free|combat\",\"suggestionIndex\":0,\"action\":\"...\",\"combatAction\":\"attack|defend|retreat\",\"reason\":\"...\",\"goalReached\":false,\"goalEvidence\":\"...\"}。",
   goal?"另有測試停止條件："+goal+"。只有 playerVisible 已有具體證據證明條件達成時，goalReached 才可為 true；證據不足必須 false。":"沒有額外自訂停止條件。"
  ].join("\n");
- const raw=await directChat({aiTask:"action",timeoutMs:45000,maxOutputTokens:700,temperature:.35,signal,system,user:JSON.stringify({playerVisible:snapshot,recentActions:list(recentActions).slice(-8),customStopCondition:goal||null})});
+ const raw=await directChat({aiTask:"action",timeoutMs:45000,disableTimeout,maxOutputTokens:700,temperature:.35,signal,system,user:JSON.stringify({playerVisible:snapshot,recentActions:list(recentActions).slice(-8),customStopCondition:goal||null})});
  const decision=normalizeAutotestDecision(raw,snapshot,recentActions);
  recordDebug("AUTOTEST_AI_DECISION",{mode:decision.mode,action:decision.action,combatAction:decision.combatAction,suggestionIndex:decision.suggestionIndex,goalReached:decision.goalReached,reason:decision.reason});
  return decision
