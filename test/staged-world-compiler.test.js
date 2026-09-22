@@ -100,3 +100,10 @@ test("compiler schema prompts forbid literal placeholder echoes",async()=>{
  assert.match(client,/不得輸出「簡短」/);
  assert.match(client,/不得輸出「角色」/)
 });
+
+
+test("v0.54.7 normalizes valid top-level Core Rules before structure fallback",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ assert.match(client,/export function normalizeCoreRulesStage/);
+ assert.match(client,/let rules=normalizeCoreRulesStage\(rulesRaw\)/)
+});
