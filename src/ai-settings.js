@@ -1,4 +1,4 @@
-import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=53001";
+import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=54001";
 const KEY="elyndra:ai-settings:v3";const V2_KEY="elyndra:ai-settings:v2";const OLD_KEY="elyndra:ai-settings:v1";
 export const PROVIDERS={
  openai:{label:"OpenAI",endpoint:"https://api.openai.com/v1/chat/completions",model:"gpt-5.6-luna",mode:"OpenAI"},
@@ -28,18 +28,23 @@ export function optimizationTier(aiTask="general"){
  return AI_TASK_TIER[String(aiTask||"").toLowerCase()]||"BALANCED"
 }
 export function providerOptimization(provider,optimization="standard",aiTask="general"){
- if(optimization!=="adaptive")return {};
  const tier=optimizationTier(aiTask);
- const level=tier==="FAST"?"low":tier==="BALANCED"?"medium":"high";
+ if(tier==="FAST"){
+  if(provider==="gemini")return {thinkingConfig:{thinkingLevel:"LOW"}};
+  if(provider==="openai"||provider==="agnes")return {reasoning_effort:"low"};
+  return {}
+ }
+ if(optimization!=="adaptive")return {};
+ const level=tier==="BALANCED"?"medium":"high";
  if(provider==="gemini")return {thinkingConfig:{thinkingLevel:level.toUpperCase()}};
  if(provider==="openai"||provider==="agnes")return {reasoning_effort:level};
  return {}
 }
 export function providerTokenBudget(provider,optimization="standard",aiTask="general",requested=0){
  const base=Math.round(Number(requested)||0);if(!base)return 0;
- const bounded=Math.max(256,Math.min(8192,base));
- if(optimization!=="adaptive"||provider==="gemini")return bounded;
- const tier=optimizationTier(aiTask),mult={FAST:3,BALANCED:3.5,IMPORTANT:4.5,CRITICAL:5.5}[tier]||3.5,floor={FAST:1600,BALANCED:2200,IMPORTANT:3600,CRITICAL:4800}[tier]||2200;
+ const bounded=Math.max(256,Math.min(8192,base)),tier=optimizationTier(aiTask);
+ if(tier==="FAST"||optimization!=="adaptive"||provider==="gemini")return bounded;
+ const mult={BALANCED:3.5,IMPORTANT:4.5,CRITICAL:5.5}[tier]||3.5,floor={BALANCED:2200,IMPORTANT:3600,CRITICAL:4800}[tier]||2200;
  return Math.max(256,Math.min(8192,Math.max(floor,Math.round(bounded*mult))))
 }
 function openAIText(d){
