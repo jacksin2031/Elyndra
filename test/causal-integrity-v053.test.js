@@ -5,7 +5,7 @@ import {newGame} from "../src/world-engine.js";
 import {visibleFacts} from "../src/ai-client.js";
 import {appendWorldLedger,promoteLedgerEntryToHistory} from "../src/world-ledger.js";
 import {syncGenerationClaimsFromConstitution,reconcileGenerationClaims} from "../src/generation-claims.js";
-import {planLazyGeneration,validateLazyGenerationCandidate} from "../src/lazy-generation.js";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration} from "../src/lazy-generation.js";
 import {auditCausalIntegrity,repairCausalIntegrity} from "../src/causal-integrity.js";
 import {planStateSync} from "../src/state-sync.js";
 import {causalWorldCoreSnapshot} from "../src/causal-world-core.js";
