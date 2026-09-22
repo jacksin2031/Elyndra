@@ -4,6 +4,13 @@ const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const VISIBILITY=new Set(["PLAYER_KNOWN","OBSERVABLE","RUMOR","INTERNAL","DIRECTOR_ONLY"]);
 const SIGNIFICANCE=new Set(["ROUTINE","NOTABLE","MAJOR","HISTORIC"]);
 
+function compactLedgerEntries(state,rows){
+ if(rows.length<=2000)return rows;
+ const pinned=new Set((state.world?.history||[]).map(x=>x?.ledgerRef).filter(Boolean));
+ const recent=new Set(rows.slice(-1800).map(x=>x.id));
+ return rows.filter(x=>recent.has(x.id)||pinned.has(x.id)||["MAJOR","HISTORIC"].includes(x.significance)||(x.historyRefs||[]).length>0)
+}
+
 export function ensureWorldLedger(state){
  state.world??={};state.world.ledger??={version:1,revision:0,entries:[]};
  const ledger=state.world.ledger;
@@ -32,7 +39,7 @@ export function appendWorldLedger(state,event={},meta={}){
   effects:(Array.isArray(meta.effects)?meta.effects:[]).slice(0,16).map(x=>structuredClone(x)),
   at:Number(meta.at||event.at)||Date.now()
  };
- ledger.entries.push(entry);ledger.entries=ledger.entries.slice(-2000);ledger.revision=revision;
+ ledger.entries.push(entry);ledger.entries=compactLedgerEntries(state,ledger.entries);ledger.revision=revision;
  return entry
 }
 
