@@ -4,8 +4,10 @@ const clean=(v,max=320)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000
 const uniq=(xs,max=8)=>[...new Set((Array.isArray(xs)?xs:[]).map(x=>clean(String(x||""),180)).filter(Boolean))].slice(0,max);
 const uid=p=>p+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const OBSERVABLE_EVENT_TYPES=new Set(["WORLD_IMPACT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","FUTURE_FORESHADOW","FUTURE_INTERVENTION","MAIN_QUEST_STAGE_CHANGED","QUEST_COMPLETED"]);
+const runtimeStateReady=state=>Boolean(state&&typeof state==="object"&&state.player&&state.world);
 
 function ensureJourneySession(state){
+ if(!runtimeStateReady(state))return null;
  const x=ensurePlayerExperience(state),events=Array.isArray(state.events)?state.events:[];
  x.session??={lastCheckpointDay:Number(state.world?.state?.day)||1,checkpoints:[]};
  x.session.lastCheckpointDay=Math.max(1,Number(x.session.lastCheckpointDay)||Number(state.world?.state?.day)||1);
@@ -17,7 +19,7 @@ function ensureJourneySession(state){
 }
 
 export function createJourneyCheckpoint(state,reason="",options={}){
- const session=ensureJourneySession(state),why=clean(reason,80);if(!why)return null;
+ const session=ensureJourneySession(state),why=clean(reason,80);if(!session||!why)return null;
  const events=Array.isArray(state.events)?state.events:[],start=Math.max(0,Math.min(events.length,Number(session.eventCursor)||0));
  const recent=events.slice(start).filter(e=>e.visibility!=="INTERNAL"&&e.type!=="SESSION_CHECKPOINT"&&clean(e.summary||e.action||e.customText,220)).slice(-12);
  if(recent.length<2&&!options.force)return null;
@@ -35,7 +37,8 @@ export function createJourneyCheckpoint(state,reason="",options={}){
 }
 
 export function maybeJourneyCheckpoint(state){
- const session=ensureJourneySession(state),events=Array.isArray(state.events)?state.events:[],used=new Set(session.boundaryEventIds||[]),day=Number(state.world?.state?.day)||1,location=clean(state.player?.location,100);
+ const session=ensureJourneySession(state);if(!session)return null;
+ const events=Array.isArray(state.events)?state.events:[],used=new Set(session.boundaryEventIds||[]),day=Number(state.world?.state?.day)||1,location=clean(state.player?.location,100);
  if(day>Number(session.lastCheckpointDay||day))return createJourneyCheckpoint(state,"新的一天",{force:true});
  const boundaryTypes=new Map([["QUEST_COMPLETED","完成一段委託"],["MAIN_QUEST_STAGE_CHANGED","旅程進入新階段"],["FUTURE_INTERVENTION","改變了一件正在形成的大事"],["COMBAT_ENDED","危機暫告一段落"]]);
  for(const e of [...events].reverse().slice(0,12)){if(!e?.id||used.has(e.id))continue;const reason=boundaryTypes.get(e.type);if(reason)return createJourneyCheckpoint(state,reason,{sourceEventId:e.id,force:true})}
@@ -46,5 +49,5 @@ export function maybeJourneyCheckpoint(state){
 }
 
 export function recentJourneyCheckpoints(state,limit=10){
- const session=ensureJourneySession(state);return (session.checkpoints||[]).slice(-Math.max(1,limit))
+ const session=ensureJourneySession(state);return session?(session.checkpoints||[]).slice(-Math.max(1,limit)):[]
 }
