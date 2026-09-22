@@ -39,6 +39,15 @@ test("Lazy Generation rejects a plan whose generation revision lost the race",()
  assert.equal(result.valid,false);assert.ok(result.errors.includes("LAZY_STALE_GENERATION_REVISION"))
 });
 
+test("Lazy commit accepts exactly one canonization revision and rejects a second intervening write",()=>{
+ const s=world(),plan=planLazyGeneration(s,{reason:"BACKGROUND_GAMEPLAY"}),candidate={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
+ const direct=commitLazyGeneration(s,plan,candidate,{locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]});assert.equal(direct.ok,true,direct.errors?.join(",")||"");
+ const s2=world(),plan2=planLazyGeneration(s2,{reason:"BACKGROUND_GAMEPLAY"}),generation={locations:[{name:"新界碑",type:"LANDMARK",region:s2.world.state.region||"",description:"新生成的界碑",historyRefs:[]}],npcs:[],factions:[],sideQuests:[],definitions:[]};
+ const added={locations:[{id:"LOC-NEW",name:"新界碑"}],npcs:[],factions:[],sideQuests:[],definitions:[]};
+ s2.world.version++;assert.equal(validateLazyGenerationCandidate(s2,generation,plan2,{added}).errors.includes("LAZY_STALE_WORLD_VERSION"),false);
+ s2.world.version++;const stale=validateLazyGenerationCandidate(s2,generation,plan2,{added});assert.equal(stale.valid,false);assert.ok(stale.errors.includes("LAZY_STALE_WORLD_VERSION"))
+});
+
 test("Generation Claims reopen when their materialized entity disappears",()=>{
  const s=world();s.world.constitution.push({id:"REQ-A",kind:"REQUIRE",term:"魔法學院"});
  s.world.registry.locations.push({id:"LOC-A",name:"魔法學院",description:"教授魔法的學院",historyRefs:[],known:false});
