@@ -9,7 +9,7 @@ import {applyWorldRepairPatch} from "../src/world-quality.js";
 function authoredTimeline(){
  const pacing=createTimelinePacing(12),slots=timelineAuthoringSlots(pacing);
  const rows=slots.map((slot,i)=>({
-  slot:slot.slot,title:"事件"+(i+1),category:i===0?"WAR":"MIGRATION",directorTruth:"隱藏原因"+i,observableEffect:"可觀察影響"+i,pressure:5+i,
+  slot:slot.slot,title:"事件"+(i+1),category:i===0?"WAR":"MIGRATION",directorTruth:"隱藏事件真正原因與因果"+i,observableEffect:"玩家可觀察到的明顯世界影響"+i,pressure:5+i,
   impactScope:i===0?"NATIONAL":"REGIONAL",affectedRegions:["STARTING_REGION"],intensity:60+i,duration:4+i,
   domains:i===0?["SECURITY","FACTION","TRAVEL"]:["MIGRATION","ECONOMY"],
   activationConditions:["DAY>=2"],cancelConditions:[],escalationConditions:[],
@@ -29,7 +29,7 @@ test("World Timeline preserves authored Future scope metadata",()=>{
 
 test("invalid scope normalizes safely while keeping a usable domain and intensity",()=>{
  const pacing=createTimelinePacing(6),slots=timelineAuthoringSlots(pacing);
- const rows=slots.map((slot,i)=>({slot:slot.slot,title:"E"+i,directorTruth:"D"+i,observableEffect:"O"+i,pressure:3,impactScope:"GALACTIC",intensity:999,domains:[],links:{historyRefs:["HIST-1"],locationRefs:["STARTING_REGION"]}}));
+ const rows=slots.map((slot,i)=>({slot:slot.slot,title:"E"+i,directorTruth:"DIRECTOR_CAUSE_LONG_"+i,observableEffect:"OBSERVABLE_EFFECT_LONG_"+i,pressure:3,impactScope:"GALACTIC",intensity:999,domains:[],links:{historyRefs:["HIST-1"],locationRefs:["STARTING_REGION"]}}));
  const timeline=normalizeWorldTimeline(bindTimelineAuthoringSlots(rows,pacing),pacing);
  assert.equal(timeline[0].impactScope,"REGIONAL");assert.equal(timeline[0].intensity,100);assert.deepEqual(timeline[0].domains,["SECURITY"])
 });
