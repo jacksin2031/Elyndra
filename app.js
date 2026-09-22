@@ -48,7 +48,7 @@ import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleTex
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=35000";
 import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=54005";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward} from "./src/contextual-actions.js?v=54001";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54006";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54006";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=54001";
 import {applyOriginRuntime} from "./src/origin-runtime.js?v=54001";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
@@ -159,6 +159,14 @@ function commitGroundedProgressionFallback(state,discovery,plan,context={}){
  if(duplicate){state.narrative=discovery.text;recordDebug("ENGINE_GROUNDED_FAIL_FORWARD_REUSED",{action:String(context.action||"").slice(0,180),sourceKind:discovery.sourceKind,sourceId:discovery.sourceId});return {applied:false,reused:true}}
  const patch={baseRevision:Number(plan.baseRevision)||0,operations:[{op:"DISCOVER_FACT",...discovery}]},committed=commitStatePatch(state,patch,plan,context);
  if(committed.applied){state.narrative=discovery.text;recordDebug("ENGINE_GROUNDED_FAIL_FORWARD_APPLIED",{action:String(context.action||"").slice(0,180),sourceKind:discovery.sourceKind,sourceId:discovery.sourceId,revision:committed.revision})}
+ return committed
+}
+function commitGroundedPickupFallback(state,plan,context={}){
+ if(context.roll?.success!==true||!(plan?.capabilities||[]).includes("ACQUIRE_ITEM"))return {applied:false};
+ const item=groundedPickupItemFromAction(context.action,context.roll);if(!item)return {applied:false};
+ if((state.inventory||[]).some(x=>String(x?.name||"")===item.name)){recordDebug("ENGINE_PICKUP_FAIL_FORWARD_REUSED",{action:String(context.action||"").slice(0,180),itemName:item.name});return {applied:false,reused:true}}
+ const patch={baseRevision:Number(plan.baseRevision)||0,operations:[{op:"ACQUIRE_ITEM",item}]},committed=commitStatePatch(state,patch,plan,context);
+ if(committed.applied)recordDebug("ENGINE_PICKUP_FAIL_FORWARD_APPLIED",{action:String(context.action||"").slice(0,180),itemName:item.name,revision:committed.revision});
  return committed
 }
 function applyPlayerActionScene(scene,{worldId,baseRevision,expectedRevision,roll,action,previousSuggestions=[],previousSuggestionIntents=[]}={}){
@@ -491,14 +499,14 @@ async function runAction(action,customText="",options={}){
   if(stateResult.status!=="fulfilled"){
    recordDebug("STATE_SYNC_AI_FAILED",{action:effective,mode:syncPlan.mode,error:stateResult.reason?.message||String(stateResult.reason),elapsedMs:Date.now()-debugTurnStarted});
    if(syncPlan.mode==="DEEP")throw stateResult.reason;
-   const fallback=commitGroundedProgressionFallback(gameState,roll?.success===true?preboundFailForward:null,syncPlan,{action:effective,roll});
-   recordDebug("STATE_SYNC_FAST_EMPTY_FALLBACK",{action:effective,revision:currentStateRevision(gameState),groundedProgress:Boolean(fallback.applied||fallback.reused)})
+   const pickup=commitGroundedPickupFallback(gameState,syncPlan,{action:effective,roll}),fallback=commitGroundedProgressionFallback(gameState,roll?.success===true?preboundFailForward:null,syncPlan,{action:effective,roll});
+   recordDebug("STATE_SYNC_FAST_EMPTY_FALLBACK",{action:effective,revision:currentStateRevision(gameState),groundedProgress:Boolean(fallback.applied||fallback.reused),groundedPickup:Boolean(pickup.applied||pickup.reused)})
   }else if(stateResult.value){
    const committed=commitStatePatch(gameState,stateResult.value,syncPlan,{action:effective,roll});
    if(committed.stale){recordDebug("STATE_PATCH_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,currentRevision:committed.currentRevision});if(syncPlan.mode==="DEEP")throw new Error("STATE_PATCH_STALE")}
    else{
-    const fallback=!committed.applied&&roll?.success===true?commitGroundedProgressionFallback(gameState,preboundFailForward,syncPlan,{action:effective,roll}):{applied:false};
-    recordDebug("STATE_SYNC_AI_COMPLETED",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport,operations:committed.operations??0,rejectedGrounding:committed.rejected??0,groundedProgress:Boolean(fallback.applied||fallback.reused),revision:currentStateRevision(gameState),rebased:committed.rebased===true})
+    const pickup=!committed.applied&&roll?.success===true?commitGroundedPickupFallback(gameState,syncPlan,{action:effective,roll}):{applied:false},fallback=!committed.applied&&roll?.success===true?commitGroundedProgressionFallback(gameState,preboundFailForward,syncPlan,{action:effective,roll}):{applied:false};
+    recordDebug("STATE_SYNC_AI_COMPLETED",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport,operations:committed.operations??0,rejectedGrounding:committed.rejected??0,groundedProgress:Boolean(fallback.applied||fallback.reused),groundedPickup:Boolean(pickup.applied||pickup.reused),revision:currentStateRevision(gameState),rebased:committed.rebased===true})
    }
   }
   if(syncPlan.hasDeferredConsequences)scheduleDeferredDirector({action:effective,roll,intent:assessment?.actionIntent,plan:syncPlan,queuedAt:Date.now()},1200);
