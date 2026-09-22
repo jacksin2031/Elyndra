@@ -28,15 +28,15 @@ test("v0.52.0 propagates Constitution Catalog changes through the browser cache 
  ]);
  assert.match(html,/app\.js\?v=52000/);
  for(const path of ["version","world-engine","ai-client","world-creation","adventure-engine","game-engine","storage","world-simulation","npc-conversation","npc-engine","faction-engine","quest-engine","combat-engine","progression-ui","lazy-generation","world-registry","item-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=52000"),path);
- assert.match(app,/\.\/src\/world-quality\.js\?v=51000/);assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);
+ assert.match(app,/\.\/src\/world-quality\.js\?v=52000/);assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);
 
  assert.match(worldEngine,/\.\/causal-world-core\.js\?v=52000/);
  assert.match(causal,/\.\/generation-claims\.js\?v=52000/);assert.match(causal,/\.\/lazy-generation\.js\?v=52000/);assert.match(causal,/\.\/world-catalog\.js\?v=52000/);assert.match(causal,/\.\/visibility-lock\.js\?v=51000/);
  assert.match(claims,/\.\/world-catalog\.js\?v=52000/);
  assert.match(lazy,/\.\/generation-claims\.js\?v=52000/);assert.match(lazy,/\.\/history-legacy\.js\?v=50000/);
  assert.match(registry,/\.\/world-catalog\.js\?v=52000/);assert.match(registry,/\.\/generation-claims\.js\?v=52000/);assert.match(registry,/\.\/visibility-lock\.js\?v=51000/);
- assert.match(client,/\.\/world-quality\.js\?v=51000/);assert.match(creation,/\.\/origin-runtime\.js\?v=45000/);
- assert.match(quality,/\.\/visibility-lock\.js\?v=51000/);assert.match(visibility,/CANON_LOCKED/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
+ assert.match(client,/\.\/world-quality\.js\?v=52000/);assert.match(creation,/\.\/origin-runtime\.js\?v=45000/);
+ assert.match(quality,/\.\/visibility-lock\.js\?v=51000/);assert.match(quality,/\.\/generation-claims\.js\?v=52000/);assert.match(visibility,/CANON_LOCKED/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
 
  for(const mod of [faction,npcEngine,quest,check])assert.match(mod,/\.\/world-registry\.js\?v=52000/);
  assert.match(itemEngine,/\.\/world-registry\.js\?v=52000/);assert.match(itemEngine,/\.\/check-engine\.js\?v=52000/);
