@@ -1,3 +1,4 @@
+import {ensureVisibilityLocks,backgroundMutableFields,canBackgroundMutateEntity} from "./visibility-lock.js?v=51000";
 const obj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
@@ -254,11 +255,11 @@ export function markWorldEvolution(state,meta={}){
 
 
 function unseenRepairTargets(state){
- const r=state?.world?.registry||{},current=clean(state?.player?.location||state?.world?.state?.location,160);
+ ensureVisibilityLocks(state);const r=state?.world?.registry||{};
  return {
-  locations:(r.locations||[]).filter(x=>x?.known!==true&&clean(x?.name,160)!==current).map(x=>({id:x.id,name:x.name,region:x.region,description:x.description,culture:x.culture||null,trade:x.trade||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
-  npcs:(r.npcs||[]).filter(x=>x?.known!==true&&x?.encountered!==true).map(x=>({id:x.id,name:x.name,role:x.role,description:x.description,personality:x.personality,goal:x.goal,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
-  factions:(r.factions||[]).filter(x=>x?.known!==true).map(x=>({id:x.id,name:x.name,description:x.description,goal:x.goal,culture:x.culture||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)}))
+  locations:(r.locations||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,region:x.region,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,culture:x.culture||null,trade:x.trade||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
+  npcs:(r.npcs||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,role:x.role,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,personality:x.personality,goal:x.goal,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
+  factions:(r.factions||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,goal:x.goal,culture:x.culture||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)}))
  }
 }
 export function backgroundQualitySnapshot(state){
@@ -298,8 +299,8 @@ export function applyUnseenWorldRepair(state,input={}){
  for(const [group,rows,fields] of groups){
   for(const proposed of Array.isArray(patch?.registry?.[group])?patch.registry[group]:[]){
    const id=clean(proposed?.id,160);if(!id||!allowed[group].has(id))continue;
-   const entity=rows.find(x=>x.id===id);if(!entity)continue;
-   if(mergeSafe(entity,proposed,fields))modified.push({group,id})
+   const entity=rows.find(x=>x.id===id);if(!entity)continue;const mutable=backgroundMutableFields(entity,fields);if(!mutable.length)continue;
+   if(mergeSafe(entity,proposed,mutable))modified.push({group,id})
   }
  }
  if(modified.length){state.world.version=Math.max(1,Number(state.world.version)||1)+1;state.events??=[];state.events.push({id:"EV-QUALITY-"+Date.now(),type:"BACKGROUND_QUALITY_REPAIR_APPLIED",visibility:"INTERNAL",modified:modified.map(x=>x.id),day:Number(state.world?.state?.day)||1,at:Date.now()})}
