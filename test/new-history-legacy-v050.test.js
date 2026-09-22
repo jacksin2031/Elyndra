@@ -77,7 +77,8 @@ test("Lazy commit materializes oral tradition and memorial into canonical entity
  const plan=planLazyGeneration(s,{reason:"CLAIM_MATERIALIZATION"}),memorial=plan.legacyEchoes.find(x=>x.kind==="MEMORIAL"),oral=plan.legacyEchoes.find(x=>x.kind==="ORAL_TRADITION");
  const generation={locations:[{name:"回憶碑",historyRefs:[history.id],claimRefs:[...plan.claimIds],echoRefs:[memorial.id]}],npcs:[{name:"老說書人",historyRefs:[history.id],claimRefs:[],echoRefs:[oral.id]}],factions:[],sideQuests:[]};
  const added={locations:[{id:"LOC-MEM",name:"回憶碑"}],npcs:[{id:"NPC-ORAL",name:"老說書人"}],factions:[],sideQuests:[]};
- const out=commitLazyGeneration(s,plan,generation,added);assert.equal(out.ok,true);
+ s.world.version++; // simulate canonizeGeneration committing one atomic Canon expansion
+ const out=commitLazyGeneration(s,plan,generation,added);assert.equal(out.ok,true,out.errors?.join(",")||"");
  const snapshot=historyLegacySnapshot(s,{director:true})[0],byKind=Object.fromEntries(snapshot.echoes.map(x=>[x.kind,x]));
  assert.equal(byKind.MEMORIAL.status,"MATERIALIZED");assert.deepEqual(byKind.MEMORIAL.entityRefs,["LOC-MEM"]);
  assert.equal(byKind.ORAL_TRADITION.status,"MATERIALIZED");assert.deepEqual(byKind.ORAL_TRADITION.entityRefs,["NPC-ORAL"])
