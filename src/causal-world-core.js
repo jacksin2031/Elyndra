@@ -1,6 +1,6 @@
 import {ensureWorldLedger,seedLedgerFromEvents,appendWorldLedger} from "./world-ledger.js?v=53000";
 import {ensureGenerationClaims,syncGenerationClaimsFromCausalStructure,reconcileGenerationClaims} from "./generation-claims.js?v=53000";
-import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.js?v=53000";
+import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.js?v=40000";
 import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=48000";
 import {ensureItemHeritage} from "./item-heritage.js?v=48000";
 import {ensureDocumentRuntime} from "./document-engine.js?v=48000";
