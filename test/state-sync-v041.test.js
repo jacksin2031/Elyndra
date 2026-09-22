@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {deriveDirtyFlags,planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,statePatchSchema,validateStatePatch,statePatchToCandidate,assessPatchRevision} from "../src/state-sync.js";
+import {deriveDirtyFlags,planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,statePatchSchema,validateStatePatch,groundStatePatch,statePatchToCandidate,assessPatchRevision} from "../src/state-sync.js";
 
 const snapshot=()=>({stateRevision:4,recentEvents:[],registry:{npcs:[],locations:[]},world:{location:"石室"}});
 
@@ -72,8 +72,17 @@ test("State Revision blocks stale immediate patches but permits safe Deferred re
 
 
 test("successful pickup wording enables ACQUIRE_ITEM even when suggestion kind is OBSERVE",()=>{
- const snapshot=baseSnapshot(),plan=planStateSync({action:"小心撥開枯草，用指尖捏起那枚藍光碎屑並收起",intent:{intent:"OBSERVE",kind:"OBSERVE"},roll:{success:true,grade:"SUCCESS",profile:{kind:"OBSERVE"}},snapshot});
+ const snap=snapshot(),plan=planStateSync({action:"小心撥開枯草，用指尖捏起那枚藍光碎屑並收起",intent:{intent:"OBSERVE",kind:"OBSERVE"},roll:{success:true,grade:"SUCCESS",profile:{kind:"OBSERVE"}},snapshot:snap});
  assert.equal(plan.mode,"FAST");
  assert.equal(plan.dirtyFlags.inventory,true);
  assert.ok(plan.capabilities.includes("ACQUIRE_ITEM"))
+});
+
+
+test("ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup action",()=>{
+ const state={player:{location:"石室"},world:{state:{location:"石室"},registry:{locations:[{id:"L1",name:"石室"}],npcs:[]},canon:{facts:[]}},events:[],inventory:[]};
+ const patch={baseRevision:4,operations:[{op:"ACQUIRE_ITEM",item:{name:"藍光碎屑",description:"指尖可見淡藍微光",category:"MATERIAL",quantity:1}}]};
+ const ok=groundStatePatch(state,patch,{action:"用指尖捏起藍光碎屑並收起"});assert.equal(ok.patch.operations.length,1);
+ const invented=groundStatePatch(state,{...patch,operations:[{op:"ACQUIRE_ITEM",item:{name:"古代王冠",category:"ARTIFACT",quantity:1}}]},{action:"用指尖捏起藍光碎屑並收起"});
+ assert.equal(invented.patch.operations.length,0);assert.equal(invented.rejected[0].reason,"ITEM_NOT_GROUNDED_IN_PLAYER_ACTION")
 });
