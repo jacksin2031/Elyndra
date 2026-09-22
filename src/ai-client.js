@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat} from "./ai-settings.js?v=340";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=340";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
@@ -489,7 +489,7 @@ export async function generateDeferredTurnEffects(action,roll,snapshot,options={
 }
 
 export function publicWorldBible(state){const b=state.world.bible||{};return {era:b.era||"",centralConflict:b.centralConflict||"",magicCost:b.magicCost||"",startingRegion:b.startingRegion||"",startingSettlement:b.startingSettlement||"",startingLocation:b.startingLocation||"",currentCrisis:b.currentCrisis||"",tone:b.tone||"",civilization:b.civilization||null,communication:b.communication||null,weatherSystem:b.weatherSystem||null}}
-export function regionExpansionPayload(state,reason="player_exploration",plan=null){return {reason,lazyPlan:plan?{id:plan.id,seed:plan.seed,reason:plan.reason,region:plan.region,slots:plan.slots,historyRefs:plan.historyRefs,claims:plan.claims,legacyEchoes:plan.legacyEchoes||[]}:null,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},directorHistory:directorHistorySnapshot(state,8),directorHistoryDepth:historyDepthSnapshot(state,{director:true}).filter(x=>x.depth!=="SKELETON").slice(-4),existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8),sideQuests:(state.world.registry?.sideQuests||[]).map(x=>x.title).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
+export function regionExpansionPayload(state,reason="player_exploration",plan=null){return {reason,lazyPlan:plan?{id:plan.id,seed:plan.seed,reason:plan.reason,region:plan.region,slots:plan.slots,historyRefs:plan.historyRefs,claims:plan.claims,legacyEchoes:plan.legacyEchoes||[],generationRevision:plan.generationRevision,worldSeedFingerprint:plan.worldSeedFingerprint,entitySeed:plan.entitySeed,generationSlot:plan.generationSlot,promptVersion:plan.promptVersion,validationVersion:plan.validationVersion,generatedAtWorldTime:plan.generatedAtWorldTime}:null,world:{name:state.player?.worldNameKnown?state.world.name:"UNKNOWN",bible:publicWorldBible(state),seedContract:state.world.seedContract||state.world.seed,region:state.world.state.region,location:state.player.location},directorHistory:directorHistorySnapshot(state,8),directorHistoryDepth:historyDepthSnapshot(state,{director:true}).filter(x=>x.depth!=="SKELETON").slice(-4),existing:{locations:(state.world.registry?.locations||[]).map(x=>x.name).slice(-12),npcs:(state.world.registry?.npcs||[]).map(x=>x.name).slice(-12),factions:(state.world.registry?.factions||[]).map(x=>x.name).slice(-8),sideQuests:(state.world.registry?.sideQuests||[]).map(x=>x.title).slice(-8)},publicFacts:visibleFacts(state).slice(-12)}}
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
  const signal=options?.signal;
@@ -521,5 +521,5 @@ export async function generateRegionExpansion(state,reason="player_exploration",
   }catch{}
  }
  if(!provenance.valid)throw new Error("RUNTIME_EXPANSION_PROVENANCE_FAILED:"+provenance.issues.join(","));
- return {...final,quality,provenance}
+ const ai=loadAISettings();return {...final,quality,provenance,generationSource:{provider:ai.provider||"UNKNOWN",model:ai.model||"UNKNOWN"}}
 }
