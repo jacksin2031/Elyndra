@@ -10,20 +10,22 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.44.0 propagates Visibility Lock and Lazy Generation cache graph",async()=>{
- const [html,app,client,helper,adventure,world,storage,game,combat,progression,causal,lazy]=await Promise.all([
+test("v0.45.0 propagates Origin Rule Kernel cache graph",async()=>{
+ const [html,app,client,creation,adventure,world,storage,game,combat,progression,causal,documents,origin]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/helper-context.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/world-creation.js",import.meta.url),"utf8"),
   readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/storage.js",import.meta.url),"utf8"),readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
   readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8")
+  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/document-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/origin-runtime.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=44000/);
- for(const path of ["version","world-engine","adventure-engine","game-engine","storage","combat-engine","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=44000"),path);
- assert.match(app,/\.\/src\/ai-client\.js\?v=44000/);assert.match(app,/\.\/src\/turn-compiler\.js\?v=44000/);assert.match(app,/\.\/src\/event-visibility\.js\?v=44000/);assert.match(app,/\.\/src\/lazy-generation\.js\?v=44000/);
- assert.match(client,/\.\/turn-compiler\.js\?v=44000/);assert.match(client,/\.\/helper-context\.js\?v=44000/);
- assert.match(helper,/\.\/event-visibility\.js\?v=44000/);assert.match(adventure,/\.\/event-visibility\.js\?v=44000/);assert.match(adventure,/\.\/turn-compiler\.js\?v=44000/);assert.match(adventure,/\.\/combat-engine\.js\?v=44000/);
- assert.match(world,/\.\/causal-world-core\.js\?v=44000/);assert.match(storage,/\.\/causal-world-core\.js\?v=44000/);assert.match(game,/\.\/world-engine\.js\?v=44000/);assert.match(combat,/\.\/world-engine\.js\?v=44000/);assert.match(progression,/\.\/storage\.js\?v=44000/);
- assert.match(causal,/\.\/generation-claims\.js\?v=44000/);assert.match(causal,/\.\/lazy-generation\.js\?v=44000/);assert.match(lazy,/\.\/generation-claims\.js\?v=44000/)
+ assert.match(html,/app\.js\?v=45000/);
+ for(const path of ["version","world-engine","ai-client","adventure-engine","game-engine","storage","combat-engine","world-creation","world-quality","player-origin","progression-ui"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=45000"),path);
+ assert.match(app,/\.\/src\/origin-runtime\.js\?v=45000/);
+ assert.match(client,/\.\/origin-runtime\.js\?v=45000/);assert.match(client,/\.\/world-quality\.js\?v=45000/);
+ assert.match(creation,/\.\/origin-runtime\.js\?v=45000/);assert.match(adventure,/\.\/origin-runtime\.js\?v=45000/);assert.match(adventure,/\.\/player-origin\.js\?v=45000/);assert.match(adventure,/\.\/combat-engine\.js\?v=45000/);
+ assert.match(world,/\.\/player-origin\.js\?v=45000/);assert.match(world,/\.\/causal-world-core\.js\?v=45000/);
+ assert.match(storage,/\.\/causal-world-core\.js\?v=45000/);assert.match(game,/\.\/world-engine\.js\?v=45000/);assert.match(combat,/\.\/world-engine\.js\?v=45000/);assert.match(progression,/\.\/storage\.js\?v=45000/);
+ assert.match(causal,/\.\/document-engine\.js\?v=45000/);assert.match(origin,/\.\/knowledge-model\.js\?v=40000/);assert.match(documents,/\.\/history-future\.js\?v=42000/)
 });
