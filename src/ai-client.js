@@ -17,12 +17,13 @@ import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=41000";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=45000";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=53000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
 
 export async function aiHealth(){if(hasDirectAI())return {ok:true,aiConfigured:true,mode:"direct"};try{const r=await fetch(apiPath("/api/health"));return r.ok?await r.json():{ok:false,aiConfigured:false}}catch{return {ok:false,aiConfigured:false}}}
-export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id)).map(f=>f.text)}
+export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id&&knowledgeCanRevealCanon(state,k))).map(f=>f.text)}
 export function npcKnownFacts(state,npc){const scope=new Set(Array.isArray(npc?.knowledgeScope)?npc.knowledgeScope:[]);return state.world.canon.facts.filter(f=>scope.has(f.id)).map(f=>f.text)}
 export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){const raw=await directChat({aiTask:"narration",timeoutMs:45000,system:"你是 Elyndra 的繁體中文敘事者。玩家只知道 payload 中 visibleFacts、playerLocation 與這次行動能直接感知到的結果。world/Canon 可能存在更多真相，但不可提前說出任何未學會的世界名稱、地名、國家、勢力、歷史或規則。只能描述已由遊戲引擎決定的結果，不可改骰子、Canon、HP、物品。回答80-180字。只使用繁體中文；除既有專有名詞外不要切換成英文、日文、韓文或其他語言，也不要輸出 [世界動向]、【世界動向】、SYSTEM 等系統標籤。",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})});return sanitizePlayerText(raw,700,"")}const raw=(await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})).text;return sanitizePlayerText(raw,700,"")}
 function emitWorldProgress(cb,progress,label,detail){try{cb?.({progress,label,detail})}catch{}}
