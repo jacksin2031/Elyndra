@@ -84,3 +84,11 @@ test("v0.54.1 world compiler circuit counts final distinct stage timeouts instea
  const first=catchBlock.indexOf("const firstReason"),note=catchBlock.indexOf("noteGenerationTimeout");
  assert.ok(first>=0&&note>first);assert.doesNotMatch(catchBlock.slice(first,note),/noteGenerationTimeout\(stage,firstReason\)/)
 });
+
+
+test("v0.54.6 successful pickup can fail forward when State AI is empty",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ assert.match(app,/function commitGroundedPickupFallback/);
+ assert.match(app,/ENGINE_PICKUP_FAIL_FORWARD_APPLIED/);
+ assert.match(app,/groundedPickup:Boolean\(pickup\.applied\|\|pickup\.reused\)/)
+});
