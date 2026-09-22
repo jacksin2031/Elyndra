@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54008";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54011";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54001";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=54005";
@@ -291,7 +291,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const rulesRequired=CORE_RULE_FIELDS;
   let rules=normalizeCoreRulesStage(rulesRaw);
   if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication){markWorldFallback("CORE_RULES","STRUCTURE_INVALID");rules=coreRulesFallback(identity,directive.blueprintProfile)};
-  let coreAnchor=anchorRaw;
+  let coreAnchor=normalizeCoreAnchorStage(anchorRaw);
   if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile)};
 
   let core=mergeCoreWave(identity,expected,rules,coreAnchor),coreIssues=coreWaveIssues(identity,rules,coreAnchor,core);
@@ -549,6 +549,20 @@ const RUNTIME_GENERATION_KEYS=["locations","npcs","factions","sideQuests","defin
 function emptyRuntimeGeneration(){return {locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]}}
 function runtimeRoot(value){return value&&typeof value==="object"&&!Array.isArray(value)?(value.generation&&typeof value.generation==="object"&&!Array.isArray(value.generation)?value.generation:value):{}}
 function runtimeRows(value,key,limit=0){const rows=Array.isArray(runtimeRoot(value)?.[key])?runtimeRoot(value)[key]:[];return rows.slice(0,Math.max(0,Number(limit)||0))}
+function runtimeIdentity(value){return String(value||"").trim().toLocaleLowerCase()}
+function cleanRuntimeClaimRefs(plan,key,row){
+ const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copy={...row},refs=Array.isArray(row?.claimRefs)?row.claimRefs.map(String).filter(Boolean):[];
+ copy.claimRefs=[...new Set(refs.filter(id=>{
+  const claim=claims.get(id);if(!claim)return true;
+  if(claim.type!=="BLUEPRINT_DEFINITION")return true;
+  return key==="definitions"&&String(row?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()
+ }))];return copy
+}
+function runtimeNewLocations(state,plan,rows){
+ const existing=new Set((state?.world?.registry?.locations||[]).map(x=>runtimeIdentity(x?.name)).filter(Boolean));
+ return (rows||[]).filter(row=>{const name=runtimeIdentity(row?.name);return name&&!existing.has(name)}).map(row=>cleanRuntimeClaimRefs(plan,"locations",row))
+}
+function runtimeDefinitions(plan,rows){return (rows||[]).map(row=>cleanRuntimeClaimRefs(plan,"definitions",row))}
 function runtimeRefs(rows,key){return new Set((rows||[]).flatMap(row=>Array.isArray(row?.[key])?row[key]:[]).map(String).filter(Boolean))}
 function runtimeProgressErrors(state,plan,generation){
  const report=validateLazyGenerationCandidate(state,generation,plan);
@@ -581,16 +595,16 @@ function applyRuntimeLocationDetails(current,value){
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
  if(!plan)throw new Error("RUNTIME_EXPANSION_PLAN_REQUIRED");
- const signal=options?.signal,slots=plan.slots||{},completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions；REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
+ const signal=options?.signal,slots=plan.slots||{},allowedHistoryRefs=(state.world?.history||[]).map(x=>String(x?.id||"")).filter(Boolean),existingLocationNames=(state.world?.registry?.locations||[]).map(x=>String(x?.name||"")).filter(Boolean),completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只能引用 payload.allowedHistoryRefs 中已存在的 Canon HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions，而且 definition.kind 必須與 claim.definitionKind 相同；Location 不得綁 BLUEPRINT_DEFINITION。REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
  let generation=plan.checkpoint?.generation?structuredClone(plan.checkpoint.generation):emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
 
  if(!completedStages.has("RUNTIME_GEOGRAPHY")){generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
   signal,state,plan,maxOutputTokens:1600,temperature:.5,
   system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
-  user:()=>({payload,stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL")}),
+  user:()=>({payload:{...payload,allowedHistoryRefs,existingLocationNames},stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL"),instruction:"locations 最多生成 slots.locations；至少生成 1 個真正新地點即可完成本次 Geography checkpoint，不得重建 existingLocationNames。"}),
   apply:value=>{
-   const root=runtimeRoot(value),locations=runtimeRows(value,"locations",slots.locations),definitions=runtimeRows(value,"definitions",slots.definitions);
-   if((Number(slots.locations)||0)>0&&locations.length<Number(slots.locations))throw new Error("RUNTIME_GEOGRAPHY_LOCATION_COUNT");
+   const root=runtimeRoot(value),locations=runtimeNewLocations(state,plan,runtimeRows(value,"locations",slots.locations)),definitions=runtimeDefinitions(plan,runtimeRows(value,"definitions",slots.definitions));
+   if((Number(slots.locations)||0)>0&&locations.length===0)throw new Error("RUNTIME_GEOGRAPHY_LOCATION_COUNT");
    if((Number(slots.definitions)||0)>0&&definitions.length<Number(slots.definitions))throw new Error("RUNTIME_GEOGRAPHY_DEFINITION_COUNT");
    const blueprint=(plan.claims||[]).filter(x=>x.type==="BLUEPRINT_DEFINITION").map(x=>String(x.id)),bound=runtimeRefs(definitions,"claimRefs");
    for(const id of blueprint)if(!bound.has(id))throw new Error("RUNTIME_GEOGRAPHY_BLUEPRINT_CLAIM_UNBOUND:"+id);
