@@ -102,5 +102,5 @@ test("app runs History Deepening only as preemptible background work",async()=>{
  assert.match(client,/export async function generateHistoryDeepening/);assert.match(client,/HISTORY_DEEPENING:"history_deepening"/);
  assert.match(client,/post\("\/api\/history-deepen",payload,\{signal\}\)/);
  assert.match(api,/History Deepening Architect/);assert.match(api,/生成本身絕不代表玩家知道/);
- assert.match(worldEngine,/History Skeleton/);assert.match(worldEngine,/生成隱藏細節本身不等於玩家已知/)
+ assert.match(worldEngine,/歷史 Skeleton/);assert.match(worldEngine,/生成隱藏細節本身不等於玩家已知/)
 });
