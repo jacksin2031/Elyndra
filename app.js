@@ -10,7 +10,7 @@ import {performAction} from "./src/game-engine.js?v=54005";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=54005";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=54005";
-import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=54005";
+import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=54010";
 import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=276";
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=54005";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=54005";
@@ -49,7 +49,7 @@ import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,
 import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=54005";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward} from "./src/contextual-actions.js?v=54008";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54006";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=54001";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=54010";
 import {applyOriginRuntime} from "./src/origin-runtime.js?v=54001";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=54001";
@@ -297,6 +297,27 @@ async function runBackgroundWorldQualityCritic(){
   if(worldQualityBackground.controller===ctrl)worldQualityBackground.controller=null;worldQualityBackground.running=false
  }
 }
+function pendingRuntimeGenerationPlan(state=gameState){
+ return state?.world?.lazyGeneration?.plans?.find(x=>x?.status==="PLANNED"&&x?.checkpoint?.stage)||null
+}
+function runtimeStageDelta(stage,generation){
+ const empty={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
+ if(stage==="RUNTIME_GEOGRAPHY")return {...empty,locations:generation?.locations||[],definitions:generation?.definitions||[]};
+ if(stage==="RUNTIME_SOCIETY")return {...empty,factions:generation?.factions||[]};
+ if(stage==="RUNTIME_CAST")return {...empty,npcs:generation?.npcs||[]};
+ if(stage==="RUNTIME_QUESTS")return {...empty,sideQuests:generation?.sideQuests||[]};
+ return empty
+}
+async function commitRuntimeStageCheckpoint(plan,{stage,generation,region="",reason=""}={}){
+ if(!gameState||!plan||!stage)return null;
+ if(stage==="RUNTIME_SOCIETY")enrichGeneratedLocations(gameState,generation?.locations||[]);
+ const delta=runtimeStageDelta(stage,generation),added=canonizeGeneration(gameState,delta),checkpoint=recordLazyGenerationCheckpoint(gameState,plan,{stage,generation,added});
+ if(!checkpoint.ok)throw new Error(checkpoint.error||"LAZY_CHECKPOINT_FAILED");
+ bumpStateRevision(gameState,"RUNTIME_WORLD_CHECKPOINT_"+stage);
+ gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_STAGE_COMMITTED",visibility:"INTERNAL",stage,planId:plan.id,region:region||plan.region||"",reason:reason||plan.reason||"",added:Object.fromEntries(Object.entries(added).map(([k,v])=>[k,v.length])),day:gameState.world?.state?.day||1,at:Date.now()});
+ recordDebug("WORLD_EVOLUTION_STAGE_COMMITTED",{stage,planId:plan.id,worldVersion:gameState.world?.version,added:Object.fromEntries(Object.entries(added).map(([k,v])=>[k,v.length]))});
+ await persist();return checkpoint.checkpoint
+}
 function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
  if(developerAutotestActive||!gameState||!aiStatus.aiConfigured)return;worldBackground.lastReason=String(reason||"background_gameplay").slice(0,180);worldBackground.queued=true;
  if(worldBackground.timer)clearTimeout(worldBackground.timer);
@@ -307,28 +328,28 @@ async function runBackgroundWorldEvolution(){
  if(developerAutotestActive||!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
  const idleRemaining=backgroundIdleRemaining();if(idleRemaining>0){scheduleWorldEvolution(worldBackground.lastReason,Math.max(1000,idleRemaining));return}
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldQualityBackground.running||historyBackground.running||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
- const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
- if(!expand&&!evolution.required){worldBackground.queued=false;return}
- const worldId=gameState.world?.id,reason=evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"),plan=planLazyGeneration(gameState,{reason}),ctrl=new AbortController(),debugStarted=Date.now();
+ const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState),pendingPlan=pendingRuntimeGenerationPlan(gameState);
+ if(!expand&&!evolution.required&&!pendingPlan){worldBackground.queued=false;return}
+ const worldId=gameState.world?.id,reason=pendingPlan?.reason||(evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay")),plan=pendingPlan||planLazyGeneration(gameState,{reason}),ctrl=new AbortController(),debugStarted=Date.now();
  worldBackground.running=true;worldBackground.queued=false;worldBackground.controller=ctrl;
  gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_STARTED",visibility:"INTERNAL",reason,planId:plan.id,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_STARTED",{reason,planId:plan.id});
  try{
-  const ex=await generateRegionExpansion(gameState,reason,{signal:ctrl.signal,plan});
-  if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId){abortLazyGeneration(gameState||{world:{}},plan,"BACKGROUND_PREEMPTED");return}
+  const ex=await generateRegionExpansion(gameState,reason,{signal:ctrl.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage)});
+  if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId){if(!hasLazyGenerationCheckpoint(plan))abortLazyGeneration(gameState||{world:{}},plan,"BACKGROUND_PREEMPTED");return}
   if(!ex?.generation)throw new Error("RUNTIME_EXPANSION_EMPTY");
-  const lazyValidation=validateLazyGenerationCandidate(gameState,ex.generation,plan);if(!lazyValidation.valid)throw new Error("LAZY_GENERATION_CONTRACT_FAILED:"+lazyValidation.errors.join(","));
-  const added=canonizeGeneration(gameState,ex.generation),committed=commitLazyGeneration(gameState,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
+  const lazyValidation=validateLazyGenerationCandidate(gameState,ex.generation,plan,{added:plan.checkpoint?.added});if(!lazyValidation.valid)throw new Error("LAZY_GENERATION_CONTRACT_FAILED:"+lazyValidation.errors.join(","));
+  const added=plan.checkpoint?.added||canonizeGeneration(gameState,ex.generation),committed=commitLazyGeneration(gameState,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
   recordExpansion(gameState,ex.region||plan.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;if(ex.quality)gameState.world.quality={...(gameState.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,planId:plan.id,claimIds:committed.claimIds,day:gameState.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,planId:plan.id,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist();scheduleWorldQualityCritic("post_world_evolution",1800)
  }catch(e){
-  if(plan.status==="PLANNED")abortLazyGeneration(gameState,plan,e?.message||"BACKGROUND_FAILED");
+  const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(gameState,plan,e?.message||"BACKGROUND_FAILED");
   if(!ctrl.signal.aborted){
    const error=e?.message||String(e),timedOut=/AI_TIMEOUT/.test(error);worldBackground.failures=Math.min(6,(Number(worldBackground.failures)||0)+1);
-   const cooldownMs=timedOut?Math.min(15*60*1000,2*60*1000*(2**(worldBackground.failures-1))):60*1000;worldBackground.cooldownUntil=Date.now()+cooldownMs;
+   const cooldownMs=checkpointed?12000:(timedOut?Math.min(15*60*1000,2*60*1000*(2**(worldBackground.failures-1))):60*1000);worldBackground.cooldownUntil=Date.now()+cooldownMs;
    console.warn("background world evolution fallback",e);gameState?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_FAILED",visibility:"INTERNAL",reason:error,planId:plan.id,cooldownMs,day:gameState?.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_FAILED",{reason,planId:plan.id,error,elapsedMs:Date.now()-debugStarted,cooldownMs,failures:worldBackground.failures})
   }
  }finally{
   if(worldBackground.controller===ctrl)worldBackground.controller=null;worldBackground.running=false;
-  if(gameState&&aiStatus.aiConfigured){const next=worldEvolutionNeed(gameState);if(needsExpansion(gameState)||next.required)scheduleWorldEvolution(next.reason||reason,ctrl.signal.aborted?BACKGROUND_IDLE_GRACE_MS:9000)}
+  if(gameState&&aiStatus.aiConfigured){const next=worldEvolutionNeed(gameState),pending=pendingRuntimeGenerationPlan(gameState);if(pending||needsExpansion(gameState)||next.required)scheduleWorldEvolution(pending?.reason||next.reason||reason,ctrl.signal.aborted?BACKGROUND_IDLE_GRACE_MS:9000)}
  }
 }
 function setPlayerActionControlsLocked(locked,reason=""){
@@ -869,15 +890,15 @@ async function createDeveloperAutotestWorld(raw,index){
  return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale},validation,generationDiagnostics:structuredClone(candidate?.generationDiagnostics||migrated.world?.generationDiagnostics||null)}
 }
 async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED"){
- if(!developerAutotestActive||!gameState||!aiStatus.aiConfigured||!needsExpansion(gameState))return false;
- const plan=planLazyGeneration(gameState,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id});
+ const pending=pendingRuntimeGenerationPlan(gameState);if(!developerAutotestActive||!gameState||!aiStatus.aiConfigured||(!needsExpansion(gameState)&&!pending))return false;
+ const plan=pending||planLazyGeneration(gameState,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id,resumeStage:plan.checkpoint?.stage||null});
  try{
-  const ex=await generateRegionExpansion(gameState,reason,{signal:developerAutotest.batchController?.signal,plan});if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");
-  const valid=validateLazyGenerationCandidate(gameState,ex.generation,plan);if(!valid.valid)throw new Error("AUTOTEST_LAZY_GENERATION_CONTRACT_FAILED:"+valid.errors.join(","));
-  const added=canonizeGeneration(gameState,ex.generation),committed=commitLazyGeneration(gameState,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("AUTOTEST_LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
+  const ex=await generateRegionExpansion(gameState,reason,{signal:developerAutotest.batchController?.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage)});if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");
+  const valid=validateLazyGenerationCandidate(gameState,ex.generation,plan,{added:plan.checkpoint?.added});if(!valid.valid)throw new Error("AUTOTEST_LAZY_GENERATION_CONTRACT_FAILED:"+valid.errors.join(","));
+  const added=plan.checkpoint?.added||canonizeGeneration(gameState,ex.generation),committed=commitLazyGeneration(gameState,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("AUTOTEST_LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
   recordExpansion(gameState,ex.region||plan.region||"未知邊境",ex.reason||reason);gameState.world.state.flags.requestExpansion=false;markWorldEvolution(gameState,{reason});bumpStateRevision(gameState,"AUTOTEST_RUNTIME_EXPANSION");
   await persist();await refresh();recordDebug("AUTOTEST_RUNTIME_EXPANSION_COMPLETED",{reason,planId:plan.id,elapsedMs:Date.now()-startedAt,locations:added.locations?.length||0,npcs:added.npcs?.length||0,factions:added.factions?.length||0,sideQuests:added.sideQuests?.length||0});return true
- }catch(e){if(plan.status==="PLANNED")abortLazyGeneration(gameState,plan,e?.message||"AUTOTEST_RUNTIME_EXPANSION_FAILED");recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:e?.message||String(e),elapsedMs:Date.now()-startedAt});return false}
+ }catch(e){const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(gameState,plan,e?.message||"AUTOTEST_RUNTIME_EXPANSION_FAILED");recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:e?.message||String(e),checkpointed,resumeStage:plan.checkpoint?.stage||null,elapsedMs:Date.now()-startedAt});return false}
 }
 async function executeDeveloperAutotestDecision(decision){
  if(decision.mode==="combat"){await runCombatAction(decision.combatAction||"attack");return}
