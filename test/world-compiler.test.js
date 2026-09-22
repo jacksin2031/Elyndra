@@ -31,7 +31,8 @@ test("both direct and server world paths canonicalize theme before Engine valida
  assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
  assert.match(server,/import \{parseModelJSON\} from "\.\.\/src\/model-json\.js"/);
  assert.match(server,/stageJSON\(diagnostics,"IDENTITY"/);
- assert.match(server,/mergeCoreWave\(identity,expected,rulesRaw,anchorRaw\)/);
+ assert.match(server,/const normalizedAnchor=normalizeCoreAnchorStage\(anchorRaw\)/);
+ assert.match(server,/mergeCoreWave\(identity,expected,rulesRaw,normalizedAnchor\)/);
  assert.match(server,/normalizeWorldCoreCandidate\(\{\.\.\.core,originOpening/);
 });
 

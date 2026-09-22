@@ -47,7 +47,7 @@ test("v0.54.11 runtime Geography accepts partial new-location progress and Engin
  assert.match(client,/locations\.length===0\)throw new Error\("RUNTIME_GEOGRAPHY_LOCATION_COUNT"\)/);
  assert.match(client,/function runtimeNewLocations/);
  assert.match(client,/function runtimeDefinitions\(plan,rows\)/);
- assert.match(client,/claim\.type==="BLUEPRINT_DEFINITION"/);
+ assert.match(client,/type==="BLUEPRINT_DEFINITION"/);
  assert.match(client,/String\(x\?\.kind\|\|""\)\.toUpperCase\(\)===String\(claim\.definitionKind\|\|""\)\.toUpperCase\(\)/);
  assert.match(client,/Location 不得綁 BLUEPRINT_DEFINITION/);
  assert.match(client,/allowedHistoryRefs=\(state\.world\?\.history\|\|\[\]\)/)

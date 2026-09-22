@@ -91,7 +91,7 @@ test("staged compiler loads timeout settings through current cache generation",a
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.match(client,/ai-settings\.js\?v=54008/);
  assert.match(client,/seed-contract\.js\?v=48000/);
- assert.match(client,/world-compiler\.js\?v=54011//);
+ assert.match(client,/world-compiler\.js\?v=54011/);
  assert.match(client,/recognition-engine\.js\?v=276/);
 });
 
