@@ -4,6 +4,8 @@ import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine
 import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=276";
 import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=320";
 import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=51000";
+import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=52000";
+import {forbiddenTermMatch} from "./generation-claims.js?v=52000";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
@@ -16,7 +18,7 @@ export function ensureWorldRegistry(state){
  r.locations??=[];r.npcs??=[];r.factions??=[];r.sideQuests??=[];
  for(const list of [r.locations,r.npcs,r.factions,r.sideQuests])for(const x of list)if(x.known==null)x.known=true;
  for(const n of r.npcs){if(n.encountered==null)n.encountered=Boolean(n.companion?.status==="ACTIVE"||(n.memories||[]).length||(Number(n.trust)||0)!==0);ensureNpcRemoteContact(state,n)}
- ensureVisibilityLocks(state);ensureTravelNetwork(state);return r
+ ensureVisibilityLocks(state);ensureWorldCatalog(state);ensureTravelNetwork(state);return r
 }
 export function repairPlayerLocation(state){
  const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
@@ -98,7 +100,8 @@ export function revealRegistryEntities(state,reveals=[],context={}){
 export function validateGeneration(g){
  if(g==null)return {valid:true,errors:[]};const e=[];
  if(typeof g!=="object"||Array.isArray(g))return {valid:false,errors:["GENERATION_INVALID"]};
- for(const k of ["locations","npcs","factions","sideQuests"])if(g[k]!=null&&!Array.isArray(g[k]))e.push(k.toUpperCase()+"_INVALID");
+ for(const k of ["locations","npcs","factions","sideQuests","definitions"])if(g[k]!=null&&!Array.isArray(g[k]))e.push(k.toUpperCase()+"_INVALID");
+ const definitionReport=validateWorldDefinitions(g.definitions||[]);if(!definitionReport.valid)e.push(...definitionReport.errors);
  for(const x of g.locations||[])if(!clean(x?.name,80)||!clean(x?.description,400))e.push("LOCATION_SHAPE_INVALID");else{if(x.historyRefs!=null&&!Array.isArray(x.historyRefs))e.push("LOCATION_HISTORY_REFS_INVALID");if(x.lore!=null&&!normalizeLore(x.lore))e.push("LOCATION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("LOCATION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("LOCATION_TRADE_INVALID");if(x.weatherProfile!=null&&typeof x.weatherProfile!=="object")e.push("LOCATION_WEATHER_INVALID");if(x.accessRequirements!=null&&(!Array.isArray(x.accessRequirements)||normalizeAccessRequirements(x.accessRequirements).length!==x.accessRequirements.length))e.push("LOCATION_ACCESS_REQUIREMENTS_INVALID")}
  for(const x of g.npcs||[])if(!clean(x?.name,80)||!clean(x?.role,100))e.push("NPC_SHAPE_INVALID");else{if(x.historyRefs!=null&&!Array.isArray(x.historyRefs))e.push("NPC_HISTORY_REFS_INVALID");if(x.lore!=null&&!normalizeLore(x.lore))e.push("NPC_LORE_INVALID");if(x.companionProfile!=null&&typeof x.companionProfile!=="object")e.push("NPC_COMPANION_PROFILE_INVALID")}
  for(const x of g.factions||[])if(!clean(x?.name,80)||!clean(x?.goal,200))e.push("FACTION_SHAPE_INVALID");else{if(x.historyRefs!=null&&!Array.isArray(x.historyRefs))e.push("FACTION_HISTORY_REFS_INVALID");if(x.lore!=null&&!normalizeLore(x.lore))e.push("FACTION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("FACTION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("FACTION_TRADE_INVALID")}
@@ -120,8 +123,8 @@ function resolveKnowledgeScope(state,input){
  return out.slice(0,12)
 }
 export function canonizeGeneration(state,g){
- const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));
- const r=ensureWorldRegistry(state),added={locations:[],npcs:[],factions:[],sideQuests:[]};
+ const v=validateGeneration(g);if(!v.valid)throw new Error(v.errors.join(","));const forbidden=forbiddenTermMatch(state,g);if(forbidden)throw new Error("WORLD_CONSTITUTION_FORBID:"+forbidden);
+ const r=ensureWorldRegistry(state),added={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
  const byName=(arr,name)=>arr.some(x=>String(x.name||"").toLowerCase()===name.toLowerCase());
  for(const x of (g?.locations||[]).slice(0,2)){const name=clean(x.name,80);if(byName(r.locations,name))continue;const o={id:uid("LOC"),name,type:clean(x.type,60)||"未知地點",region:clean(x.region,80)||state.world.state.region||"",description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),weatherProfile:normalizeWeatherProfile(x.weatherProfile,state.world?.bible?.weatherSystem?.phenomena?.map(p=>p.id)||null),accessRequirements:normalizeAccessRequirements(x.accessRequirements),worldState:{safety:50,prosperity:50,supply:50,infrastructure:50,stability:50,statusTags:[]},canonical:true,createdDay:state.world.state.day};r.locations.push(o);added.locations.push(o)}
  for(const x of (g?.factions||[]).slice(0,1)){const name=clean(x.name,80);if(byName(r.factions,name))continue;const o={id:uid("FAC"),name,goal:clean(x.goal,200),description:clean(x.description,400),historyRefs:resolveHistoryRefs(state,x.historyRefs),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",lore:normalizeLore(x.lore),culture:normalizeCultureProfile(x.culture),trade:normalizeTradeProfile(x.trade),resources:50,influence:25,playerReputation:0,relations:{},worldState:{stability:50,statusTags:[]},lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};r.factions.push(o);added.factions.push(o)}
@@ -136,6 +139,7 @@ export function canonizeGeneration(state,g){
   const o={id:uid("NPC"),name,role:clean(x.role,100),description:clean(x.description,400),personality:clean(x.personality,240)||"對陌生人保持謹慎",goal:clean(x.goal,240)||"維持自己的生活與安全",locationId:resolvedLoc,factionId:resolvedFac,historyRefs:resolveHistoryRefs(state,x.historyRefs),knowledgeScope:resolveKnowledgeScope(state,x.knowledgeScope),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",encountered:false,remoteContact:{established:false,blocked:false},lore:normalizeLore(x.lore),alive:true,trust:0,companionProfile:{joinThreshold:clamp(Math.round(Number(x.companionProfile?.joinThreshold)||35),5,90),leaveThreshold:clamp(Math.round(Number(x.companionProfile?.leaveThreshold)||10),0,70),motives:Array.isArray(x.companionProfile?.motives)?x.companionProfile.motives.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[],boundaries:Array.isArray(x.companionProfile?.boundaries)?x.companionProfile.boundaries.map(v=>clean(v,120)).filter(Boolean).slice(0,4):[]},companion:{status:"NONE",joinedDay:null,leftDay:null,offeredDay:null,reason:""},worldState:{statusTags:[]},memories:[],lastActionMinute:state.world.state.clock?.totalMinutes||0,canonical:true};
   r.npcs.push(o);added.npcs.push(o)
  }
+ added.definitions=canonizeWorldDefinitions(state,(g?.definitions||[]).slice(0,3));
  for(const x of (g?.sideQuests||[]).slice(0,1)){const title=clean(x.title,100);if(r.sideQuests.some(q=>q.title.toLowerCase()===title.toLowerCase()))continue;const evidenceKeywords=keywords(x.evidenceKeywords),conditions=Array.isArray(x.conditions)?structuredClone(x.conditions.slice(0,5)):[],target=clamp(Number.isInteger(x.target)?x.target:(conditions.length?Math.min(3,conditions.length):evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3),1,5),o={id:uid("SQ"),title,objective:clean(x.objective,240),known:x.known===true,visibilityLock:x.known===true?"KNOWN":"UNSEEN",status:"ACTIVE",progress:0,target,evidence:[],evidenceKeywords,matchedKeywords:[],conditions,matchedConditions:[],historyRefs:resolveHistoryRefs(state,x.historyRefs),createdDay:state.world.state.day,canonical:true};r.sideQuests.push(o);added.sideQuests.push(o)}
  if(added.locations.length)retargetWeather(state);
  if(Object.values(added).some(a=>a.length)){state.world.version++;state.events.push({id:uid("EV"),type:"WORLD_CANON_EXPANDED",visibility:"INTERNAL",day:state.world.state.day,summary:Object.entries(added).filter(([,a])=>a.length).map(([k,a])=>`${k} +${a.length}`).join(" · "),at:Date.now()})}

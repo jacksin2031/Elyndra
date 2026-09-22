@@ -1,4 +1,4 @@
-import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure} from "./generation-claims.js?v=44000";
+import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=52000";
 import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=50000";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
@@ -23,7 +23,7 @@ function rotate(rows,seed,count){
 }
 function slotsFor(state,reason,hasClaims){
  const politics=Number(state.world?.seedContract?.politics??state.world?.seed?.politics)||0,existing=state.world?.registry||{};
- const slots={locations:1,npcs:1,factions:0,sideQuests:1};
+ const slots={locations:1,npcs:1,factions:0,sideQuests:1,definitions:0};
  if(reason==="WORLD_EDGE_UNDERDEFINED"||reason==="PLAYER_REQUEST")slots.locations=2;
  if(reason==="WORLD_QUALITY_DROP"){slots.locations=1;slots.npcs=2}
  if(reason==="PERIODIC_CANON_REVIEW"){slots.locations=1;slots.npcs=1;slots.sideQuests=0}
@@ -40,38 +40,44 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
  const generationRevision=root.generationRevision+1,claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12}),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,generationRevision,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
  const existing=root.plans.find(x=>x.id===planId&&x.status==="PLANNED");if(existing)return existing;
  const history=(state.world?.history||[]).filter(x=>x?.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))),historyRefs=rotate(history,seed,Math.min(2,history.length)).map(x=>x.id);
- const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),slots=slotsFor(state,normalizedReason,selectedClaims.length>0||selectedEchoes.length>0);
+ const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),definitionClaimCount=selectedClaims.filter(x=>x.type==="BLUEPRINT_DEFINITION").length,slots=slotsFor(state,normalizedReason,(selectedClaims.length-definitionClaimCount)>0||selectedEchoes.length>0);slots.definitions=Math.min(3,definitionClaimCount);
  for(const e of selectedEchoes)if(e.kind==="MEMORIAL")slots.locations=Math.max(1,slots.locations);else if(e.kind==="ORAL_TRADITION")slots.npcs=Math.max(1,slots.npcs);
  const worldVersion=Number(state.world?.version)||1,totalMinutes=Math.max(0,Number(state.world?.state?.clock?.totalMinutes)||0),worldSeedFingerprint=fingerprint(state.world?.seedContract||state.world?.seed||{}),entitySeed=hash(key+"|ENTITY|"+generationRevision).toString(36),generationSlot={region,day,evolution,reason:normalizedReason};
- const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now()};
+ const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,forbiddenTerms:constitutionForbidTerms(state),historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,requiredBy:x.requiredBy,definitionKind:x.definitionKind||null,slotIndex:x.slotIndex||0,sourceRef:x.sourceRef||null,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now()};
  for(const c of selectedClaims)reserveGenerationClaim(state,c.id,{planId,reason:normalizedReason});for(const e of selectedEchoes)reserveHistoryLegacyEcho(state,e.id,{planId,reason:normalizedReason});
  root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
 }
 function groupRows(g,key){return Array.isArray(g?.[key])?g[key]:[]}
-function existingNames(state,key){
- const r=state.world?.registry||{},rows=key==="sideQuests"?(r.sideQuests||[]):r[key]||[];
- return new Set(rows.map(x=>String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase()).filter(Boolean))
+function rowIdentity(key,row){
+ return key==="definitions"?(String(row?.kind||"").toUpperCase()+":"+String(row?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase()
 }
-export function validateLazyGenerationCandidate(state,generation,plan){
+function existingNames(state,key){
+ const r=state.world?.registry||{},catalog=state.world?.catalog||{},rows=key==="sideQuests"?(r.sideQuests||[]):key==="definitions"?[...(catalog.civilizations||[]),...(catalog.species||[]),...(catalog.languages||[])]:r[key]||[];
+ return new Set(rows.map(x=>rowIdentity(key,x)).filter(Boolean))
+}
+const normalizeForbidden=v=>String(v||"").normalize("NFKC").toLocaleLowerCase().replace(/[\s_\-—–、，,。.!！？?：:；;（）()\[\]{}「」『』【】〈〉《》"'\`´’‘“”·・\\/]+/g,"");
+function forbiddenMatch(row,terms=[]){const hay=normalizeForbidden(JSON.stringify(row??{}));return terms.find(term=>{const needle=normalizeForbidden(term);return needle&&hay.includes(needle)})||null}
+export function validateLazyGenerationCandidate(state,generation,plan,options={}){
  const errors=[];if(!plan||plan.status!=="PLANNED")return {valid:false,errors:["LAZY_PLAN_NOT_ACTIVE"]};
  for(const key of ["generationRevision","worldSeedFingerprint","entitySeed","generationSlot","promptVersion","validationVersion","generatedAtWorldTime"])if(plan[key]==null)errors.push("LAZY_REPLAY_METADATA_MISSING:"+key);
  if(plan.promptVersion!==LAZY_PROMPT_VERSION)errors.push("LAZY_PROMPT_VERSION_MISMATCH");if(plan.validationVersion!==LAZY_VALIDATION_VERSION)errors.push("LAZY_VALIDATION_VERSION_MISMATCH");
  const allowedHistory=new Set([...(plan.historyRefs||[]),...(plan.claims||[]).flatMap(x=>x.historyRefs||[])]);
- for(const key of ["locations","npcs","factions","sideQuests"]){
+ for(const key of ["locations","npcs","factions","sideQuests","definitions"]){
   const rows=groupRows(generation,key),limit=Math.max(0,Number(plan.slots?.[key])||0);if(rows.length>limit)errors.push("LAZY_SLOT_EXCEEDED:"+key);
-  const existing=existingNames(state,key),candidateNames=new Set();
+  const existing=existingNames(state,key),canonized=new Set((options?.added?.[key]||[]).map(x=>rowIdentity(key,x)).filter(Boolean)),candidateNames=new Set();
   for(const row of rows){
-   const name=String(key==="sideQuests"?row?.title:row?.name||"").trim().toLocaleLowerCase();
-   if(name&&existing.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
+   const name=rowIdentity(key,row);
+   if(name&&existing.has(name)&&!canonized.has(name))errors.push("LAZY_DUPLICATE_ENTITY:"+key+":"+name);
    if(name&&candidateNames.has(name))errors.push("LAZY_DUPLICATE_CANDIDATE:"+key+":"+name);if(name)candidateNames.add(name);
-   const refs=uniq(row?.historyRefs,8);if((state.world?.history||[]).length&&refs.length===0)errors.push("LAZY_HISTORY_REF_REQUIRED:"+key);
+   const forbidden=forbiddenMatch(row,plan.forbiddenTerms||[]);if(forbidden)errors.push("LAZY_FORBIDDEN_TERM:"+forbidden);
+   const refs=uniq(row?.historyRefs,8);if(key!=="definitions"&&(state.world?.history||[]).length&&refs.length===0)errors.push("LAZY_HISTORY_REF_REQUIRED:"+key);
    for(const id of refs)if(allowedHistory.size&&!allowedHistory.has(id))errors.push("LAZY_HISTORY_REF_OUTSIDE_PLAN:"+id);
-   const claimRefs=uniq(row?.claimRefs,6);for(const id of claimRefs)if(!plan.claimIds.includes(id))errors.push("LAZY_CLAIM_NOT_RESERVED:"+id);
+   const claimRefs=uniq(row?.claimRefs,6);for(const id of claimRefs){if(!plan.claimIds.includes(id)){errors.push("LAZY_CLAIM_NOT_RESERVED:"+id);continue}const claim=(plan.claims||[]).find(x=>x.id===id);if(claim&&!materialSatisfiesClaim(claim,row))errors.push("LAZY_CLAIM_SEMANTIC_MISMATCH:"+id)};
    const echoRefs=uniq(row?.echoRefs,6);for(const id of echoRefs)if(!(plan.legacyEchoIds||[]).includes(id))errors.push("LAZY_ECHO_NOT_RESERVED:"+id)
   }
  }
  for(const claimId of plan.claimIds){
-  const bound=["locations","npcs","factions","sideQuests"].some(key=>groupRows(generation,key).some(row=>uniq(row?.claimRefs,6).includes(claimId)));
+  const bound=["locations","npcs","factions","sideQuests","definitions"].some(key=>groupRows(generation,key).some(row=>uniq(row?.claimRefs,6).includes(claimId)));
   if(!bound)errors.push("LAZY_RESERVED_CLAIM_UNBOUND:"+claimId)
  }
  for(const echo of plan.legacyEchoes||[]){
@@ -82,13 +88,13 @@ export function validateLazyGenerationCandidate(state,generation,plan){
  return {valid:errors.length===0,errors:[...new Set(errors)],planId:plan.id}
 }
 function addedIdFor(raw,added,key){
- const name=String(key==="sideQuests"?raw?.title:raw?.name||"").trim().toLocaleLowerCase(),rows=added?.[key]||[];
- const hit=rows.find(x=>String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase()===name);return hit?.id||null
+ const name=key==="definitions"?(String(raw?.kind||"").toUpperCase()+":"+String(raw?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?raw?.title:raw?.name||"").trim().toLocaleLowerCase(),rows=added?.[key]||[];
+ const hit=rows.find(x=>(key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase())===name);return hit?.id||null
 }
 export function commitLazyGeneration(state,plan,generation,added,meta={}){
- const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan);if(!v.valid)return {ok:false,errors:v.errors};
+ const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan,{added});if(!v.valid)return {ok:false,errors:v.errors};
  const bindings={},echoBindings={};
- for(const key of ["locations","npcs","factions","sideQuests"])for(const raw of groupRows(generation,key)){
+ for(const key of ["locations","npcs","factions","sideQuests","definitions"])for(const raw of groupRows(generation,key)){
   const id=addedIdFor(raw,added,key);if(!id)continue;
   for(const claimId of uniq(raw?.claimRefs,6)){bindings[claimId]??=[];bindings[claimId].push(id)}
   for(const echoId of uniq(raw?.echoRefs,6)){echoBindings[echoId]??=[];echoBindings[echoId].push(id)}

@@ -8,6 +8,14 @@ import {syncGenerationClaimsFromCausalStructure,generationClaimsSnapshot,validat
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,lazyGenerationSnapshot} from "../src/lazy-generation.js";
 
 const seed={worldviewMode:"style",genre:"王道奇幻",scale:"中型",danger:3,magic:3,politics:4,playHours:12,prompt:"Visibility Lazy Generation 測試"};
+function candidateForPlan(plan,prefix="CLAIM"){
+ const fallbackHistory=plan.historyRefs[0]||"";
+ const locations=plan.claims.map((claim,i)=>{
+  const required=claim.type==="REQUIRED_ELEMENT",historyRefs=claim.historyRefs?.length?[...claim.historyRefs]:(fallbackHistory?[fallbackHistory]:[]);
+  return {name:required?claim.label:`${prefix}-${i+1}`,description:required?`這裡確實是${claim.label}，並作為世界 Canon 的具體存在。`:`與 ${claim.label} 對應的可探索地點。`,historyRefs,claimRefs:[claim.id]}
+ });
+ return {locations,npcs:[],factions:[],sideQuests:[],definitions:[]}
+}
 function state(){
  const s=newGame(seed);
  s.world.history=[
@@ -58,21 +66,19 @@ test("Lazy Generation plan is deterministic for the same Engine state and reserv
  assert.equal(validateGenerationClaims(s).valid,true)
 });
 
-test("Lazy candidate is bounded by slots, plan history and reserved claim ids",()=>{
- const s=state(),plan=planLazyGeneration(s,{reason:"WORLD_EDGE_UNDERDEFINED"}),historyRef=(plan.claims.flatMap(x=>x.historyRefs||[])[0]||plan.historyRefs[0]);
- const valid={locations:[{name:"灰塔外圍",description:"崩落石材形成的舊聚落。",historyRefs:[historyRef],claimRefs:[...plan.claimIds]}],npcs:[],factions:[],sideQuests:[]};
- assert.equal(validateLazyGenerationCandidate(s,valid,plan).valid,true);
+test("Lazy candidate is bounded by slots, plan history, claim semantics and reserved claim ids",()=>{
+ const s=state(),plan=planLazyGeneration(s,{reason:"WORLD_EDGE_UNDERDEFINED"}),valid=candidateForPlan(plan,"灰塔錨點");
+ const report=validateLazyGenerationCandidate(s,valid,plan);assert.equal(report.valid,true,report.errors.join(","));
  const badClaim=structuredClone(valid);badClaim.locations[0].claimRefs=["CLAIM-NOT-RESERVED"];assert.ok(validateLazyGenerationCandidate(s,badClaim,plan).errors.some(x=>x.includes("LAZY_CLAIM_NOT_RESERVED")));
  const badHistory=structuredClone(valid);badHistory.locations[0].historyRefs=["HIST-OUTSIDE"];assert.ok(validateLazyGenerationCandidate(s,badHistory,plan).errors.some(x=>x.includes("LAZY_HISTORY_REF_OUTSIDE_PLAN")));
- const duplicate={locations:[...valid.locations,{...valid.locations[0]}],npcs:[],factions:[],sideQuests:[]};assert.ok(validateLazyGenerationCandidate(s,duplicate,plan).errors.some(x=>x.includes("LAZY_DUPLICATE_CANDIDATE")))
+ const duplicate={...structuredClone(valid),locations:[...valid.locations,{...valid.locations[0]}]};assert.ok(validateLazyGenerationCandidate(s,duplicate,plan).errors.some(x=>x.includes("LAZY_DUPLICATE_CANDIDATE")))
 });
 
-test("Lazy commit materializes reserved Generation Claims against canonical entity ids",()=>{
- const s=state(),plan=planLazyGeneration(s,{reason:"WORLD_EDGE_UNDERDEFINED"}),historyRef=(plan.claims.flatMap(x=>x.historyRefs||[])[0]||plan.historyRefs[0]);
- const generation={locations:[{name:"灰塔遺址",description:"可探索的舊遺址。",historyRefs:[historyRef],claimRefs:[...plan.claimIds]}],npcs:[],factions:[],sideQuests:[]};
- const added={locations:[{id:"LOC-GRAY",name:"灰塔遺址"}],npcs:[],factions:[],sideQuests:[]};
- const out=commitLazyGeneration(s,plan,generation,added);assert.equal(out.ok,true);assert.equal(plan.status,"COMMITTED");
- const claims=generationClaimsSnapshot(s);for(const id of plan.claimIds){const c=claims.find(x=>x.id===id);assert.equal(c.status,"MATERIALIZED");assert.deepEqual(c.entityRefs,["LOC-GRAY"])}
+test("Lazy commit materializes reserved Generation Claims against semantically matched canonical ids",()=>{
+ const s=state(),plan=planLazyGeneration(s,{reason:"WORLD_EDGE_UNDERDEFINED"}),generation=candidateForPlan(plan,"灰塔遺址");
+ const added={locations:generation.locations.map((row,i)=>({id:"LOC-GRAY-"+(i+1),name:row.name})),npcs:[],factions:[],sideQuests:[],definitions:[]};
+ const out=commitLazyGeneration(s,plan,generation,added);assert.equal(out.ok,true,out.errors?.join(",")||"");assert.equal(plan.status,"COMMITTED");
+ const claims=generationClaimsSnapshot(s);for(let i=0;i<plan.claimIds.length;i++){const c=claims.find(x=>x.id===plan.claimIds[i]);assert.equal(c.status,"MATERIALIZED");assert.deepEqual(c.entityRefs,["LOC-GRAY-"+(i+1)])}
  assert.equal(lazyGenerationSnapshot(s,{director:true}).recentCommits.at(-1).planId,plan.id)
 });
 

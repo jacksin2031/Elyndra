@@ -151,6 +151,9 @@ export function buildWorldConstitution(blueprint){
  i=1;for(const term of b.rules.forbidden)hardRules.push({id:"WC2-FORBID-"+i++,kind:"FORBID",term,text:`禁止出現：${term}`});
  i=1;for(const term of b.rules.allowed)softRules.push({id:"WC2-MAY-"+i++,kind:"ALLOW",term,text:`可以存在但不是必須：${term}`});
  i=1;for(const preference of b.storyPreferences)softRules.push({id:"WC2-DESTINY-"+i++,kind:"DESTINY_TENDENCY",weight:.6,text:preference});
+ hardRules.push({id:"WC2-CIVILIZATION_COUNT",kind:"COUNT_REQUIREMENT",target:"CIVILIZATION",minimum:Math.max(1,Number(b.advanced.civilizationCount.value)||1),text:`主要文明／部落至少 ${Math.max(1,Number(b.advanced.civilizationCount.value)||1)} 個`});
+ hardRules.push({id:"WC2-SPECIES_COUNT",kind:"COUNT_REQUIREMENT",target:"SPECIES",minimum:Math.max(1,Number(b.advanced.speciesCount.value)||1),text:`智慧種族至少 ${Math.max(1,Number(b.advanced.speciesCount.value)||1)} 個`});
+ hardRules.push({id:"WC2-LANGUAGE_COUNT",kind:"COUNT_REQUIREMENT",target:"LANGUAGE",minimum:Math.max(1,Number(b.advanced.languageCount.value)||1),text:`語言至少 ${Math.max(1,Number(b.advanced.languageCount.value)||1)} 個`});
  hardRules.push({id:"WC2-DIFFICULTY",kind:"DIFFICULTY",text:`難度規則：${DIFFICULTY_PRESETS[b.difficulty].label}`});
  hardRules.push({id:"WC2-ORIGIN",kind:"ORIGIN",text:`玩家起源：${ORIGIN_PRESETS[b.player.origin.type]?.label||"自訂"}`});
  return {version:2,hardRules,softRules}
