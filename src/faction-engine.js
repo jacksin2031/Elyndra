@@ -1,5 +1,5 @@
 import {recordCausalEvent} from "./knowledge-graph.js?v=276";
-import {ensureWorldRegistry} from "./world-registry.js?v=52000";
+import {ensureWorldRegistry} from "./world-registry.js?v=53000";
 import {ensureClock} from "./world-clock.js?v=276";
 import {ensureCrisis} from "./crisis-engine.js?v=276";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
