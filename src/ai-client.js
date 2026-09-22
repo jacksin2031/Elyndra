@@ -8,13 +8,14 @@ import {helperSnapshot} from "./helper-context.js?v=44000";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=37000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance} from "./world-quality.js?v=300";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance} from "./world-quality.js?v=45000";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=37000";
 import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=41000";
 import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=41000";
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=41000";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=45000";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -155,7 +156,7 @@ async function recoverFallbackWorldCandidate(candidate,diagnostics,report){
  try{
   const recoveryPatch=await worldStage("WORLD_RECOVERY",{
    timeoutMs:65000,maxOutputTokens:2400,temperature:.45,
-   system:`你是 Elyndra World Recovery Architect。只有 payload.fallbackStages 列出的階段可重寫；其他 AI 成功階段視為鎖定 Canon，不得改。永遠禁止改 worldName、worldTheme、seedCompliance。CORE_RULES fallback 可重寫 worldBible 的規則／文明／通訊；CORE_ANCHOR fallback 可重寫 summary、startingRegion/Settlement/Location、Weather、公私 facts；HISTORY fallback 可重寫既有 worldHistory 內容但保留 HIST id/order；GEOGRAPHY fallback 可重寫 openingHook 與既有 location 描述；FUTURE fallback 可重寫 calendar 描述與 Timeline title/category/directorTruth/observableEffect/pressure，但保留 id/日期窗口/links；SOCIETY fallback 可重寫 location culture/trade 與既有 faction，包括名稱；CAST fallback 可重寫既有 NPC/sideQuest，包括名稱。不得新增或刪除實體，historyRefs 不可改。若重新命名 Anchor/Faction/NPC，Engine 會同步引用。目標係消除「異界醒轉地」「當地引路人」「在地共同體」等模板佔位內容，並令所有 fallback 部分具體服務 worldTheme 與已鎖定歷史。openingHook 必須保持零知識感官視角，而且開局 1–3 回合內必須已經有一個可見或可聽見、立即、可採取行動、尚未解決的具體異常；不能只有氣氛與「四周很陌生」。可使用逃跑者、突然停止的鐘聲、受傷陌生人、封閉入口、追逐、求救等形式，但不得洩漏未發現 Canon。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
+   system:`你是 Elyndra World Recovery Architect。只有 payload.fallbackStages 列出的階段可重寫；其他 AI 成功階段視為鎖定 Canon，不得改。永遠禁止改 worldName、worldTheme、seedCompliance。CORE_RULES fallback 可重寫 worldBible 的規則／文明／通訊；CORE_ANCHOR fallback 可重寫 summary、startingRegion/Settlement/Location、Weather、公私 facts；HISTORY fallback 可重寫既有 worldHistory 內容但保留 HIST id/order；GEOGRAPHY fallback 可重寫 openingHook 與既有 location 描述；FUTURE fallback 可重寫 calendar 描述與 Timeline title/category/directorTruth/observableEffect/pressure，但保留 id/日期窗口/links；SOCIETY fallback 可重寫 location culture/trade 與既有 faction，包括名稱；CAST fallback 可重寫既有 NPC/sideQuest，包括名稱。不得新增或刪除實體，historyRefs 不可改。若重新命名 Anchor/Faction/NPC，Engine 會同步引用。目標係消除「異界醒轉地」「當地引路人」「在地共同體」等模板佔位內容，並令所有 fallback 部分具體服務 worldTheme 與已鎖定歷史。openingHook 必須保持符合 candidate.originOpening / playerOrigin 的知識視角，而且開局 1–3 回合內必須已經有一個可見或可聽見、立即、可採取行動、尚未解決的具體異常；不能只有氣氛與「四周很陌生」。可使用逃跑者、突然停止的鐘聲、受傷陌生人、封閉入口、追逐、求救等形式，但不得洩漏未發現 Canon。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
    user:JSON.stringify({fallbackStages,candidate})
   });
   const recovered=applyFallbackRecoveryPatch(candidate,recoveryPatch,diagnostics);
@@ -172,7 +173,7 @@ async function evaluateWorldQuality(candidate,diagnostics){
  try{
   const raw=await worldStage("QUALITY_CRITIC",{
    timeoutMs:50000,maxOutputTokens:1500,temperature:.25,
-   system:`你是 Elyndra World Critic。你不負責續寫故事，只評估這個世界候選。分別評 internalConsistency、originality、worldDepth、historyIntegration、geography、societyCulture、magicSystem、factions、characters、futureEvents、playability、knowledgeBoundary，每項0-100；overall 0-100。特別檢查 fallback 模板味、未來 Timeline 是否真的是事件、魔法規則是否可執行、History 是否以結構化 refs 連到 Location/NPC/Faction、openingHook 有沒有洩漏玩家未知地名／世界名／World Theme。findings 最多8項，每項包含 severity、targetType、targetIds、problem、evidence、recommendation、requiresRegeneration。只輸出 JSON。`,
+   system:`你是 Elyndra World Critic。你不負責續寫故事，只評估這個世界候選。分別評 internalConsistency、originality、worldDepth、historyIntegration、geography、societyCulture、magicSystem、factions、characters、futureEvents、playability、knowledgeBoundary，每項0-100；overall 0-100。特別檢查 fallback 模板味、未來 Timeline 是否真的是事件、魔法規則是否可執行、History 是否以結構化 refs 連到 Location/NPC/Faction、openingHook 是否遵守 candidate.originOpening 與 playerOrigin 的知識權限；World Theme 永遠不可直接當成玩家已知抽象真相。findings 最多8項，每項包含 severity、targetType、targetIds、problem、evidence、recommendation、requiresRegeneration。只輸出 JSON。`,
    user:JSON.stringify({candidate,generationDiagnostics:finalizeGenerationDiagnostics(diagnostics)})
   });
   return normalizeWorldEvaluation(raw,{source:"AI"})
@@ -189,7 +190,7 @@ async function reviewAndRepairWorldCandidate(candidate,diagnostics,report){
   try{
    repair=await worldStage("QUALITY_REPAIR",{
     timeoutMs:65000,maxOutputTokens:1900,temperature:.45,
-    system:`你是 Elyndra World Repair Architect。根據 critic findings 只輸出需要修補的 patch。禁止改 worldName、worldTheme、seedCompliance、worldHistory、worldCalendar、startingRegion、startingSettlement、startingLocation；禁止更改 Timeline 的 id/日期窗口/links。優先修正模板化內容、具體魔法代價、事件性、文化與角色深度、零知識 openingHook。generation 只能修改既有陣列同 index 的描述性欄位，不可新增、刪除或重新命名實體；historyRefs 必須保留。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
+    system:`你是 Elyndra World Repair Architect。根據 critic findings 只輸出需要修補的 patch。禁止改 worldName、worldTheme、seedCompliance、worldHistory、worldCalendar、startingRegion、startingSettlement、startingLocation；禁止更改 Timeline 的 id/日期窗口/links。優先修正模板化內容、具體魔法代價、事件性、文化與角色深度、符合 Origin knowledge boundary 的 openingHook。generation 只能修改既有陣列同 index 的描述性欄位，不可新增、刪除或重新命名實體；historyRefs 必須保留。只輸出 JSON：{"patch":{...},"changedTargets":["..."]}。`,
     user:JSON.stringify({candidate:current,evaluation})
    })
   }catch{break}
@@ -226,7 +227,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>coreRulesFallback(identity)),
    resilientWorldStage("CORE_ANCHOR",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1000,
-    system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。blueprintProfile.mustExist 的每一項都必須在世界 Canon 實際存在；summary、publicFacts 或 hiddenFacts 至少要有一處保留每個標籤的原詞並說明它如何存在，不可只複製清單。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
+    system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。blueprintProfile.mustExist 的每一項都必須在世界 Canon 實際存在；summary、publicFacts 或 hiddenFacts 至少要有一處保留每個標籤的原詞並說明它如何存在，不可只複製清單。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。出生位置亦必須符合 blueprintProfile.origin：crossing 應像無登記的突然抵達；summoned 應合理接近召喚方可接觸的位置；native/reincarnation 應像既有地方生活的一部分；possession 應符合 host 身份；amnesia 要支援記憶缺口。這只決定地點因果，不可替玩家新增未授權知識。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
     user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"玩家真實出生位置",weatherSystem:{identity:"20-50字天氣法則",source:"天氣來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項與 worldTheme 直接相關的公開事實"],hiddenFacts:["2-3項與 worldTheme/current premise 直接相關的秘密"]}})
    },()=>coreAnchorFallback(identity))
   ]);
@@ -247,7 +248,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   if(coreIssues.length)throw new Error(`WORLD_CORE_INVALID: ${coreIssues.join(",")}`);
   report(52,"世界核心完成","Identity、Rules、Anchor 已合併成單一 World Anchor Contract");
 
-  const anchor=buildWorldAnchorContract(core,directive.timelinePacing);
+  const anchor=buildWorldAnchorContract(core,directive.timelinePacing),originOpening=originOpeningContract({player:{origin:seed.creationV2?.originProfile||{}},world:{creation:seed.creationV2||{},state:{day:1}}});
   report(56,"雙 AI 編譯 Wave 1","最多兩個 AI 同時生成：過去歷史與開局地理；兩者共享同一 World Anchor Contract");
 
   const [historyRaw,geographyRaw]=await Promise.all([
@@ -258,8 +259,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>({worldHistory:historyFallback(anchor)})),
    resilientWorldStage("GEOGRAPHY",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:800,
-    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的玩家起源只以 payload.playerOrigin 為權威；不得自行假設玩家來自現代地球。只可使用 playerOrigin.commonKnowledge、initialAssumptions 與 worldKnowledgeBoundary 決定玩家能理解甚麼；任何未授權異世界專有名詞、歷史、人物、魔法規則或地方文化都不可提前知道。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常，例如有人逃跑、鐘聲突然停止、傷者求助、入口封閉、追逐或突發破壞；玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
-    user:JSON.stringify({anchor,playerOrigin:seed.creationV2?.originProfile||null,required:{openingHook:"80-160字零知識感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"地點類型",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
+    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的玩家起源只以 payload.playerOrigin 與 payload.originOpening 為權威；不得自行假設玩家來自現代地球。originOpening.worldNameKnown / calendarKnown / openingMode 決定開場可否直接理解世界名稱、曆法與地方背景；只可使用 playerOrigin.commonKnowledge、initialAssumptions、worldKnowledgeBoundary 及 originOpening 授權內容。未授權異世界專有名詞、歷史、人物、魔法規則或地方文化不可提前知道。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常，例如有人逃跑、鐘聲突然停止、傷者求助、入口封閉、追逐或突發破壞；玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
+    user:JSON.stringify({anchor,playerOrigin:seed.creationV2?.originProfile||null,originOpening,required:{openingHook:"80-160字符合 Origin knowledge boundary 的感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"地點類型",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
    },()=>geographyFallback(anchor))
   ]);
   const historyReport=validateWorldHistory(historyRaw?.worldHistory);if(!historyReport.valid)markWorldFallback("HISTORY","VALIDATION_FAILED:"+historyReport.errors.join(","));const history=historyReport.valid?historyReport.history:historyFallback(anchor);
@@ -307,7 +308,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   if(linkIssues.length)throw new Error("WORLD_CAST_LINK_INVALID:"+linkIssues.join(","));
 
   report(84,"整合世界","三個 Wave 完成；任何時候最多兩個 AI 並行，Engine 正在驗證跨階段引用");
-  const draft={...core,worldHistory:history,worldCalendar:future.worldCalendar,worldTimeline:future.worldTimeline,openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}};
+  const draft={...core,originOpening,worldHistory:history,worldCalendar:future.worldCalendar,worldTimeline:future.worldTimeline,openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}};
   const recovered=await recoverFallbackWorldCandidate(draft,diagnostics,report);
   const reviewed=await reviewAndRepairWorldCandidate(recovered,diagnostics,report);activeGenerationDiagnostics=null;return reviewed
 
@@ -319,7 +320,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  return candidate
 }
 export async function talkToNpc(state,key,message){const npc=state.npcs?.[key];if(!npc)throw new Error("NPC_NOT_FOUND");const knownFacts=npcKnownFacts(state,npc),payload={message,npc,knownFacts,memories:npc.memories||[],scene:{day:state.world.state.day,location:state.player.location}};if(hasDirectAI())return directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。只能使用提供的 knownFacts 與 memories，不知道就表現不知道。繁體中文1-4句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
-export async function talkToDynamicNpc(state,npc,message,contact={}){const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),behavior=npcBehaviorSnapshot(npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,behavior},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,contact:{mode:contact.mode||"LOCAL",communication:contact.communication||null},scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location,weather:playerWeatherSnapshot(state)}};if(hasDirectAI()){const raw=await directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal、behavior 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。behavior 是玩家可感受到的一致人格：回答時自然體現其中一項 mannerism、speechPattern、habit、value、fear 或 contradiction，但不要每句都重複同一習慣，也不要把欄位名稱唸出來。若 memories 或 behavior.promises / grudges 與玩家本次說話有關，必須記得並以行為或措辭反映；不要說出 trust 數值或任何內部關係數值。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。若 contact.mode=REMOTE，必須自然反映 payload.contact.communication 所定義的世界內通訊媒介與限制，但不要自行發明更高階技術。不知道的事不可捏造。只使用繁體中文1-5句；除既有專有名詞外不要切換其他語言，不要輸出系統標籤。`,user:JSON.stringify(payload)});return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}const raw=(await post("/api/npc",payload)).text;return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}
+export async function talkToDynamicNpc(state,npc,message,contact={}){const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),behavior=npcBehaviorSnapshot(npc),originContext=originNpcContext(state,npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,behavior},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,originContext,contact:{mode:contact.mode||"LOCAL",communication:contact.communication||null},scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location,weather:playerWeatherSnapshot(state)}};if(hasDirectAI()){const raw=await directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal、behavior 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。behavior 是玩家可感受到的一致人格：回答時自然體現其中一項 mannerism、speechPattern、habit、value、fear 或 contradiction，但不要每句都重複同一習慣，也不要把欄位名稱唸出來。若 memories 或 behavior.promises / grudges 與玩家本次說話有關，必須記得並以行為或措辭反映；不要說出 trust 數值或任何內部關係數值。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。originContext 是 Engine 根據玩家 Origin 計算的身份與語言邊界：reaction 只影響演出語氣，不能自行修改 trust；languageMode=GESTURE 時不可讓雙方突然流利理解語言，只能用姿勢、表情、指向與極少量可推斷意思；FRAGMENTED 時可表現詞彙／理解不完整。若 contact.mode=REMOTE，必須自然反映 payload.contact.communication 所定義的世界內通訊媒介與限制，但不要自行發明更高階技術。不知道的事不可捏造。只使用繁體中文1-5句；除既有專有名詞外不要切換其他語言，不要輸出系統標籤。`,user:JSON.stringify(payload)});return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}const raw=(await post("/api/npc",payload)).text;return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}
 export const turnDirectorMode=sharedTurnDirectorMode;
 
 export async function askTravelHelper(state,question){

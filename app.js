@@ -1,13 +1,13 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=44000";
+import {APP_VERSION} from "./src/version.js?v=45000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=340";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=44000";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=44000";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=45000";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=45000";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=44000";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=44000";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=45000";
 import {maintainSession} from "./src/session-maintenance.js?v=276";
-import {performAction} from "./src/game-engine.js?v=44000";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=44000";
+import {performAction} from "./src/game-engine.js?v=45000";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=45000";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=276";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=42000";
 import {ensureWorldRegistry,canonizeGeneration,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=337";
@@ -15,7 +15,7 @@ import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/know
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=35000";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=42000";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=276";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=44000";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=45000";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=320";
 import {ensureCrisis} from "./src/crisis-engine.js?v=276";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=276";
@@ -23,7 +23,7 @@ import {playerVisibleEvents} from "./src/event-visibility.js?v=44000";
 import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=276";
 import {getWorldStylePreset} from "./src/world-style-presets.js?v=37000";
 import {randomWorldSettings} from "./src/world-randomizer.js?v=290";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=37001";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=45000";
 import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=276";
 import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=39000";
 import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=276";
@@ -38,17 +38,18 @@ import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=276"
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=276";
 import {marketSnapshot} from "./src/economy-engine.js?v=276";
 import {cultureSnapshot} from "./src/culture-engine.js?v=276";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=337";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot} from "./src/world-quality.js?v=45000";
 import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=43000";
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=320";
 import {worldMapSnapshot} from "./src/world-map.js?v=320";
-import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=320";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=44000";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=45000";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=45000";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=340";
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions,sessionCheckpoint} from "./src/player-experience.js?v=35000";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation} from "./src/contextual-actions.js?v=38003";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=41000";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=44000";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=45000";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -549,7 +550,7 @@ $("#generateBtn").onclick=async()=>{
    if(!creationValidation.valid)throw new Error("WORLD_CREATION_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
    applyWorldCandidate(gameState,candidate);
    worldProgress(90,"正在 Canonize 開局內容","只建立世界骨架、出生區域與最小可玩內容；其他地區延遲生成");
-   canonizeGeneration(gameState,candidate.generation)
+   canonizeGeneration(gameState,candidate.generation);applyOriginRuntime(gameState,{phase:"POST_CANON"})
   }catch(e){console.error("AI world generation failed",e);worldProgress(0,"AI 世界生成失敗",e.message);throw e}
   finally{setAIThinking(false)}
   const contract=buildWorldContract(gameState);gameState.world.creation.contract=structuredClone(contract);

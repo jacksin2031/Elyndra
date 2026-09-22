@@ -19,8 +19,9 @@ export function registerDocument(state,input={}){
  rt.documents.push(row);return row
 }
 export function playerLanguages(state){
- const explicit=uniq(state.player?.languages,16).map(x=>x.toUpperCase()),origin=uniq(state.player?.origin?.languages,16).map(x=>x.toUpperCase());
- return new Set(["COMMON","UNIVERSAL",...explicit,...origin])
+ const explicit=uniq(state.player?.languages,16).map(x=>x.toUpperCase()),origin=uniq(state.player?.origin?.languages,16).map(x=>x.toUpperCase()),runtime=uniq(state.player?.originRuntime?.readLanguages,16).map(x=>x.toUpperCase());
+ const base=state.player?.originRuntime?["UNIVERSAL"]:["COMMON","UNIVERSAL"];
+ return new Set([...base,...runtime,...explicit,...origin])
 }
 export function canReadDocument(state,docOrId){
  const doc=typeof docOrId==="string"?ensureDocumentRuntime(state).documents.find(x=>x.id===docOrId):docOrId;if(!doc)return {ok:false,reason:"DOCUMENT_NOT_FOUND"};

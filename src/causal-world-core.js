@@ -3,7 +3,7 @@ import {ensureGenerationClaims,syncGenerationClaimsFromCausalStructure,reconcile
 import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.js?v=40000";
 import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=40000";
 import {ensureItemHeritage} from "./item-heritage.js?v=43000";
-import {ensureDocumentRuntime} from "./document-engine.js?v=43000";
+import {ensureDocumentRuntime} from "./document-engine.js?v=45000";
 import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=44000";
 
 export function ensureCausalWorldCore(state){
