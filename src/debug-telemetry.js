@@ -58,7 +58,7 @@ export function telemetrySummary(entries=telemetryEntries()){
  return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,gameplayEvents:gameplay.length,aiRequests:ai.length,aiSuccess:ok.length,aiUsageResponses:billable.length,errorCount:errors.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
 }
 export function debugBundle({appVersion="",gameState=null,aiSettings=null,runtime={}}={}){
- const entries=telemetryEntries(),summary=telemetrySummary(entries);
+ const entries=telemetryEntries(),currentEntries=entries.filter(x=>x.sessionId===SESSION_ID),summary={...telemetrySummary(currentEntries),historyEntryCount:entries.length};
  return {schema:"elyndra-debug-v1",meta:{appVersion,exportedAt:new Date().toISOString(),sessionId:SESSION_ID,userAgent:globalThis.navigator?.userAgent||"unknown",language:globalThis.navigator?.language||"unknown",timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"unknown",viewport:{width:globalThis.innerWidth||0,height:globalThis.innerHeight||0,devicePixelRatio:globalThis.devicePixelRatio||1},online:globalThis.navigator?.onLine??null},summary,aiSettings:cloneSafe(aiSettings),runtime:cloneSafe(runtime),telemetry:entries,gameState:cloneSafe(gameState)}
 }
 export function debugBundleText(bundle){
