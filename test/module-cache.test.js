@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.53.0 propagates Causal Integrity changes through the browser cache graph",async()=>{
+test("v0.54.0 preserves causal cache graph and exposes AI autotest modules",async()=>{
  const [html,app,client,creation,worldEngine,simulation,futureRuntime,lazy,causal,integrity,claims,ledger,catalog,storage,game,combat,adventure,progression,npcConversation,npcDialogue,npcEngine,faction,quest,itemEngine,check,registry,quality,visibility]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/world-creation.js",import.meta.url),"utf8"),
@@ -27,8 +27,8 @@ test("v0.53.0 propagates Causal Integrity changes through the browser cache grap
   readFile(new URL("../src/check-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/world-registry.js",import.meta.url),"utf8"),
   readFile(new URL("../src/world-quality.js",import.meta.url),"utf8"),readFile(new URL("../src/visibility-lock.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=53001/);
- for(const path of ["version","ai-settings","ai-client","adventure-engine","game-engine","contextual-actions","debug-telemetry"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53001"),path);
+ assert.match(html,/app\.js\?v=54000/);assert.match(app,/\.\/src\/version\.js\?v=54000/);assert.match(app,/\.\/src\/ai-autotest\.js\?v=54000/);
+ for(const path of ["ai-settings","ai-client","adventure-engine","game-engine","contextual-actions","debug-telemetry"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53001"),path);
  for(const path of ["world-engine","storage","world-simulation","npc-conversation","npc-engine","faction-engine","quest-engine","combat-engine","progression-ui","lazy-generation","world-registry","item-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=53000"),path);
  assert.match(app,/\.\/src\/world-creation\.js\?v=52000/);assert.match(app,/\.\/src\/world-quality\.js\?v=51000/);assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);
 

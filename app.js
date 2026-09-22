@@ -1,5 +1,5 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=53001";
+import {APP_VERSION} from "./src/version.js?v=54000";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,PROVIDERS} from "./src/ai-settings.js?v=53001";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=53000";
 import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=53001";
@@ -54,6 +54,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=45000";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=48000";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=48000";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport} from "./src/ai-autotest.js?v=54000";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -64,6 +65,8 @@ const nonblockingScene={controller:null,revision:null,worldId:null};
 const worldBackground={timer:0,running:false,controller:null,lastReason:"background_gameplay",queued:false,failures:0,cooldownUntil:0};
 const worldQualityBackground={timer:0,running:false,controller:null,lastReason:"background_quality",failures:0};
 const historyBackground={timer:0,running:false,controller:null,lastReason:"history_research",plan:null,failures:0};
+let developerAutotestActive=false;
+const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,lastReport:null,lastMessage:"",logs:[]};
 let gameplayDebugSnapshot=null;
 function gameplayDebugClock(state){
  const clock=state?.world?.state?.clock||{};
@@ -370,7 +373,7 @@ async function persist(){if(gameState){
   gameState.narrative=(gameState.narrative?gameState.narrative+"\n\n":"")+lines.join("\n");
   recordDebug("SESSION_CHECKPOINT",{reason:recap.reason,day:recap.day,location:recap.location,worldChanges:recap.worldChanges,discoveries:recap.discoveries,unresolved:recap.unresolved})
  }
- maintainSession(gameState);await saveWorld(gameState)
+ maintainSession(gameState);if(!developerAutotestActive)await saveWorld(gameState)
 }}
 function fallbackActionButtons(action=""){const contextual=roleplayFallbackSuggestions(gameState||{},{action});if(contextual.length)return contextual.slice(0,4);return ["檢查地面與附近物件上最新留下的痕跡","找一個正在避開人群的人，問他剛才看見了甚麼","沿著最明顯的新鮮痕跡走一小段，確認它通往哪裡","找一個能看見出入口的位置觀察人流"]}
 function renderSuggestions(){
@@ -647,7 +650,7 @@ $("#generateBtn").onclick=async()=>{
 };
 $("#freeActionForm").onsubmit=async e=>{e.preventDefault();const input=$("#freeAction"),value=input.value.trim();if(!value)return;input.value="";await runAction("free",value)};
 function debugRuntimeSnapshot(){
- return {screen:document.body.dataset.screen||"",aiBusy,turnSyncBusy,turnSyncLabel,stateRevision:gameState?currentStateRevision(gameState):null,nonblockingPlayerAction:Boolean(nonblockingScene.controller),deferredDirector:{running:deferredDirector.running,queued:deferredDirector.queue.length},worldBackground:{running:worldBackground.running,queued:worldBackground.queued,lastReason:worldBackground.lastReason,failures:worldBackground.failures,cooldownRemainingMs:Math.max(0,Number(worldBackground.cooldownUntil||0)-Date.now())},combatActive:Boolean(gameState?.combat?.active),worldId:gameState?.world?.id||null,worldDay:gameState?.world?.state?.day||null}
+ return {screen:document.body.dataset.screen||"",aiBusy,turnSyncBusy,turnSyncLabel,stateRevision:gameState?currentStateRevision(gameState):null,nonblockingPlayerAction:Boolean(nonblockingScene.controller),deferredDirector:{running:deferredDirector.running,queued:deferredDirector.queue.length},worldBackground:{running:worldBackground.running,queued:worldBackground.queued,lastReason:worldBackground.lastReason,failures:worldBackground.failures,cooldownRemainingMs:Math.max(0,Number(worldBackground.cooldownUntil||0)-Date.now())},autotest:{running:developerAutotest.running,worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,stopRequested:developerAutotest.stopRequested},combatActive:Boolean(gameState?.combat?.active),worldId:gameState?.world?.id||null,worldDay:gameState?.world?.state?.day||null}
 }
 function currentDebugBundle(){const ai=loadAISettings(),endpoint=String(ai.endpoint||"").replace(/([?&](?:key|api_key|token|access_token)=)[^&]+/gi,"$1[REDACTED]");return debugBundle({appVersion:APP_VERSION,gameState,aiSettings:{provider:ai.provider,model:ai.model,endpoint,optimization:ai.optimization,apiKey:ai.apiKey},runtime:debugRuntimeSnapshot()})}
 function downloadDebugFile(kind="json"){
@@ -750,6 +753,158 @@ $("#historyBtn").onclick=()=>{
  const recentCards=events.slice(0,8).map(e=>`<div class="lore-item"><small>DAY ${e.day}${e.time?` · ${esc(e.time)}`:""}</small><p>${e.summary?esc(e.summary):e.action?esc(e.customText||e.action):"你繼續走在這個陌生世界裡。"}</p></div>`).join("");
  openModal(`<div class="eyebrow">JOURNEY MEMORY</div><h2>旅程回顧</h2><p class="muted">以自然停頓點整理旅程，而不是把每個 Engine event 當成日誌。</p><div class="lore-list">${recapCards||recentCards||'<div class="lore-item"><p>旅程才剛開始。</p></div>'}</div>`)
 };
+
+function autotestDownload(filename,body,type="application/json;charset=utf-8"){
+ const blob=new Blob([body],{type}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),800)
+}
+function autotestStamp(){return new Date().toISOString().replace(/[:.]/g,"-")}
+function autotestTelemetryErrors(since=0){return telemetryEntries().filter(e=>Number(e.at)>=since&&(/ERROR|FAILED/.test(String(e.type||""))||e.data?.status==="ERROR")).length}
+function appendDeveloperAutotestLog(message){
+ const line=String(message||"").slice(0,500);developerAutotest.lastMessage=line;developerAutotest.logs.push({at:Date.now(),message:line});developerAutotest.logs=developerAutotest.logs.slice(-80);
+ const status=$("#autotestLiveStatus");if(status)status.textContent=line;
+ const log=$("#autotestLiveLog");if(log)log.textContent=developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n");
+ const progress=$("#autotestProgressText");if(progress){const total=Number(developerAutotest.config?.worldCount)||0,maxTurns=Number(developerAutotest.config?.maxTurns)||0;progress.textContent=developerAutotest.running?`世界 ${developerAutotest.worldIndex}/${total} · 回合 ${developerAutotest.turn}/${maxTurns}`:"未執行"}
+}
+function developerAutotestPanelHtml(){
+ const c=developerAutotest.config||{mode:"play",worldCount:1,maxTurns:30,stopCondition:"TURN_LIMIT",conditionTarget:10,customCondition:""};
+ const running=developerAutotest.running,report=developerAutotest.lastReport,summary=report?.summary;
+ return `<div class="eyebrow">DEVELOPER · AI AUTOTEST</div><h2>AI 自動測試</h2><p class="muted">使用目前已設定的 Elyndra AI Provider/API。測試世界不會覆蓋正式存檔；AI 玩家只會收到真實玩家此刻能看見或已知的情報，不會取得 hidden Canon。</p>
+ <div class="settings-grid">
+ <label>測試模式<select id="autotestMode" ${running?"disabled":""}><option value="play">AI 遊玩測試</option><option value="worlds">隨機世界生成測試</option></select></label>
+ <label>隨機世界數量<input id="autotestWorldCount" type="number" min="1" max="20" value="${Math.max(1,Number(c.worldCount)||1)}" ${running?"disabled":""}></label>
+ <label>每個世界最多回合<input id="autotestMaxTurns" type="number" min="1" max="500" value="${Math.max(1,Number(c.maxTurns)||30)}" ${running?"disabled":""}></label>
+ <label>停止條件<select id="autotestStopCondition" ${running?"disabled":""}><option value="TURN_LIMIT">只按回合上限</option><option value="PLAYER_DOWNED">玩家倒下</option><option value="MAIN_QUEST_COMPLETE">主線完成</option><option value="KNOWLEDGE_SCORE">知識分數達標</option><option value="PLAYER_LEVEL">玩家等級達標</option><option value="DISCOVERIES">發現數達標</option><option value="ERROR_COUNT">錯誤數達標</option><option value="CUSTOM_AI">自訂可觀察條件</option></select></label>
+ <label>條件目標值<input id="autotestConditionTarget" type="number" min="1" max="9999" value="${Math.max(1,Number(c.conditionTarget)||10)}" ${running?"disabled":""}></label>
+ </div>
+ <label class="full">自訂停止條件<input id="autotestCustomCondition" maxlength="500" value="${esc(c.customCondition||"")}" placeholder="例如：加入任一勢力並取得一項新知識" ${running?"disabled":""}></label>
+ <p class="muted">AI 每回合可以直接選擇現有行動按鈕，亦可以自行輸入自由行動。無論設定任何停止條件，回合上限仍會作為安全上限。</p>
+ <div class="settings-actions"><button id="autotestStart" class="primary" ${running?"disabled":""}>開始自動測試</button><button id="autotestStop" class="secondary" ${running?"":"disabled"}>停止測試</button></div>
+ <div class="lore-list"><div class="lore-item"><small>PROGRESS</small><h3 id="autotestProgressText">${running?`世界 ${developerAutotest.worldIndex}/${c.worldCount} · 回合 ${developerAutotest.turn}/${c.maxTurns}`:"未執行"}</h3><p id="autotestLiveStatus">${esc(developerAutotest.lastMessage||"設定完成後按「開始自動測試」。")}</p><pre id="autotestLiveLog" class="debug-log">${esc(developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n"))}</pre></div>
+ ${summary?`<div class="lore-item"><small>LAST REPORT</small><h3>${summary.worldsCompleted} 完成 · ${summary.worldsFailed} 失敗 · ${summary.totalTurns} 回合</h3><p>Issues ${summary.issues} · AI Requests ${summary.aiRequests} · Tokens ${Number(summary.tokenTotals?.total||0).toLocaleString()} · 平均 AI latency ${summary.aiLatencyAverageMs}ms</p></div>`:""}</div>
+ <p class="muted">完成後會自動輸出 Debug JSON，以及測試世界檔（單一世界為 .elyndra，多世界為 JSON bundle）。</p>`;
+}
+function readDeveloperAutotestConfig(){
+ return {
+  mode:$("#autotestMode")?.value==="worlds"?"worlds":"play",
+  worldCount:Math.max(1,Math.min(20,Math.round(Number($("#autotestWorldCount")?.value)||1))),
+  maxTurns:Math.max(1,Math.min(500,Math.round(Number($("#autotestMaxTurns")?.value)||30))),
+  stopCondition:String($("#autotestStopCondition")?.value||"TURN_LIMIT"),
+  conditionTarget:Math.max(1,Math.round(Number($("#autotestConditionTarget")?.value)||10)),
+  customCondition:String($("#autotestCustomCondition")?.value||"").trim().slice(0,500)
+ }
+}
+function bindDeveloperAutotestPanel(){
+ const c=developerAutotest.config||{mode:"play",stopCondition:"TURN_LIMIT"};if($("#autotestMode"))$("#autotestMode").value=c.mode||"play";if($("#autotestStopCondition"))$("#autotestStopCondition").value=c.stopCondition||"TURN_LIMIT";
+ $("#autotestStart")?.addEventListener("click",()=>{if(developerAutotest.running)return;developerAutotest.config=readDeveloperAutotestConfig();void startDeveloperAutotest(developerAutotest.config)});
+ $("#autotestStop")?.addEventListener("click",()=>{developerAutotest.stopRequested=true;developerAutotest.controller?.abort(new DOMException("Developer autotest stopped","AbortError"));appendDeveloperAutotestLog("已要求停止；目前安全點完成後結束。");recordDebug("AUTOTEST_STOP_REQUESTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn})})
+}
+function openDeveloperAutotestPanel(){openModal(developerAutotestPanelHtml());bindDeveloperAutotestPanel()}
+$("#developerBtn")?.addEventListener("click",openDeveloperAutotestPanel);
+
+async function waitForAutotestIdle(timeoutMs=12000){
+ const started=Date.now();
+ while(Date.now()-started<timeoutMs){
+  if(!aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running)return true;
+  await new Promise(r=>setTimeout(r,80))
+ }
+ recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});
+ return false
+}
+function cancelAutotestBackgroundWork(){
+ if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}
+ if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}
+ if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}
+ if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}
+ preemptBackgroundAI()
+}
+async function createDeveloperAutotestWorld(raw,index){
+ const draft=createWorldCreationDraft(raw),seed=compileWorldCreation(draft),state=newGame(seed);applyWorldCreationState(state,seed);
+ recordDebug("AUTOTEST_WORLD_GENERATION_STARTED",{index,masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale});
+ const candidate=await generateWorldCandidate(seed,state.world.constitution,p=>appendDeveloperAutotestLog(`世界 ${index} · ${p.label||"World Compiler"} ${p.progress||0}%`));
+ const creationValidation=validateWorldCreationCandidate(seed,candidate);if(!creationValidation.valid)throw new Error("AUTOTEST_WORLD_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
+ applyWorldCandidate(state,candidate);canonizeGeneration(state,candidate.generation);applyOriginRuntime(state,{phase:"POST_CANON"});
+ const migrated=migrate(state),validation=validateWorld(migrated.world);if(!validation.valid)throw new Error("AUTOTEST_WORLD_INVALID:"+validation.errors.join(","));
+ recordDebug("AUTOTEST_WORLD_GENERATION_COMPLETED",{index,worldId:migrated.world?.id,name:migrated.world?.name,genre:migrated.world?.seedContract?.genre||raw.worldStyle});
+ return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale},validation}
+}
+async function executeDeveloperAutotestDecision(decision){
+ if(decision.mode==="combat"){await runCombatAction(decision.combatAction||"attack");return}
+ if(decision.mode==="suggestion"){
+  const source=gameState?.suggestionIntents?.length?gameState.suggestionIntents:(gameState?.suggestions||[]),chosen=source[Math.max(0,Math.min(source.length-1,Number(decision.suggestionIndex)||0))];
+  if(chosen&&typeof chosen==="object"){await runAction("free",chosen.action||chosen.label||decision.action,{suggestion:chosen});return}
+  if(typeof chosen==="string"){await runAction("free",chosen);return}
+ }
+ await runAction("free",decision.action||"觀察四周並確認目前最明顯的變化")
+}
+function exportDeveloperAutotestResults(report,results){
+ const stamp=autotestStamp(),debugPayload={...report,telemetry:telemetryEntries().filter(e=>Number(e.at)>=developerAutotest.startedAt),actions:results.map(r=>({index:r.index,status:r.status,stopReason:r.stopReason,actions:r.actions}))};
+ autotestDownload(`Elyndra-autotest-debug-v${APP_VERSION}-${stamp}.json`,JSON.stringify(debugPayload,null,2));
+ const worlds=results.filter(r=>r.world).map(r=>({index:r.index,status:r.status,stopReason:r.stopReason,summary:r.summary,world:r.world}));
+ if(worlds.length===1)autotestDownload(`Elyndra-autotest-world-v${APP_VERSION}-${stamp}.elyndra`,JSON.stringify(worlds[0].world,null,2));
+ else if(worlds.length)autotestDownload(`Elyndra-autotest-worlds-v${APP_VERSION}-${stamp}.json`,JSON.stringify({schema:"elyndra-autotest-worlds-v1",appVersion:APP_VERSION,createdAt:new Date().toISOString(),worlds},null,2));
+ recordDebug("AUTOTEST_EXPORTED",{worlds:worlds.length,issues:report.summary?.issues||0,totalTurns:report.summary?.totalTurns||0})
+}
+async function startDeveloperAutotest(config){
+ if(developerAutotest.running)return;
+ aiStatus=await aiHealth();if(!aiStatus.aiConfigured){appendDeveloperAutotestLog("需要先在 AI 設定連接 Provider/API。");openDeveloperAutotestPanel();return}
+ const originalState=gameState?structuredClone(gameState):null,originalScreen=document.body.dataset.screen||"landing";
+ developerAutotest.running=true;developerAutotestActive=true;developerAutotest.stopRequested=false;developerAutotest.results=[];developerAutotest.startedAt=Date.now();developerAutotest.endedAt=0;developerAutotest.worldIndex=0;developerAutotest.turn=0;developerAutotest.logs=[];developerAutotest.lastReport=null;developerAutotest.config=structuredClone(config);
+ cancelAutotestBackgroundWork();recordDebug("AUTOTEST_BATCH_STARTED",{config});openDeveloperAutotestPanel();appendDeveloperAutotestLog(`開始 ${config.worldCount} 個世界的 ${config.mode==="worlds"?"World Fuzz":"AI Playthrough"} 測試。`);
+ try{
+  for(let i=1;i<=config.worldCount;i++){
+   if(developerAutotest.stopRequested)break;
+   developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();gameState=null;gameplayDebugSnapshot=null;
+   const worldStartedAt=Date.now(),result={index:i,status:"RUNNING",phase:"GENERATION",turns:0,stopReason:"",error:"",actions:[],generation:null,summary:null,world:null};
+   try{
+    appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
+    const generated=await createDeveloperAutotestWorld(randomAutotestWorldRaw(Math.random,i),i);
+    result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation};
+    gameState=generated.state;gameplayDebugSnapshot=null;await refresh();show("game");await waitForAutotestIdle(3000);
+    if(config.mode==="worlds"){
+     result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
+     appendDeveloperAutotestLog(`世界 ${i} 生成驗證完成。`);continue
+    }
+    result.phase="PLAY";const recentActions=[];
+    for(let turn=1;turn<=config.maxTurns;turn++){
+     if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
+     developerAutotest.turn=turn;await waitForAutotestIdle();
+     const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
+     try{
+      const ctrl=new AbortController();developerAutotest.controller=ctrl;
+      const decision=await decideAutotestAction(gameState,{recentActions,customCondition:config.stopCondition==="CUSTOM_AI"?config.customCondition:"",signal:ctrl.signal});developerAutotest.controller=null;row.decision=decision;
+      appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn}: ${decision.mode==="suggestion"?"[按鈕] ":decision.mode==="combat"?"[戰鬥] ":"[自由] "}${decision.action||decision.combatAction}`);
+      recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
+      if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
+      await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle();
+      row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push(decision.action||decision.combatAction||"");
+      recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
+      const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
+     }catch(e){
+      developerAutotest.controller=null;
+      if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
+      row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;
+      recordDebug("AUTOTEST_TURN_FAILED",{worldIndex:i,turn,error:row.error,durationMs:row.durationMs});appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 發生錯誤：${row.error}`);
+      const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:false},config,{});if(stop){result.stopReason=stop;break}
+     }
+    }
+    result.stopReason=result.stopReason||"TURN_LIMIT";result.status="COMPLETED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
+    recordDebug("AUTOTEST_WORLD_PLAY_COMPLETED",{index:i,turns:result.turns,stopReason:result.stopReason,summary:result.summary});appendDeveloperAutotestLog(`世界 ${i} 遊玩測試完成：${result.turns} 回合 · ${result.stopReason}`)
+   }catch(e){
+    result.status="FAILED";result.error=e?.message||String(e);result.summary=gameState?autotestWorldSummary(gameState):null;if(gameState)result.world=structuredClone(gameState);developerAutotest.results.push(result);
+    recordDebug("AUTOTEST_WORLD_FAILED",{index:i,phase:result.phase,error:result.error});appendDeveloperAutotestLog(`世界 ${i} 失敗：${result.error}`)
+   }
+  }
+ }finally{
+  developerAutotest.controller=null;developerAutotest.endedAt=Date.now();cancelAutotestBackgroundWork();
+  const runTelemetry=telemetryEntries().filter(e=>Number(e.at)>=developerAutotest.startedAt),report=buildAutotestReport({config,worlds:developerAutotest.results,telemetry:runTelemetry,startedAt:developerAutotest.startedAt,endedAt:developerAutotest.endedAt});
+  developerAutotest.lastReport=report;recordDebug("AUTOTEST_BATCH_COMPLETED",{summary:report.summary,stopRequested:developerAutotest.stopRequested});
+  try{exportDeveloperAutotestResults(report,developerAutotest.results)}catch(e){recordDebug("AUTOTEST_EXPORT_FAILED",{error:e?.message||String(e)})}
+  developerAutotest.running=false;developerAutotestActive=false;developerAutotest.stopRequested=false;gameState=originalState;gameplayDebugSnapshot=null;
+  await refresh();if(originalState&&originalScreen==="game")show("game");else if(originalScreen==="creator")show("creator");else show("landing");
+  appendDeveloperAutotestLog(`測試完成：${report.summary.worldsCompleted} 個完成、${report.summary.worldsFailed} 個失敗、${report.summary.totalTurns} 回合、${report.summary.issues} 個問題。`);openDeveloperAutotestPanel()
+ }
+}
+
 $("#aiSettingsBtn").onclick=()=>{const s=loadAISettings(),j=loadJevSettings();openModal(`<div class="eyebrow">LOCAL AI CONFIG</div><h2>AI 設定</h2><p class="muted">API Key 只保存在這個瀏覽器。模型由 Elyndra 按 Provider 固定管理，用戶不需要輸入模型名稱。</p><div class="settings-grid"><label>Provider<select id="aiProvider"><option value="openai">OpenAI</option><option value="gemini">Gemini</option><option value="agnes">Agnes 3.0 Flash</option></select></label><label>API Endpoint<input id="aiEndpoint" type="url" value="${esc(s.endpoint)}"></label><label>目前模型<input id="aiModelDisplay" value="${esc(PROVIDERS[s.provider]?.model||s.model)}" readonly></label><label>AI 優化模式<select id="aiOptimization"><option value="standard">標準</option><option value="adaptive">Elyndra 自適應優化</option></select></label><label>API Key<input id="aiKey" type="password" autocomplete="new-password" value="" placeholder="${s.apiKey?"已保存 · 輸入新 Key 才會取代":"尚未設定"}"></label></div><p id="aiProviderHint" class="muted"></p><p id="aiOptimizationHint" class="muted"></p><hr><div class="eyebrow">JEV DECISION ROUTER · OPTIONAL</div><p class="muted">只負責低成本 routing；失敗會自動回本地規則。Jev Key 亦只保存在本瀏覽器。</p><div class="settings-grid"><label>啟用 Jev<input id="jevEnabled" type="checkbox" ${j.enabled?"checked":""}></label><label>Jev Endpoint<input id="jevEndpoint" type="url" value="${esc(j.endpoint)}"></label><label>Jev Model<input id="jevModel" value="${esc(j.model)}"></label><label>Jev API Key<input id="jevKey" type="password" autocomplete="off" value="${esc(j.apiKey)}"></label><label>Confidence Threshold<input id="jevThreshold" type="number" min=".5" max=".95" step=".01" value="${j.threshold}"></label></div><div class="settings-actions"><button id="jevSave" class="secondary">儲存並測試 Jev</button><button id="jevClear" class="ghost">清除 Jev</button></div><p id="jevResult" class="muted"></p><div class="settings-actions"><button id="aiSave" class="primary">儲存並測試</button><button id="aiClear" class="secondary">清除本地 Key</button></div><p id="aiTestResult" class="muted"></p>`);
 const provider=$("#aiProvider"),endpoint=$("#aiEndpoint"),modelDisplay=$("#aiModelDisplay"),optimization=$("#aiOptimization"),key=$("#aiKey"),providerHint=$("#aiProviderHint"),optimizationHint=$("#aiOptimizationHint");
 const syncProviderHint=()=>{const p=PROVIDERS[provider.value];if(!p)return;if(modelDisplay)modelDisplay.value=p.model;if(providerHint)providerHint.textContent=`${p.label} · Elyndra 固定模型：${p.model}`;if(optimizationHint)optimizationHint.textContent=optimization.value==="adaptive"?"自適應優化會按任務重要性分配思考：行動／敘事較快，核心規則／歷史／Timeline 更深入，Critic／Recovery 使用最高保護。":"標準模式不主動指定 Provider 思考強度，使用模型預設行為。"};
@@ -760,7 +915,7 @@ $("#aiClear").onclick=async()=>{clearAISettings(provider.value);const fresh=load
 $("#saveToolsBtn").onclick=()=>openSaveManagerUI(gameState,openModal,{onLoad:async loaded=>{gameState=migrate(loaded);await refresh();$("#modal").classList.add("hidden");show("game")},onImport:()=>$("#importFile").click()});
 $("#importFile").onchange=async e=>{try{gameState=migrate(await importWorld(e.target.files[0]));await refresh();$("#modal").classList.add("hidden");show("game")}catch(err){alert(err.message)}finally{e.target.value=""}};
 $("#resetBtn").onclick=async()=>{if(confirm("確定要刪除目前的本地世界嗎？")){await deleteWorld();gameState=null;await refresh();show("landing")}};
-$("#gameMenuBtn")?.addEventListener("click",()=>openModal(`<div class="eyebrow">選單</div><h2>旅程設定</h2><p class="muted">一般冒險期間把系統設定收起，避免打斷場景。</p><div class="lore-list"><button class="secondary" data-system-open="aiSettingsBtn">AI 設定</button><button class="secondary" data-system-open="saveToolsBtn">存檔管理</button><button class="ghost" data-system-open="helperBtn">旅途助手</button><button class="ghost" data-system-open="runtimeBtn">異界狀態</button><button class="ghost" data-system-open="historyBtn">旅程紀錄</button><button class="ghost" data-system-open="debugBtn">Debug 診斷</button><button class="ghost" data-system-open="impactBtn">世界留下的痕跡</button><button class="ghost danger-ghost" data-system-open="resetBtn">重置世界</button></div>`));
+$("#gameMenuBtn")?.addEventListener("click",()=>openModal(`<div class="eyebrow">選單</div><h2>旅程設定</h2><p class="muted">一般冒險期間把系統設定收起，避免打斷場景。</p><div class="lore-list"><button class="secondary" data-system-open="aiSettingsBtn">AI 設定</button><button class="secondary" data-system-open="saveToolsBtn">存檔管理</button><button class="ghost" data-system-open="helperBtn">旅途助手</button><button class="ghost" data-system-open="runtimeBtn">異界狀態</button><button class="ghost" data-system-open="historyBtn">旅程紀錄</button><button class="ghost" data-system-open="debugBtn">Debug 診斷</button><button class="ghost" data-system-open="developerBtn">開發者 · AI 自動測試</button><button class="ghost" data-system-open="impactBtn">世界留下的痕跡</button><button class="ghost danger-ghost" data-system-open="resetBtn">重置世界</button></div>`));
 $("#modalContent")?.addEventListener("click",e=>{const id=e.target.closest("[data-system-open]")?.dataset.systemOpen;if(id)document.getElementById(id)?.click()});
 $("#moreBtn")?.addEventListener("click",()=>$("#gameMenuBtn")?.click());
 qsa("[data-nav-home]").forEach(b=>b.addEventListener("click",()=>{$("#modal")?.classList.add("hidden");$(".scene")?.scrollIntoView({behavior:"smooth",block:"start"})}));

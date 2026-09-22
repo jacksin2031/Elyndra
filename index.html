@@ -3,7 +3,7 @@
 <div class="brand-wrap"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div></div>
 <div class="topbar-context" aria-live="polite"><span id="topLocation">未知之地</span><span class="topbar-dot">◆</span><span id="topTime">時序未知</span></div>
 <span id="aiBadge" class="status">LOCAL</span>
-<div class="system-actions"><button id="aiSettingsBtn" class="ghost">AI 設定</button><button id="saveToolsBtn" class="ghost">存檔管理</button><button id="resetBtn" class="ghost danger-ghost">重置世界</button></div>
+<div class="system-actions"><button id="aiSettingsBtn" class="ghost">AI 設定</button><button id="saveToolsBtn" class="ghost">存檔管理</button><button id="developerBtn" class="ghost">開發者</button><button id="resetBtn" class="ghost danger-ghost">重置世界</button></div>
 <button id="gameMenuBtn" class="ghost icon-btn" type="button" aria-label="更多選項">•••</button>
 </header>
 <main id="app">
@@ -137,4 +137,4 @@
 <input id="importFile" type="file" accept=".elyndra,application/json" hidden><script>
 window.addEventListener("error",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=e.message||"JavaScript failed"}});
 window.addEventListener("unhandledrejection",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=String(e.reason?.message||e.reason||"Promise failed")}});
-</script><script type="module" src="app.js?v=53001"></script></body></html>
+</script><script type="module" src="app.js?v=54000"></script></body></html>
