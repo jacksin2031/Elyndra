@@ -1,5 +1,6 @@
 import {directChat} from "./ai-settings.js?v=53001";
 import {recordDebug} from "./debug-telemetry.js?v=53001";
+import {helperSnapshot} from "./helper-context.js?v=47000";
 
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(value))?Number(value):min));
 const pick=(items,random=Math.random)=>items[Math.min(items.length-1,Math.floor(clamp(random(),0,.999999999999)*items.length))];
@@ -57,9 +58,10 @@ function visibleSuggestion(row,index){
 }
 
 export function playerVisibleAutotestSnapshot(state={}){
- const registry=state.world?.registry||{},clock=state.world?.state?.clock||{},player=state.player||{},main=state.quests?.main||{};
+ const registry=state.world?.registry||{},clock=state.world?.state?.clock||{},player=state.player||{},main=state.quests?.main||{},playerContext=helperSnapshot(state);
  const source=list(state.suggestionIntents).length?state.suggestionIntents:list(state.suggestions);
  return {
+  playerContext,
   world:{
    name:player.worldNameKnown===true?text(state.world?.name,120):"UNKNOWN",
    day:Number(state.world?.state?.day||clock.day)||1,
