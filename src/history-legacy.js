@@ -1,5 +1,5 @@
-import {registerDocument} from "./document-engine.js?v=48000";
-import {registerHistoryRelicSeeds} from "./item-heritage.js?v=48000";
+import {registerDocument} from "./document-engine.js?v=54001";
+import {registerHistoryRelicSeeds} from "./item-heritage.js?v=54001";
 
 const clean=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=16)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);

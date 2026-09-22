@@ -7,7 +7,9 @@ const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureKnowledgeMetadata(state){
  state.knowledge??=[];
  for(const entry of state.knowledge){
-  entry.evidenceType=evidenceSet.has(String(entry.evidenceType||entry.evidenceTypeHint||"").toUpperCase())?String(entry.evidenceType||entry.evidenceTypeHint).toUpperCase():(entry.status==="VERIFIED"?"OBSERVATION":"TESTIMONY");
+  if(String(entry.status||"").toUpperCase()==="OBSERVATION")entry.status="UNCONFIRMED";
+  const rawEvidence=String(entry.evidenceType||entry.evidenceTypeHint||"").toUpperCase(),mapped={OBSERVED:"OBSERVATION",HEARD:"TESTIMONY",READ:"DOCUMENT",EXAMINED:"ARTIFACT",UNVERIFIED:"OBSERVATION"}[rawEvidence]||rawEvidence;
+  entry.evidenceType=evidenceSet.has(mapped)?mapped:(entry.status==="VERIFIED"?"OBSERVATION":"OBSERVATION");
   entry.beliefState=beliefSet.has(String(entry.beliefState||"").toUpperCase())?String(entry.beliefState).toUpperCase():(entry.status==="VERIFIED"?"VERIFIED":"UNCONFIRMED");
   entry.claimKey=clean(entry.claimKey,180)||clean(entry.factId||entry.historyId||entry.text,180).toLowerCase();
   entry.sourceIndependence=Math.max(0,Math.min(1,Number(entry.sourceIndependence??0.5)));

@@ -130,3 +130,17 @@ test("debug bundle summary only counts the active session while preserving histo
   assert.equal(bundle.telemetry.length,2)
  }finally{globalThis.localStorage=prior}
 });
+
+
+test("debug summary separates expected preemption and deduplicates wrapper failures",()=>{
+ const prior=globalThis.localStorage;globalThis.localStorage=memoryStorage();
+ try{
+  clearDebugTelemetry();const now=Date.now();
+  recordDebug("AI_CALL_FAILED",{task:"scene",error:"AI_ABORTED: request cancelled by higher-priority gameplay",aborted:true});
+  recordDebug("PLAYER_ACTION_AI_FAILED",{mode:"FAST",error:"AI_ABORTED: request cancelled by higher-priority gameplay"});
+  recordDebug("AI_CALL_FAILED",{task:"turn_state_fast",error:"AI_TIMEOUT",aborted:false});
+  recordDebug("STATE_SYNC_AI_FAILED",{mode:"FAST",error:"AI_TIMEOUT"});
+  const summary=telemetrySummary(telemetryEntries());
+  assert.equal(summary.preemptionCount,1);assert.equal(summary.errorCount,1)
+ }finally{globalThis.localStorage=prior}
+});

@@ -1,5 +1,5 @@
 import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=53000";
-import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=50000";
+import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=54001";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
@@ -11,7 +11,15 @@ function fingerprint(value){return hash(JSON.stringify(value??{})).toString(36)}
 
 export function ensureLazyGeneration(state){
  state.world??={};state.world.lazyGeneration??={version:2,generationRevision:0,plans:[],commits:[]};const root=state.world.lazyGeneration;
- root.version=2;root.generationRevision=Math.max(0,Number(root.generationRevision)||0);root.plans=Array.isArray(root.plans)?root.plans.slice(-80):[];root.commits=Array.isArray(root.commits)?root.commits.slice(-80):[];return root
+ root.version=2;root.generationRevision=Math.max(0,Number(root.generationRevision)||0);
+ const rows=Array.isArray(root.plans)?root.plans:[],deduped=new Map();
+ for(const row of rows){
+  const key=String(row?.id||"");if(!key)continue;
+  const prior=deduped.get(key);if(!prior){deduped.set(key,row);continue}
+  const newer=Number(row?.createdAt||row?.abortedAt||row?.committedAt||0)>=Number(prior?.createdAt||prior?.abortedAt||prior?.committedAt||0)?row:prior;
+  newer.attempts=Math.max(1,Number(row?.attempts)||1,Number(prior?.attempts)||1);deduped.set(key,newer)
+ }
+ root.plans=[...deduped.values()].slice(-80);root.commits=Array.isArray(root.commits)?root.commits.slice(-80):[];return root
 }
 function normalizeReason(reason){
  const q=String(reason||"BACKGROUND_GAMEPLAY").toUpperCase();
@@ -38,12 +46,18 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
  const normalizedReason=normalizeReason(reason),region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0);
  const active=root.plans.find(x=>x.status==="PLANNED"&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution);if(active)return active;
  const generationRevision=root.generationRevision+1,claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12}),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,generationRevision,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
- const existing=root.plans.find(x=>x.id===planId&&x.status==="PLANNED");if(existing)return existing;
+ const existing=root.plans.find(x=>x.id===planId);
+ if(existing){
+  if(existing.status==="PLANNED")return existing;
+  existing.status="PLANNED";existing.attempts=Math.max(1,Number(existing.attempts)||1)+1;existing.requestedReason=clean(reason,220);existing.worldVersion=Number(state.world?.version)||1;existing.generationRevision=generationRevision;existing.generatedAtWorldTime={day,totalMinutes:Math.max(0,Number(state.world?.state?.clock?.totalMinutes)||0)};existing.lastAttemptAt=Date.now();delete existing.abortReason;delete existing.abortedAt;
+  for(const c of existing.claimIds||[])reserveGenerationClaim(state,c,{planId,reason:normalizedReason});for(const e of existing.legacyEchoIds||[])reserveHistoryLegacyEcho(state,e,{planId,reason:normalizedReason});
+  return existing
+ }
  const history=(state.world?.history||[]).filter(x=>x?.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))),historyRefs=rotate(history,seed,Math.min(2,history.length)).map(x=>x.id);
  const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),definitionClaimCount=selectedClaims.filter(x=>x.type==="BLUEPRINT_DEFINITION").length,slots=slotsFor(state,normalizedReason,(selectedClaims.length-definitionClaimCount)>0||selectedEchoes.length>0);slots.definitions=Math.min(3,definitionClaimCount);
  for(const e of selectedEchoes)if(e.kind==="MEMORIAL")slots.locations=Math.max(1,slots.locations);else if(e.kind==="ORAL_TRADITION")slots.npcs=Math.max(1,slots.npcs);
  const worldVersion=Number(state.world?.version)||1,totalMinutes=Math.max(0,Number(state.world?.state?.clock?.totalMinutes)||0),worldSeedFingerprint=fingerprint(state.world?.seedContract||state.world?.seed||{}),entitySeed=hash(key+"|ENTITY|"+generationRevision).toString(36),generationSlot={region,day,evolution,reason:normalizedReason};
- const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,forbiddenTerms:constitutionForbidTerms(state),historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,requiredBy:x.requiredBy,definitionKind:x.definitionKind||null,slotIndex:x.slotIndex||0,sourceRef:x.sourceRef||null,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now()};
+ const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,forbiddenTerms:constitutionForbidTerms(state),historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,requiredBy:x.requiredBy,definitionKind:x.definitionKind||null,slotIndex:x.slotIndex||0,sourceRef:x.sourceRef||null,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now(),lastAttemptAt:Date.now(),attempts:1};
  for(const c of selectedClaims)reserveGenerationClaim(state,c.id,{planId,reason:normalizedReason});for(const e of selectedEchoes)reserveHistoryLegacyEcho(state,e.id,{planId,reason:normalizedReason});
  root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
 }
@@ -116,7 +130,7 @@ export function commitLazyGeneration(state,plan,generation,added,meta={}){
  return {ok:true,planId:plan.id,entityRefs:plan.entityRefs,claimIds:plan.claimIds,legacyEchoIds:plan.legacyEchoIds||[],replay}
 }
 export function abortLazyGeneration(state,plan,reason=""){
- if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();return true
+ if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.attempts=Math.max(1,Number(plan.attempts)||1);plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();return true
 }
 export function lazyGenerationSnapshot(state,{director=false}={}){
  const root=ensureLazyGeneration(state),active=root.plans.filter(x=>x.status==="PLANNED").slice(-4);

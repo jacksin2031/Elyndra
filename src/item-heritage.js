@@ -1,4 +1,4 @@
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=54001";
 import {ensureFutureEngine} from "./future-engine.js?v=48000";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";

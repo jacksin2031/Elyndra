@@ -1,8 +1,8 @@
-import {d20} from "./world-engine.js?v=53000";
+import {d20} from "./world-engine.js?v=54001";
 import {advanceTime} from "./world-clock.js?v=276";
-import {tickWorld} from "./world-simulation.js?v=53000";
+import {tickWorld} from "./world-simulation.js?v=54001";
 import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=53000";
-import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=53000";
+import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=54001";
 import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=49000";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));

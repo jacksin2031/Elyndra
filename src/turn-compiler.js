@@ -58,9 +58,26 @@ export function sceneTurnPreview(scene,roll={},context={}){
  return {narrative:narrative||fallback,sceneTitle,suggestions,suggestionIntents}
 }
 
-export function fastTurnStateSnapshot(snapshot={}){
- const scene=sceneTurnSnapshot(snapshot);
- return {...scene,stateRevision:Number(snapshot.stateRevision)||0,directorCanon:(snapshot.directorCanon||[]).slice(-24),worldImpact:{capability:snapshot.worldImpact?.capability||null},travel:snapshot.travel||null,survival:snapshot.survival||null,magic:snapshot.magic||null}
+export function fastTurnStateSnapshot(snapshot={},plan={}){
+ const scene=sceneTurnSnapshot(snapshot),caps=new Set(plan?.capabilities||[]);
+ const out={
+  stateRevision:Number(snapshot.stateRevision)||0,
+  world:scene.world,weather:scene.weather,
+  player:scene.player,
+  knownFacts:(Array.isArray(scene.knownFacts)?scene.knownFacts:[]).slice(-12),
+  knowledge:(Array.isArray(scene.knowledge)?scene.knowledge:[]).slice(-8),
+  recentEvents:(Array.isArray(scene.recentEvents)?scene.recentEvents:[]).slice(-6),
+  registry:{locations:(scene.registry?.locations||[]).slice(-5),npcs:(scene.registry?.npcs||[]).slice(-5),factions:[],sideQuests:caps.has("QUEST_HINT")?(scene.registry?.sideQuests||[]).slice(-4):[]},
+  quest:scene.quest||null,
+  knowledgeLayers:scene.knowledgeLayers||null,
+  directorCanon:caps.has("DISCOVER_FACT")?(Array.isArray(snapshot.directorCanon)?snapshot.directorCanon:[]).slice(-14):[]
+ };
+ if(caps.has("ACQUIRE_ITEM"))out.inventory=(scene.inventory||[]).slice(-8);
+ if(caps.has("MOVE_PLAYER")||caps.has("REVEAL_ENTITY"))out.travel=snapshot.travel||null;
+ if(caps.has("START_ENCOUNTER"))out.survival=snapshot.survival||null;
+ if(caps.has("LEARN_MAGIC"))out.magic=snapshot.magic||null;
+ if(caps.has("WORLD_IMPACT_SIGNAL"))out.worldImpact={capability:snapshot.worldImpact?.capability||null};
+ return out
 }
 
 export function mergeTurnCandidates(scene,state,roll={},context={}){

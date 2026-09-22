@@ -55,7 +55,7 @@ test("AI settings UI exposes Agnes as a selectable mode",async()=>{
  assert.match(app,/Elyndra 自適應優化/);
  assert.match(app,/目前模型/);
  assert.doesNotMatch(app,/id="aiModel"/);
- assert.match(app,/ai-settings\.js\?v=53001/)
+ assert.match(app,/ai-settings\.js\?v=54001/)
 });
 
 
@@ -87,7 +87,8 @@ test("adaptive optimization raises reasoning with task importance for every prov
  assert.deepEqual(providerOptimization("gemini","adaptive","history"),{thinkingConfig:{thinkingLevel:"HIGH"}});
  assert.deepEqual(providerOptimization("agnes","adaptive","npc"),{reasoning_effort:"low"});
  assert.deepEqual(providerOptimization("agnes","adaptive","recovery"),{reasoning_effort:"high"});
- assert.deepEqual(providerOptimization("openai","standard","quality"),{})
+ assert.deepEqual(providerOptimization("openai","standard","quality"),{});
+ assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{reasoning_effort:"low"})
 });
 
 test("adaptive OpenAI and Agnes requests use native reasoning_effort while keeping fixed models",async()=>{
@@ -132,7 +133,7 @@ test("adaptive mode retries once without native optimization when a compatible e
 
 test("adaptive reasoning-capable providers reserve visible completion budget",()=>{
  assert.equal(providerTokenBudget("openai","standard","identity",500),500);
- assert.ok(providerTokenBudget("openai","adaptive","identity",500)>=1600);
+ assert.equal(providerTokenBudget("openai","adaptive","identity",500),500);
  assert.ok(providerTokenBudget("openai","adaptive","core_rules",900)>=3600);
  assert.ok(providerTokenBudget("agnes","adaptive","quality",1200)>=4800);
  assert.equal(providerTokenBudget("gemini","adaptive","history",1200),1200)
@@ -148,7 +149,7 @@ test("empty adaptive OpenAI response retries once without reasoning override",as
   assert.equal(bodies.length,2);
   assert.equal(bodies[0].reasoning_effort,"low");
   assert.equal("reasoning_effort" in bodies[1],false);
-  assert.ok(bodies[0].max_completion_tokens>=1600);
+  assert.equal(bodies[0].max_completion_tokens,500);
   assert.equal(bodies[1].max_completion_tokens,bodies[0].max_completion_tokens)
  }finally{globalThis.localStorage=priorStorage;globalThis.fetch=priorFetch}
 });

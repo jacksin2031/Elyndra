@@ -14,7 +14,7 @@ test("turn director exposes ENGINE_ONLY FAST DEFERRED and DEEP",()=>{
 
 test("Fast State snapshot keeps revision while excluding heavy director context",()=>{
  const src={stateRevision:8,world:{location:"A"},player:{hp:10},knownFacts:["x"],knowledge:{facts:[]},inventory:[],quest:null,recentEvents:[],runtimeSummary:"",factions:[],registry:{npcs:[]},companions:[],priorSuggestions:[],directorCanon:[{id:"F1"}],directorTimeline:[{id:"T1"}],directorHistory:[{id:"H1"}],directorRegistry:{locations:[{id:"L1"}]},culture:{heavy:true},market:{heavy:true},dungeon:{heavy:true},worldImpact:{capability:{maxScope:"LOCAL"}},travel:{},survival:{},magic:{}};
- const out=fastTurnStateSnapshot(src);
+ const out=fastTurnStateSnapshot(src,{capabilities:["DISCOVER_FACT"]});
  assert.equal(out.stateRevision,8);assert.deepEqual(out.directorCanon,[{id:"F1"}]);
  for(const key of ["directorTimeline","directorHistory","directorRegistry","culture","market","dungeon"])assert.equal(key in out,false)
 });
