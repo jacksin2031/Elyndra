@@ -1,5 +1,6 @@
 import {ensureFutureEngine,applyFuturePressure} from "./future-engine.js?v=40000";
 import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=40000";
+import {signalHistoryResearch} from "./history-depth.js?v=47000";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(rows,max=12)=>[...new Set((Array.isArray(rows)?rows:[]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
@@ -93,7 +94,8 @@ export function recordHistoryClueEvidence(state,input={}){
  clue.evidenceRefs=uniq([...(clue.evidenceRefs||[]),evidence.id],10);
  const c=recomputeCorroboration(state,evidence.claimKey);
  clue.status=evidence.status==="VERIFIED"?"VERIFIED":c.beliefState==="CORROBORATED"?"CORROBORATED":"DISCOVERED";
- return {ok:true,historyId:history.id,clueId:clue.id,evidence,corroboration:c}
+ const deepening=signalHistoryResearch(state,history.id,{reason:"CLUE_"+clue.status});
+ return {ok:true,historyId:history.id,clueId:clue.id,evidence,corroboration:c,deepening}
 }
 
 export function historyClueSnapshot(state,{knownOnly=false}={}){
