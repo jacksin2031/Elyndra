@@ -36,7 +36,8 @@ test("v0.54.3 keeps Developer Autotest and hard-deadline cache graphs coherent",
  for(const path of ["world-engine","turn-compiler","adventure-engine","session-maintenance","game-engine","storage","world-simulation","npc-engine","npc-conversation","combat-engine","world-creation","item-engine","progression-ui","debug-telemetry","contextual-actions","state-sync","lazy-generation","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
- assert.match(app,/\.\/src\/ai-settings\.js\?v=54003/);\n assert.match(client,/\.\/ai-settings\.js\?v=54003/);
+ assert.match(app,/\.\/src\/ai-settings\.js\?v=54003/);
+ assert.match(client,/\.\/ai-settings\.js\?v=54003/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);
  assert.match(client,/\.\/action-intent\.js\?v=54001/);
  assert.match(client,/\.\/knowledge-model\.js\?v=54001/);
