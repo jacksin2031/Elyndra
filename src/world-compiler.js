@@ -88,9 +88,8 @@ export function normalizeFutureLinksToAnchor(future,anchor={},history=[]){
  if(Array.isArray(out.worldTimeline))for(const event of out.worldTimeline){
   const links=obj(event?.links)?event.links:{},historyRefs=uniq(links.historyRefs).filter(id=>histIds.has(id)),locationRefs=uniq(links.locationRefs).map(id=>aliases.get(text(id))||"").filter(Boolean);
   event.links={historyRefs,locationRefs};
-  const scope=String(event?.impactScope||"REGIONAL").toUpperCase(),broad=["NATIONAL","CONTINENTAL","WORLD"].includes(scope);
   const affected=uniq(event?.affectedRegions).map(id=>aliases.get(text(id))||text(id)).filter(Boolean);
-  event.affectedRegions=[...new Set(affected.filter(id=>id===region))];if(!event.affectedRegions.length&&!broad&&region)event.affectedRegions=[region]
+  event.affectedRegions=[...new Set(affected.filter(id=>id===region))];if(!event.affectedRegions.length&&region)event.affectedRegions=[region]
  }
  return out
 }
