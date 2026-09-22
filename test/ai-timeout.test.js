@@ -19,7 +19,10 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  assert.match(settings,/Math\.max\(256,Math\.min\(8192/);
  assert.match(settings,/retryOnTimeout!==false/);
  assert.match(client,/retryOnTimeout:false/);
- assert.match(client,/const noTimeoutRetry=args\?\.retryOnTimeout===false&&\/AI_TIMEOUT\//);
+ assert.match(client,/CORE_TIMEOUT_RETRY=new Set\(\["CORE_RULES","CORE_ANCHOR"\]\)/);
+ assert.match(client,/allowCoreTimeoutRetry=timedOut&&CORE_TIMEOUT_RETRY\.has\(stage\)/);
+ assert.match(client,/noteGenerationSuccess\(\)/);
+ assert.match(client,/Math\.min\(35000,Number\(args\.timeoutMs\)/);
  assert.match(client,/PROVIDER_TIMEOUT_CIRCUIT_OPEN/);
  assert.match(client,/generationCircuitOpen/);
  assert.match(client,/compilerRecoverable/);
