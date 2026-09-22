@@ -8,7 +8,7 @@ import {processDueConsequences,revealTriggeredConsequences} from "./world-impact
 import {processRecognition} from "./recognition-engine.js?v=276";
 import {tickWeather} from "./weather-engine.js?v=276";
 import {pacedTimelinePressure} from "./world-pacing.js?v=276";
-import {advanceFutureSimulation} from "./future-runtime.js?v=53000";
+import {advanceFutureSimulation} from "./future-runtime.js?v=54001";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function ensureWorldSimulation(state){
  const clock=ensureClock(state);
