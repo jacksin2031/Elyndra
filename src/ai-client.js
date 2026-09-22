@@ -5,7 +5,7 @@ import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorCont
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=44000";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=44000";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=276";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=47000";
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=37000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=46000";
