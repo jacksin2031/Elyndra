@@ -1,6 +1,6 @@
 import {ensureCrisis} from "./crisis-engine.js?v=276";
 import {recordCausalEvent} from "./knowledge-graph.js?v=276";
-import {ensureWorldRegistry} from "./world-registry.js?v=51000";
+import {ensureWorldRegistry} from "./world-registry.js?v=52000";
 import {ensureClock} from "./world-clock.js?v=276";
 import {ensureTravelNetwork} from "./travel-engine.js?v=276";
 import {ensureNpcBehaviorProfile} from "./player-experience.js?v=35000";
