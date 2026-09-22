@@ -20,7 +20,7 @@ test("blocking State Sync rejects repeated actions without an action queue",asyn
 
 test("ENGINE_ONLY and DEFERRED Player Action narration never blocks controls",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/function startNonblockingPlayerNarration/);assert.match(app,/currentStateRevision\(gameState\)!==baseRevision/);
+ assert.match(app,/function startNonblockingPlayerNarration/);assert.match(app,/currentStateRevision\(gameState\)!==revision/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/);
  assert.match(app,/STATE_SYNC_ENGINE_ONLY/);assert.match(app,/STATE_SYNC_DEFERRED/)
 });
@@ -36,7 +36,7 @@ test("foreground gameplay preempts nonblocking narration Deferred and world back
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/function preemptBackgroundAI\(\)\{preemptNonblockingScene\(\);preemptBackgroundWorldEvolution\(\);preemptBackgroundWorldQuality\(\);preemptBackgroundHistory\(\);preemptDeferredDirector\(\)\}/);
  assert.match(app,/async function runAction\(action,customText="",options=\{\}\)\{\s*if\(!gameState\)return;markForegroundActivity\(\);preemptBackgroundAI\(\)/);
- assert.match(app,/async function submitNpcConversation\(npcId,q\)\{preemptBackgroundAI\(\)/);assert.match(app,/async function runCombatAction\(action\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/)
+ assert.match(app,/async function submitNpcConversation\(npcId,q\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/);assert.match(app,/async function runCombatAction\(action\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/)
 });
 
 test("background world evolution waits for Player Action and Deferred work",async()=>{
