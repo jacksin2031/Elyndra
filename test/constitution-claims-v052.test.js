@@ -8,6 +8,7 @@ import {ensureWorldCatalog,canonizeWorldDefinitions,worldCatalogSnapshot} from "
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration} from "../src/lazy-generation.js";
 import {canonizeGeneration} from "../src/world-registry.js";
 import {causalWorldCoreSnapshot} from "../src/causal-world-core.js";
+import {worldEvolutionNeed} from "../src/world-quality.js";
 
 function compiled({civilizations=2,species=1,languages=2,required=[],forbidden=[]}={}){
  const draft=createWorldCreationDraft({
@@ -91,6 +92,12 @@ test("Runtime FORBID rejects forbidden content before canonization and at canoni
  const generation={locations:[{name:"黑鐵工坊",type:"工坊",region:"中央",description:"秘密製造槍械的工坊"}],npcs:[],factions:[],sideQuests:[],definitions:[]};
  const result=validateLazyGenerationCandidate(s,generation,plan);assert.equal(result.valid,false);assert.ok(result.errors.includes("LAZY_FORBIDDEN_TERM:槍械"));
  assert.throws(()=>canonizeGeneration(s,generation),/WORLD_CONSTITUTION_FORBID:槍械/)
+});
+
+test("pending claims are paced into background materialization every 60 world minutes",()=>{
+ const {s}=world({civilizations:2,species:1,languages:2});syncGenerationClaimsFromConstitution(s);s.world.evolution={lastMinute:0,lastVersion:s.world.version,count:0,lastReason:""};
+ s.world.state.clock.totalMinutes=59;assert.equal(worldEvolutionNeed(s).reasons.includes("CLAIM_MATERIALIZATION"),false);
+ s.world.state.clock.totalMinutes=60;assert.equal(worldEvolutionNeed(s).reasons.includes("CLAIM_MATERIALIZATION"),true)
 });
 
 test("Causal Core exposes Director World Catalog without promoting it to player Knowledge",()=>{
