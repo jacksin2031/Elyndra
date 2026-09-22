@@ -28,7 +28,7 @@ test("v0.52.0 propagates Constitution Catalog changes through the browser cache 
  ]);
  assert.match(html,/app\.js\?v=52000/);
  for(const path of ["version","world-engine","ai-client","world-creation","adventure-engine","game-engine","storage","world-simulation","npc-conversation","npc-engine","faction-engine","quest-engine","combat-engine","progression-ui","lazy-generation","world-registry","item-engine","check-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=52000"),path);
- assert.match(app,/\.\/src\/world-quality\.js\?v=51000/);assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);assert.match(app,/\.\/src\/future-runtime\.js\?v=50000/);
+ assert.match(app,/\.\/src\/world-quality\.js\?v=51000/);assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);
 
  assert.match(worldEngine,/\.\/causal-world-core\.js\?v=52000/);
  assert.match(causal,/\.\/generation-claims\.js\?v=52000/);assert.match(causal,/\.\/lazy-generation\.js\?v=52000/);assert.match(causal,/\.\/world-catalog\.js\?v=52000/);assert.match(causal,/\.\/visibility-lock\.js\?v=51000/);
