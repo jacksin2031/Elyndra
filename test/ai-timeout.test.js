@@ -71,3 +71,13 @@ test("browser transport failures are recoverable world-compiler failures and ope
  assert.match(resilient,/if\(transportFailed\)noteGenerationTransportFailure/);
  assert.match(resilient,/if\(generationTransportFailure\(retryReason\)\)noteGenerationTransportFailure/)
 });
+
+
+test("v0.54.3 opens the compiler circuit after both core stages exhaust their bounded retry",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const circuit=client.slice(client.indexOf("function generationCircuit"),client.indexOf("function worldStageFallback"));
+ assert.match(circuit,/coreFailureStages/);
+ assert.match(circuit,/CORE_TIMEOUT_RETRY\.size===circuit\.coreFailureStages/);
+ const resilient=client.slice(client.indexOf("async function resilientWorldStage"),client.indexOf("function fallbackClause"));
+ assert.match(resilient,/noteGenerationCoreFailure\(stage\)/)
+});
