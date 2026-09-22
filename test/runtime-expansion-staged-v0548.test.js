@@ -32,3 +32,22 @@ test("v0.54.8 Agnes preserves enough visible JSON budget for cast and runtime st
  assert.equal(providerTokenBudget("agnes","adaptive","cast",950),1800);
  assert.equal(providerTokenBudget("agnes","adaptive","runtime_expansion",900),1600)
 });
+
+
+test("v0.54.10 runtime expansion resumes from committed stage checkpoints",async()=>{
+ const [client,app,lazy]=await Promise.all([
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../app.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8")
+ ]);
+ const block=client.slice(client.indexOf("export async function generateRegionExpansion"));
+ assert.match(block,/plan\.checkpoint\?\.generation\?structuredClone\(plan\.checkpoint\.generation\):emptyRuntimeGeneration\(\)/);
+ assert.match(block,/completedStages=new Set\(plan\.checkpoint\?\.completedStages\|\|\[\]\)/);
+ assert.match(block,/await checkpointStage\("RUNTIME_GEOGRAPHY"\)/);
+ assert.match(block,/requiredLocationNames:generation\.locations\.map/);
+ assert.match(app,/async function commitRuntimeStageCheckpoint/);
+ assert.match(app,/WORLD_EVOLUTION_STAGE_COMMITTED/);
+ assert.match(app,/pendingRuntimeGenerationPlan/);
+ assert.match(lazy,/export function recordLazyGenerationCheckpoint/);
+ assert.match(lazy,/checkpoint\?Math\.max\(1,Number\(checkpoint\.worldVersion\)/);
+});
