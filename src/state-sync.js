@@ -22,6 +22,16 @@ const ACQUIRE_ITEM_WORD=/撿(?:起|取|走)?|拾(?:起|取|走)?|拿(?:起|走)?
 const emptyFlags=()=>Object.fromEntries(DIRTY_KEYS.map(k=>[k,false]));
 const truthyKeys=flags=>DIRTY_KEYS.filter(k=>flags?.[k]===true);
 
+const PHYSICAL_PICKUP=/撿(?:起|取|走)?|拾(?:起|取|走)?|拿起|捏起|取下|取走|採集|收集|pick\s*up|collect|gather/i;
+export function groundedPickupItemFromAction(action="",roll={}){
+ if(roll?.success!==true)return null;
+ const q=clean(action,220);if(!q||!PHYSICAL_PICKUP.test(q))return null;
+ const m=q.match(/(?:撿(?:起|取|走)?|拾(?:起|取|走)?|拿起|捏起|取下|取走|採集|收集|pick\s*up|collect|gather)\s*(?:那|這)?(?:一)?(?:枚|片|個|塊|份|支|把|件|顆|粒|束|瓶|本|張)?\s*([^，。；、,.;!?！？]{2,28}?)(?=\s*(?:並|然後|再|後|並且|放入|收入|收進|$))/i);
+ if(!m)return null;
+ const name=clean(m[1],40).replace(/^(?:地上|桌上|眼前|旁邊|附近)(?:的)?/,"").trim();if(name.length<2||!q.includes(name))return null;
+ return {name,description:"由玩家本回合直接拾取的可見物件；詳細性質尚待確認。",category:"MATERIAL",quantity:1,identified:false,evidenceFactId:"",historyRefs:[],craftingTags:[],useEffects:[],checkBonuses:{}}
+}
+
 function repeatedSameAction(snapshot,action){
  const rows=(snapshot?.recentEvents||[]).filter(x=>clean(x?.action,180));
  if(rows.length<2)return false;
