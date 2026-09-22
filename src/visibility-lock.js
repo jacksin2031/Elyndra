@@ -56,7 +56,7 @@ export function backgroundMutableFields(entity,fields=[]){
  const protectedFields=new Set(uniq(entity?.visibilityHint?.fields,32));
  return fields.filter(x=>!protectedFields.has(x))
 }
-export function canBackgroundMutateEntity(entity){return backgroundMutableFields(entity,["description"]).length>0}
+export function canBackgroundMutateEntity(entity){return backgroundMutableFields(entity,["description","culture","trade","lore","personality","goal"]).length>0}
 export function visibilityLockSnapshot(state,{director=false}={}){
  ensureVisibilityLocks(state);const r=state?.world?.registry||{},out={};
  for(const [kind,key] of Object.entries(GROUPS))out[key]=(r[key]||[]).map(x=>director?{id:x.id,name:x.name||x.title||"",visibilityLock:level(x.visibilityLock),visibilityHint:x.visibilityHint?structuredClone(x.visibilityHint):null}:{id:x.id,visibilityLock:level(x.visibilityLock)});
