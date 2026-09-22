@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.54.10 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
+test("v0.54.11 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
  const [html,app,client,stateSync,actions,settings,contracts,adventure,turnOutcome,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -31,16 +31,16 @@ test("v0.54.10 keeps structured AI and Developer Autotest cache graphs coherent"
   readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=54010/);
+ assert.match(html,/app\.js\?v=54011/);
  const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
- assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="54010"),"all app browser imports must use the release token");
+ assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="54011"),"all app browser imports must use the release token");
  assert.match(actions,/\.\/action-intent\.js\?v=54008/);assert.match(contracts,/\.\/action-intent\.js\?v=54008/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=54008/);
  assert.match(client,/\.\/ai-settings\.js\?v=54008/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);assert.match(client,/\.\/turn-outcome\.js\?v=54008/);
  assert.match(client,/\.\/action-intent\.js\?v=54008/);assert.match(client,/\.\/state-sync\.js\?v=54006/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=54008/);assert.match(contracts,/\.\/state-sync\.js\?v=54006/);
- assert.match(client,/\.\/knowledge-model\.js\?v=54001/);assert.match(client,/\.\/lazy-generation\.js\?v=54010/);
+ assert.match(client,/\.\/knowledge-model\.js\?v=54001/);assert.match(client,/\.\/lazy-generation\.js\?v=54011/);
  for(const [source,label] of [[adventure,"adventure"],[worldEngine,"world-engine"],[causal,"causal-world-core"],[integrity,"causal-integrity"],[simulation,"world-simulation"],[storage,"storage"],[progression,"progression-ui"]]){
-  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>x==="54010"),label+" imports must use 54010")
+  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>x==="54011"),label+" imports must use 54011")
  }
  assert.match(actions,/groundedSuggestionFailForward/);
  assert.match(stateSync,/groundStatePatch/);
