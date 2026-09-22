@@ -32,7 +32,8 @@ import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=
 import {currentStateRevision} from "./state-sync.js?v=54001";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
-const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);\nconst KNOWLEDGE_EVIDENCE=Object.freeze({OBSERVED:"OBSERVATION",HEARD:"TESTIMONY",READ:"DOCUMENT",EXAMINED:"ARTIFACT"});
+const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);
+const KNOWLEDGE_EVIDENCE=Object.freeze({OBSERVED:"OBSERVATION",HEARD:"TESTIMONY",READ:"DOCUMENT",EXAMINED:"ARTIFACT"});
 const RELATION_EFFECTS=new Set(["NONE","MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
 function legacyRelationEffect(value,max=5){
  const n=Math.max(-max,Math.min(max,Math.round(Number(value)||0)));if(!n)return "NONE";const sign=n>0?"POSITIVE":"NEGATIVE",a=Math.abs(n);
