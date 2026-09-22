@@ -575,10 +575,10 @@ function applyRuntimeLocationDetails(current,value){
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
  if(!plan)throw new Error("RUNTIME_EXPANSION_PLAN_REQUIRED");
- const signal=options?.signal,slots=plan.slots||{},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions；REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
- let generation=emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
+ const signal=options?.signal,slots=plan.slots||{},completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions；REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
+ let generation=plan.checkpoint?.generation?structuredClone(plan.checkpoint.generation):emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
 
- generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
+ if(!completedStages.has("RUNTIME_GEOGRAPHY")){generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
   signal,state,plan,maxOutputTokens:1600,temperature:.5,
   system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
   user:()=>({payload,stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL")}),
@@ -592,31 +592,31 @@ export async function generateRegionExpansion(state,reason="player_exploration",
    for(const id of memorial)if(!echoBound.has(id))throw new Error("RUNTIME_GEOGRAPHY_MEMORIAL_UNBOUND:"+id);
    region=String(root.region||region);stageReason=String(root.reason||stageReason);return {...generation,locations,definitions}
   }
- });
+ });await checkpointStage("RUNTIME_GEOGRAPHY")}
 
- generation=await runtimeExpansionStage("RUNTIME_SOCIETY",{
+ if(!completedStages.has("RUNTIME_SOCIETY")){generation=await runtimeExpansionStage("RUNTIME_SOCIETY",{
   signal,state,plan,maxOutputTokens:1400,temperature:.45,
-  system:"你是 Elyndra Runtime Society Architect。地理與 definitions 已鎖定。今次只為新地點補 culture/trade，並按 slots 生成地方 Faction；不可改地點名稱、物理描述、weatherProfile 或 definitions。Faction 必須引用已鎖定 history/location 因果，並優先實現 remainingClaims。"+baseRules+" 輸出 schema：{locationDetails:[{locationName,culture:{identity,etiquette,taboos,food,beliefs,architecture,clothing,hospitality,namingStyle,languageNotes},trade:{mode,currencies,commonBarter,foreignAcceptance,priceCulture,questReward,combatReward}}],factions:[{name,goal,description,historyRefs,claimRefs,known:false,locationName,culture,trade,lore}]}。",
-  user:()=>({payload,stage:"SOCIETY",locked:{region,locations:generation.locations,definitions:generation.definitions},slots:{factions:slots.factions||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
+  system:"你是 Elyndra Runtime Society Architect。地理與 definitions 已鎖定。今次只為新地點補 culture/trade，並按 slots 生成地方 Faction；不可改地點名稱、物理描述、weatherProfile 或 definitions。locationDetails 必須對 requiredLocationNames 每一個名稱逐字建立一項，不可漏項、改名或合併。Faction 必須引用已鎖定 history/location 因果，並優先實現 remainingClaims。"+baseRules+" 輸出 schema：{locationDetails:[{locationName,culture:{identity,etiquette,taboos,food,beliefs,architecture,clothing,hospitality,namingStyle,languageNotes},trade:{mode,currencies,commonBarter,foreignAcceptance,priceCulture,questReward,combatReward}}],factions:[{name,goal,description,historyRefs,claimRefs,known:false,locationName,culture,trade,lore}]}。",
+  user:()=>({payload,stage:"SOCIETY",locked:{region,locations:generation.locations,definitions:generation.definitions},requiredLocationNames:generation.locations.map(x=>String(x.name||"")),slots:{factions:slots.factions||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
   apply:value=>{let next=applyRuntimeLocationDetails(generation,value),factions=runtimeRows(value,"factions",slots.factions);if((Number(slots.factions)||0)>0&&factions.length<Number(slots.factions))throw new Error("RUNTIME_SOCIETY_FACTION_COUNT");return {...next,factions}}
- });
+ });await checkpointStage("RUNTIME_SOCIETY")}
 
- if((Number(slots.npcs)||0)>0){
+ if((Number(slots.npcs)||0)>0&&!completedStages.has("RUNTIME_CAST")){
   generation=await runtimeExpansionStage("RUNTIME_CAST",{
    signal,state,plan,maxOutputTokens:1500,temperature:.5,
    system:"你是 Elyndra Runtime Cast Architect。地理、地方社會與勢力已鎖定。今次只生成 NPC，不得新增或改寫 Location/Faction/definition。NPC 必須落在既有或今次已鎖定地點，提供 historyRefs、companionProfile、behaviorProfile、lore；ORAL_TRADITION legacy echo 只能在這一階段由 NPC 綁定。優先實現 remainingClaims。"+baseRules+" 輸出 schema：{npcs:[{name,role,description,personality,goal,locationName,factionName,historyRefs,claimRefs,echoRefs,knowledgeScope,known:false,behaviorProfile,companionProfile,lore}]}。",
    user:()=>({payload,stage:"CAST",locked:{region,locations:generation.locations,factions:generation.factions,definitions:generation.definitions},slots:{npcs:slots.npcs||0},remainingClaims:runtimeRemainingClaims(plan,generation),legacyEchoes:runtimeRemainingEchoes(plan,generation).filter(x=>x.kind==="ORAL_TRADITION")}),
    apply:value=>{const npcs=runtimeRows(value,"npcs",slots.npcs);if(npcs.length<Number(slots.npcs))throw new Error("RUNTIME_CAST_NPC_COUNT");const oral=(plan.legacyEchoes||[]).filter(x=>x.kind==="ORAL_TRADITION").map(x=>String(x.id)),bound=runtimeRefs(npcs,"echoRefs");for(const id of oral)if(!bound.has(id))throw new Error("RUNTIME_CAST_ORAL_ECHO_UNBOUND:"+id);return {...generation,npcs}}
-  })
+  });await checkpointStage("RUNTIME_CAST")
  }
 
- if((Number(slots.sideQuests)||0)>0){
+ if((Number(slots.sideQuests)||0)>0&&!completedStages.has("RUNTIME_QUESTS")){
   generation=await runtimeExpansionStage("RUNTIME_QUESTS",{
    signal,state,plan,maxOutputTokens:950,temperature:.4,
    system:"你是 Elyndra Runtime Quest Architect。世界地理、社會、勢力與人物已鎖定。今次只生成 SideQuest；不得新增任何 Location/NPC/Faction/definition。任務必須引用前面已存在的地點、人物、勢力或 historyRefs，目標要可執行並留下 evidenceKeywords；如仍有 remainingClaims，只有語義真的吻合時才綁定。"+baseRules+" 輸出 schema：{sideQuests:[{title,objective,locationName,npcName,factionName,historyRefs,claimRefs,known:false,evidenceKeywords,conditions,target}]}。",
    user:()=>({payload,stage:"QUESTS",locked:{region,locations:generation.locations,npcs:generation.npcs,factions:generation.factions,definitions:generation.definitions},slots:{sideQuests:slots.sideQuests||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
    apply:value=>{const sideQuests=runtimeRows(value,"sideQuests",slots.sideQuests);if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
-  })
+  });await checkpointStage("RUNTIME_QUESTS")
  }
 
  const contract=validateLazyGenerationCandidate(state,generation,plan);if(!contract.valid)throw new Error("RUNTIME_EXPANSION_CONTRACT_FAILED:"+contract.errors.join(","));
