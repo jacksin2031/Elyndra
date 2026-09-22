@@ -4,10 +4,10 @@ import {graphSnapshot,causalContext} from "./knowledge-graph.js?v=276";
 import {factionSnapshot,changeReputation} from "./faction-engine.js?v=53000";
 import {ensureWorldRegistry,registrySnapshot,directorRegistrySnapshot,revealRegistryEntities,validateGeneration,canonizeGeneration,resolvePlayerLocation,canInteractWithNpc} from "./world-registry.js?v=53000";
 import {tokenBudgetSnapshot} from "./context-manager.js?v=276";
-import {startCombat,canStartEncounter} from "./combat-engine.js?v=53000";
+import {startCombat,canStartEncounter} from "./combat-engine.js?v=54001";
 import {evaluateQuestEvidence,tickMainQuest} from "./quest-engine.js?v=53000";
 import {playerVisibleEvents} from "./event-visibility.js?v=44000";
-import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=53000";
+import {companionSnapshot,applyCompanionChange} from "./npc-engine.js?v=54001";
 import {directorTimelineSnapshot} from "./world-timeline.js?v=48000";
 import {validateImpactCandidate,applyWorldImpacts,impactSnapshot} from "./world-impact.js?v=48000";
 import {recognitionSnapshot} from "./recognition-engine.js?v=276";
@@ -25,14 +25,14 @@ import {talentContextSnapshot} from "./talent-engine.js?v=49000";
 import {playerWeatherSnapshot,directorWeatherSnapshot} from "./weather-engine.js?v=276";
 import {playerOriginSnapshot} from "./player-origin.js?v=45000";
 import {originRuntimeSnapshot} from "./origin-runtime.js?v=45000";
-import {normalizeSuggestionIntents} from "./turn-compiler.js?v=44000";
+import {normalizeSuggestionIntents} from "./turn-compiler.js?v=54001";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=37000";
-import {buildContextualActionSet} from "./contextual-actions.js?v=53001";
-import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=53000";
-import {currentStateRevision} from "./state-sync.js?v=41000";
+import {buildContextualActionSet} from "./contextual-actions.js?v=54001";
+import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=54001";
+import {currentStateRevision} from "./state-sync.js?v=54001";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const text=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
-const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);
+const EVIDENCE_TYPES=new Set(["OBSERVED","HEARD","READ","EXAMINED"]);\nconst KNOWLEDGE_EVIDENCE=Object.freeze({OBSERVED:"OBSERVATION",HEARD:"TESTIMONY",READ:"DOCUMENT",EXAMINED:"ARTIFACT"});
 const RELATION_EFFECTS=new Set(["NONE","MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
 function legacyRelationEffect(value,max=5){
  const n=Math.max(-max,Math.min(max,Math.round(Number(value)||0)));if(!n)return "NONE";const sign=n>0?"POSITIVE":"NEGATIVE",a=Math.abs(n);
@@ -55,7 +55,8 @@ function registerDiscovery(state,d,context={}){
  const title=sanitizePlayerText(d?.title,100,""),body=sanitizePlayerText(d?.text,500,"");if(!title||!body||state.knowledge.some(k=>k.title===title))return null;
  const factId=typeof d?.factId==="string"?d.factId:"",fact=(state.world?.canon?.facts||[]).find(f=>f.id===factId),evidenceType=String(d?.evidenceType||"").toUpperCase();
  const verified=Boolean(fact&&String(fact.visibility||"").toLowerCase()==="public"&&EVIDENCE_TYPES.has(evidenceType)&&context.roll?.success!==false);
- const entry={id:id(),title,status:verified?"VERIFIED":"OBSERVATION",text:verified?fact.text:body,factId:verified?fact.id:null,evidenceType:verified?evidenceType:"UNVERIFIED",sources:[verified?"CANON_EVIDENCE":"AI_OBSERVATION"],score:verified?2:0};
+ const sourceKind=String(d?.sourceKind||"").toUpperCase(),sourceId=sanitizePlayerText(d?.sourceId,120,""),sourceRef=sourceKind&&sourceId?{kind:sourceKind,id:sourceId}:null,knowledgeEvidence=KNOWLEDGE_EVIDENCE[evidenceType]||"OBSERVATION";
+ const entry={id:id(),title,status:verified?"VERIFIED":"UNCONFIRMED",beliefState:verified?"VERIFIED":"UNCONFIRMED",text:verified?fact.text:body,factId:verified?fact.id:null,evidenceType:knowledgeEvidence,evidenceTypeHint:evidenceType||null,sourceRef,sources:[verified?"CANON_EVIDENCE":sourceRef?`ENGINE_GROUNDED_${sourceKind}`:"AI_OBSERVATION"],score:verified?2:0};
  state.knowledge.push(entry);if(verified)state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+entry.score);return entry
 }
 export function buildSnapshot(state){
