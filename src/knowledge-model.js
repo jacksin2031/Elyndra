@@ -44,13 +44,6 @@ export function recomputeCorroboration(state,claimKey){
 export function knowledgeCanRevealCanon(state,entry){
  if(!entry)return false;ensureKnowledgeMetadata(state);return entry.status==="VERIFIED"&&canonicalRefExists(state,entry)
 }
-export function validateKnowledgeBoundaries(state){
- const errors=[],warnings=[];for(const entry of ensureKnowledgeMetadata(state)){
-  if(entry.status==="VERIFIED"&&!canonicalRefExists(state,entry))errors.push("VERIFIED_KNOWLEDGE_ORPHAN:"+entry.id);
-  if(entry.status!=="VERIFIED"&&Number(entry.score)>0)warnings.push("UNVERIFIED_KNOWLEDGE_SCORE:"+entry.id)
- }
- return {valid:errors.length===0,errors,warnings}
-}
 export function knowledgeModelSnapshot(state){
  const rows=ensureKnowledgeMetadata(state);return {entries:rows.slice(-50).map(x=>({id:x.id,title:x.title,status:x.status,beliefState:x.beliefState,evidenceType:x.evidenceType,factId:x.factId||null,historyId:x.historyId||null,claimKey:x.claimKey}))}
 }
