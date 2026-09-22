@@ -81,7 +81,7 @@ const FALLBACK_STAGE_FINDINGS={
  CORE_RULES:{targetType:"MAGIC_SYSTEM",problem:"核心規則階段使用 fallback，世界主題未必真正落入魔法、文明與危機規則。",recommendation:"令 worldTheme 直接驅動可執行魔法代價、文明制度、通訊限制與 currentCrisis。"},
  CORE_ANCHOR:{targetType:"WORLD_CORE",problem:"開局 Anchor 使用 fallback，地名、Weather Canon 或公開／秘密設定可能模板化。",recommendation:"在不改 Seed Contract 下重新具體化開局地理、天候與世界事實。"},
  HISTORY:{targetType:"HISTORY_INTEGRATION",problem:"歷史階段使用 fallback，過去事件可能只係模板因果。",recommendation:"保留 HIST id 與次序，重寫成直接解釋今日制度、危機與地方生活的具體歷史。"},
- GEOGRAPHY:{targetType:"GEOGRAPHY",problem:"地理階段使用 fallback，開局地貌與環境敘述可能模板化。",recommendation:"保留 Anchor 地點關係，重寫具體地貌、環境痕跡與零知識 openingHook。"},
+ GEOGRAPHY:{targetType:"GEOGRAPHY",problem:"地理階段使用 fallback，開局地貌與環境敘述可能模板化。",recommendation:"保留 Anchor 地點關係，重寫具體地貌、環境痕跡與符合 Origin knowledge boundary 的 openingHook。"},
  FUTURE:{targetType:"FUTURE_EVENTS",problem:"未來 Timeline 使用 fallback，事件可能過於通用。",recommendation:"保留事件 id、日期窗口與 links，重寫成源自本世界歷史與危機的具體事件。"},
  SOCIETY:{targetType:"SOCIETY_CULTURE",problem:"地方社會階段使用 fallback，文化、交易與勢力可能模板化。",recommendation:"利用已鎖定歷史與環境重寫地方文化、經濟與勢力。"},
  CAST:{targetType:"CHARACTERS",problem:"開局人物階段使用 fallback，NPC 或支線可能係通用佔位內容。",recommendation:"保留世界關係與 historyRefs，重寫具體人物、動機與支線。"}
@@ -100,8 +100,9 @@ export function fallbackWorldEvaluation(candidate,diagnostics,reason="AI_CRITIC_
  if(effects.length>1&&new Set(effects).size<Math.ceil(effects.length*.6)){score-=14;findings.push({severity:"HIGH",targetType:"FUTURE_EVENTS",problem:"未來事件的可觀察效果高度重複，缺乏事件性。",recommendation:"把每個事件改成具體、可發生、可造成不同後果的世界事件。",requiresRegeneration:true})}
  const g=candidate?.generation||{},linked=[...(g.locations||[]),...(g.npcs||[]),...(g.factions||[])];
  if(linked.length&&linked.filter(x=>Array.isArray(x?.historyRefs)&&x.historyRefs.length).length<linked.length){score-=10;findings.push({severity:"HIGH",targetType:"PROVENANCE",problem:"部分新實體沒有持久化 historyRefs。",recommendation:"為 Location、NPC、Faction 保存有效 historyRefs，避免只靠 prose 推理來源。",requiresRegeneration:true})}
- const opening=clean(candidate?.openingHook,1000),worldName=clean(candidate?.worldName,100),start=clean(candidate?.worldBible?.startingLocation,100),theme=clean(candidate?.worldTheme,200);
- if((worldName&&opening.includes(worldName))||(start&&opening.includes(start))||(theme&&opening.includes(theme))){score-=16;findings.push({severity:"CRITICAL",targetType:"KNOWLEDGE_BOUNDARY",problem:"零知識開場洩漏 Canon 名稱或 Director-level 主題。",recommendation:"只保留角色可直接感知的聲音、光線、氣味、觸感與可見變化。",requiresRegeneration:true})}
+ const opening=clean(candidate?.openingHook,1000),worldName=clean(candidate?.worldName,100),start=clean(candidate?.worldBible?.startingLocation,100),theme=clean(candidate?.worldTheme,200),originOpening=candidate?.originOpening||{},knowledgePolicy=String(originOpening.knowledgePolicy||candidate?.worldBible?.blueprintProfile?.origin?.knowledgePolicy||"EARTH_ONLY").toUpperCase();
+ const localStartKnowledge=["PARTIAL_LOCAL","BRIEFED_PARTIAL","LOCAL_BASELINE"].includes(knowledgePolicy),worldNameLeak=originOpening.worldNameKnown===true?false:Boolean(worldName&&opening.includes(worldName)),startLeak=localStartKnowledge?false:Boolean(start&&opening.includes(start)),themeLeak=Boolean(theme&&opening.includes(theme));
+ if(worldNameLeak||startLeak||themeLeak){score-=16;findings.push({severity:"CRITICAL",targetType:"KNOWLEDGE_BOUNDARY",problem:"開場超出 Origin 授權的玩家知識邊界，或直接洩漏 Director-level 主題。",recommendation:"依 Origin knowledgePolicy 只使用角色合理已知內容，其餘只保留可直接感知的聲音、光線、氣味、觸感與可見變化。",requiresRegeneration:true})}
  score=Math.round(clamp(score,0,100));
  const dimensions=Object.fromEntries(WORLD_QUALITY_DIMENSIONS.map(k=>[k,score]));
  if(findings.some(x=>x.targetType==="MAGIC_SYSTEM"))dimensions.magicSystem=Math.max(20,score-18);
