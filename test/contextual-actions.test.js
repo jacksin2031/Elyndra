@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,normalizeContextualSuggestion} from "../src/contextual-actions.js";
+import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,normalizeContextualSuggestion,groundedSuggestionFailForward} from "../src/contextual-actions.js";
 
 function state(overrides={}){
  return {
@@ -60,7 +60,7 @@ test("prevalidated suggested action skips AI feasibility while its scene seal re
  const assessment=trustedSuggestionAssessment(s,row);
  assert.equal(assessment.verdict,"ALLOW");
  assert.equal(assessment.source,"AI_SUGGESTION_PREVALIDATED");
- assert.equal(assessment.confidence,100);
+ assert.equal(assessment.confidence,96);
  assert.ok(assessment.actionIntent)
 });
 
@@ -128,4 +128,20 @@ test("recently executed fallback actions are not immediately recycled as fresh c
  const set=buildContextualActionSet(s,[]);
  assert.equal(set.all.some(x=>x.action===repeated),false);
  assert.equal(set.all.some(x=>(x.action||"").includes("旅程小結")),false)
+});
+
+
+test("Engine reclassifies misleading GENERAL suggestion metadata before prevalidation",()=>{
+ const s=state(),action="利用舊城可見的遮蔽物、人流或聲音，測試誰會作出反應";
+ const row=buildContextualActionSet(s,[{label:"換角度測試",action,kind:"GENERAL",risk:"MEDIUM",approach:"CREATIVE",requirementsSatisfied:true,causalBasis:"只使用當前可見環境"}]).all.find(x=>x.action===action);
+ assert.ok(row);const assessment=trustedSuggestionAssessment(s,row);
+ assert.equal(assessment.kind,"OBSERVE");assert.equal(assessment.actionIntent.kind,"OBSERVE");assert.equal(assessment.source,"AI_SUGGESTION_ENGINE_RECLASSIFIED");assert.equal(assessment.confidence,90)
+});
+
+test("successful progression fail-forward is bound only to an existing observable source",()=>{
+ const s=state({events:[{id:"EV-1",type:"WORLD_EVENT",visibility:"OBSERVABLE",summary:"遠近聲音次序出現異常"}]});
+ const row=buildContextualActionSet(s,[{label:"追查聲音異常",action:"沿著聲音異常留下的痕跡繼續觀察",kind:"OBSERVE",risk:"LOW",approach:"STEADY",progression:true,requirementsSatisfied:true,causalBasis:"異常事件已被玩家看到"}]).all.find(x=>x.label==="追查聲音異常");
+ assert.ok(row?.affordance);const d=groundedSuggestionFailForward(s,row,{success:true});
+ assert.equal(d.sourceKind,"EVENT");assert.equal(d.sourceId,"EV-1");assert.match(d.text,/聲音次序/);
+ assert.equal(groundedSuggestionFailForward(s,row,{success:false}),null)
 });
