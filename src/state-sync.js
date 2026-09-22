@@ -16,10 +16,9 @@ const UNKNOWN_TRAVEL=/未知|未探索|邊境|荒野|傳送門|裂縫|深處|陌
 const QUEST_WORD=/任務|目標|線索|證據|委託|quest|objective|clue|evidence/i;
 const FACTION_WORD=/勢力|陣營|公會|王國|帝國|faction|guild|kingdom|empire/i;
 const COMPANION_WORD=/夥伴|同行|加入隊伍|離隊|companion|join party|leave party/i;
-const ACQUIRE_ITEM_ACTION=/拾取|撿(?:起|走)?|拿(?:起|走)?|捏起|收起|收入(?:袋|包|背包)?|取走|帶走|pick\s*up|collect|take\b/i;
 const LEARN_MAGIC=/學習.*魔法|學會.*魔法|研習.*法術|領悟.*術式|learn.*spell|learn.*magic/i;
 const LEARN_RECIPE=/學習.*配方|研究.*配方|領悟.*製作|learn.*recipe/i;
-const ACQUIRE_ITEM_WORD=/撿(?:起|取)?|拾(?:起|取)?|拿起|取下|收起|帶走|採集|收集|取得|獲取|pick\s*up|take|collect|gather/i;
+const ACQUIRE_ITEM_WORD=/撿(?:起|取|走)?|拾(?:起|取|走)?|拿(?:起|走)?|捏起|取下|取走|收起|收入(?:袋|包|背包)?|帶走|採集|收集|取得|獲取|pick\s*up|take\b|collect|gather/i;
 const emptyFlags=()=>Object.fromEntries(DIRTY_KEYS.map(k=>[k,false]));
 const truthyKeys=flags=>DIRTY_KEYS.filter(k=>flags?.[k]===true);
 
@@ -47,7 +46,6 @@ export function deriveDirtyFlags({action="",intent={},roll={},snapshot={},ruleEf
  if(i==="PERSUADE"||i==="THREATEN")flags.npcRelation=true;
  if(i==="TRAVEL"||kind==="TRAVEL"){flags.location=true;flags.entityReveal=true;if(UNKNOWN_TRAVEL.test(q))flags.generation=true}
  if(i==="STEAL"){flags.inventory=true;flags.npcRelation=true}
- if(success&&ACQUIRE_ITEM_ACTION.test(q))flags.inventory=true;
  if(i==="ATTACK")flags.encounter=true;
  if(i==="SNEAK"){flags.entityReveal=true;if(criticalFail)flags.npcRelation=true}
  if(i==="INTERACT"){flags.knowledge=true;flags.entityReveal=true}
@@ -157,7 +155,7 @@ function discoverySourceGrounded(state,raw){
 }
 function acquiredItemGrounded(raw,action=""){
  const q=clean(action,220),name=clean(raw?.item?.name,100);
- return Boolean(q&&name&&ACQUIRE_ITEM_ACTION.test(q)&&q.includes(name))
+ return Boolean(q&&name&&ACQUIRE_ITEM_WORD.test(q)&&q.includes(name))
 }
 export function groundStatePatch(state,patch={},context={}){
  const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220);
