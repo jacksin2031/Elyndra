@@ -85,6 +85,7 @@ export function validateHistoryDeepeningCandidate(state,plan,candidate){
   if(!clean(d.title,140))errors.push("HISTORY_DOCUMENT_TITLE_REQUIRED");
   for(const claim of Array.isArray(d.claims)?d.claims:[]){if(claim?.clueId&&!clueIds.has(claim.clueId))errors.push("HISTORY_DOCUMENT_CLUE_REF_INVALID:"+claim.clueId)}
  }
+ for(const row of arrayRows(candidate,"solutionClues"))if(row?.clueId&&!clueIds.has(row.clueId))errors.push("HISTORY_SOLUTION_CLUE_REF_INVALID:"+row.clueId);
  const total=GROUPS.reduce((n,k)=>n+arrayRows(candidate,k).length,0);if(total===0)errors.push("HISTORY_DEEPENING_EMPTY");
  return {valid:errors.length===0,errors:[...new Set(errors)]}
 }
