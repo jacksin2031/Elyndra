@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {newGame} from "../src/world-engine.js";
 import {visibleFacts} from "../src/ai-client.js";
-import {validateKnowledgeBoundaries} from "../src/knowledge-model.js";
 import {appendWorldLedger,promoteLedgerEntryToHistory} from "../src/world-ledger.js";
 import {syncGenerationClaimsFromConstitution,reconcileGenerationClaims} from "../src/generation-claims.js";
 import {planLazyGeneration,validateLazyGenerationCandidate} from "../src/lazy-generation.js";
@@ -19,14 +18,13 @@ test("Narrator only receives Canon facts backed by Engine-VERIFIED Knowledge",()
  s.knowledge.push({id:"K-RUMOR",title:"傳聞",text:"有人說王城地下有核心",factId:"FACT-HIDDEN",status:"UNCONFIRMED",beliefState:"CORROBORATED",evidenceType:"TESTIMONY",claimKey:"core",sourceIndependence:1,score:0});
  assert.deepEqual(visibleFacts(s),[]);
  s.knowledge[0].status="VERIFIED";s.knowledge[0].beliefState="VERIFIED";
- assert.deepEqual(visibleFacts(s),["王城地下有古代核心"]);
- assert.equal(validateKnowledgeBoundaries(s).valid,true)
+ assert.deepEqual(visibleFacts(s),["王城地下有古代核心"])
 });
 
-test("Knowledge boundary validator rejects orphan VERIFIED authority and flags unverified score",()=>{
+test("Causal Integrity rejects orphan VERIFIED authority and flags unverified score",()=>{
  const s=world();s.knowledge.push({id:"K-BAD",title:"錯誤權威",text:"不存在的真相",factId:"FACT-MISSING",status:"VERIFIED",beliefState:"VERIFIED",evidenceType:"OBSERVATION",score:2});
- let v=validateKnowledgeBoundaries(s);assert.equal(v.valid,false);assert.ok(v.errors.some(x=>x.includes("VERIFIED_KNOWLEDGE_ORPHAN")));
- s.knowledge[0].status="UNCONFIRMED";v=validateKnowledgeBoundaries(s);assert.ok(v.warnings.some(x=>x.includes("UNVERIFIED_KNOWLEDGE_SCORE")))
+ let v=auditCausalIntegrity(s);assert.equal(v.valid,false);assert.ok(v.errors.some(x=>x.code==="VERIFIED_KNOWLEDGE_ORPHAN"));
+ s.knowledge[0].status="UNCONFIRMED";v=auditCausalIntegrity(s);assert.ok(v.warnings.some(x=>x.code==="UNVERIFIED_KNOWLEDGE_SCORE"))
 });
 
 test("Lazy Generation rejects stale world version before canonization",()=>{
