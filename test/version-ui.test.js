@@ -25,7 +25,7 @@ test("History/Future/character systems remain available after v0.53",async()=>{
  assert.match(app,/runBackgroundHistoryDeepening/);assert.match(client,/export async function generateHistoryDeepening/);assert.match(historyDepth,/validateHistoryDeepeningCandidate/);
  assert.match(historyFuture,/signalHistoryResearch/);assert.match(docs,/registerHistoryDeepeningDocuments/);assert.match(heritage,/registerHistoryRelicSeeds/);
  assert.match(client,/impactScope/);assert.match(timeline,/playerCanMitigate/);assert.match(future,/playerCanRedirect/);
- assert.match(app,/\.\/src\/talent-engine\.js\?v=49000/);assert.match(app,/\.\/src\/journey-closure\.js\?v=54005/);assert.match(talent,/buildIdentitySnapshot/);assert.match(journey,/recentJourneyCheckpoints/);assert.match(progression,/未解之謎/)
+ assert.match(app,/\.\/src\/talent-engine\.js\?v=54010/);assert.match(app,/\.\/src\/journey-closure\.js\?v=54010/);assert.match(talent,/buildIdentitySnapshot/);assert.match(journey,/recentJourneyCheckpoints/);assert.match(progression,/未解之謎/)
 });
 
 test("v0.50-v0.52 causal protections remain intact after v0.53",async()=>{
@@ -39,7 +39,7 @@ test("v0.50-v0.52 causal protections remain intact after v0.53",async()=>{
  assert.match(app,/\.\/src\/lazy-generation\.js\?v=54010/);assert.match(legacy,/ORAL_TRADITION/);assert.match(legacy,/WEAPON_RELIC/);
  assert.match(visibility,/CANON_LOCKED/);assert.match(quality,/backgroundMutableFields/);assert.match(registry,/WORLD_CONSTITUTION_FORBID/);
  assert.match(lazy,/generationRevision/);assert.match(lazy,/worldSeedFingerprint/);assert.match(causal,/visibilityLockSnapshot/);
- assert.match(app,/\.\/src\/world-creation\.js\?v=54005/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
+ assert.match(app,/\.\/src\/world-creation\.js\?v=54010/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
  assert.match(client,/generation\.definitions/);assert.match(client,/forbiddenTerms/)
 });
 
@@ -63,7 +63,7 @@ test("v0.54 Developer AI autotest remains available after v0.54.10 runtime check
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=54008/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=54010/);
  assert.match(app,/startDeveloperAutotest/);
  assert.match(autotest,/playerVisibleAutotestSnapshot/);
  assert.match(autotest,/buildAutotestReport/)
