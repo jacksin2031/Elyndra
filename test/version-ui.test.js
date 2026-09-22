@@ -26,5 +26,5 @@ test("v0.47.0 adds research-triggered immutable History Lazy Deepen",async()=>{
  assert.match(client,/export async function generateHistoryDeepening/);assert.match(client,/HISTORY_DEEPENING:"history_deepening"/);
  assert.match(historyDepth,/HISTORY_DEPTH_LEVELS/);assert.match(historyDepth,/validateHistoryDeepeningCandidate/);assert.match(historyDepth,/commitHistoryDeepening/);
  assert.match(historyFuture,/signalHistoryResearch/);assert.match(docs,/registerHistoryDeepeningDocuments/);assert.match(heritage,/registerHistoryRelicSeeds/);
- assert.match(worldEngine,/History Skeleton/);assert.match(api,/History Deepening Architect/)
+ assert.match(worldEngine,/歷史 Skeleton/);assert.match(api,/History Deepening Architect/)
 });
