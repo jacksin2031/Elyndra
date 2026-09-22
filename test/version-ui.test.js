@@ -11,7 +11,7 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
  assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.51.0");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=50000/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=51000"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=51000/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=51000"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History Lazy Deepen remains available after v0.51",async()=>{
@@ -52,7 +52,7 @@ test("v0.49 build identity and diegetic journey UX remain intact after v0.51",as
  assert.match(progression,/未解之謎/);assert.match(progression,/傳聞與徵兆/);assert.match(app,/旅人狀態/);assert.match(app,/旅程回顧/)
 });
 
-test("v0.51 closes New History into hidden Legacy Echoes",async()=>{
+test("v0.50 New History Legacy Echo remains intact after v0.51",async()=>{
  const [app,legacy,lazy,futureRuntime,causal,client]=await Promise.all([
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/history-legacy.js",import.meta.url),"utf8"),
   readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8"),readFile(new URL("../src/future-runtime.js",import.meta.url),"utf8"),
