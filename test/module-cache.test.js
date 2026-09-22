@@ -10,23 +10,31 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.47.0 propagates History Lazy Deepen cache graph",async()=>{
- const [html,app,client,historyFuture,docs,heritage,causal,world,storage,game,combat,adventure,progression,dungeon,helper]=await Promise.all([
+test("v0.48.0 propagates Future scope changes through the browser cache graph",async()=>{
+ const [html,app,client,worldEngine,timeline,impact,simulation,futureRuntime,futureEngine,historyFuture,heritage,docs,causal,itemRecognition,itemEngine,storage,game,combat,adventure,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/history-future.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/document-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/item-heritage.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8"),readFile(new URL("../src/dungeon-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/helper-context.js",import.meta.url),"utf8")
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-timeline.js",import.meta.url),"utf8"),readFile(new URL("../src/world-impact.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),readFile(new URL("../src/future-runtime.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/future-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/history-future.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/item-heritage.js",import.meta.url),"utf8"),readFile(new URL("../src/document-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/item-recognition.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/item-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=47000/);
- for(const path of ["version","world-engine","ai-client","adventure-engine","game-engine","storage","combat-engine","progression-ui","history-depth","document-engine","item-heritage","dungeon-engine"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=47000"),path);
- assert.match(client,/\.\/world-history\.js\?v=47000/);assert.match(client,/\.\/history-depth\.js\?v=47000/);
- assert.match(historyFuture,/\.\/history-depth\.js\?v=47000/);assert.match(docs,/\.\/history-future\.js\?v=47000/);
- assert.match(causal,/\.\/item-heritage\.js\?v=47000/);assert.match(causal,/\.\/document-engine\.js\?v=47000/);assert.match(causal,/\.\/history-depth\.js\?v=47000/);
- assert.match(world,/\.\/world-history\.js\?v=47000/);assert.match(world,/\.\/causal-world-core\.js\?v=47000/);
- assert.match(storage,/\.\/causal-world-core\.js\?v=47000/);assert.match(game,/\.\/world-engine\.js\?v=47000/);assert.match(combat,/\.\/world-engine\.js\?v=47000/);
- assert.match(adventure,/\.\/combat-engine\.js\?v=47000/);assert.match(adventure,/\.\/dungeon-engine\.js\?v=47000/);assert.match(progression,/\.\/storage\.js\?v=47000/);assert.match(dungeon,/\.\/world-history\.js\?v=47000/);assert.match(helper,/\.\/dungeon-engine\.js\?v=47000/);assert.match(client,/\.\/helper-context\.js\?v=47000/);
- assert.match(heritage,/registerHistoryRelicSeeds/)
+ assert.match(html,/app\.js\?v=48000/);
+ for(const path of ["version","world-engine","ai-client","adventure-engine","game-engine","storage","world-simulation","npc-conversation","combat-engine","world-impact","world-quality","item-engine","progression-ui","document-engine","item-heritage"])assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=48000"),path);
+ assert.match(client,/\.\/seed-contract\.js\?v=48000/);assert.match(client,/\.\/world-compiler\.js\?v=48000/);assert.match(client,/\.\/world-timeline\.js\?v=48000/);assert.match(client,/\.\/world-quality\.js\?v=48000/);
+ assert.match(worldEngine,/\.\/seed-contract\.js\?v=48000/);assert.match(worldEngine,/\.\/world-timeline\.js\?v=48000/);assert.match(worldEngine,/\.\/causal-world-core\.js\?v=48000/);
+ assert.match(impact,/\.\/world-timeline\.js\?v=48000/);assert.match(simulation,/\.\/world-timeline\.js\?v=48000/);assert.match(simulation,/\.\/world-impact\.js\?v=48000/);assert.match(simulation,/\.\/future-runtime\.js\?v=48000/);
+ assert.match(futureRuntime,/\.\/future-engine\.js\?v=48000/);assert.match(futureRuntime,/\.\/history-future\.js\?v=48000/);assert.match(historyFuture,/\.\/future-engine\.js\?v=48000/);
+ assert.match(heritage,/\.\/future-engine\.js\?v=48000/);assert.match(docs,/\.\/history-future\.js\?v=48000/);
+ assert.match(causal,/\.\/future-engine\.js\?v=48000/);assert.match(causal,/\.\/item-heritage\.js\?v=48000/);assert.match(causal,/\.\/document-engine\.js\?v=48000/);
+ assert.match(itemRecognition,/\.\/item-heritage\.js\?v=48000/);assert.match(itemEngine,/\.\/item-heritage\.js\?v=48000/);assert.match(itemEngine,/\.\/item-recognition\.js\?v=48000/);
+ assert.match(storage,/\.\/item-engine\.js\?v=48000/);assert.match(storage,/\.\/causal-world-core\.js\?v=48000/);
+ assert.match(game,/\.\/world-engine\.js\?v=48000/);assert.match(game,/\.\/world-simulation\.js\?v=48000/);assert.match(game,/\.\/item-engine\.js\?v=48000/);
+ assert.match(combat,/\.\/world-engine\.js\?v=48000/);assert.match(combat,/\.\/world-simulation\.js\?v=48000/);
+ assert.match(adventure,/\.\/combat-engine\.js\?v=48000/);assert.match(adventure,/\.\/world-timeline\.js\?v=48000/);assert.match(adventure,/\.\/world-impact\.js\?v=48000/);
+ assert.match(progression,/\.\/item-engine\.js\?v=48000/);assert.match(progression,/\.\/storage\.js\?v=48000/);assert.match(timeline,/IMPACT_SCOPES/)
 });
