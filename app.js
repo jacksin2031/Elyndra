@@ -4,7 +4,7 @@ import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirec
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=54001";
 import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=54006";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=54001";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=54005";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=54006";
 import {maintainSession} from "./src/session-maintenance.js?v=54001";
 import {performAction} from "./src/game-engine.js?v=54005";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=54005";
@@ -48,7 +48,7 @@ import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleTex
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=35000";
 import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=54005";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward} from "./src/contextual-actions.js?v=54001";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54001";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54006";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=54001";
 import {applyOriginRuntime} from "./src/origin-runtime.js?v=54001";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
@@ -144,7 +144,7 @@ function preemptNonblockingScene(){
 }
 function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptBackgroundWorldQuality();preemptBackgroundHistory();preemptDeferredDirector()}
 function commitStatePatch(state,patch,plan,context={}){
- const grounded=groundStatePatch(state,patch),effectivePatch=grounded.patch;
+ const grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
  if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
  const valid=validateStatePatch(effectivePatch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
  if(!Array.isArray(effectivePatch.operations)||!effectivePatch.operations.length)return {applied:false,empty:true,rejected:grounded.rejected.length,revision:currentStateRevision(state)};
