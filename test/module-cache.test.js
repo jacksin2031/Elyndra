@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.54.9 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
+test("v0.54.10 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
  const [html,app,client,stateSync,actions,settings,contracts,adventure,turnOutcome,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -31,21 +31,22 @@ test("v0.54.9 keeps structured AI and Developer Autotest cache graphs coherent",
   readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=54009/);
- assert.match(app,/\.\/src\/version\.js\?v=54009/);
+ assert.match(html,/app\.js\?v=54010/);
+ assert.match(app,/\.\/src\/version\.js\?v=54010/);
  assert.match(app,/\.\/src\/ai-autotest\.js\?v=54008/);
- assert.match(app,/\.\/src\/ai-client\.js\?v=54009/);
- for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","lazy-generation","origin-runtime","document-engine","item-heritage"]){
+ assert.match(app,/\.\/src\/ai-client\.js\?v=54010/);
+ for(const path of ["world-engine","turn-compiler","session-maintenance","debug-telemetry","origin-runtime","document-engine","item-heritage"]){
   assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54001"),path)
  }
- for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure","combat-engine","dungeon-engine","faction-engine","game-engine","npc-conversation","npc-engine","quest-engine","world-map","world-registry","world-simulation"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
+ for(const path of ["storage","world-creation","check-engine","survival-engine","travel-engine","item-engine","progression-ui","journey-closure","combat-engine","dungeon-engine","faction-engine","game-engine","npc-conversation","npc-engine","quest-engine","world-map","world-simulation"]){assert.match(app,new RegExp("\\.\\/src\\/"+path.replaceAll("-","\\-")+"\\.js\\?v=54005"),path)}
  assert.match(app,/\.\/src\/ai-settings\.js\?v=54008/);
+ assert.match(app,/\.\/src\/lazy-generation\.js\?v=54010/);assert.match(app,/\.\/src\/world-registry\.js\?v=54010/);
  assert.match(app,/\.\/src\/contextual-actions\.js\?v=54008/);assert.match(app,/\.\/src\/adventure-engine\.js\?v=54008/);
  assert.match(actions,/\.\/action-intent\.js\?v=54008/);assert.match(contracts,/\.\/action-intent\.js\?v=54008/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=54008/);
  assert.match(client,/\.\/ai-settings\.js\?v=54008/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);assert.match(client,/\.\/turn-outcome\.js\?v=54008/);
  assert.match(client,/\.\/action-intent\.js\?v=54008/);assert.match(client,/\.\/state-sync\.js\?v=54006/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=54008/);assert.match(contracts,/\.\/state-sync\.js\?v=54006/);
- assert.match(client,/\.\/knowledge-model\.js\?v=54001/);
+ assert.match(client,/\.\/knowledge-model\.js\?v=54001/);assert.match(client,/\.\/lazy-generation\.js\?v=54010/);
  assert.match(app,/\.\/src\/state-sync\.js\?v=54006/);assert.match(app,/\.\/src\/adventure-engine\.js\?v=54008/);assert.match(adventure,/\.\/state-sync\.js\?v=54006/);assert.match(turnOutcome,/\.\/state-sync\.js\?v=54006/);
  assert.match(adventure,/\.\/contextual-actions\.js\?v=54008/);
  assert.match(worldEngine,/\.\/causal-world-core\.js\?v=54001/);
