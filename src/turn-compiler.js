@@ -19,8 +19,13 @@ export function normalizeSuggestionIntents(input,previous=[]){
 }
 
 export function sceneTurnSnapshot(snapshot={}){
+ const world={name:snapshot.world?.name||"UNKNOWN",day:snapshot.world?.day||1,clock:snapshot.player?.calendarKnown===true?(snapshot.world?.clock||null):null,location:snapshot.world?.location||snapshot.player?.location||"未知地點"};
+ const locations=(snapshot.registry?.locations||[]).map(x=>({id:x.id,name:x.name,type:x.type,region:x.region,description:x.description,culture:x.culture,trade:x.trade,accessRequirements:x.accessRequirements}));
+ const npcs=(snapshot.registry?.npcs||[]).filter(n=>n.present===true).map(n=>({id:n.id,name:n.name,role:n.role,description:n.description,trust:n.trust,companionStatus:n.companionStatus,present:true}));
+ const factions=(snapshot.factions||[]).map(f=>({id:f.id,name:f.name,playerReputation:f.playerReputation}));
+ const sideQuests=(snapshot.registry?.sideQuests||[]).map(q=>({id:q.id,title:q.title,objective:q.objective,status:q.status,progress:q.progress,target:q.target}));
  return {
-  world:snapshot.world,
+  world,
   weather:snapshot.weather,
   player:snapshot.player,
   knownFacts:snapshot.knownFacts,
@@ -32,9 +37,8 @@ export function sceneTurnSnapshot(snapshot={}){
   survival:snapshot.survival||null,
   quest:snapshot.quest,
   recentEvents:snapshot.recentEvents,
-  runtimeSummary:snapshot.runtimeSummary,
-  factions:snapshot.factions,
-  registry:{...(snapshot.registry||{}),npcs:(snapshot.registry?.npcs||[]).filter(n=>n.present===true)},
+  factions,
+  registry:{locations,npcs,factions:[],sideQuests},
   companions:snapshot.companions,
   priorSuggestions:(snapshot.priorSuggestions||[]).slice(0,4),
   priorSuggestionIntents:(snapshot.priorSuggestionIntents||[]).slice(0,4),
