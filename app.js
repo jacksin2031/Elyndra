@@ -1,10 +1,10 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=54005";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=54005";
+import {APP_VERSION} from "./src/version.js?v=54006";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=54006";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=54001";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=54005";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=54006";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=54001";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=54005";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=54006";
 import {maintainSession} from "./src/session-maintenance.js?v=54001";
 import {performAction} from "./src/game-engine.js?v=54005";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=54005";
@@ -48,13 +48,13 @@ import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleTex
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=35000";
 import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=54005";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward} from "./src/contextual-actions.js?v=54001";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54001";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54006";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration} from "./src/lazy-generation.js?v=54001";
 import {applyOriginRuntime} from "./src/origin-runtime.js?v=54001";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=54001";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=54001";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection} from "./src/ai-autotest.js?v=54005";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection} from "./src/ai-autotest.js?v=54006";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -144,7 +144,7 @@ function preemptNonblockingScene(){
 }
 function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptBackgroundWorldQuality();preemptBackgroundHistory();preemptDeferredDirector()}
 function commitStatePatch(state,patch,plan,context={}){
- const grounded=groundStatePatch(state,patch),effectivePatch=grounded.patch;
+ const grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
  if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
  const valid=validateStatePatch(effectivePatch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
  if(!Array.isArray(effectivePatch.operations)||!effectivePatch.operations.length)return {applied:false,empty:true,rejected:grounded.rejected.length,revision:currentStateRevision(state)};
@@ -159,6 +159,14 @@ function commitGroundedProgressionFallback(state,discovery,plan,context={}){
  if(duplicate){state.narrative=discovery.text;recordDebug("ENGINE_GROUNDED_FAIL_FORWARD_REUSED",{action:String(context.action||"").slice(0,180),sourceKind:discovery.sourceKind,sourceId:discovery.sourceId});return {applied:false,reused:true}}
  const patch={baseRevision:Number(plan.baseRevision)||0,operations:[{op:"DISCOVER_FACT",...discovery}]},committed=commitStatePatch(state,patch,plan,context);
  if(committed.applied){state.narrative=discovery.text;recordDebug("ENGINE_GROUNDED_FAIL_FORWARD_APPLIED",{action:String(context.action||"").slice(0,180),sourceKind:discovery.sourceKind,sourceId:discovery.sourceId,revision:committed.revision})}
+ return committed
+}
+function commitGroundedPickupFallback(state,plan,context={}){
+ if(context.roll?.success!==true||!(plan?.capabilities||[]).includes("ACQUIRE_ITEM"))return {applied:false};
+ const item=groundedPickupItemFromAction(context.action,context.roll);if(!item)return {applied:false};
+ if((state.inventory||[]).some(x=>String(x?.name||"")===item.name)){recordDebug("ENGINE_PICKUP_FAIL_FORWARD_REUSED",{action:String(context.action||"").slice(0,180),itemName:item.name});return {applied:false,reused:true}}
+ const patch={baseRevision:Number(plan.baseRevision)||0,operations:[{op:"ACQUIRE_ITEM",item}]},committed=commitStatePatch(state,patch,plan,context);
+ if(committed.applied)recordDebug("ENGINE_PICKUP_FAIL_FORWARD_APPLIED",{action:String(context.action||"").slice(0,180),itemName:item.name,revision:committed.revision});
  return committed
 }
 function applyPlayerActionScene(scene,{worldId,baseRevision,expectedRevision,roll,action,previousSuggestions=[],previousSuggestionIntents=[]}={}){
@@ -491,14 +499,14 @@ async function runAction(action,customText="",options={}){
   if(stateResult.status!=="fulfilled"){
    recordDebug("STATE_SYNC_AI_FAILED",{action:effective,mode:syncPlan.mode,error:stateResult.reason?.message||String(stateResult.reason),elapsedMs:Date.now()-debugTurnStarted});
    if(syncPlan.mode==="DEEP")throw stateResult.reason;
-   const fallback=commitGroundedProgressionFallback(gameState,roll?.success===true?preboundFailForward:null,syncPlan,{action:effective,roll});
-   recordDebug("STATE_SYNC_FAST_EMPTY_FALLBACK",{action:effective,revision:currentStateRevision(gameState),groundedProgress:Boolean(fallback.applied||fallback.reused)})
+   const pickup=commitGroundedPickupFallback(gameState,syncPlan,{action:effective,roll}),fallback=commitGroundedProgressionFallback(gameState,roll?.success===true?preboundFailForward:null,syncPlan,{action:effective,roll});
+   recordDebug("STATE_SYNC_FAST_EMPTY_FALLBACK",{action:effective,revision:currentStateRevision(gameState),groundedProgress:Boolean(fallback.applied||fallback.reused),groundedPickup:Boolean(pickup.applied||pickup.reused)})
   }else if(stateResult.value){
    const committed=commitStatePatch(gameState,stateResult.value,syncPlan,{action:effective,roll});
    if(committed.stale){recordDebug("STATE_PATCH_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,currentRevision:committed.currentRevision});if(syncPlan.mode==="DEEP")throw new Error("STATE_PATCH_STALE")}
    else{
-    const fallback=!committed.applied&&roll?.success===true?commitGroundedProgressionFallback(gameState,preboundFailForward,syncPlan,{action:effective,roll}):{applied:false};
-    recordDebug("STATE_SYNC_AI_COMPLETED",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport,operations:committed.operations??0,rejectedGrounding:committed.rejected??0,groundedProgress:Boolean(fallback.applied||fallback.reused),revision:currentStateRevision(gameState),rebased:committed.rebased===true})
+    const pickup=!committed.applied&&roll?.success===true?commitGroundedPickupFallback(gameState,syncPlan,{action:effective,roll}):{applied:false},fallback=!committed.applied&&roll?.success===true?commitGroundedProgressionFallback(gameState,preboundFailForward,syncPlan,{action:effective,roll}):{applied:false};
+    recordDebug("STATE_SYNC_AI_COMPLETED",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport,operations:committed.operations??0,rejectedGrounding:committed.rejected??0,groundedProgress:Boolean(fallback.applied||fallback.reused),groundedPickup:Boolean(pickup.applied||pickup.reused),revision:currentStateRevision(gameState),rebased:committed.rebased===true})
    }
   }
   if(syncPlan.hasDeferredConsequences)scheduleDeferredDirector({action:effective,roll,intent:assessment?.actionIntent,plan:syncPlan,queuedAt:Date.now()},1200);
@@ -832,12 +840,14 @@ function bindDeveloperAutotestPanel(){
 function openDeveloperAutotestPanel(){openModal(developerAutotestPanelHtml());bindDeveloperAutotestPanel()}
 $("#developerBtn")?.addEventListener("click",openDeveloperAutotestPanel);
 
+function autotestForegroundIdle(){return !aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running}
 async function waitForAutotestIdle(timeoutMs=12000){
  const started=Date.now();
  while(Date.now()-started<timeoutMs){
-  if(!aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running)return true;
+  if(autotestForegroundIdle())return true;
   await new Promise(r=>setTimeout(r,80))
  }
+ if(autotestForegroundIdle())return true;
  recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});
  return false
 }
@@ -906,7 +916,7 @@ async function startDeveloperAutotest(config){
       appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn}: ${decision.mode==="suggestion"?"[按鈕] ":decision.mode==="combat"?"[戰鬥] ":"[自由] "}${decision.action||decision.combatAction}`);
       recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
       if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
-      await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle();
+      await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle(8000);
       row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push(decision.action||decision.combatAction||"");
       recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}

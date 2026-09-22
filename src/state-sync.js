@@ -18,8 +18,19 @@ const FACTION_WORD=/勢力|陣營|公會|王國|帝國|faction|guild|kingdom|emp
 const COMPANION_WORD=/夥伴|同行|加入隊伍|離隊|companion|join party|leave party/i;
 const LEARN_MAGIC=/學習.*魔法|學會.*魔法|研習.*法術|領悟.*術式|learn.*spell|learn.*magic/i;
 const LEARN_RECIPE=/學習.*配方|研究.*配方|領悟.*製作|learn.*recipe/i;
+const ACQUIRE_ITEM_WORD=/撿(?:起|取|走)?|拾(?:起|取|走)?|拿(?:起|走)?|捏起|取下|取走|收起|收入(?:袋|包|背包)?|帶走|採集|收集|取得|獲取|pick\s*up|take\b|collect|gather/i;
 const emptyFlags=()=>Object.fromEntries(DIRTY_KEYS.map(k=>[k,false]));
 const truthyKeys=flags=>DIRTY_KEYS.filter(k=>flags?.[k]===true);
+
+const PHYSICAL_PICKUP=/撿(?:起|取|走)?|拾(?:起|取|走)?|拿起|捏起|取下|取走|採集|收集|pick\s*up|collect|gather/i;
+export function groundedPickupItemFromAction(action="",roll={}){
+ if(roll?.success!==true)return null;
+ const q=clean(action,220);if(!q||!PHYSICAL_PICKUP.test(q))return null;
+ const m=q.match(/(?:撿(?:起|取|走)?|拾(?:起|取|走)?|拿起|捏起|取下|取走|採集|收集|pick\s*up|collect|gather)\s*(?:那|這)?(?:一)?(?:枚|片|個|塊|份|支|把|件|顆|粒|束|瓶|本|張)?\s*([^，。；、,.;!?！？]{2,28}?)(?=\s*(?:並|然後|再|後|並且|放入|收入|收進|$))/i);
+ if(!m)return null;
+ const name=clean(m[1],40).replace(/^(?:地上|桌上|眼前|旁邊|附近)(?:的)?/,"").trim();if(name.length<2||!q.includes(name))return null;
+ return {name,description:"由玩家本回合直接拾取的可見物件；詳細性質尚待確認。",category:"MATERIAL",quantity:1,identified:false,evidenceFactId:"",historyRefs:[],craftingTags:[],useEffects:[],checkBonuses:{}}
+}
 
 function repeatedSameAction(snapshot,action){
  const rows=(snapshot?.recentEvents||[]).filter(x=>clean(x?.action,180));
@@ -48,6 +59,7 @@ export function deriveDirtyFlags({action="",intent={},roll={},snapshot={},ruleEf
  if(i==="ATTACK")flags.encounter=true;
  if(i==="SNEAK"){flags.entityReveal=true;if(criticalFail)flags.npcRelation=true}
  if(i==="INTERACT"){flags.knowledge=true;flags.entityReveal=true}
+ if(success&&ACQUIRE_ITEM_WORD.test(q)){flags.inventory=true;flags.knowledge=true;flags.entityReveal=true}
  if(i==="CAST"&&MAJOR.test(q))flags.worldImpact=true;
  if(LEARN_MAGIC.test(q))flags.magicLearning=true;
  if(LEARN_RECIPE.test(q))flags.recipe=true;
@@ -88,7 +100,7 @@ export function statePatchSchema(plan={}){
  if(allowed.has("SET_CALENDAR_KNOWN"))rows.push('{"op":"SET_CALENDAR_KNOWN"}');
  if(allowed.has("REVEAL_ENTITY"))rows.push('{"op":"REVEAL_ENTITY","kind":"location|npc|faction|sideQuest","id":"既有 id"}');
  if(allowed.has("MOVE_PLAYER"))rows.push('{"op":"MOVE_PLAYER","location":"既有或本回合生成地點名"}');
- if(allowed.has("ACQUIRE_ITEM"))rows.push('{"op":"ACQUIRE_ITEM","item":{"name":"...","description":"...","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|KEY|QUEST|ARTIFACT","quantity":1,"identified":true,"evidenceFactId":"","historyRefs":[],"craftingTags":[],"useEffects":[],"checkBonuses":{}}}');
+ if(allowed.has("ACQUIRE_ITEM"))rows.push('{"op":"ACQUIRE_ITEM","item":{"name":"必須原樣使用 action 中被拾取／拿取的物件名稱","description":"只描述本回合可直接感知的性質","category":"MATERIAL|CONSUMABLE|TOOL|EQUIPMENT|KEY|QUEST|ARTIFACT","quantity":1,"identified":true,"evidenceFactId":"","historyRefs":[],"craftingTags":[],"useEffects":[],"checkBonuses":{}}}');
  if(allowed.has("START_ENCOUNTER"))rows.push('{"op":"START_ENCOUNTER","enemy":{"name":"...","description":"...","level":1,"hp":20,"defense":11,"damage":6,"element":"PHYSICAL|FIRE|ICE|LIGHTNING|POISON|ARCANE|HOLY|SHADOW|NATURE|PSYCHIC|NONE","weaknesses":[],"resistances":[],"abilities":[],"loot":""}}');
  if(allowed.has("NPC_RELATIONSHIP_SIGNAL"))rows.push('{"op":"NPC_RELATIONSHIP_SIGNAL","npcId":"已知 NPC id","effect":"MINOR_POSITIVE|POSITIVE|MAJOR_POSITIVE|MINOR_NEGATIVE|NEGATIVE|MAJOR_NEGATIVE"}');
  if(allowed.has("FACTION_REPUTATION_SIGNAL"))rows.push('{"op":"FACTION_REPUTATION_SIGNAL","factionId":"已知勢力 id","effect":"MINOR_POSITIVE|POSITIVE|MAJOR_POSITIVE|MINOR_NEGATIVE|NEGATIVE|MAJOR_NEGATIVE"}');
@@ -151,11 +163,17 @@ function discoverySourceGrounded(state,raw){
  if(sourceKind==="ITEM")return (state?.inventory||[]).some(i=>i?.id===sourceId);
  return false
 }
-export function groundStatePatch(state,patch={}){
- const next=structuredClone(patch||{}),accepted=[],rejected=[];
+function acquiredItemGrounded(raw,action=""){
+ const q=clean(action,220),name=clean(raw?.item?.name,100);
+ return Boolean(q&&name&&ACQUIRE_ITEM_WORD.test(q)&&q.includes(name))
+}
+export function groundStatePatch(state,patch={},context={}){
+ const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220);
  for(const [index,raw] of (Array.isArray(next.operations)?next.operations:[]).entries()){
-  if(String(raw?.op||"").toUpperCase()!=="DISCOVER_FACT"||discoverySourceGrounded(state,raw))accepted.push(raw);
-  else rejected.push({index,op:"DISCOVER_FACT",sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"})
+  const type=String(raw?.op||"").toUpperCase();
+  if(type==="DISCOVER_FACT"&&!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
+  if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(raw,action)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NOT_GROUNDED_IN_PLAYER_ACTION"});continue}
+  accepted.push(raw)
  }
  next.operations=accepted;return {patch:next,rejected}
 }

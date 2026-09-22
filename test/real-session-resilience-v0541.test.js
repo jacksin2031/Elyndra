@@ -55,8 +55,8 @@ test("v0.54.1 runtime summary replaces the prior compaction text instead of conc
 });
 
 test("v0.54.1 FAST provider policy keeps requested completion budget and low reasoning",()=>{
- assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{reasoning_effort:"low"});
- assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),650);
+ assert.deepEqual(providerOptimization("agnes","standard","turn_state_fast"),{});
+ assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),800);
  assert.equal(providerTokenBudget("openai","adaptive","scene",760),760)
 });
 
@@ -83,4 +83,12 @@ test("v0.54.1 world compiler circuit counts final distinct stage timeouts instea
  const catchBlock=client.slice(client.indexOf("async function resilientWorldStage"),client.indexOf("function fallbackClause"));
  const first=catchBlock.indexOf("const firstReason"),note=catchBlock.indexOf("noteGenerationTimeout");
  assert.ok(first>=0&&note>first);assert.doesNotMatch(catchBlock.slice(first,note),/noteGenerationTimeout\(stage,firstReason\)/)
+});
+
+
+test("v0.54.6 successful pickup can fail forward when State AI is empty",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ assert.match(app,/function commitGroundedPickupFallback/);
+ assert.match(app,/ENGINE_PICKUP_FAIL_FORWARD_APPLIED/);
+ assert.match(app,/groundedPickup:Boolean\(pickup\.applied\|\|pickup\.reused\)/)
 });

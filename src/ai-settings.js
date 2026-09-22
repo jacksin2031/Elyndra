@@ -27,13 +27,13 @@ const AI_TASK_TIER={
 export function optimizationTier(aiTask="general"){
  return AI_TASK_TIER[String(aiTask||"").toLowerCase()]||"BALANCED"
 }
-const AGNES_STRUCTURED_FAST_TASKS=new Set(["identity","geography","society","cast"]);
-const agnesStructuredFastTask=aiTask=>AGNES_STRUCTURED_FAST_TASKS.has(String(aiTask||"").toLowerCase());
+const AGNES_STRUCTURED_OUTPUT_FLOORS={action:800,scene:1100,turn_state_fast:800,identity:900,geography:900,society:1100,cast:1200,core_anchor:1200,core_rules:1100,future:1600};
+const agnesStructuredOutputFloor=aiTask=>AGNES_STRUCTURED_OUTPUT_FLOORS[String(aiTask||"").toLowerCase()]||0;
 export function providerOptimization(provider,optimization="standard",aiTask="general"){
  const tier=optimizationTier(aiTask);
+ if(provider==="agnes"&&agnesStructuredOutputFloor(aiTask))return {};
  if(tier==="FAST"){
   if(provider==="gemini")return {thinkingConfig:{thinkingLevel:"LOW"}};
-  if(provider==="agnes"&&agnesStructuredFastTask(aiTask))return {};
   if(provider==="openai"||provider==="agnes")return {reasoning_effort:"low"};
   return {}
  }
@@ -45,8 +45,8 @@ export function providerOptimization(provider,optimization="standard",aiTask="ge
 }
 export function providerTokenBudget(provider,optimization="standard",aiTask="general",requested=0){
  const base=Math.round(Number(requested)||0);if(!base)return 0;
- const bounded=Math.max(256,Math.min(8192,base)),tier=optimizationTier(aiTask);
- if(provider==="agnes"&&agnesStructuredFastTask(aiTask))return Math.max(900,bounded);
+ const bounded=Math.max(256,Math.min(8192,base)),tier=optimizationTier(aiTask),agnesFloor=provider==="agnes"?agnesStructuredOutputFloor(aiTask):0;
+ if(agnesFloor)return Math.max(agnesFloor,bounded);
  if(tier==="FAST"||optimization!=="adaptive"||provider==="gemini")return bounded;
  const mult={BALANCED:3.5,IMPORTANT:4.5,CRITICAL:5.5}[tier]||3.5,floor={BALANCED:2200,IMPORTANT:3600,CRITICAL:4800}[tier]||2200;
  return Math.max(256,Math.min(8192,Math.max(floor,Math.round(bounded*mult))))

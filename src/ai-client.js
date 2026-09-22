@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54005";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54006";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
 import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
@@ -12,9 +12,9 @@ import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiag
 import {parseModelJSON as parseJSON} from "./model-json.js?v=281";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=54001";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54001";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54001";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=54001";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54006";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54006";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=54006";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
@@ -301,7 +301,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    resilientWorldStage("GEOGRAPHY",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:800,
     system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的玩家起源只以 payload.playerOrigin 與 payload.originOpening 為權威；不得自行假設玩家來自現代地球。originOpening.worldNameKnown / calendarKnown / openingMode 決定開場可否直接理解世界名稱、曆法與地方背景；只可使用 playerOrigin.commonKnowledge、initialAssumptions、worldKnowledgeBoundary 及 originOpening 授權內容。未授權異世界專有名詞、歷史、人物、魔法規則或地方文化不可提前知道。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常，例如有人逃跑、鐘聲突然停止、傷者求助、入口封閉、追逐或突發破壞；玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
-    user:JSON.stringify({anchor,playerOrigin:seed.creationV2?.originProfile||null,originOpening,required:{openingHook:"80-160字符合 Origin knowledge boundary 的感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"地點類型",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
+    user:JSON.stringify({anchor,playerOrigin:seed.creationV2?.originProfile||null,originOpening,required:{openingHook:"80-160字符合 Origin knowledge boundary 的感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"具體地點用途或形態；不得輸出「地點類型」",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
    },()=>geographyFallback(anchor))
   ]);
   const historyReport=validateWorldHistory(historyRaw?.worldHistory);if(!historyReport.valid)markWorldFallback("HISTORY","VALIDATION_FAILED:"+historyReport.errors.join(","));const history=historyReport.valid?historyReport.history:historyFallback(anchor);
@@ -313,14 +313,14 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const slots=timelineAuthoringSlots(directive.timelinePacing);
   const [futureRaw,societyRaw]=await Promise.all([
    resilientWorldStage("FUTURE",{
-    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1200,
+    timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1600,
     system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history、geography 與 blueprintProfile.storyTendencies 生成世界曆法及「可能發生」的未來 Timeline。故事偏好不是固定劇情；每個事件必須提供 activationConditions / cancelConditions / escalationConditions，條件只可使用 DAY>=n、EVENT:TYPE、FACT:id、FLAG:key、LOCATION:name 及 NOT: 前綴。你必須同時作者化 impactScope（LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD）、affectedRegions、intensity 0-100、duration（世界日，可 null）、domains，以及 playerCanPrevent / playerCanAccelerate / playerCanMitigate / playerCanRedirect；Scope 與 intensity 必須符合事件內容，不可全部填成同一值。每個事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要自行改 earliest/latest。只輸出 JSON。`,
     user:JSON.stringify({anchor,history,geography,blueprintProfile:directive.blueprintProfile,timelineSlots:slots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`事件${i+1}`,category:"類型",directorTruth:"20-50字隱藏因果",observableEffect:"20-50字可觀察影響",pressure:"0-15",impactScope:"LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD",affectedRegions:["只能用已存在區域；至少包含與事件直接相關區域"],intensity:"0-100",duration:"1-30 世界日或 null",domains:["1-4個，如 SECURITY|POLITICS|SUPPLY|WEATHER|MAGIC|MIGRATION|LAW|ECONOMY"],activationConditions:["DAY>=2"],cancelConditions:["可空；EVENT:PEACE_TREATY 等"],escalationConditions:["可空；FLAG:war_tension 等"],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true,links:{historyRefs:["至少1個 HIST id"],locationRefs:["STARTING_LOCATION|STARTING_REGION 或 anchor 名稱"]}}))}})
    },()=>futureFallback(anchor,history,directive.timelinePacing)),
    resilientWorldStage("SOCIETY",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:950,
     system:`你是 Elyndra Society Compiler。只生成開局地點的 culture、trade 與最多1個地方 faction。你必須以已鎖定 geography 作生活環境，以 history 作制度／禁忌／信仰來源。locationRef 必須等於 anchor.startingLocation，historyRefs 必須引用既有 HIST id。禁止重新命名地點或創造第二個地點。只輸出 JSON。`,
-    user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"簡短",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"可空或穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"簡短"}],commonBarter:["0-2項"],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與 currentCrisis/歷史遺產有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化",etiquette:["1項"],taboos:["1項"],beliefs:["1項"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
+    user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"具體命名規則；不得輸出「簡短」",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"可空或穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"簡短"}],commonBarter:["0-2項"],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與 currentCrisis/歷史遺產有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化",etiquette:["1項"],taboos:["1項"],beliefs:["1項"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
    },()=>societyFallback(anchor,history,geography))
   ]);
 
@@ -342,7 +342,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   let cast=await resilientWorldStage("CAST",{
    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:950,
    system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
-   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"角色",description:"40-80字",personality:"簡短",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"簡短",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
+   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"具體身份或職責；不得輸出「角色」",description:"40-80字",personality:"具體人格特徵；不得輸出「簡短」",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"具體可執行目標；不得輸出「簡短」",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
   },()=>castFallback(anchor,history,region,society));
   if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2||generatedTemplateLeak(cast)){markWorldFallback("CAST",generatedTemplateLeak(cast)?"SEMANTIC_INVALID:TEMPLATE_LEAK":"STRUCTURE_INVALID");cast=castFallback(anchor,history,region,society)};
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
@@ -469,14 +469,14 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
  if(hasDirectAI()){
   const sceneInput={action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)};
   const playerAction=directChat({
-   aiTask:"scene",signal:options?.signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:760,temperature:.8,
+   aiTask:"scene",signal:options?.signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1100,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
   }).then(parseJSON);
   const stateSync=immediateStateAI?directChat({
    aiTask:plan.mode==="DEEP"?"turn_state_deep":"turn_state_fast",signal:options?.signal,
    timeoutMs:plan.mode==="DEEP"?45000:22000,retryOnTimeout:false,
-   maxOutputTokens:plan.mode==="DEEP"?1300:650,
+   maxOutputTokens:plan.mode==="DEEP"?1300:800,
    temperature:plan.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(plan),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
@@ -496,7 +496,7 @@ export async function generateStatePatch(action,roll,snapshot,plan,options={}){
   const raw=await directChat({
    aiTask:resolved.mode==="DEEP"?"turn_state_deep":resolved.mode==="DEFERRED"?"turn_deferred":"turn_state_fast",
    signal:options?.signal,timeoutMs:resolved.mode==="DEEP"?45000:resolved.mode==="DEFERRED"?35000:22000,retryOnTimeout:false,
-   maxOutputTokens:resolved.mode==="DEEP"?1300:resolved.mode==="DEFERRED"?900:650,temperature:resolved.mode==="DEEP"?.3:.15,
+   maxOutputTokens:resolved.mode==="DEEP"?1300:resolved.mode==="DEFERRED"?900:800,temperature:resolved.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(resolved),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
   });
