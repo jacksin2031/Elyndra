@@ -476,7 +476,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
   try{
    const repaired=await worldStage("RUNTIME_REPAIR",{
     signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1500,temperature:.4,
-    system:"你是 Elyndra Runtime Repair Architect。只修正這次 expansion，不可改既有 Canon。保留既有實體名稱與 region，補足有效 historyRefs、文化／交易／lore 深度及具體內容。不得創造 directorHistory 以外的 history id。只輸出完整 {generation:{...}} 修正版。",
+    system:"你是 Elyndra Runtime Repair Architect。只修正這次 expansion，不可改既有 Canon。必須完整遵守 payload.lazyPlan：不得超出 slots、不得新增 claim id；原有 claimRefs 必須保留，而且 lazyPlan.claims 中每個 reserved claim 仍必須至少綁定一個生成實體。保留既有實體名稱與 region，補足有效 historyRefs、文化／交易／lore 深度及具體內容。historyRefs 只能使用 payload.lazyPlan.historyRefs、claim 自帶 historyRefs 或 directorHistory 中與它們相同的 HIST id；不得創造新 history id。只輸出完整 {generation:{...}} 修正版。",
     user:JSON.stringify({payload,expansion,quality,provenance})
    });
    if(repaired?.generation)final={...expansion,generation:repaired.generation};
