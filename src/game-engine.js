@@ -1,17 +1,17 @@
-import {d20} from "./world-engine.js?v=52000";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=52000";
+import {d20} from "./world-engine.js?v=53000";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=53000";
 import {advanceTime,ensureClock} from "./world-clock.js?v=276";
-import {tickWorld} from "./world-simulation.js?v=52000";
+import {tickWorld} from "./world-simulation.js?v=53000";
 import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=320";
 import {applyCultureAction} from "./culture-engine.js?v=276";
 import {resolveEconomyAction} from "./economy-engine.js?v=276";
 import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=276";
-import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=52000";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=53000";
 import {exploreDungeon} from "./dungeon-engine.js?v=47000";
 import {resolveTalentAction} from "./talent-engine.js?v=49000";
-import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=52000";
+import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=53000";
 import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=320";
-import {isNpcPresent} from "./world-registry.js?v=52000";
+import {isNpcPresent} from "./world-registry.js?v=53000";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
