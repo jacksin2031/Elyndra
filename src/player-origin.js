@@ -37,5 +37,5 @@ export function ensurePlayerOrigin(player){
  return player.origin
 }
 export function playerOriginSnapshot(player){
- const o=ensurePlayerOrigin(player);return {id:o.id,label:o.label,background:o.background,commonKnowledge:o.commonKnowledge.slice(0,8),defaultValues:o.defaultValues.slice(0,8),initialAssumptions:o.initialAssumptions.slice(0,8),worldKnowledgeBoundary:o.worldKnowledgeBoundary}
+ const o=ensurePlayerOrigin(player);return {id:o.id,label:o.label,background:o.background,commonKnowledge:o.commonKnowledge.slice(0,8),defaultValues:o.defaultValues.slice(0,8),initialAssumptions:o.initialAssumptions.slice(0,8),worldKnowledgeBoundary:o.worldKnowledgeBoundary,legalStatus:o.legalStatus||null,languagePolicy:o.languagePolicy||null,knowledgePolicy:o.knowledgePolicy||null,openingBias:o.openingBias||null}
 }
