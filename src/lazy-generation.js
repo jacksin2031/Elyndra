@@ -1,4 +1,5 @@
 import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure} from "./generation-claims.js?v=44000";
+import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=50000";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
@@ -33,12 +34,13 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
  const root=ensureLazyGeneration(state);syncGenerationClaimsFromCausalStructure(state);
  const normalizedReason=normalizeReason(reason),region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0);
  const active=root.plans.find(x=>x.status==="PLANNED"&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution);if(active)return active;
- const claims=pendingClaims(state),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,claims.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
+ const claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12}),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
  const existing=root.plans.find(x=>x.id===planId&&x.status==="PLANNED");if(existing)return existing;
  const history=(state.world?.history||[]).filter(x=>x?.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))),historyRefs=rotate(history,seed,Math.min(2,history.length)).map(x=>x.id);
- const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),slots=slotsFor(state,normalizedReason,selectedClaims.length>0);
- const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion:Number(state.world?.version)||1,slots,historyRefs,claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,historyRefs:[...(x.historyRefs||[])]})),createdAt:Date.now()};
- for(const c of selectedClaims)reserveGenerationClaim(state,c.id,{planId,reason:normalizedReason});
+ const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),slots=slotsFor(state,normalizedReason,selectedClaims.length>0||selectedEchoes.length>0);
+ for(const e of selectedEchoes)if(e.kind==="MEMORIAL")slots.locations=Math.max(1,slots.locations);else if(e.kind==="ORAL_TRADITION")slots.npcs=Math.max(1,slots.npcs);
+ const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion:Number(state.world?.version)||1,slots,historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now()};
+ for(const c of selectedClaims)reserveGenerationClaim(state,c.id,{planId,reason:normalizedReason});for(const e of selectedEchoes)reserveHistoryLegacyEcho(state,e.id,{planId,reason:normalizedReason});
  root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
 }
 function groupRows(g,key){return Array.isArray(g?.[key])?g[key]:[]}
@@ -58,12 +60,18 @@ export function validateLazyGenerationCandidate(state,generation,plan){
    if(name&&candidateNames.has(name))errors.push("LAZY_DUPLICATE_CANDIDATE:"+key+":"+name);if(name)candidateNames.add(name);
    const refs=uniq(row?.historyRefs,8);if((state.world?.history||[]).length&&refs.length===0)errors.push("LAZY_HISTORY_REF_REQUIRED:"+key);
    for(const id of refs)if(allowedHistory.size&&!allowedHistory.has(id))errors.push("LAZY_HISTORY_REF_OUTSIDE_PLAN:"+id);
-   const claimRefs=uniq(row?.claimRefs,6);for(const id of claimRefs)if(!plan.claimIds.includes(id))errors.push("LAZY_CLAIM_NOT_RESERVED:"+id)
+   const claimRefs=uniq(row?.claimRefs,6);for(const id of claimRefs)if(!plan.claimIds.includes(id))errors.push("LAZY_CLAIM_NOT_RESERVED:"+id);
+   const echoRefs=uniq(row?.echoRefs,6);for(const id of echoRefs)if(!(plan.legacyEchoIds||[]).includes(id))errors.push("LAZY_ECHO_NOT_RESERVED:"+id)
   }
  }
  for(const claimId of plan.claimIds){
   const bound=["locations","npcs","factions","sideQuests"].some(key=>groupRows(generation,key).some(row=>uniq(row?.claimRefs,6).includes(claimId)));
   if(!bound)errors.push("LAZY_RESERVED_CLAIM_UNBOUND:"+claimId)
+ }
+ for(const echo of plan.legacyEchoes||[]){
+  const allowed=echo.kind==="MEMORIAL"?["locations"]:echo.kind==="ORAL_TRADITION"?["npcs"]:[];
+  const bound=allowed.some(key=>groupRows(generation,key).some(row=>uniq(row?.echoRefs,6).includes(echo.id)));
+  if(!bound)errors.push("LAZY_RESERVED_ECHO_UNBOUND:"+echo.id)
  }
  return {valid:errors.length===0,errors:[...new Set(errors)],planId:plan.id}
 }
@@ -73,19 +81,26 @@ function addedIdFor(raw,added,key){
 }
 export function commitLazyGeneration(state,plan,generation,added){
  const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan);if(!v.valid)return {ok:false,errors:v.errors};
- const bindings={};
+ const bindings={},echoBindings={};
  for(const key of ["locations","npcs","factions","sideQuests"])for(const raw of groupRows(generation,key)){
-  const id=addedIdFor(raw,added,key);if(!id)continue;for(const claimId of uniq(raw?.claimRefs,6)){bindings[claimId]??=[];bindings[claimId].push(id)}
+  const id=addedIdFor(raw,added,key);if(!id)continue;
+  for(const claimId of uniq(raw?.claimRefs,6)){bindings[claimId]??=[];bindings[claimId].push(id)}
+  for(const echoId of uniq(raw?.echoRefs,6)){echoBindings[echoId]??=[];echoBindings[echoId].push(id)}
  }
- const missing=[];
- for(const claimId of plan.claimIds){const refs=uniq(bindings[claimId]||[]);if(refs.length)materializeGenerationClaim(state,claimId,refs);else missing.push(claimId)}
- if(missing.length){for(const id of missing)releaseGenerationClaim(state,id,"LAZY_COMMIT_ENTITY_MISSING");return {ok:false,errors:missing.map(x=>"LAZY_CLAIM_NOT_MATERIALIZED:"+x)}}
+ const missingClaims=plan.claimIds.filter(id=>!uniq(bindings[id]||[]).length),missingEchoes=(plan.legacyEchoIds||[]).filter(id=>!uniq(echoBindings[id]||[]).length);
+ if(missingClaims.length||missingEchoes.length){
+  for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,"LAZY_COMMIT_ENTITY_MISSING");
+  for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,"LAZY_COMMIT_ENTITY_MISSING");
+  return {ok:false,errors:[...missingClaims.map(x=>"LAZY_CLAIM_NOT_MATERIALIZED:"+x),...missingEchoes.map(x=>"LAZY_ECHO_NOT_MATERIALIZED:"+x)]}
+ }
+ for(const claimId of plan.claimIds)materializeGenerationClaim(state,claimId,uniq(bindings[claimId]||[]));
+ for(const echoId of plan.legacyEchoIds||[])materializeHistoryLegacyEcho(state,echoId,uniq(echoBindings[echoId]||[]));
  plan.status="COMMITTED";plan.committedAt=Date.now();plan.entityRefs=uniq(Object.values(added||{}).flat().map(x=>x?.id),24);
- root.commits.push({planId:plan.id,day:plan.day,reason:plan.reason,entityRefs:[...plan.entityRefs],claimIds:[...plan.claimIds],worldVersion:Number(state.world?.version)||1});root.commits=root.commits.slice(-80);
- return {ok:true,planId:plan.id,entityRefs:plan.entityRefs,claimIds:plan.claimIds}
+ root.commits.push({planId:plan.id,day:plan.day,reason:plan.reason,entityRefs:[...plan.entityRefs],claimIds:[...plan.claimIds],legacyEchoIds:[...(plan.legacyEchoIds||[])],worldVersion:Number(state.world?.version)||1});root.commits=root.commits.slice(-80);
+ return {ok:true,planId:plan.id,entityRefs:plan.entityRefs,claimIds:plan.claimIds,legacyEchoIds:plan.legacyEchoIds||[]}
 }
 export function abortLazyGeneration(state,plan,reason=""){
- if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();return true
+ if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();return true
 }
 export function lazyGenerationSnapshot(state,{director=false}={}){
  const root=ensureLazyGeneration(state),active=root.plans.filter(x=>x.status==="PLANNED").slice(-4);
