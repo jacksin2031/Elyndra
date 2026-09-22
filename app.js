@@ -1,8 +1,8 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=54006";
+import {APP_VERSION} from "./src/version.js?v=54007";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=54006";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=54001";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=54006";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=54007";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=54001";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=54006";
 import {maintainSession} from "./src/session-maintenance.js?v=54001";
@@ -54,7 +54,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=54001";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=47000";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=54001";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=54001";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection} from "./src/ai-autotest.js?v=54006";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection} from "./src/ai-autotest.js?v=54007";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -236,13 +236,13 @@ async function runDeferredDirector(){
  }
 }
 function scheduleHistoryDeepening(reason="history_research",delay=1800){
- if(!gameState||!aiStatus.aiConfigured)return;const need=historyDeepeningNeed(gameState);if(!need.required)return;
+ if(developerAutotestActive||!gameState||!aiStatus.aiConfigured)return;const need=historyDeepeningNeed(gameState);if(!need.required)return;
  historyBackground.lastReason=String(reason||need.reasons?.[0]||"history_research").slice(0,180);
  if(historyBackground.timer)clearTimeout(historyBackground.timer);
  historyBackground.timer=setTimeout(()=>{historyBackground.timer=0;void runBackgroundHistoryDeepening()},Math.max(450,Number(delay)||1800))
 }
 async function runBackgroundHistoryDeepening(){
- if(!gameState||!aiStatus.aiConfigured||historyBackground.running)return;
+ if(developerAutotestActive||!gameState||!aiStatus.aiConfigured||historyBackground.running)return;
  const need=historyDeepeningNeed(gameState);if(!need.required)return;
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||worldQualityBackground.running||gameState.combat?.active||document.hidden){scheduleHistoryDeepening(historyBackground.lastReason,2600);return}
  const plan=planHistoryDeepening(gameState,need.historyId);if(!plan)return;
@@ -266,13 +266,13 @@ async function runBackgroundHistoryDeepening(){
  }
 }
 function scheduleWorldQualityCritic(reason="background_quality",delay=1400){
- if(!gameState||!aiStatus.aiConfigured)return;const need=backgroundQualityNeed(gameState);if(!need.required)return;
+ if(developerAutotestActive||!gameState||!aiStatus.aiConfigured)return;const need=backgroundQualityNeed(gameState);if(!need.required)return;
  worldQualityBackground.lastReason=String(reason||need.reason||"background_quality").slice(0,180);
  if(worldQualityBackground.timer)clearTimeout(worldQualityBackground.timer);
  worldQualityBackground.timer=setTimeout(()=>{worldQualityBackground.timer=0;void runBackgroundWorldQualityCritic()},Math.max(350,Number(delay)||1400))
 }
 async function runBackgroundWorldQualityCritic(){
- if(!gameState||!aiStatus.aiConfigured||worldQualityBackground.running)return;
+ if(developerAutotestActive||!gameState||!aiStatus.aiConfigured||worldQualityBackground.running)return;
  const need=backgroundQualityNeed(gameState);if(!need.required)return;
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||historyBackground.running||gameState.combat?.active||document.hidden){scheduleWorldQualityCritic(need.reason,2600);return}
  const worldId=gameState.world?.id,baseVersion=Number(gameState.world?.version)||1,ctrl=new AbortController(),startedAt=Date.now();
@@ -298,13 +298,13 @@ async function runBackgroundWorldQualityCritic(){
  }
 }
 function scheduleWorldEvolution(reason="background_gameplay",delay=1600){
- if(!gameState||!aiStatus.aiConfigured)return;worldBackground.lastReason=String(reason||"background_gameplay").slice(0,180);worldBackground.queued=true;
+ if(developerAutotestActive||!gameState||!aiStatus.aiConfigured)return;worldBackground.lastReason=String(reason||"background_gameplay").slice(0,180);worldBackground.queued=true;
  if(worldBackground.timer)clearTimeout(worldBackground.timer);
  const cooldown=Math.max(0,Number(worldBackground.cooldownUntil||0)-Date.now()),wait=Math.max(250,Number(delay)||1600,cooldown);
  worldBackground.timer=setTimeout(()=>{worldBackground.timer=0;void runBackgroundWorldEvolution()},wait)
 }
 async function runBackgroundWorldEvolution(){
- if(!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
+ if(developerAutotestActive||!gameState||!aiStatus.aiConfigured||worldBackground.running)return;
  const idleRemaining=backgroundIdleRemaining();if(idleRemaining>0){scheduleWorldEvolution(worldBackground.lastReason,Math.max(1000,idleRemaining));return}
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldQualityBackground.running||historyBackground.running||gameState.combat?.active||document.hidden){scheduleWorldEvolution(worldBackground.lastReason,2400);return}
  const evolution=worldEvolutionNeed(gameState),expand=needsExpansion(gameState);
@@ -917,13 +917,13 @@ async function startDeveloperAutotest(config){
       recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
       if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
       await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle(8000);
-      row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push(decision.action||decision.combatAction||"");
+      row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push({action:decision.action||decision.combatAction||"",mode:decision.mode,kind:decision.kind||"",progression:decision.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
      }catch(e){
       developerAutotest.controller=null;
       if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
-      row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;
+      row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;recentActions.push({action:row.decision?.action||row.decision?.combatAction||"",mode:row.decision?.mode||"",kind:row.decision?.kind||"",progression:row.decision?.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_FAILED",{worldIndex:i,turn,error:row.error,durationMs:row.durationMs});appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 發生錯誤：${row.error}`);
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:false},config,{});if(stop){result.stopReason=stop;break}
      }
@@ -941,7 +941,7 @@ async function startDeveloperAutotest(config){
   developerAutotest.lastReport=report;recordDebug("AUTOTEST_BATCH_COMPLETED",{summary:report.summary,stopRequested:developerAutotest.stopRequested});
   try{exportDeveloperAutotestResults(report,developerAutotest.results)}catch(e){recordDebug("AUTOTEST_EXPORT_FAILED",{error:e?.message||String(e)})}
   developerAutotest.running=false;developerAutotestActive=false;developerAutotest.stopRequested=false;gameState=originalState;gameplayDebugSnapshot=null;
-  await refresh();if(originalState&&originalScreen==="game")show("game");else if(originalScreen==="creator")show("creator");else show("landing");
+  await refresh();if(originalState&&aiStatus.aiConfigured){scheduleWorldQualityCritic("post_autotest_restore",1800);scheduleWorldEvolution("post_autotest_restore",BACKGROUND_IDLE_GRACE_MS);scheduleHistoryDeepening("post_autotest_restore",2400)}if(originalState&&originalScreen==="game")show("game");else if(originalScreen==="creator")show("creator");else show("landing");
   appendDeveloperAutotestLog(`測試完成：${report.summary.worldsCompleted} 個完成、${report.summary.worldsFailed} 個失敗、${report.summary.totalTurns} 回合、${report.summary.issues} 個問題。`);openDeveloperAutotestPanel()
  }
 }
