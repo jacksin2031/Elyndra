@@ -1,6 +1,6 @@
 import {json,methodGuard,safeBody,callModel} from "./_ai.js";
 import {seedDirective} from "../src/seed-contract.js";
-import {normalizeWorldCoreCandidate,normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "../src/world-compiler.js";
+import {normalizeWorldCoreCandidate,normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "../src/world-compiler.js";
 import {fallbackWorldEvaluation} from "../src/world-quality.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {validateWorldCreationCandidate} from "../src/world-creation.js";
@@ -38,6 +38,7 @@ function rulesProblem(value){
  const b=value?.worldBible;return !b||CORE_RULE_FIELDS.some(k=>!text(b[k]))||!b.civilization||!b.communication?"STRUCTURE_INVALID":""
 }
 function anchorProblem(value){
+ value=normalizeCoreAnchorStage(value);
  const b=value?.worldBible;if(!b)return "WORLD_BIBLE_REQUIRED";
  if(["startingRegion","startingSettlement","startingLocation"].some(k=>!text(b[k])))return "STARTING_LOCATION_FIELDS_REQUIRED";
  if(!b.weatherSystem||!Array.isArray(b.weatherSystem.phenomena)||b.weatherSystem.phenomena.length<2)return "WEATHER_SYSTEM_INVALID";
@@ -66,11 +67,12 @@ export default async function handler(req,res){
   }),
    stageJSON(diagnostics,"CORE_ANCHOR",{
    timeoutMs:50000,maxOutputTokens:1400,temperature:.35,validate:anchorProblem,
-   system:"你是 Elyndra Core Anchor Compiler。Identity 已鎖定。你與 Core Rules Compiler 同一 wave 並行工作；不得自行改寫 Identity。只建立 summary、開局 Region/Settlement/Location、Weather Canon、publicFacts、hiddenFacts。所有地點與天氣必須能由 Identity、Seed Contract 與 blueprintProfile 解釋。不得生成歷史、勢力、NPC、任務或 Timeline。只輸出 JSON。",
+   system:"你是 Elyndra Core Anchor Compiler。Identity 已鎖定。你與 Core Rules Compiler 同一 wave 並行工作；不得自行改寫 Identity。只建立 summary、開局 Region/Settlement/Location、Weather Canon、publicFacts、hiddenFacts。publicFacts 與 hiddenFacts 必須放在 JSON root，不能放入 worldBible。所有地點與天氣必須能由 Identity、Seed Contract 與 blueprintProfile 解釋。不得生成歷史、勢力、NPC、任務或 Timeline。只輸出 JSON。",
    user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"出生位置",weatherSystem:{identity:"天氣法則",source:"來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"正式名稱",observableName:"感官名稱",description:"20-40字",sensoryCue:"感官線索",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"正式名稱",observableName:"感官名稱",description:"20-40字",sensoryCue:"感官線索",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項"],hiddenFacts:["2-3項"]}})
   })
   ]);
-  let core=mergeCoreWave(identity,expected,rulesRaw,anchorRaw),coreIssues=coreWaveIssues(identity,rulesRaw,anchorRaw,core);
+  const normalizedAnchor=normalizeCoreAnchorStage(anchorRaw);
+  let core=mergeCoreWave(identity,expected,rulesRaw,normalizedAnchor),coreIssues=coreWaveIssues(identity,rulesRaw,normalizedAnchor,core);
   if(coreIssues.length)throw stageError("CORE_LINK",coreIssues.join(","));
   core.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);
   const anchor=buildWorldAnchorContract(core,directive.timelinePacing),originOpening=originOpeningContract({player:{origin:seed.creationV2?.originProfile||{}},world:{creation:seed.creationV2||{},state:{day:1}}});
@@ -94,13 +96,13 @@ export default async function handler(req,res){
   const timelineSlots=timelineAuthoringSlots(directive.timelinePacing);
   const [futureRaw,society]=await Promise.all([
    stageJSON(diagnostics,"FUTURE",{
-   timeoutMs:50000,maxOutputTokens:2000,temperature:.4,
+   timeoutMs:55000,maxOutputTokens:2200,temperature:.4,
    validate:value=>{const bound=bindTimelineAuthoringSlots(value?.worldTimeline,directive.timelinePacing),v=validateWorldTimeline(bound,directive.timelinePacing);return value?.worldCalendar&&v.valid?"":"TIMELINE_INVALID:"+(v.errors||[]).join(",")},
    system:"你是 Elyndra Future Compiler。Anchor、History、Geography 已鎖定。只生成世界曆法與可能發生的 Future Timeline；事件要透過 links.historyRefs/locationRefs 回連已存在內容，不得新增文明、勢力、地點或人物。每個事件的 impactScope、affectedRegions、intensity、duration、domains 及 prevent/accelerate/mitigate/redirect 必須符合事件內容，不可把全部事件都填成相同 Scope 或 Domain。日期窗口由 Engine slots 決定。只輸出 JSON。",
    user:JSON.stringify({anchor,history,geography,blueprintProfile:directive.blueprintProfile,timelineSlots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:timelineSlots.map((slot,i)=>({slot:slot.slot,title:"事件"+(i+1),category:"類型",directorTruth:"隱藏因果",observableEffect:"可觀察影響",pressure:"0-15",impactScope:"LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD",affectedRegions:[anchor.startingRegion],intensity:"0-100",duration:"1-30或null",domains:["1-4項"],activationConditions:["DAY>=2"],cancelConditions:[],escalationConditions:[],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true,links:{historyRefs:["HIST id"],locationRefs:[anchor.startingLocation]}}))}})
   }),
    stageJSON(diagnostics,"SOCIETY",{
-   timeoutMs:50000,maxOutputTokens:1300,temperature:.4,
+   timeoutMs:55000,maxOutputTokens:1500,temperature:.4,
    validate:value=>!value||typeof value!=="object"||Array.isArray(value)||value.locationRef!==anchor.startingLocation||!Array.isArray(value.historyRefs)||!value.historyRefs.length?"STRUCTURE_INVALID":"",
    system:"你是 Elyndra Society Compiler。History 與 Geography 已鎖定；你與 Future Compiler 同一 wave 並行工作。只建立開局地點的 culture、trade 與最多1個地方 faction；制度、禁忌、信仰與經濟必須來自既有歷史、地理條件。不可重命名或新增地點。只輸出 JSON。",
    user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"命名規則",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與危機／歷史有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化"},trade:{mode:"barter",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})

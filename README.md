@@ -573,3 +573,13 @@ OpenAI、Gemini、Agnes 都可在 AI 設定選擇「標準」或「Elyndra 自�
 - 玩家遊玩期間的自動世界完善改為真正 checkpoint 模型：Geography 成功即寫入 Canon；Society、Cast、Quest 各自成功即保存，後段失敗不會丟失前段成果，下一次只從未完成 stage 繼續。
 - Runtime Society 明確要求對每個新地點逐字回傳 locationDetails，降低 LOCATION_DETAIL_MISSING。
 - 玩家按下行動後進入 single-flight UI lock；在 Player Action AI 完成前，不會先跳回 fallback／預設行動，也不能重複提交下一個行動。
+
+
+### v0.54.11 — Background-safe Autotest & Generation Recovery
+
+- Developer AI Autotest 會記錄前景／背景切換；背景期間的網絡中斷與 timeout 會獨立標記為 background interruption，不再誤算成 Elyndra 產品 AI failure。
+- 若背景切換在 AI 尚未提交玩家行動前中斷請求，回到前景後會安全重試同一回合；已提交的行動不會自動重播，避免重複寫入狀態。
+- 玩家遊玩中的 Runtime Geography 可引用任何已存在 Canon History；只要成功產生至少一個真正新地點便可建立 stage checkpoint，既有地點會被過濾而不再造成整段失敗。
+- BLUEPRINT_DEFINITION claim 只容許綁定 matching definition；錯綁在 Location 的 claim 會由 Engine 清理，未綁 definition claim 會按 kind 自動配對。
+- Core Anchor 會正規化模型常見的 publicFacts／hiddenFacts 層級差異，避免有效內容被誤判成 STRUCTURE_INVALID。
+- Future／Society 增加輸出 budget 與 timeout 空間，降低長 JSON 截斷造成的 fallback；新世界生成仍保持最多兩個 AI 同時工作。

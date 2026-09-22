@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54008";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=48000";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54011";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54001";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=54005";
@@ -18,7 +18,7 @@ import {planStateSync,validateStatePatch} from "./state-sync.js?v=54006";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54010";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54011";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -283,7 +283,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>coreRulesFallback(identity,directive.blueprintProfile)),
    resilientWorldStage("CORE_ANCHOR",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:1000,
-    system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。blueprintProfile.mustExist 的每一項都必須在世界 Canon 實際存在；summary、publicFacts 或 hiddenFacts 至少要有一處保留每個標籤的原詞並說明它如何存在，不可只複製清單。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。出生位置亦必須符合 blueprintProfile.origin：crossing 應像無登記的突然抵達；summoned 應合理接近召喚方可接觸的位置；native/reincarnation 應像既有地方生活的一部分；possession 應符合 host 身份；amnesia 要支援記憶缺口。這只決定地點因果，不可替玩家新增未授權知識。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
+    system:`你是 Elyndra Core Anchor Compiler。只能根據 identity 與 Seed Contract 定義：世界概要、開局區域／聚落／出生位置、Weather Canon、公開事實與真正秘密。blueprintProfile.mustExist 的每一項都必須在世界 Canon 實際存在；summary、publicFacts 或 hiddenFacts 至少要有一處保留每個標籤的原詞並說明它如何存在，不可只複製清單。publicFacts 與 hiddenFacts 必須放在 JSON root，不能放入 worldBible。不得改 worldName/worldTheme，不得生成歷史 Timeline、勢力、NPC 或任務。startingRegion/Settlement/Location、Weather、publicFacts、hiddenFacts 必須全部可以由 identity.worldTheme/premise 解釋，避免互相無關的拼貼設定。出生位置亦必須符合 blueprintProfile.origin：crossing 應像無登記的突然抵達；summoned 應合理接近召喚方可接觸的位置；native/reincarnation 應像既有地方生活的一部分；possession 應符合 host 身份；amnesia 要支援記憶缺口。這只決定地點因果，不可替玩家新增未授權知識。至少2個 Weather phenomena，其中至少1個明顯屬於異世界。只輸出 JSON。`,
     user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"玩家真實出生位置",weatherSystem:{identity:"20-50字天氣法則",source:"天氣來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"異世界天候名",observableName:"感官描述",description:"20-40字",sensoryCue:"直接可感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項與 worldTheme 直接相關的公開事實"],hiddenFacts:["2-3項與 worldTheme/current premise 直接相關的秘密"]}})
    },()=>coreAnchorFallback(identity,directive.blueprintProfile))
   ]);
@@ -291,7 +291,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const rulesRequired=CORE_RULE_FIELDS;
   let rules=normalizeCoreRulesStage(rulesRaw);
   if(!rules?.worldBible||rulesRequired.some(k=>!String(rules.worldBible?.[k]||"").trim())||!rules.worldBible.civilization||!rules.worldBible.communication){markWorldFallback("CORE_RULES","STRUCTURE_INVALID");rules=coreRulesFallback(identity,directive.blueprintProfile)};
-  let coreAnchor=anchorRaw;
+  let coreAnchor=normalizeCoreAnchorStage(anchorRaw);
   if(!coreAnchor?.worldBible||["startingRegion","startingSettlement","startingLocation"].some(k=>!String(coreAnchor.worldBible?.[k]||"").trim())||!coreAnchor.worldBible.weatherSystem||!Array.isArray(coreAnchor.publicFacts)||!Array.isArray(coreAnchor.hiddenFacts)){markWorldFallback("CORE_ANCHOR","STRUCTURE_INVALID");coreAnchor=coreAnchorFallback(identity,directive.blueprintProfile)};
 
   let core=mergeCoreWave(identity,expected,rules,coreAnchor),coreIssues=coreWaveIssues(identity,rules,coreAnchor,core);
@@ -328,12 +328,12 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const slots=timelineAuthoringSlots(directive.timelinePacing);
   const [futureRaw,societyRaw]=await Promise.all([
    resilientWorldStage("FUTURE",{
-    timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1600,
+    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200,
     system:`你是 Elyndra Future Compiler。根據同一 anchor、已鎖定 history、geography 與 blueprintProfile.storyTendencies 生成世界曆法及「可能發生」的未來 Timeline。故事偏好不是固定劇情；每個事件必須提供 activationConditions / cancelConditions / escalationConditions，條件只可使用 DAY>=n、EVENT:TYPE、FACT:id、FLAG:key、LOCATION:name 及 NOT: 前綴。你必須同時作者化 impactScope（LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD）、affectedRegions、intensity 0-100、duration（世界日，可 null）、domains，以及 playerCanPrevent / playerCanAccelerate / playerCanMitigate / playerCanRedirect；Scope 與 intensity 必須符合事件內容，不可全部填成同一值。每個事件必須透過 links.historyRefs 或 links.locationRefs 明確連回既有歷史／開局地理；禁止新增無來源文明、勢力或地點。日期窗口由 Engine slots 決定，你不要自行改 earliest/latest。只輸出 JSON。`,
     user:JSON.stringify({anchor,history,geography,blueprintProfile:directive.blueprintProfile,timelineSlots:slots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:slots.map((slot,i)=>({slot:slot.slot,title:`事件${i+1}`,category:"類型",directorTruth:"20-50字隱藏因果",observableEffect:"20-50字可觀察影響",pressure:"0-15",impactScope:"LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD",affectedRegions:["只能用已存在區域；至少包含與事件直接相關區域"],intensity:"0-100",duration:"1-30 世界日或 null",domains:["1-4個，如 SECURITY|POLITICS|SUPPLY|WEATHER|MAGIC|MIGRATION|LAW|ECONOMY"],activationConditions:["DAY>=2"],cancelConditions:["可空；EVENT:PEACE_TREATY 等"],escalationConditions:["可空；FLAG:war_tension 等"],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true,links:{historyRefs:["至少1個 HIST id"],locationRefs:["STARTING_LOCATION|STARTING_REGION 或 anchor 名稱"]}}))}})
    },()=>futureFallback(anchor,history,directive.timelinePacing)),
    resilientWorldStage("SOCIETY",{
-    timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:950,
+    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:1400,
     system:`你是 Elyndra Society Compiler。只生成開局地點的 culture、trade 與最多1個地方 faction。你必須以已鎖定 geography 作生活環境，以 history 作制度／禁忌／信仰來源。locationRef 必須等於 anchor.startingLocation，historyRefs 必須引用既有 HIST id。禁止重新命名地點或創造第二個地點。只輸出 JSON。`,
     user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"具體命名規則；不得輸出「簡短」",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"可空或穩定ID",name:"名稱",symbol:"",issuer:"發行者",description:"簡短"}],commonBarter:["0-2項"],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與 currentCrisis/歷史遺產有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化",etiquette:["1項"],taboos:["1項"],beliefs:["1項"]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
    },()=>societyFallback(anchor,history,geography))
@@ -549,6 +549,28 @@ const RUNTIME_GENERATION_KEYS=["locations","npcs","factions","sideQuests","defin
 function emptyRuntimeGeneration(){return {locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]}}
 function runtimeRoot(value){return value&&typeof value==="object"&&!Array.isArray(value)?(value.generation&&typeof value.generation==="object"&&!Array.isArray(value.generation)?value.generation:value):{}}
 function runtimeRows(value,key,limit=0){const rows=Array.isArray(runtimeRoot(value)?.[key])?runtimeRoot(value)[key]:[];return rows.slice(0,Math.max(0,Number(limit)||0))}
+function runtimeIdentity(value){return String(value||"").trim().toLocaleLowerCase()}
+function cleanRuntimeClaimRefs(plan,key,row){
+ const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copy={...row},refs=Array.isArray(row?.claimRefs)?row.claimRefs.map(String).filter(Boolean):[];
+ copy.claimRefs=[...new Set(refs.filter(id=>{
+  const claim=claims.get(id);if(!claim)return true;
+  if(claim.type!=="BLUEPRINT_DEFINITION")return true;
+  return key==="definitions"&&String(row?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()
+ }))];return copy
+}
+function runtimeNewLocations(state,plan,rows){
+ const existing=new Set((state?.world?.registry?.locations||[]).map(x=>runtimeIdentity(x?.name)).filter(Boolean));
+ return (rows||[]).filter(row=>{const name=runtimeIdentity(row?.name);return name&&!existing.has(name)}).map(row=>cleanRuntimeClaimRefs(plan,"locations",row))
+}
+function runtimeDefinitions(plan,rows){
+ const defs=(rows||[]).map(row=>cleanRuntimeClaimRefs(plan,"definitions",row)),claims=(plan?.claims||[]).filter(x=>x.type==="BLUEPRINT_DEFINITION"),used=new Set(defs.flatMap(x=>Array.isArray(x.claimRefs)?x.claimRefs.map(String):[]));
+ for(const claim of claims){
+  if(used.has(String(claim.id)))continue;
+  const hit=defs.find(x=>String(x?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()&&!(x.claimRefs||[]).some(id=>used.has(String(id))));
+  if(hit){hit.claimRefs=[...new Set([...(hit.claimRefs||[]),String(claim.id)])];used.add(String(claim.id))}
+ }
+ return defs
+}
 function runtimeRefs(rows,key){return new Set((rows||[]).flatMap(row=>Array.isArray(row?.[key])?row[key]:[]).map(String).filter(Boolean))}
 function runtimeProgressErrors(state,plan,generation){
  const report=validateLazyGenerationCandidate(state,generation,plan);
@@ -581,16 +603,16 @@ function applyRuntimeLocationDetails(current,value){
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
  if(!plan)throw new Error("RUNTIME_EXPANSION_PLAN_REQUIRED");
- const signal=options?.signal,slots=plan.slots||{},completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只可來自 lazyPlan.historyRefs、claim.historyRefs 或 directorHistory 現有 HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions；REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
+ const signal=options?.signal,slots=plan.slots||{},allowedHistoryRefs=(state.world?.history||[]).map(x=>String(x?.id||"")).filter(Boolean),existingLocationNames=(state.world?.registry?.locations||[]).map(x=>String(x?.name||"")).filter(Boolean),completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只能引用 payload.allowedHistoryRefs 中已存在的 Canon HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions，而且 definition.kind 必須與 claim.definitionKind 相同；Location 不得綁 BLUEPRINT_DEFINITION。REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
  let generation=plan.checkpoint?.generation?structuredClone(plan.checkpoint.generation):emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
 
  if(!completedStages.has("RUNTIME_GEOGRAPHY")){generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
   signal,state,plan,maxOutputTokens:1600,temperature:.5,
   system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
-  user:()=>({payload,stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL")}),
+  user:()=>({payload:{...payload,allowedHistoryRefs,existingLocationNames},stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL"),instruction:"locations 最多生成 slots.locations；至少生成 1 個真正新地點即可完成本次 Geography checkpoint，不得重建 existingLocationNames。"}),
   apply:value=>{
-   const root=runtimeRoot(value),locations=runtimeRows(value,"locations",slots.locations),definitions=runtimeRows(value,"definitions",slots.definitions);
-   if((Number(slots.locations)||0)>0&&locations.length<Number(slots.locations))throw new Error("RUNTIME_GEOGRAPHY_LOCATION_COUNT");
+   const root=runtimeRoot(value),locations=runtimeNewLocations(state,plan,runtimeRows(value,"locations",slots.locations)),definitions=runtimeDefinitions(plan,runtimeRows(value,"definitions",slots.definitions));
+   if((Number(slots.locations)||0)>0&&locations.length===0)throw new Error("RUNTIME_GEOGRAPHY_LOCATION_COUNT");
    if((Number(slots.definitions)||0)>0&&definitions.length<Number(slots.definitions))throw new Error("RUNTIME_GEOGRAPHY_DEFINITION_COUNT");
    const blueprint=(plan.claims||[]).filter(x=>x.type==="BLUEPRINT_DEFINITION").map(x=>String(x.id)),bound=runtimeRefs(definitions,"claimRefs");
    for(const id of blueprint)if(!bound.has(id))throw new Error("RUNTIME_GEOGRAPHY_BLUEPRINT_CLAIM_UNBOUND:"+id);

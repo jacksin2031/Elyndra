@@ -6,12 +6,12 @@ test("world creation uses bounded two-AI waves with Engine validation between wa
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
  for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
- for(const timeout of [35000,45000,50000,55000,65000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
- for(const budget of [500,800,900,950,1000,1100,1600])assert.match(client,new RegExp(`maxOutputTokens:${budget}`));
+ for(const timeout of [35000,50000,55000,65000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
+ for(const budget of [500,800,900,1000,1100,1400,1600,2200])assert.match(client,new RegExp(`maxOutputTokens:${budget}`));
  assert.match(client,/generatedTemplateLeak/);assert.match(client,/weatherProfileConflict/);
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  const worldBlock=client.slice(client.indexOf("export async function generateWorldCandidate"),client.indexOf("export async function talkToNpc"));
- assert.match(worldBlock,/resilientWorldStage\("FUTURE",\{[\s\S]*?timeoutMs:45000,retryOnTimeout:false,maxOutputTokens:1600/);
+ assert.match(worldBlock,/resilientWorldStage\("FUTURE",\{[\s\S]*?timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200/);
  assert.equal([...worldBlock.matchAll(/Promise\.all\(\[/g)].length,3);
  assert.doesNotMatch(worldBlock,/Promise\.allSettled/);
  assert.match(worldBlock,/Promise\.all\(\[\s*resilientWorldStage\("CORE_RULES"[\s\S]*?resilientWorldStage\("CORE_ANCHOR"/);
@@ -91,7 +91,7 @@ test("staged compiler loads timeout settings through current cache generation",a
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.match(client,/ai-settings\.js\?v=54008/);
  assert.match(client,/seed-contract\.js\?v=48000/);
- assert.match(client,/world-compiler\.js\?v=48000/);
+ assert.match(client,/world-compiler\.js\?v=54011/);
  assert.match(client,/recognition-engine\.js\?v=276/);
 });
 
@@ -104,7 +104,7 @@ test("compiler schema prompts forbid literal placeholder echoes",async()=>{
 });
 
 
-test("v0.54.10 normalizes valid top-level Core Rules before structure fallback",async()=>{
+test("v0.54.11 normalizes valid top-level Core Rules before structure fallback",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.match(client,/export function normalizeCoreRulesStage/);
  assert.match(client,/let rules=normalizeCoreRulesStage\(rulesRaw\)/)

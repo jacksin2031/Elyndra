@@ -209,18 +209,28 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
   }
  }
  const mirroredTypes=new Set(["AUTOTEST_WORLD_FAILED","AUTOTEST_TURN_FAILED"]);
+ const rows=list(telemetry).slice().sort((a,b)=>(Number(a?.at)||0)-(Number(b?.at)||0)),backgroundWindows=[];let hiddenAt=0;
+ for(const e of rows){
+  if(e?.type==="AUTOTEST_VISIBILITY_HIDDEN")hiddenAt=Number(e.at)||hiddenAt||startedAt;
+  if(e?.type==="AUTOTEST_VISIBILITY_VISIBLE"&&hiddenAt){backgroundWindows.push([hiddenAt,(Number(e.at)||hiddenAt)+15000]);hiddenAt=0}
+ }
+ if(hiddenAt)backgroundWindows.push([hiddenAt,endedAt+15000]);
+ const inBackgroundWindow=e=>backgroundWindows.some(([from,to])=>(Number(e?.at)||0)>=from&&(Number(e?.at)||0)<=to);
+ const interruptionText=e=>String(e?.data?.error||e?.data?.reason||e?.data?.message||"");
+ const backgroundInterruption=e=>inBackgroundWindow(e)&&/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|AI_TIMEOUT/i.test(interruptionText(e));
  const intentionalPreemption=e=>e?.type==="AI_CALL_FAILED"&&(e?.data?.aborted===true||/AI_ABORTED: request cancelled by higher-priority gameplay/i.test(String(e?.data?.error||"")));
- const telemetryErrors=list(telemetry).filter(e=>(/ERROR|FAILED/.test(String(e?.type||""))||e?.data?.status==="ERROR")&&!mirroredTypes.has(String(e?.type||""))&&!intentionalPreemption(e));
+ const telemetryErrors=list(telemetry).filter(e=>(/ERROR|FAILED/.test(String(e?.type||""))||e?.data?.status==="ERROR")&&!mirroredTypes.has(String(e?.type||""))&&!intentionalPreemption(e)&&!backgroundInterruption(e));
  for(const e of telemetryErrors.slice(0,40))issues.push({severity:"WARN",type:"TELEMETRY_"+String(e.type||"ERROR"),task:text(e?.data?.task||"",80)||undefined,provider:text(e?.data?.provider||"",80)||undefined,message:text(e?.data?.error||e?.data?.reason||e?.data?.message||"",500)});
- const ai=list(telemetry).filter(e=>e?.type==="AI_REQUEST"),allFailedAttempts=list(telemetry).filter(e=>e?.type==="AI_CALL_FAILED"),preemptedAttempts=allFailedAttempts.filter(intentionalPreemption),failedAttempts=allFailedAttempts.filter(e=>!intentionalPreemption(e));
+ const ai=list(telemetry).filter(e=>e?.type==="AI_REQUEST"),allFailedAttempts=list(telemetry).filter(e=>e?.type==="AI_CALL_FAILED"),preemptedAttempts=allFailedAttempts.filter(intentionalPreemption),backgroundFailedAttempts=allFailedAttempts.filter(e=>!intentionalPreemption(e)&&backgroundInterruption(e)),failedAttempts=allFailedAttempts.filter(e=>!intentionalPreemption(e)&&!backgroundInterruption(e));
  const successfulResponses=ai.filter(e=>String(e?.data?.status||"").toUpperCase()==="SUCCESS"),emptyResponses=ai.filter(e=>String(e?.data?.status||"").toUpperCase()==="EMPTY");
  const transportFailures=failedAttempts.filter(e=>/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(e?.data?.error||"")));
  const timeoutFailures=failedAttempts.filter(e=>/AI_TIMEOUT/.test(String(e?.data?.error||"")));
  if(emptyResponses.length)issues.push({severity:"WARN",type:"AI_EMPTY_RESPONSES",message:`${emptyResponses.length} AI attempts consumed tokens but returned no usable response.`});
- const stageBreakdown={};const stageRow=task=>stageBreakdown[task]??={success:0,empty:0,failures:0,preempted:0,timeouts:0,transportFailures:0,latencyMsTotal:0,completedResponses:0};
+ const stageBreakdown={};const stageRow=task=>stageBreakdown[task]??={success:0,empty:0,failures:0,preempted:0,backgroundInterruptions:0,timeouts:0,transportFailures:0,latencyMsTotal:0,completedResponses:0};
  for(const e of ai){const row=stageRow(text(e?.data?.task||"general",80)||"general"),status=String(e?.data?.status||"").toUpperCase();if(status==="SUCCESS")row.success++;if(status==="EMPTY")row.empty++;row.latencyMsTotal+=Number(e?.data?.latencyMs)||0;row.completedResponses++}
  for(const e of failedAttempts){const row=stageRow(text(e?.data?.task||"general",80)||"general"),err=String(e?.data?.error||"");row.failures++;if(/AI_TIMEOUT/.test(err))row.timeouts++;if(/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(err))row.transportFailures++}
  for(const e of preemptedAttempts)stageRow(text(e?.data?.task||"general",80)||"general").preempted++;
+ for(const e of backgroundFailedAttempts)stageRow(text(e?.data?.task||"general",80)||"general").backgroundInterruptions++;
  for(const row of Object.values(stageBreakdown)){row.aiLatencyAverageMs=row.completedResponses?Math.round(row.latencyMsTotal/row.completedResponses):0;delete row.latencyMsTotal;delete row.completedResponses}
  const diagnostics=worlds.map(w=>w?.generation?.diagnostics).filter(d=>d&&typeof d==="object"),stageRows=diagnostics.flatMap(d=>Object.values(d.stages||{}));
  const generationStages={total:stageRows.length,ai:stageRows.filter(x=>x?.source==="AI").length,fallback:stageRows.filter(x=>x?.source==="FALLBACK").length,failed:stageRows.filter(x=>x?.source==="FAILED").length};
@@ -230,7 +240,7 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
  const latencyTotal=ai.reduce((n,e)=>n+(Number(e?.data?.latencyMs)||0),0);
  return {
   schema:"elyndra-autotest-report-v1",startedAt:new Date(startedAt||Date.now()).toISOString(),endedAt:new Date(endedAt).toISOString(),durationMs:Math.max(0,endedAt-(startedAt||endedAt)),
-  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
+  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiBackgroundInterruptions:backgroundFailedAttempts.length,backgroundWindowCount:backgroundWindows.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
   stopReasons:Object.fromEntries([...new Set(worlds.map(w=>w.stopReason).filter(Boolean))].map(reason=>[reason,worlds.filter(w=>w.stopReason===reason).length])),
   issues,worlds:worlds.map(w=>({index:w.index,status:w.status,phase:w.phase,turns:Number(w.turns)||0,stopReason:w.stopReason||"",error:w.error||"",summary:w.summary||null,generation:w.generation||null}))
  }

@@ -28,6 +28,19 @@ function mergeValue(base,patch){
 }
 export function mergeWorldCoreCandidates(base,patch){return normalizeWorldCoreCandidate(mergeValue(obj(base)?base:{},obj(patch)?patch:{}))}
 
+export function normalizeCoreAnchorStage(value){
+ if(!obj(value))return value;
+ const out=structuredClone(value),b=obj(out.worldBible)?out.worldBible:{};
+ if(!list(out.publicFacts).length&&list(b.publicFacts).length)out.publicFacts=list(b.publicFacts);
+ else out.publicFacts=list(out.publicFacts);
+ if(!list(out.hiddenFacts).length&&list(b.hiddenFacts).length)out.hiddenFacts=list(b.hiddenFacts);
+ else out.hiddenFacts=list(out.hiddenFacts);
+ if(obj(out.worldBible)){delete out.worldBible.publicFacts;delete out.worldBible.hiddenFacts}
+ return out
+}
+
+
+
 export function worldCoreIssues(core){
  const c=normalizeWorldCoreCandidate(core),issues=[];
  if(!obj(c))return ["core"];
@@ -175,6 +188,7 @@ export function buildSeedComplianceFromIdentity(identity,expected={}){
  return out
 }
 export function mergeCoreWave(identity,expected,rules,anchor){
+ anchor=normalizeCoreAnchorStage(anchor);
  const r=obj(rules?.worldBible)?rules.worldBible:{},a=obj(anchor?.worldBible)?anchor.worldBible:{};
  return normalizeWorldCoreCandidate({
   worldName:identity.worldName,worldTheme:identity.worldTheme,playerName:identity.playerName,
@@ -190,6 +204,7 @@ export function mergeCoreWave(identity,expected,rules,anchor){
  })
 }
 export function coreWaveIssues(identity,rules,anchor,core){
+ anchor=normalizeCoreAnchorStage(anchor);
  const issues=worldCoreIssues(core);
  if(!identity?.worldName||!identity?.worldTheme)issues.push("IDENTITY_INVALID");
  const r=rules?.worldBible,a=anchor?.worldBible;
