@@ -148,7 +148,7 @@ export function applyFallbackRecoveryPatch(candidate,input,diagnostics){
  }
  if(fallbackStages.has("FUTURE")){
   if(obj(patch.worldCalendar)&&obj(out.worldCalendar))out.worldCalendar=mergeDescriptive(out.worldCalendar,patch.worldCalendar,["daysPerCycle","cyclesPerLongCycle"]);
-  if(Array.isArray(patch.worldTimeline)&&Array.isArray(out.worldTimeline))out.worldTimeline=out.worldTimeline.map((base,i)=>mergeDescriptive(base,patch.worldTimeline[i],["id","earliestDay","latestDay","triggerDay","baseTriggerDay","links","status","triggeredDay"]))
+  if(Array.isArray(patch.worldTimeline)&&Array.isArray(out.worldTimeline))out.worldTimeline=out.worldTimeline.map((base,i)=>mergeDescriptive(base,patch.worldTimeline[i],["id","earliestDay","latestDay","triggerDay","baseTriggerDay","links","status","triggeredDay","impactScope","affectedRegions","intensity","duration","domains","playerCanPrevent","playerCanAccelerate","playerCanMitigate","playerCanRedirect"]))
  }
  if(fallbackStages.has("SOCIETY")&&obj(patch.generation)&&obj(out.generation)){
   if(Array.isArray(out.generation.locations)&&Array.isArray(patch.generation.locations))out.generation.locations=out.generation.locations.map((base,i)=>{
@@ -193,7 +193,7 @@ export function applyWorldRepairPatch(candidate,input){
   for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone","civilization","communication","weatherSystem"])if(patch.worldBible[key]!=null)out.worldBible[key]=structuredClone(patch.worldBible[key])
  }
  if(Array.isArray(patch.worldTimeline)&&Array.isArray(out.worldTimeline)){
-  out.worldTimeline=out.worldTimeline.map((base,i)=>mergeDescriptive(base,patch.worldTimeline[i],["id","earliestDay","latestDay","triggerDay","baseTriggerDay","links","status","triggeredDay"]))
+  out.worldTimeline=out.worldTimeline.map((base,i)=>mergeDescriptive(base,patch.worldTimeline[i],["id","earliestDay","latestDay","triggerDay","baseTriggerDay","links","status","triggeredDay","impactScope","affectedRegions","intensity","duration","domains","playerCanPrevent","playerCanAccelerate","playerCanMitigate","playerCanRedirect"]))
  }
  if(obj(patch.generation)&&obj(out.generation)){
   const protectedByGroup={
