@@ -3,7 +3,7 @@ import {weatherActionModifier} from "./weather-engine.js?v=276";
 import {survivalModifier} from "./survival-engine.js?v=320";
 import {cultureActionModifier} from "./culture-engine.js?v=276";
 import {magicActionModifier} from "./magic-engine.js?v=276";
-import {talentActionModifier} from "./talent-engine.js?v=276";
+import {talentActionModifier,specializedSkillGain} from "./talent-engine.js?v=47000";
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const KINDS=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"];
@@ -81,11 +81,11 @@ export function buildActionCheck(state,label,profile){
  return {kind,attribute,skill:kind,skillLabel:SKILL_LABELS[kind],baseDC,difficulty,dc,bonus,modifiers}
 }
 export function trainActionSkill(state,kind,roll){
- const p=ensureCheckProfile(state),k=KINDS.includes(kind)?kind:"GENERAL",before=p.skills[k],gain=roll?.grade==="CRITICAL_SUCCESS"?2:roll?.success?1:0;
- if(!gain||before>=5)return {kind:k,before,after:before,gain:0,rankUp:false,progress:p.skillProgress[k]};
+ const p=ensureCheckProfile(state),k=KINDS.includes(kind)?kind:"GENERAL",before=p.skills[k],baseGain=roll?.grade==="CRITICAL_SUCCESS"?2:roll?.success?1:0,growth=specializedSkillGain(state,k,baseGain),gain=growth.gain;
+ if(!gain||before>=5)return {kind:k,before,after:before,gain:0,baseGain,focused:growth.focused,path:growth.path?.id||null,rankUp:false,progress:p.skillProgress[k]};
  p.skillProgress[k]+=gain;let rank=p.skills[k],rankUp=false;
  while(rank<5){const need=4+rank*3;if(p.skillProgress[k]<need)break;p.skillProgress[k]-=need;rank++;rankUp=true}
- p.skills[k]=rank;return {kind:k,before,after:rank,gain,rankUp,progress:p.skillProgress[k],next:rank<5?4+rank*3:null}
+ p.skills[k]=rank;return {kind:k,before,after:rank,gain,baseGain,focused:growth.focused,path:growth.path?.id||null,rankUp,progress:p.skillProgress[k],next:rank<5?4+rank*3:null}
 }
 export function checkProfileSnapshot(state){
  const p=ensureCheckProfile(state);return {stats:{...p.stats},skills:{...p.skills},skillProgress:{...p.skillProgress},equipped:equippedItems(state).map(x=>({id:x.id,name:x.name,checkBonuses:x.checkBonuses||{}}))}
