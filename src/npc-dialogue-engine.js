@@ -1,7 +1,7 @@
 import {advanceTime} from "./world-clock.js?v=276";
-import {tickWorld} from "./world-simulation.js?v=52000";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=52000";
-import {npcInteractionMode} from "./world-registry.js?v=52000";
+import {tickWorld} from "./world-simulation.js?v=53000";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=53000";
+import {npcInteractionMode} from "./world-registry.js?v=53000";
 import {npcConversationMinutes} from "./communication-engine.js?v=276";
 import {sanitizePlayerText,deriveSceneTitle} from "./runtime-guard.js?v=35000";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
