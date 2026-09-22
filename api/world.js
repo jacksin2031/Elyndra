@@ -1,36 +1,126 @@
 import {json,methodGuard,safeBody,callModel} from "./_ai.js";
 import {seedDirective} from "../src/seed-contract.js";
-import {normalizeWorldCoreCandidate} from "../src/world-compiler.js";
+import {normalizeWorldCoreCandidate,normalizeWorldIdentity,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "../src/world-compiler.js";
 import {fallbackWorldEvaluation} from "../src/world-quality.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {validateWorldCreationCandidate} from "../src/world-creation.js";
+import {validateWorldHistory} from "../src/world-history.js";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "../src/world-timeline.js";
+import {originOpeningContract} from "../src/origin-runtime.js";
+
+const CORE_RULE_FIELDS=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
+const text=v=>String(v??"").trim();
+function stageError(stage,reason,status=422){
+ const e=new Error("WORLD_"+stage+"_FAILED:"+reason);e.code="WORLD_"+stage+"_FAILED";e.status=status;return e
+}
+async function stageJSON(diagnostics,stage,{system,user,temperature=.4,timeoutMs=50000,maxOutputTokens=1200,validate}){
+ let last=null;
+ for(let attempt=1;attempt<=2;attempt++){
+  const started=Date.now();
+  try{
+   const raw=await callModel({
+    system:system+(attempt>1?"\n上一個輸出未通過這一階段的 schema／因果驗證。只修正本階段，保持已鎖定輸入不變，只輸出必要 JSON。":""),
+    user:typeof user==="function"?user():user,temperature:attempt>1?Math.min(.25,temperature):temperature,timeoutMs,maxOutputTokens
+   });
+   const value=parseModelJSON(raw),problem=validate?.(value)||"";
+   if(problem)throw stageError(stage,problem);
+   diagnostics.stages[stage]={source:"AI",reason:attempt>1?"RECOVERED_AFTER:"+String(last?.message||last||""):"",latencyMs:Date.now()-started,attempts:attempt,fallbackUsed:false};
+   return value
+  }catch(e){last=e;if(attempt===2)break}
+ }
+ diagnostics.stages[stage]={source:"FAILED",reason:String(last?.message||last||"stage failed"),latencyMs:0,attempts:2,fallbackUsed:false};
+ throw last?.status?last:stageError(stage,String(last?.message||last||"stage failed"),502)
+}
+function stageSummary(diagnostics){
+ const rows=Object.values(diagnostics.stages);return {stageCount:rows.length,aiSucceeded:rows.filter(x=>x.source==="AI").length,fallbackCount:0,failedCount:rows.filter(x=>x.source==="FAILED").length}
+}
+function rulesProblem(value){
+ const b=value?.worldBible;return !b||CORE_RULE_FIELDS.some(k=>!text(b[k]))||!b.civilization||!b.communication?"STRUCTURE_INVALID":""
+}
+function anchorProblem(value){
+ const b=value?.worldBible;if(!b)return "WORLD_BIBLE_REQUIRED";
+ if(["startingRegion","startingSettlement","startingLocation"].some(k=>!text(b[k])))return "STARTING_LOCATION_FIELDS_REQUIRED";
+ if(!b.weatherSystem||!Array.isArray(b.weatherSystem.phenomena)||b.weatherSystem.phenomena.length<2)return "WEATHER_SYSTEM_INVALID";
+ if(!Array.isArray(value.publicFacts)||value.publicFacts.length<2||!Array.isArray(value.hiddenFacts)||value.hiddenFacts.length<2)return "FACTS_INVALID";
+ return ""
+}
 export default async function handler(req,res){
  if(!methodGuard(req,res))return;
  try{
   const {seed,constitution}=safeBody(req);if(!seed)return json(res,400,{error:"INVALID_REQUEST"});
   const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract,chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
-  const system="你是 Elyndra World Architect。seedDirective.blueprintProfile 是 Engine 已解析並鎖定的 World Blueprint；USER / STYLE / RANDOM resolved values 都不可改寫，你只能把它們具體化。seed.creationV2.originProfile 是玩家起源的唯一權威，不得自行假設玩家來自現代地球。世界主題永遠由你自行創造，不可從固定主題清單選擇。worldviewMode=style 時，玩家選擇的 genre/scale/danger/magic/politics 與 styleFoundation 是硬性世界基礎；worldviewMode=ai 時，genre/theme/scale/danger/magic/politics 全部由你自行決定並形成一致的因果世界觀。seedCompliance 必須回傳實際採用的具體值與不同 evidence，禁止把 AI_DECIDES 當成答案。不得採用現實地球公曆、現實國家制度或全世界統一金幣作預設；世界要有自己的曆法。必須先定義 civilization.level 1-5，再根據文明程度、魔法普及度與文化設計聯絡方式；低文明低魔法只可有信使／驛站等延遲通訊，只有文明或魔法足以支持時才可有即時／近即時聯絡，不得無理由直接套用現實互聯網；你亦必須生成本世界獨有 Weather Canon，天氣可由魔力、天體、浮游物質或世界法則形成，至少一種必須明顯不是單純現實晴雨雪換名；每個未來 Timeline 事件必須有符合事件內容的 impactScope、affectedRegions、intensity、duration、domains，以及 prevent/accelerate/mitigate/redirect 四種玩家介入能力；不可把全部事件都填成相同 Scope 或 Domain。每個首次生成地點／勢力要有 culture 與 trade，每個地點要有 weatherProfile。玩家開局知識必須嚴格遵守 seed.creationV2.originProfile：EARTH_ONLY/AMNESIA 不可預先知道地方 Canon；PARTIAL_LOCAL/LOCAL_BASELINE/BRIEFED_PARTIAL 只可使用該 Origin 合理授權的有限地方知識；不得把 World Theme、hidden facts 或 Director Truth 當成玩家知識。openingHook 與 suggestions 必須符合這個 Origin knowledge boundary，且 suggestions 不可使用固定預設按鈕。只生成開局所需最小世界，後續採 lazy generation。輸出嚴格 JSON，不要 Markdown。";
-  const user=JSON.stringify({seed,seedDirective:directive,constitution,required:{
-   worldName:"string",worldTheme:"AI 自行創造的具體核心主題",playerName:"string",summary:"string",
-   seedCompliance:{
-    genre:{value:chosen(expected.genre),evidence:"string"},
-    theme:{value:"AI 自行創造的具體核心主題，與 worldTheme 完全相同",evidence:"string"},
-    scale:{value:chosen(expected.scale),evidence:"string"},
-    danger:{value:auto?"AI 自行選擇 1-5 整數":expected.danger,evidence:"string"},
-    magic:{value:auto?"AI 自行選擇 1-5 整數":expected.magic,evidence:"string"},
-    politics:{value:auto?"AI 自行選擇 1-5 整數":expected.politics,evidence:"string"},
-    ...(expected.prompt?{prompt:{value:expected.prompt,evidence:"string"}}:{})
-   },
-   worldHistory:[{id:"HIST-1",order:1,era:"世界內歷史時代",title:"重大歷史事件",category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革",summary:"已發生且不可改寫",causes:["原因"],legacies:["直到現在仍存在的影響"],regions:["可空"],factions:["可空"],discoverKeywords:["線索詞"]},{id:"HIST-2",order:2,era:"...",title:"...",category:"...",summary:"...",causes:[],legacies:[],regions:[],factions:[],discoverKeywords:[]},{id:"HIST-3",order:3,era:"...",title:"...",category:"...",summary:"...",causes:[],legacies:[],regions:[],factions:[],discoverKeywords:[]}],worldHistory:Array.from({length:5},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內歷史時代名稱",title:`重大歷史事件${i+1}`,category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革等",summary:"已發生且不可改寫的歷史",causes:["1-3項原因"],legacies:["1-4項直到現在仍存在的影響"],regions:["可空"],factions:["可空"],discoverKeywords:["日後可由遺跡／文獻／NPC發現的線索詞"]})),worldCalendar:{name:"string",epochName:"string",dayTerm:"string",cycleTerm:"string",longCycleTerm:"string",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["string"],periods:[{name:"string",fromMinute:0,toMinute:359}]},worldTimeline:Array.from({length:directive.timelinePacing.majorEventCount},(_,i)=>({title:`大事件${i+1}`,category:"string",earliestDay:"internal day",latestDay:"internal day",directorTruth:"hidden cause",observableEffect:"player-observable effect without secret",pressure:"0-15",impactScope:"LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD",affectedRegions:["既有區域；至少包含直接受影響區域"],intensity:"0-100",duration:"1-30 世界日或 null",domains:["SECURITY|POLITICS|SUPPLY|WEATHER|MAGIC|MIGRATION|LAW|ECONOMY 等 1-4項"],activationConditions:["DAY>=2"],cancelConditions:["可空；EVENT:PEACE_TREATY 等"],escalationConditions:["可空；FLAG:war_tension 等"],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true})),worldBible:{era:"世界自己的時代稱呼",centralConflict:"string",magicCost:"string",startingRegion:"string",startingSettlement:"string",startingLocation:"string",ancientTruth:"string",currentCrisis:"string",tone:"string",civilization:{level:"1-5",stage:"文明階段名稱",infrastructure:"基建程度",literacy:"教育識字",mobility:"交通與人口流動"},communication:{name:"世界內遠距聯絡方式名稱",medium:"符合文明與魔法程度的媒介",description:"運作方式",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制或代價"},weatherSystem:{identity:"世界天氣法則",source:"天氣來源",cycle:"變化節奏",forecastability:"LOW|MEDIUM|HIGH",phenomena:Array.from({length:4},(_,i)=>({id:`WTH-${i+1}`,name:"世界內正式名稱",observableName:"只靠感官可描述的名稱",description:"簡短",sensoryCue:"玩家可直接感知",rarity:"COMMON|UNCOMMON|RARE|EXTREME",weight:"1-100",durationMin:"15-720",durationMax:"durationMin-1440",danger:"0-5",actionModifiers:{OBSERVE:"-2..2",SOCIAL:"-2..2",TRAVEL:"-2..2",RISKY:"-2..2",GENERAL:"-2..2"},tags:[],transitions:[]}))}},
-   publicFacts:["string"],hiddenFacts:["string"],openingHook:"string",suggestions:["3-4 AI-generated immediate actions based only on visible scene"],
-   generation:{locations:[{name:"string",type:"string",region:"string",description:"string",historyRefs:["HIST-1"],known:false,culture:{identity:"string",etiquette:[],taboos:[],food:[],beliefs:[],architecture:[],clothing:[],hospitality:[],namingStyle:"string",languageNotes:[]},trade:{mode:"currency|barter|mixed|ration|token",currencies:[{id:"stable id",name:"string",symbol:"",issuer:"string",description:"string"}],commonBarter:[],foreignAcceptance:[],priceCulture:"string",questReward:0,combatReward:0},weatherProfile:{zone:"當地天候區域",affinities:["WTH id"],suppressions:["WTH id"]},lore:{story:"generated once",unlockKeywords:["clue"],minMatches:1}}],npcs:[{name:"string",role:"string",description:"string",historyRefs:["HIST-1"],knowledgeScope:["public fact full text or fact id"],known:false,companionProfile:{joinThreshold:35,leaveThreshold:10,motives:[],boundaries:[]},lore:{story:"generated once",unlockKeywords:["clue"],minMatches:1}}],factions:[{name:"string",goal:"string",description:"string",historyRefs:["HIST-1"],known:false,culture:{identity:"string"},trade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"string",questReward:0,combatReward:0},lore:{story:"generated once",unlockKeywords:["clue"],minMatches:1}}],sideQuests:[{title:"string",objective:"string",historyRefs:["HIST-1"],known:false,evidenceKeywords:["2-5 concrete clue keywords"],target:3}]}
-  }});
-  const raw=await callModel({system,user,temperature:.8,timeoutMs:120000});let candidate;try{candidate=normalizeWorldCoreCandidate(parseModelJSON(raw));candidate.worldBible??={};if(directive.blueprintProfile)candidate.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile)}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}
-  if(!candidate.summary||!candidate.seedCompliance||!candidate.worldTheme||!candidate.worldBible?.weatherSystem||!Array.isArray(candidate.worldBible.weatherSystem.phenomena)||candidate.worldBible.weatherSystem.phenomena.length<4||!Array.isArray(candidate.worldHistory)||candidate.worldHistory.length<3||!candidate.worldCalendar||!Array.isArray(candidate.worldTimeline)||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts)||!candidate.openingHook||!Array.isArray(candidate.suggestions)||candidate.suggestions.length<2)return json(res,422,{error:"INVALID_WORLD_CANDIDATE"});
-  const diagnostics={version:1,startedAt:Date.now(),finishedAt:Date.now(),quality:"HEALTHY",stages:{WORLD_ARCHITECT:{source:"AI",reason:"",latencyMs:0,attempts:1,fallbackUsed:false}},summary:{stageCount:1,aiSucceeded:1,fallbackCount:0,failedCount:0}};
-  candidate.worldBible??={};if(directive.blueprintProfile)candidate.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);
+  const diagnostics={version:2,startedAt:Date.now(),finishedAt:0,quality:"HEALTHY",stages:{},summary:null};
+
+  const identityRaw=await stageJSON(diagnostics,"IDENTITY",{
+   timeoutMs:35000,maxOutputTokens:700,temperature:.35,
+   system:"你是 Elyndra World Identity Compiler。只決定最小世界身份，不生成文明細節、天氣、歷史、地點、NPC、勢力、任務或 Timeline。worldviewMode=style 時必須遵守 expected；worldviewMode=ai 時可自行決定，但所有值要形成同一世界主題。只輸出 JSON。",
+   user:JSON.stringify({seed,expected,blueprintProfile:directive.blueprintProfile,styleFoundation:directive.styleFoundation,required:{worldName:"2-12字",worldTheme:"具體核心主題",playerName:seed.playerName||"",genre:chosen(expected.genre),scale:chosen(expected.scale),danger:auto?"1-5":expected.danger,magic:auto?"1-5":expected.magic,politics:auto?"1-5":expected.politics,premise:"30-70字"}})
+  });
+  const identity=normalizeWorldIdentity(identityRaw,expected,seed);
+
+  const rulesRaw=await stageJSON(diagnostics,"CORE_RULES",{
+   timeoutMs:50000,maxOutputTokens:1200,temperature:.35,validate:rulesProblem,
+   system:"你是 Elyndra Core Rules Compiler。Identity 已鎖定。只具體化世界硬規則：時代、核心衝突、魔法代價、古代真相、當前危機、敘事氣氛、文明程度與遠距通訊。不得生成地點、天氣、歷史、人物、勢力、任務或 Timeline。blueprintProfile.mustExist 屬規則／文明層的要素必須實際存在；forbidden 不得出現。只輸出 JSON。",
+   user:JSON.stringify({identity,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{worldBible:{era:"世界自己的時代",centralConflict:"40-80字",magicCost:"硬規則與代價",ancientTruth:"40-80字",currentCrisis:"40-80字",tone:"氣氛",civilization:{level:"1-5",stage:"文明階段",infrastructure:"基建",literacy:"教育／識字",mobility:"交通"},communication:{name:"名稱",medium:"媒介",description:"運作方式",latency:"NONE|DELAYED|NEAR_INSTANT|INSTANT",range:"LOCAL|REGIONAL|WORLD",accessRule:"ENCOUNTERED",constraints:"限制"}}}})
+  });
+
+  const anchorRaw=await stageJSON(diagnostics,"CORE_ANCHOR",{
+   timeoutMs:50000,maxOutputTokens:1400,temperature:.35,validate:anchorProblem,
+   system:"你是 Elyndra Core Anchor Compiler。Identity 與 Core Rules 已鎖定；你不能改寫它們。只建立 summary、開局 Region/Settlement/Location、Weather Canon、publicFacts、hiddenFacts。所有地點與天氣必須能由 lockedRules 的 centralConflict/currentCrisis/magicCost/civilization 解釋。不得生成歷史、勢力、NPC、任務或 Timeline。只輸出 JSON。",
+   user:JSON.stringify({identity,lockedRules:rulesRaw.worldBible,seedContract:expected,blueprintProfile:directive.blueprintProfile,required:{summary:"70-130字",worldBible:{startingRegion:"開局區域",startingSettlement:"附近首個文明聚落",startingLocation:"出生位置",weatherSystem:{identity:"天氣法則",source:"來源",cycle:"變化方式",forecastability:"LOW|MEDIUM|HIGH",phenomena:[{id:"WTH-1",name:"正式名稱",observableName:"感官名稱",description:"20-40字",sensoryCue:"感官線索",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"},{id:"WTH-2",name:"正式名稱",observableName:"感官名稱",description:"20-40字",sensoryCue:"感官線索",rarity:"COMMON|UNCOMMON|RARE|EXTREME",danger:"0-5"}]}},publicFacts:["2-3項"],hiddenFacts:["2-3項"]}})
+  });
+  let core=mergeCoreWave(identity,expected,rulesRaw,anchorRaw),coreIssues=coreWaveIssues(identity,rulesRaw,anchorRaw,core);
+  if(coreIssues.length)throw stageError("CORE_LINK",coreIssues.join(","));
+  core.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);
+  const anchor=buildWorldAnchorContract(core,directive.timelinePacing),originOpening=originOpeningContract({player:{origin:seed.creationV2?.originProfile||{}},world:{creation:seed.creationV2||{},state:{day:1}}});
+
+  const historyRaw=await stageJSON(diagnostics,"HISTORY",{
+   timeoutMs:65000,maxOutputTokens:1500,temperature:.4,
+   validate:value=>{const v=validateWorldHistory(value?.worldHistory);return v.valid?"":"VALIDATION_FAILED:"+v.errors.join(",")},
+   system:"你是 Elyndra History Compiler。World Anchor 已鎖定。只生成3個不可改寫的過去歷史 Canon，每項必須解釋 centralConflict、magicCost、civilization 或 currentCrisis 如何形成。不得生成未來、地點、勢力、NPC 或任務。只輸出 JSON。",
+   user:JSON.stringify({anchor,required:{worldHistory:Array.from({length:3},(_,i)=>({id:"HIST-"+(i+1),order:i+1,era:"世界內時代",title:"重大歷史事件",category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革",summary:"40-80字",causes:["原因"],legacies:["現代影響"],discoverKeywords:["1-2線索"]}))}})
+  });
+  const historyReport=validateWorldHistory(historyRaw.worldHistory),history=historyReport.history;
+
+  const geography=await stageJSON(diagnostics,"GEOGRAPHY",{
+   timeoutMs:50000,maxOutputTokens:1000,temperature:.4,
+   validate:value=>!value?.openingHook||!value?.location||value.location.name!==anchor.startingLocation||value.location.region!==anchor.startingRegion?"STRUCTURE_OR_ANCHOR_INVALID":"",
+   system:"你是 Elyndra Geography Compiler。Anchor 與 History 已鎖定。只生成 openingHook 與唯一開局地點的物理環境；地點必須留下已鎖定 history 的合理物理痕跡，但不得新增文化、交易、勢力、NPC 或任務。openingHook 必須有立即可感知、可採取行動的具體異常。只輸出 JSON。",
+   user:JSON.stringify({anchor,history,playerOrigin:seed.creationV2?.originProfile||null,originOpening,required:{openingHook:"80-160字",location:{name:anchor.startingLocation,type:"具體用途／形態",region:anchor.startingRegion,description:"40-90字",historyRefs:["至少1個 HIST id"],known:false,weatherProfile:{zone:"天候區",affinities:["既有 WTH id"],suppressions:[]},lore:{story:"40-80字歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
+  });
+
+  const timelineSlots=timelineAuthoringSlots(directive.timelinePacing);
+  const futureRaw=await stageJSON(diagnostics,"FUTURE",{
+   timeoutMs:50000,maxOutputTokens:2000,temperature:.4,
+   validate:value=>{const bound=bindTimelineAuthoringSlots(value?.worldTimeline,directive.timelinePacing),v=validateWorldTimeline(bound,directive.timelinePacing);return value?.worldCalendar&&v.valid?"":"TIMELINE_INVALID:"+(v.errors||[]).join(",")},
+   system:"你是 Elyndra Future Compiler。Anchor、History、Geography 已鎖定。只生成世界曆法與可能發生的 Future Timeline；事件要透過 links.historyRefs/locationRefs 回連已存在內容，不得新增文明、勢力、地點或人物。日期窗口由 Engine slots 決定。只輸出 JSON。",
+   user:JSON.stringify({anchor,history,geography,blueprintProfile:directive.blueprintProfile,timelineSlots,required:{worldCalendar:{name:"曆法名",epochName:"紀元",dayTerm:"日序",cycleTerm:"短週期",longCycleTerm:"長週期",daysPerCycle:"3-60",cyclesPerLongCycle:"3-30",cycles:["3-6名稱"],periods:[{name:"時段",fromMinute:0,toMinute:359}]},worldTimeline:timelineSlots.map((slot,i)=>({slot:slot.slot,title:"事件"+(i+1),category:"類型",directorTruth:"隱藏因果",observableEffect:"可觀察影響",pressure:"0-15",impactScope:"LOCAL|REGIONAL|NATIONAL|CONTINENTAL|WORLD",affectedRegions:[anchor.startingRegion],intensity:"0-100",duration:"1-30或null",domains:["1-4項"],activationConditions:["DAY>=2"],cancelConditions:[],escalationConditions:[],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true,links:{historyRefs:["HIST id"],locationRefs:[anchor.startingLocation]}}))}})
+  });
+  const authoredTimeline=bindTimelineAuthoringSlots(futureRaw.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
+  let future=normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history);
+
+  const society=await stageJSON(diagnostics,"SOCIETY",{
+   timeoutMs:50000,maxOutputTokens:1300,temperature:.4,
+   validate:value=>!value||typeof value!=="object"||Array.isArray(value)||value.locationRef!==anchor.startingLocation||!Array.isArray(value.historyRefs)||!value.historyRefs.length?"STRUCTURE_INVALID":"",
+   system:"你是 Elyndra Society Compiler。History、Geography、Future 已鎖定。只建立開局地點的 culture、trade 與最多1個地方 faction；制度、禁忌、信仰與經濟必須來自既有歷史、地理條件及已鎖定的未來壓力。不可重命名或新增地點。只輸出 JSON。",
+   user:JSON.stringify({anchor,history,geography,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"命名規則",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與危機／歷史有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化"},trade:{mode:"barter",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
+  });
+  let region=mergeOpeningRegion(anchor,geography,society),linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future});
+  if(linkIssues.length)throw stageError("SOCIETY_LINK",linkIssues.join(","));
+
+  const cast=await stageJSON(diagnostics,"CAST",{
+   timeoutMs:55000,maxOutputTokens:1900,temperature:.45,
+   validate:value=>!Array.isArray(value?.npcs)||!Array.isArray(value?.sideQuests)||!Array.isArray(value?.suggestions)||value.suggestions.length<2?"STRUCTURE_INVALID":"",
+   system:"你是 Elyndra Opening Cast Compiler。前面所有世界觀都已鎖定。只生成1個附近 NPC、最多1個支線與3-4個 suggestions；NPC、任務只能引用既有 Location/Faction/History，不得新增地點、勢力、世界規則或歷史。只輸出 JSON。",
+   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"身份",description:"40-80字",personality:"人格",goal:"地方目標",locationName:anchor.startingLocation,factionName:"既有或空",knowledgeScope:[],historyRefs:["0-2 HIST"],known:false,behaviorProfile:{mannerisms:["1項"],speechPatterns:["1項"],habits:["1項"],values:["1項"],fears:["1項"],contradictions:["1項"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"可執行目標",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有或空",historyRefs:["0-2 HIST"],evidenceKeywords:["2個線索"],conditions:[],target:2}],suggestions:["3-4個直接回應 openingHook 的行動"]}})
+  });
+  linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});if(linkIssues.length)throw stageError("CAST_LINK",linkIssues.join(","));
+
+  const candidate=normalizeWorldCoreCandidate({...core,originOpening,worldHistory:history,worldCalendar:future.worldCalendar,worldTimeline:future.worldTimeline,openingHook:region.openingHook,suggestions:cast.suggestions,generation:{locations:region.locations.slice(0,1),npcs:cast.npcs.slice(0,1),factions:region.factions.slice(0,1),sideQuests:cast.sideQuests.slice(0,1)}});
+  candidate.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);
   const blueprintValidation=validateWorldCreationCandidate(seed,candidate);if(!blueprintValidation.valid)return json(res,422,{error:"BLUEPRINT_COMPLIANCE_FAILED",details:blueprintValidation.errors});
+  diagnostics.finishedAt=Date.now();diagnostics.summary=stageSummary(diagnostics);diagnostics.quality=diagnostics.summary.failedCount?"DEGRADED":"HEALTHY";
   candidate.blueprintCompliance=blueprintValidation.compliance;candidate.generationDiagnostics=diagnostics;candidate.worldQuality={...fallbackWorldEvaluation(candidate,diagnostics,"BACKGROUND_AI_CRITIC_PENDING"),backgroundPending:true,repairHistory:[]};
-  return json(res,200,{candidate});
- }catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message})}
+  return json(res,200,{candidate})
+ }catch(e){return json(res,e.status|| (e.code==="AI_NOT_CONFIGURED"?503:502),{error:e.code||e.message})}
 }
