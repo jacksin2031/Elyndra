@@ -32,6 +32,7 @@ jobs:
           code="\n".join(line[10:] if line.startswith("          ") else line for line in raw.splitlines())
           code=code.replace("' if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,...revision};'","'if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,...revision};'")
           exec(compile(code,'embedded-runtime-grounding.py','exec'),{})
+          p=Path('src/state-sync.js'); t=p.read_text(); t=t.replace('c.location=clean(raw.location,120)};\n  else if(type==="ACQUIRE_ITEM")','c.location=clean(raw.location,120)}\n  else if(type==="ACQUIRE_ITEM")',1); p.write_text(t)
           PY
       - name: Run tests
         run: npm test
