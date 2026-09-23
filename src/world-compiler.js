@@ -39,8 +39,6 @@ export function normalizeCoreAnchorStage(value){
  return out
 }
 
-
-
 export function worldCoreIssues(core){
  const c=normalizeWorldCoreCandidate(core),issues=[];
  if(!obj(c))return ["core"];
@@ -51,7 +49,7 @@ export function worldCoreIssues(core){
  if(!obj(c.worldBible))issues.push("worldBible");
  else{
   if(!obj(c.worldBible.civilization))issues.push("worldBible.civilization");
-  if(!obj(c.worldBible.communication))issues.push("worldBible.communication");
+  if(!obj(c.worldBible.communication))issues.push("worldBible.communication")
  }
  const weather=c.worldBible?.weatherSystem;
  if(!obj(weather))issues.push("worldBible.weatherSystem");
@@ -66,7 +64,6 @@ export function worldCoreIssues(core){
 
 export function validWorldCoreCandidate(core){return worldCoreIssues(core).length===0}
 
-
 const uniq=v=>[...new Set((Array.isArray(v)?v:[]).map(x=>text(x)).filter(Boolean))];
 export function buildWorldAnchorContract(core,pacing){
  const b=core?.worldBible||{},weather=b.weatherSystem||{};
@@ -79,15 +76,37 @@ export function buildWorldAnchorContract(core,pacing){
   publicFacts:uniq(core?.publicFacts).slice(0,4),timelinePacing:structuredClone(pacing||{})
  }
 }
+
+function societyHistoryRefs(society){
+ const s=obj(society)?society:{},f=obj(s.faction)?s.faction:{};
+ return uniq([...(Array.isArray(s.historyRefs)?s.historyRefs:[]),...(Array.isArray(f.historyRefs)?f.historyRefs:[])])
+}
+function normalizeOpeningSociety(society){
+ if(!obj(society))return society;
+ const refs=societyHistoryRefs(society);if(refs.length&&!uniq(society.historyRefs).length)society.historyRefs=refs;
+ return society
+}
+function normalizeOpeningCast(cast){
+ if(!obj(cast)||!Array.isArray(cast.npcs))return cast;
+ const normalized=[];
+ for(const raw of cast.npcs){
+  if(!obj(raw))continue;
+  const identity=Boolean(text(raw.name)||text(raw.role)||text(raw.locationName));
+  if(identity){normalized.push(raw);continue}
+  if(raw.lore!=null&&normalized.length&&!normalized.at(-1)?.lore)normalized[normalized.length-1]={...normalized.at(-1),lore:raw.lore}
+ }
+ cast.npcs=normalized;return cast
+}
+
 export function mergeOpeningRegion(anchor,geography,society){
- const g=obj(geography)?geography:{},s=obj(society)?society:{},location=obj(g.location)?g.location:{};
+ const g=obj(geography)?geography:{},s=obj(normalizeOpeningSociety(society))?society:{},location=obj(g.location)?g.location:{};
  return {
   openingHook:text(g.openingHook),
   locations:[{
    ...location,
    name:text(location.name)||anchor.startingLocation,
    region:text(location.region)||anchor.startingRegion,
-   historyRefs:uniq([...(Array.isArray(location.historyRefs)?location.historyRefs:[]),...(Array.isArray(s.historyRefs)?s.historyRefs:[])]),
+   historyRefs:uniq([...(Array.isArray(location.historyRefs)?location.historyRefs:[]),...societyHistoryRefs(s)]),
    culture:obj(s.locationCulture)?s.locationCulture:{},
    trade:obj(s.locationTrade)?s.locationTrade:{}
   }],
@@ -107,6 +126,7 @@ export function normalizeFutureLinksToAnchor(future,anchor={},history=[]){
  return out
 }
 export function worldGenerationLinkIssues({anchor,history,geography,society,future,cast}={}){
+ society=normalizeOpeningSociety(society);cast=normalizeOpeningCast(cast);
  const issues=[],histIds=new Set((Array.isArray(history)?history:[]).map(x=>text(x?.id)).filter(Boolean)),start=anchor?.startingLocation||"",region=anchor?.startingRegion||"",settlement=anchor?.startingSettlement||"";
  const location=geography?.location;
  if(!obj(location)||text(location.name)!==start)issues.push("GEOGRAPHY_STARTING_LOCATION_MISMATCH");
@@ -114,7 +134,7 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
  const checkRefs=(refs,label)=>{const values=uniq(refs);if(!values.length)issues.push(label+"_HISTORY_REF_REQUIRED");else if(values.some(id=>!histIds.has(id)))issues.push(label+"_HISTORY_REF_INVALID")};
  if(obj(society)){
   if(text(society.locationRef)!==start)issues.push("SOCIETY_LOCATION_REF_INVALID");
-  checkRefs(society.historyRefs,"SOCIETY");
+  checkRefs(societyHistoryRefs(society),"SOCIETY");
   if(obj(society.faction)&&text(society.faction.locationName||start)!==start)issues.push("SOCIETY_FACTION_LOCATION_INVALID")
  }else issues.push("SOCIETY_INVALID");
  for(const [i,event] of (Array.isArray(future?.worldTimeline)?future.worldTimeline:[]).entries()){
@@ -137,7 +157,6 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
  }
  return [...new Set(issues)]
 }
-
 
 const lvl=v=>Math.max(1,Math.min(5,Math.round(Number(v)||3)));
 const scale=v=>["小型","中型","大型"].includes(v)?v:"中型";
