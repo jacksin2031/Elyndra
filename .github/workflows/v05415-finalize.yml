@@ -24,8 +24,9 @@ jobs:
       - name: Apply and verify v0.54.15
         shell: bash
         run: |
+          python .github/scripts/v05415_fix_patcher.py
           python .github/scripts/v05415_patch.py
-          rm -f .github/scripts/v05415_patch.py .github/workflows/v05415-finalize.yml
+          rm -f .github/scripts/v05415_fix_patcher.py .github/scripts/v05415_patch.py .github/workflows/v05415-finalize.yml
           npm test
           git diff --check
           git config user.name "elyndra-release-bot"
