@@ -15,3 +15,5 @@ s, count = re.subn(r'function explicitTravelCommand\(value,name\)\{.*?\}\n(?=fun
 if count != 1:
     raise SystemExit(f'explicitTravelCommand generated helper count={count}')
 p.write_text(s, encoding='utf-8')
+
+# Retry marker: the workflow is now installed and watches this file.
