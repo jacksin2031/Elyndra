@@ -8,6 +8,7 @@ import {fallbackWorldEvaluation} from "../src/world-quality.js";
 import {deriveAcquisitionNotifications} from "../src/acquisition-notifier.js";
 import {WORLD_CONSTITUTION} from "../src/world-engine.js";
 
+// Regression contract for runtime evidence grounding, acquisition feedback, and world consistency.
 const baseState=()=>({player:{location:"中央祭壇",knowledgeScore:0,wallet:{}},world:{state:{day:1,region:"核心區",location:"中央祭壇",clock:{day:1,hour:8,minute:0,totalMinutes:480}},registry:{locations:[{id:"L1",name:"中央祭壇",region:"核心區",known:true,trade:{mode:"barter",currencies:[],questReward:0,combatReward:0}}],npcs:[],factions:[],sideQuests:[]},canon:{facts:[{id:"F1",visibility:"public",text:"外環入口受高壓閥控制"}]},documents:{documents:[]}},events:[],inventory:[],knowledge:[],suggestions:[]});
 
 test("item acquisition requires the item name in observable scene evidence",()=>{const s=baseState(),patch={baseRevision:0,operations:[{op:"ACQUIRE_ITEM",item:{name:"藍光碎屑",category:"MATERIAL",quantity:1}}]};let r=groundStatePatch(s,patch,{action:"撿起藍光碎屑",roll:{success:true}});assert.equal(r.patch.operations.length,0);assert.equal(r.rejected[0].reason,"ITEM_NAME_NOT_OBSERVED");assert.equal(r.deferredEvidence.length,1);r=groundStatePatch(s,patch,{action:"撿起藍光碎屑",roll:{success:true},observableText:"你從裂縫旁撿起一枚藍光碎屑，冰冷表面沾著灰。"});assert.equal(r.patch.operations.length,1);assert.equal(groundedPickupItemFromAction("撿起藍光碎屑",{success:true},"眼前只有灰塵"),null);assert.equal(groundedPickupItemFromAction("撿起藍光碎屑",{success:true},"你看見藍光碎屑落在手中")?.name,"藍光碎屑")});
