@@ -97,6 +97,33 @@ function normalizeOpeningCast(cast){
  }
  cast.npcs=normalized;return cast
 }
+const FUTURE_CURRENT_STATE=/(?:已經|已開始|已發生|已出現|已滲入|已侵蝕|已爆發|正在|現正|眼下|目前|此刻|現在).{0,18}(?:發生|出現|開始|滲入|滲透|侵蝕|爆發|襲擊|攻擊|撞擊|撞碎|崩壞|失控|蔓延|逼近|入侵)|(?:發生|出現|滲入|侵蝕|爆發|襲擊|攻擊|撞擊|撞碎|崩壞|失控|蔓延|入侵).{0,10}(?:了|中|當前|目前)/i;
+function semanticFragments(value){
+ const src=text(value).normalize("NFKC").toLowerCase(),out=[];
+ for(const token of (src.match(/[a-z0-9][a-z0-9_-]{3,}/g)||[]))out.push(token);
+ for(const run of (src.match(/[\u3400-\u9fff]{4,}/g)||[]))for(let i=0;i<=run.length-4;i++)out.push(run.slice(i,i+4));
+ return [...new Set(out)]
+}
+function futureSemanticOverlap(body,event){
+ const hay=text(body).normalize("NFKC").toLowerCase();if(!hay)return 0;
+ const fragments=[...semanticFragments(event?.title),...semanticFragments(event?.observableEffect),...semanticFragments(event?.directorTruth)],seen=new Set();let hits=0;
+ for(const fragment of fragments){if(seen.has(fragment))continue;seen.add(fragment);if(hay.includes(fragment)&&++hits>=2)return hits}
+ return hits
+}
+function castPlayerFacingText(cast){
+ const rows=[];
+ for(const npc of (Array.isArray(cast?.npcs)?cast.npcs:[]))rows.push(text(npc?.description),text(npc?.personality),text(npc?.goal));
+ for(const quest of (Array.isArray(cast?.sideQuests)?cast.sideQuests:[]))rows.push(text(quest?.title),text(quest?.objective),...(Array.isArray(quest?.evidenceKeywords)?quest.evidenceKeywords.map(text):[]),...(Array.isArray(quest?.conditions)?quest.conditions.map(text):[]));
+ rows.push(...(Array.isArray(cast?.suggestions)?cast.suggestions.map(text):[]));return rows.filter(Boolean)
+}
+export function openingCastFutureIssues(cast,future){
+ const issues=[],rows=castPlayerFacingText(cast),events=Array.isArray(future?.worldTimeline)?future.worldTimeline:[];
+ for(const [i,event] of events.entries()){
+  if((Number(event?.earliestDay)||1)<=1)continue;
+  if(rows.some(row=>FUTURE_CURRENT_STATE.test(row)&&futureSemanticOverlap(row,event)>=2))issues.push("CAST_FUTURE_"+i+"_PREMATURE_CURRENT_STATE")
+ }
+ return [...new Set(issues)]
+}
 
 export function mergeOpeningRegion(anchor,geography,society){
  const g=obj(geography)?geography:{},s=obj(normalizeOpeningSociety(society))?society:{},location=obj(g.location)?g.location:{};
@@ -154,6 +181,7 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
    const hasLink=refs.length||text(q?.factionName)||text(q?.npcName)||text(q?.locationName);
    if(!hasLink)issues.push("CAST_QUEST_"+i+"_LINK_REQUIRED")
   }
+  issues.push(...openingCastFutureIssues(cast,future))
  }
  return [...new Set(issues)]
 }
