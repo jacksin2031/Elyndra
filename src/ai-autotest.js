@@ -160,10 +160,12 @@ export function autotestStateFingerprint(state={}){
   worldId:state.world?.id||null,
   location:state.player?.location||"",hp:Number(state.player?.hp)||0,status:state.player?.status||"",level:Number(state.player?.level)||1,
   xp:Number(state.player?.xp)||0,knowledge:Number(state.player?.knowledgeScore)||0,discoveries:Number(state.discoveries)||0,
+  knowledgeState:list(state.knowledge).slice(-12).map(x=>[text(x?.id,100),text(x?.status,40),Number(x?.score)||0]),
   questStage:Number(main.stage)||0,questStatus:main.status||"",objective:list(main.objectives)[0]||"",
   inventory:list(state.inventory).reduce((n,x)=>n+Math.max(0,Number(x?.quantity)||1),0),
   knownNpcs:list(state.world?.registry?.npcs).filter(x=>x?.known===true).length,
   knownLocations:list(state.world?.registry?.locations).filter(x=>x?.known===true).length,
+  knownSideQuests:list(state.world?.registry?.sideQuests).filter(x=>x?.known===true&&x?.status!=="COMPLETED").length,
   combat:state.combat?.active===true,enemyHp:Number(state.combat?.enemy?.hp)||0
  })
 }

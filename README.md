@@ -64,6 +64,10 @@ Save Manager → IndexedDB / .elyndra
 > AI proposes. Game Engine decides. Database remembers.
 
 
+### v0.54.14 — Runtime Quest Recovery
+
+v0.54.13 真實 Autotest 發現 Runtime SideQuest 的 `target` schema 與 Engine 進度門檻契約不一致：模型會輸出 NPC 名稱／任務描述／物件，造成同一 `RUNTIME_QUESTS` checkpoint 每回合重試。v0.54.14 在 Engine validation 前正規化 `target`、`conditions`、`evidenceKeywords`，並把 prompt 明確鎖定 `target=1..5`；Autotest fingerprint 同時納入玩家可見 Knowledge 變化，避免把已取得新線索的回合誤報為 NO_STATE_PROGRESS。History stage hard timeout 由 65 秒調整為 75 秒，以降低 Agnes 長回應的單階段 fallback。
+
 ### v0.54.9 — Sequential World Foundation
 
 世界觀建立改為真正的 **Progressive World Building**。不論瀏覽器 Direct AI 或 server `/api/world`，都不再一次要求 AI 寫完整世界，也不再把互相有依賴的世界觀部分並行生成。

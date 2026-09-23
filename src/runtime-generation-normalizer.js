@@ -40,6 +40,14 @@ export function normalizeRuntimeLocation(row={},allowedWeatherIds=[]){
  const access=normalizeRuntimeAccess(row.accessRequirements),lore=normalizeRuntimeLore(row.lore);
  return {...row,lore,weatherProfile:normalizeRuntimeWeatherProfile(row.weatherProfile,allowedWeatherIds),accessRequirements:access.requirements,accessNotes:access.notes}
 }
+
+export function normalizeRuntimeSideQuest(row={}){
+ const evidenceKeywords=uniq(row?.evidenceKeywords,8),rawConditions=row?.conditions;
+ const conditionRows=rawConditions==null?[]:(Array.isArray(rawConditions)?rawConditions:[rawConditions]);
+ const conditions=conditionRows.map(x=>{if(typeof x==="string")return clean(x,220);if(x&&typeof x==="object"&&!Array.isArray(x))return structuredClone(x);return null}).filter(Boolean).slice(0,5);
+ const requested=Number(row?.target),derived=conditions.length?Math.min(3,conditions.length):evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3,target=Math.max(1,Math.min(5,Number.isInteger(requested)?requested:derived));
+ return {...row,evidenceKeywords,conditions,target}
+}
 function runtimeClaimAllowedForKey(claim,key){
  if(claim?.type==="BLUEPRINT_DEFINITION")return key==="definitions";
  if(key==="definitions")return claim?.type==="REQUIRED_ELEMENT";

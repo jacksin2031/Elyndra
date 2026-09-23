@@ -79,7 +79,7 @@ export default async function handler(req,res){
 
   const [historyRaw,geography]=await Promise.all([
    stageJSON(diagnostics,"HISTORY",{
-   timeoutMs:65000,maxOutputTokens:1500,temperature:.4,
+   timeoutMs:75000,maxOutputTokens:1500,temperature:.4,
    validate:value=>{const v=validateWorldHistory(value?.worldHistory);return v.valid?"":"VALIDATION_FAILED:"+v.errors.join(",")},
    system:"你是 Elyndra History Compiler。World Anchor 已鎖定。只生成3個不可改寫的過去歷史 Canon，每項必須解釋 centralConflict、magicCost、civilization 或 currentCrisis 如何形成。不得生成未來、地點、勢力、NPC 或任務。只輸出 JSON。",
    user:JSON.stringify({anchor,required:{worldHistory:Array.from({length:3},(_,i)=>({id:"HIST-"+(i+1),order:i+1,era:"世界內時代",title:"重大歷史事件",category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革",summary:"40-80字",causes:["原因"],legacies:["現代影響"],discoverKeywords:["1-2線索"]}))}})
