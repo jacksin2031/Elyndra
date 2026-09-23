@@ -14,8 +14,8 @@ test("v0.54.4 Developer Autotest exposes export selection and timeout cancellati
  assert.match(app,/setDirectAIRuntimeControl\(\{disableTimeout:config\.disableTimeout===true,signal:developerAutotest\.batchController\.signal\}\)/);
  assert.match(app,/developerAutotest\.batchController\?\.abort/);
  assert.match(app,/clearDirectAIRuntimeControl\(\)/);
- assert.match(settings,/timeoutDisabled=args\?\.disableTimeout===true\|\|directAIRuntimeControl\.disableTimeout===true/);
- assert.match(settings,/parentSignals=\[args\?\.signal,directAIRuntimeControl\.signal\]/);
+ assert.match(settings,/const runtime=directAIRuntimeControl\(\),timeoutDisabled=args\?\.disableTimeout===true\|\|runtime\.disableTimeout===true/);
+ assert.match(settings,/parentSignals=\[args\?\.signal,runtime\.signal\]/);
  assert.match(settings,/useTimeout=Number\.isFinite\(rawMs\)&&rawMs>0/)
 });
 
