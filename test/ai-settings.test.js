@@ -55,7 +55,7 @@ test("AI settings UI exposes Agnes as a selectable mode",async()=>{
  assert.match(app,/Elyndra 自適應優化/);
  assert.match(app,/目前模型/);
  assert.doesNotMatch(app,/id="aiModel"/);
- assert.match(app,/ai-settings\.js\?v=54012/)
+ assert.match(app,/ai-settings\.js\?v=54013/)
 });
 
 
@@ -151,7 +151,7 @@ test("adaptive reasoning-capable providers reserve visible completion budget",()
  assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),800);
  assert.equal(providerTokenBudget("agnes","adaptive","core_rules",900),1100);
  assert.equal(providerTokenBudget("agnes","adaptive","core_anchor",1000),1200);
- assert.equal(providerTokenBudget("agnes","adaptive","future",1200),1600);
+ assert.equal(providerTokenBudget("agnes","adaptive","future",1200),3000);
  assert.equal(providerTokenBudget("agnes","adaptive","cast",950),1800);
  assert.equal(providerTokenBudget("agnes","adaptive","runtime_expansion",900),1600);
  assert.ok(providerTokenBudget("openai","adaptive","core_rules",900)>=3600);
@@ -222,7 +222,7 @@ test("Agnes structured JSON requests keep completion budget instead of reasoning
  try{
   clearAISettings();saveAISettings({provider:"agnes",apiKey:"a",endpoint:PROVIDERS.agnes.endpoint,optimization:"adaptive"});
   globalThis.fetch=async(url,init)=>{body=JSON.parse(init.body);return {ok:true,json:async()=>({choices:[{finish_reason:"stop",message:{content:'{"ok":true}'}}]})}};
-  for(const [task,requested,expected] of [["identity",500,900],["scene",760,1100],["turn_state_fast",650,800],["core_rules",900,1100],["core_anchor",1000,1200],["future",1200,1600],["cast",950,1800],["runtime_expansion",900,1600]]){
+  for(const [task,requested,expected] of [["identity",500,900],["scene",760,1100],["turn_state_fast",650,800],["core_rules",900,1100],["core_anchor",1000,1200],["future",1200,3000],["cast",950,1800],["runtime_expansion",900,1600]]){
    assert.equal(await directChat({system:"s",user:"u",aiTask:task,maxOutputTokens:requested,timeoutMs:5000,retryOnTimeout:false}),'{"ok":true}');
    assert.equal("reasoning_effort" in body,false,task);
    assert.equal(body.max_tokens,expected,task)

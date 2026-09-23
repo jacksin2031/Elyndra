@@ -1,5 +1,5 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=54012";
-import {recordCausalEvent} from "./knowledge-graph.js?v=54012";
+import {ensureWorldRegistry} from "./world-registry.js?v=54013";
+import {recordCausalEvent} from "./knowledge-graph.js?v=54013";
 import {localCurrencyReward} from "./world-locality.js?v=54012";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));

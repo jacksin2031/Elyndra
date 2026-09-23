@@ -1,5 +1,5 @@
 import {assertSaveState} from "./state-validator.js?v=54012";
-import {ensureItemRuntime} from "./item-engine.js?v=54012";
+import {ensureItemRuntime} from "./item-engine.js?v=54013";
 import {ensureNotes} from "./notes-engine.js?v=54012";
 import {ensurePlayerOrigin} from "./player-origin.js?v=54012";
 import {ensureCausalWorldCore} from "./causal-world-core.js?v=54012";

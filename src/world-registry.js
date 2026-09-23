@@ -1,4 +1,4 @@
-import {normalizeLore} from "./lore-engine.js?v=276";
+import {normalizeLore} from "./lore-engine.js?v=54013";
 import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=276";
 import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=276";
 import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=276";

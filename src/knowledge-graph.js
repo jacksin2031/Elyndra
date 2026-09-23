@@ -31,7 +31,8 @@ export function graphSnapshot(state){
  }
 }
 export function recordExpansion(state,region,reason){const g=ensureKnowledgeGraph(state);if(g.expansions.some(x=>x.region===region))return false;g.expansions.push({id:id(),region:clean(region,120),reason:clean(reason,240),day:state.world.state.day});return true}
-export function needsExpansion(state){const g=ensureKnowledgeGraph(state),r=state.world.registry;if(!state.world.bible)return false;return r.locations.length<2||Boolean(state.world.state.flags?.requestExpansion)&&g.expansions.length<12}
+function hasPendingExpansionCheckpoint(state){return Boolean((state.world?.lazyGeneration?.plans||[]).some(plan=>plan?.status==="PLANNED"&&plan?.checkpoint?.stage))}
+export function needsExpansion(state){const g=ensureKnowledgeGraph(state),r=state.world.registry;if(!state.world.bible)return false;return hasPendingExpansionCheckpoint(state)||r.locations.length<2||Boolean(state.world.state.flags?.requestExpansion)&&g.expansions.length<12}
 export function recordCausalEvent(state,event,options={}){
  const graph=ensureKnowledgeGraph(state),causeIds=options.causeIds||[],entityIds=options.entityIds||[],visibility=explicitPlayerVisible(event?.visibility)?"public":"hidden";
  const node={id:"EVN-"+event.id,type:"event",label:clean(event.summary||event.type,300),visibility,eventId:event.id,day:event.day,canonical:true};

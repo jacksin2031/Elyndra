@@ -1,4 +1,4 @@
-import {revealStoredLore} from "./lore-engine.js?v=54012";
+import {revealStoredLore} from "./lore-engine.js?v=54013";
 import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=54012";
 import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=54012";
 import {normalizeCalendar} from "./world-locality.js?v=54012";

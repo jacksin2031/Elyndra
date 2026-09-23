@@ -114,6 +114,10 @@ export function statePatchSchema(plan={}){
  return '{"baseRevision":'+Math.max(0,Number(plan.baseRevision)||0)+',"operations":['+rows.join(",")+']}'
 }
 export function validateStatePatch(patch,plan={}){
+ if(patch&&typeof patch==="object"&&!Array.isArray(patch)){
+  if(!Array.isArray(patch.operations)&&PATCH_OPS.has(String(patch.op||"").toUpperCase())){const op=structuredClone(patch);delete op.baseRevision;patch.operations=[op]}
+  if(Array.isArray(patch.operations)&&(!Number.isInteger(Number(patch.baseRevision))||Number(patch.baseRevision)<0))patch.baseRevision=Math.max(0,Math.round(Number(plan.baseRevision)||0))
+ }
  const errors=[];if(!patch||typeof patch!=="object"||Array.isArray(patch))return {valid:false,errors:["STATE_PATCH_INVALID"]};
  if(!Number.isInteger(Number(patch.baseRevision))||Number(patch.baseRevision)<0)errors.push("STATE_PATCH_BASE_REVISION_INVALID");
  if(Number(patch.baseRevision)!==Number(plan.baseRevision))errors.push("STATE_PATCH_BASE_REVISION_MISMATCH");
