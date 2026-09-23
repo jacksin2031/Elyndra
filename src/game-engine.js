@@ -18,15 +18,8 @@ const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const AMBIGUOUS_MUTATION=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意|如果|假如|若果|若|除非|是否|能否|可否|要不要|[?？]|[「」『』])/i;
 function explicitMutationCommand(value){const q=clean(value,180);return Boolean(q)&&!AMBIGUOUS_MUTATION.test(q)}
 function explicitRestCommand(value){const q=clean(value,180);return explicitMutationCommand(q)&&/^(?:請)?(?:休息|睡眠|睡覺|紮營|露營|rest|sleep|camp)(?:一下|一會兒|一陣|吧)?[。.!！]?$/i.test(q)}
-function explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||new RegExp(`^(?:travel\s+to|go\s+to|walk\s+to)\s+${target.replace(/[.*+?^${}()|[\]\]/g,"\\$&")}$`,"i").test(normalized)}
-const PROFILES={
- OBSERVE:{dc:10,minutes:15},
- SOCIAL:{dc:11,minutes:20},
- TRAVEL:{dc:12,minutes:45},
- RISKY:{dc:14,minutes:30},
- GENERAL:{dc:12,minutes:30}
-};
-export function actionProfile(input=""){
+function explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim(),lower=normalized.toLowerCase(),t=target.toLowerCase();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||lower===`travel to ${t}`||lower===`go to ${t}`||lower===`walk to ${t}`}
+function actionProfile(input=""){
  const q=clean(input).toLowerCase();
  if(explicitRestCommand(q)||(/住宿|旅店|投宿|lodging|inn/.test(q)&&explicitMutationCommand(q)))return {kind:"GENERAL",dc:7,minutes:240,rest:true};
  if(/施法|魔法|術式|咒|spell|cast|magic/.test(q))return {kind:"RISKY",dc:13,minutes:20,magic:true};

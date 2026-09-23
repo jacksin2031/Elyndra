@@ -1,12 +1,3 @@
 embedded repair already applied; skipping replay
-explicitTravelCommand normalization skipped count=0
-syntax failures=1
---- src/game-engine.js ---
-/home/runner/work/Elyndra/Elyndra/src/game-engine.js:21
-function explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||new RegExp(`^(?:travel\s+to|go\s+to|walk\s+to)\s+${target.replace(/[.*+?^${}()|[\]\]/g,"\\$&")}$`,"i").test(normalized)}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                ^
-
-SyntaxError: Invalid regular expression: missing /
-    at checkSyntax (node:internal/main/check_syntax:74:5)
-
-Node.js v20.20.2
+explicitTravelCommand normalized by boundaries
+syntax failures=0
