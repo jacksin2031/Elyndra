@@ -23,6 +23,7 @@ jobs:
           sed -i 's|model-json.js?v=54013|model-json.js?v=54016|g' src/ai-client.js
           sed -i 's|turn-outcome.js?v=54013|turn-outcome.js?v=54016|g' src/ai-client.js
           sed -i 's|ai-runtime-contracts.js?v=54013|ai-runtime-contracts.js?v=54016|g' src/ai-client.js
+          sed -i 's|contextual-actions.js?v=54015|contextual-actions.js?v=54016|g' src/adventure-engine.js
           sed -i 's|turn-outcome\\.js\\?v=54013|turn-outcome\\.js\\?v=54016|g' test/module-cache.test.js test/v05412-regressions.test.js
           sed -i 's|ai-runtime-contracts\\.js\\?v=54013|ai-runtime-contracts\\.js\\?v=54016|g' test/module-cache.test.js test/v05412-regressions.test.js
       - name: Syntax and regression suite
@@ -33,6 +34,7 @@ jobs:
           node --check src/model-json.js
           node --check src/ai-client.js
           node --check src/ai-runtime-contracts.js
+          node --check src/adventure-engine.js
           npm test
           git diff --check
       - name: Finalize commit and verify cache graph
