@@ -17,7 +17,9 @@ jobs:
         with:
           node-version: '24'
       - name: Apply v0.54.16 patch
-        run: python3 scripts/v05416_finalize.py
+        run: |
+          python3 scripts/v05416_finalize.py
+          sed -i 's|action-intent.js?v=54008|action-intent.js?v=54016|g' src/ai-runtime-contracts.js
       - name: Syntax and regression suite
         run: |
           node --check app.js
