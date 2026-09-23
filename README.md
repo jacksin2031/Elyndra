@@ -583,3 +583,11 @@ OpenAI、Gemini、Agnes 都可在 AI 設定選擇「標準」或「Elyndra 自�
 - BLUEPRINT_DEFINITION claim 只容許綁定 matching definition；錯綁在 Location 的 claim 會由 Engine 清理，未綁 definition claim 會按 kind 自動配對。
 - Core Anchor 會正規化模型常見的 publicFacts／hiddenFacts 層級差異，避免有效內容被誤判成 STRUCTURE_INVALID。
 - Future／Society 增加輸出 budget 與 timeout 空間，降低長 JSON 截斷造成的 fallback；新世界生成仍保持最多兩個 AI 同時工作。
+
+
+### v0.54.12 — Runtime Schema Normalization
+
+- Runtime Geography 先把 AI 常見的 Location schema 漂移正規化，再交給嚴格 Engine validator：字串 lore、不同 weatherProfile 形狀與自然語言 access notes 不再令整個 stage 報廢。
+- Runtime claim refs 改由 Engine 語義驗證與補綁；錯綁 FUTURE/HISTORY/BLUEPRINT claim 會清理，符合 historyRefs／definition kind 的新實體會自動綁定。
+- TRAVEL StatePatch 不再接受移動到目前同一地點或不存在的地點，避免假進展。
+- Model JSON parser 可修復陣列物件之間漏逗號的常見模型輸出錯誤。

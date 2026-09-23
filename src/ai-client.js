@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54008";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54011";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54012";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54001";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=54005";
@@ -9,16 +9,17 @@ import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=48000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=51000";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=54007";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=54012";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=54008";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54008";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54008";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=54006";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54012";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54012";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=54012";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54011";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54012";
+import {normalizeRuntimeLocation,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=54012";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -550,27 +551,12 @@ function emptyRuntimeGeneration(){return {locations:[],npcs:[],factions:[],sideQ
 function runtimeRoot(value){return value&&typeof value==="object"&&!Array.isArray(value)?(value.generation&&typeof value.generation==="object"&&!Array.isArray(value.generation)?value.generation:value):{}}
 function runtimeRows(value,key,limit=0){const rows=Array.isArray(runtimeRoot(value)?.[key])?runtimeRoot(value)[key]:[];return rows.slice(0,Math.max(0,Number(limit)||0))}
 function runtimeIdentity(value){return String(value||"").trim().toLocaleLowerCase()}
-function cleanRuntimeClaimRefs(plan,key,row){
- const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copy={...row},refs=Array.isArray(row?.claimRefs)?row.claimRefs.map(String).filter(Boolean):[];
- copy.claimRefs=[...new Set(refs.filter(id=>{
-  const claim=claims.get(id);if(!claim)return true;
-  if(claim.type!=="BLUEPRINT_DEFINITION")return true;
-  return key==="definitions"&&String(row?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()
- }))];return copy
-}
 function runtimeNewLocations(state,plan,rows){
- const existing=new Set((state?.world?.registry?.locations||[]).map(x=>runtimeIdentity(x?.name)).filter(Boolean));
- return (rows||[]).filter(row=>{const name=runtimeIdentity(row?.name);return name&&!existing.has(name)}).map(row=>cleanRuntimeClaimRefs(plan,"locations",row))
+ const existing=new Set((state?.world?.registry?.locations||[]).map(x=>runtimeIdentity(x?.name)).filter(Boolean)),allowedWeatherIds=(state?.world?.bible?.weatherSystem?.phenomena||[]).map(x=>String(x?.id||"")).filter(Boolean);
+ const fresh=(rows||[]).filter(row=>{const name=runtimeIdentity(row?.name);return name&&!existing.has(name)}).map(row=>normalizeRuntimeLocation(row,allowedWeatherIds));
+ return bindRuntimeClaims(plan,"locations",fresh)
 }
-function runtimeDefinitions(plan,rows){
- const defs=(rows||[]).map(row=>cleanRuntimeClaimRefs(plan,"definitions",row)),claims=(plan?.claims||[]).filter(x=>x.type==="BLUEPRINT_DEFINITION"),used=new Set(defs.flatMap(x=>Array.isArray(x.claimRefs)?x.claimRefs.map(String):[]));
- for(const claim of claims){
-  if(used.has(String(claim.id)))continue;
-  const hit=defs.find(x=>String(x?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()&&!(x.claimRefs||[]).some(id=>used.has(String(id))));
-  if(hit){hit.claimRefs=[...new Set([...(hit.claimRefs||[]),String(claim.id)])];used.add(String(claim.id))}
- }
- return defs
-}
+function runtimeDefinitions(plan,rows){return bindRuntimeClaims(plan,"definitions",rows||[])}
 function runtimeRefs(rows,key){return new Set((rows||[]).flatMap(row=>Array.isArray(row?.[key])?row[key]:[]).map(String).filter(Boolean))}
 function runtimeProgressErrors(state,plan,generation){
  const report=validateLazyGenerationCandidate(state,generation,plan);
@@ -608,7 +594,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
 
  if(!completedStages.has("RUNTIME_GEOGRAPHY")){generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
   signal,state,plan,maxOutputTokens:1600,temperature:.5,
-  system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
+  system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。accessRequirements 只能是空陣列，或使用既有 Engine id 的結構化條件物件；type 僅限 ITEM_OWNED、ITEM_USED、ITEM_SHOWN、ITEM_GIVEN、FACT_KNOWN、EVENT_OCCURRED，並必須包含既有 id。若沒有可引用的既有 id 必須輸出空陣列；自然語言危險／進入建議寫進 lore.story。weatherProfile 必須使用 zone、affinities、suppressions 三個欄位，其中 affinities／suppressions 只引用既有 WTH id。lore 必須使用 story、unlockKeywords、minMatches 三個欄位。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
   user:()=>({payload:{...payload,allowedHistoryRefs,existingLocationNames},stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL"),instruction:"locations 最多生成 slots.locations；至少生成 1 個真正新地點即可完成本次 Geography checkpoint，不得重建 existingLocationNames。"}),
   apply:value=>{
    const root=runtimeRoot(value),locations=runtimeNewLocations(state,plan,runtimeRows(value,"locations",slots.locations)),definitions=runtimeDefinitions(plan,runtimeRows(value,"definitions",slots.definitions));
@@ -626,7 +612,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
   signal,state,plan,maxOutputTokens:1400,temperature:.45,
   system:"你是 Elyndra Runtime Society Architect。地理與 definitions 已鎖定。今次只為新地點補 culture/trade，並按 slots 生成地方 Faction；不可改地點名稱、物理描述、weatherProfile 或 definitions。locationDetails 必須對 requiredLocationNames 每一個名稱逐字建立一項，不可漏項、改名或合併。Faction 必須引用已鎖定 history/location 因果，並優先實現 remainingClaims。"+baseRules+" 輸出 schema：{locationDetails:[{locationName,culture:{identity,etiquette,taboos,food,beliefs,architecture,clothing,hospitality,namingStyle,languageNotes},trade:{mode,currencies,commonBarter,foreignAcceptance,priceCulture,questReward,combatReward}}],factions:[{name,goal,description,historyRefs,claimRefs,known:false,locationName,culture,trade,lore}]}。",
   user:()=>({payload,stage:"SOCIETY",locked:{region,locations:generation.locations,definitions:generation.definitions},requiredLocationNames:generation.locations.map(x=>String(x.name||"")),slots:{factions:slots.factions||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
-  apply:value=>{let next=applyRuntimeLocationDetails(generation,value),factions=runtimeRows(value,"factions",slots.factions);if((Number(slots.factions)||0)>0&&factions.length<Number(slots.factions))throw new Error("RUNTIME_SOCIETY_FACTION_COUNT");return {...next,factions}}
+  apply:value=>{let next=applyRuntimeLocationDetails(generation,value),factions=bindRuntimeClaims(plan,"factions",runtimeRows(value,"factions",slots.factions));if((Number(slots.factions)||0)>0&&factions.length<Number(slots.factions))throw new Error("RUNTIME_SOCIETY_FACTION_COUNT");return {...next,factions}}
  });await checkpointStage("RUNTIME_SOCIETY")}
 
  if((Number(slots.npcs)||0)>0&&!completedStages.has("RUNTIME_CAST")){
@@ -634,7 +620,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
    signal,state,plan,maxOutputTokens:1500,temperature:.5,
    system:"你是 Elyndra Runtime Cast Architect。地理、地方社會與勢力已鎖定。今次只生成 NPC，不得新增或改寫 Location/Faction/definition。NPC 必須落在既有或今次已鎖定地點，提供 historyRefs、companionProfile、behaviorProfile、lore；ORAL_TRADITION legacy echo 只能在這一階段由 NPC 綁定。優先實現 remainingClaims。"+baseRules+" 輸出 schema：{npcs:[{name,role,description,personality,goal,locationName,factionName,historyRefs,claimRefs,echoRefs,knowledgeScope,known:false,behaviorProfile,companionProfile,lore}]}。",
    user:()=>({payload,stage:"CAST",locked:{region,locations:generation.locations,factions:generation.factions,definitions:generation.definitions},slots:{npcs:slots.npcs||0},remainingClaims:runtimeRemainingClaims(plan,generation),legacyEchoes:runtimeRemainingEchoes(plan,generation).filter(x=>x.kind==="ORAL_TRADITION")}),
-   apply:value=>{const npcs=runtimeRows(value,"npcs",slots.npcs);if(npcs.length<Number(slots.npcs))throw new Error("RUNTIME_CAST_NPC_COUNT");const oral=(plan.legacyEchoes||[]).filter(x=>x.kind==="ORAL_TRADITION").map(x=>String(x.id)),bound=runtimeRefs(npcs,"echoRefs");for(const id of oral)if(!bound.has(id))throw new Error("RUNTIME_CAST_ORAL_ECHO_UNBOUND:"+id);return {...generation,npcs}}
+   apply:value=>{const npcs=bindRuntimeClaims(plan,"npcs",runtimeRows(value,"npcs",slots.npcs));if(npcs.length<Number(slots.npcs))throw new Error("RUNTIME_CAST_NPC_COUNT");const oral=(plan.legacyEchoes||[]).filter(x=>x.kind==="ORAL_TRADITION").map(x=>String(x.id)),bound=runtimeRefs(npcs,"echoRefs");for(const id of oral)if(!bound.has(id))throw new Error("RUNTIME_CAST_ORAL_ECHO_UNBOUND:"+id);return {...generation,npcs}}
   });await checkpointStage("RUNTIME_CAST")
  }
 
@@ -643,7 +629,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
    signal,state,plan,maxOutputTokens:950,temperature:.4,
    system:"你是 Elyndra Runtime Quest Architect。世界地理、社會、勢力與人物已鎖定。今次只生成 SideQuest；不得新增任何 Location/NPC/Faction/definition。任務必須引用前面已存在的地點、人物、勢力或 historyRefs，目標要可執行並留下 evidenceKeywords；如仍有 remainingClaims，只有語義真的吻合時才綁定。"+baseRules+" 輸出 schema：{sideQuests:[{title,objective,locationName,npcName,factionName,historyRefs,claimRefs,known:false,evidenceKeywords,conditions,target}]}。",
    user:()=>({payload,stage:"QUESTS",locked:{region,locations:generation.locations,npcs:generation.npcs,factions:generation.factions,definitions:generation.definitions},slots:{sideQuests:slots.sideQuests||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
-   apply:value=>{const sideQuests=runtimeRows(value,"sideQuests",slots.sideQuests);if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
+   apply:value=>{const sideQuests=bindRuntimeClaims(plan,"sideQuests",runtimeRows(value,"sideQuests",slots.sideQuests));if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
   });await checkpointStage("RUNTIME_QUESTS")
  }
 

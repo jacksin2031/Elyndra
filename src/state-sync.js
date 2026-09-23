@@ -168,11 +168,16 @@ function acquiredItemGrounded(raw,action=""){
  return Boolean(q&&name&&ACQUIRE_ITEM_WORD.test(q)&&q.includes(name))
 }
 export function groundStatePatch(state,patch={},context={}){
- const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220);
- for(const [index,raw] of (Array.isArray(next.operations)?next.operations:[]).entries()){
+ const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220),ops=Array.isArray(next.operations)?next.operations:[],generatedLocations=new Set(ops.filter(x=>String(x?.op||"").toUpperCase()==="GENERATE_CONTENT").flatMap(x=>(x?.generation?.locations||[]).flatMap(loc=>[clean(loc?.id,120),clean(loc?.name,120)])).filter(Boolean));
+ for(const [index,raw] of ops.entries()){
   const type=String(raw?.op||"").toUpperCase();
   if(type==="DISCOVER_FACT"&&!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
   if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(raw,action)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NOT_GROUNDED_IN_PLAYER_ACTION"});continue}
+  if(type==="MOVE_PLAYER"){
+   const target=clean(raw?.location,120),current=clean(state?.player?.location||state?.world?.state?.location,120),locations=state?.world?.registry?.locations||[],entity=locations.find(x=>x?.id===target||x?.name===target);
+   if(!target||(!entity&&!generatedLocations.has(target))){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}
+   if(entity&&(entity?.name===current||entity?.id===current)){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_UNCHANGED"});continue}
+  }
   accepted.push(raw)
  }
  next.operations=accepted;return {patch:next,rejected}
