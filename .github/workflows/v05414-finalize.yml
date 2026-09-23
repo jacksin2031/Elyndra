@@ -26,7 +26,8 @@ jobs:
         run: |
           python .github/scripts/v05414_fix_patcher.py
           python .github/scripts/v05414_patch.py
-          rm -f .github/scripts/v05414_fix_patcher.py .github/scripts/v05414_patch.py .github/workflows/v05414-finalize.yml
+          python .github/scripts/v05414_fix_legacy_tests.py
+          rm -f .github/scripts/v05414_fix_patcher.py .github/scripts/v05414_fix_legacy_tests.py .github/scripts/v05414_patch.py .github/workflows/v05414-finalize.yml
           npm test
           git diff --check
           git config user.name "elyndra-release-bot"
