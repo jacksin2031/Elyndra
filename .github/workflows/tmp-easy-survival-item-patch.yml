@@ -1,0 +1,44 @@
+name: Temporary Easy Survival Item Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tmp-easy-survival-item-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Apply item survival rule patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/item-engine.js')
+          s=p.read_text(encoding='utf-8')
+          old='import {ensureSurvival} from "./survival-engine.js?v=54018";'
+          new='import {ensureSurvival,survivalRules} from "./survival-engine.js?v=54018";'
+          if s.count(old)!=1:
+              raise SystemExit(f'import anchor count={s.count(old)}')
+          s=s.replace(old,new,1)
+          old='''function refreshSurvivalConditions(state){\n const s=ensureSurvival(state),out=[];if(s.satiety<=35)out.push("飢餓");if(s.fatigue>=65)out.push("疲勞");if(s.exposure>=65)out.push("環境暴露");if(s.injury>=55)out.push("傷勢");s.conditions=out\n}'''
+          new='''function refreshSurvivalConditions(state){\n const s=ensureSurvival(state),rules=survivalRules(state);if(!rules.statusEffects){s.conditions=[];return}\n const out=[];if(rules.hunger&&s.satiety<=35)out.push("飢餓");if(rules.fatigue&&s.fatigue>=65)out.push("疲勞");if(s.exposure>=65)out.push("環境暴露");if(s.injury>=55)out.push("傷勢");s.conditions=out\n}'''
+          if s.count(old)!=1:
+              raise SystemExit(f'refresh anchor count={s.count(old)}')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Commit patch and cleanup
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-easy-survival-item-patch.yml
+          git config user.name 'JackSin'
+          git config user.email 'a24dc523@dhw.ac.jp'
+          git add src/item-engine.js .github/workflows/tmp-easy-survival-item-patch.yml
+          git commit -m 'fix: honor status effect difficulty in items'
+          git push origin HEAD:main
