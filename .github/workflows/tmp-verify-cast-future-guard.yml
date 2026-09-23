@@ -1,0 +1,40 @@
+name: Temporary Verify Cast Future Guard
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tmp-verify-cast-future-guard.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        node: [20, 24]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+
+  cleanup:
+    needs: test
+    if: always() && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Remove temporary verifier
+        shell: bash
+        run: |
+          rm .github/workflows/tmp-verify-cast-future-guard.yml
+          git config user.name 'JackSin'
+          git config user.email 'a24dc523@dhw.ac.jp'
+          git add .github/workflows/tmp-verify-cast-future-guard.yml
+          git commit -m 'chore: remove temporary Cast future verifier'
+          git push origin HEAD:main
