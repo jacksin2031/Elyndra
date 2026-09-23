@@ -1,4 +1,4 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=54016";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=54017";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const RISK_LABEL=Object.freeze({LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""});
