@@ -124,6 +124,21 @@ export function openingCastFutureIssues(cast,future){
  }
  return [...new Set(issues)]
 }
+export function openingCastChronologyIssues(anchor,history,cast){
+ const oldHistoryIds=new Set((Array.isArray(history)?history:[]).filter(event=>/(?:[1-9]\d{2,}\s*年|百年|數百年|數世紀|centur|hundred years)/i.test(JSON.stringify(event||{}))).map(event=>text(event?.id)).filter(Boolean));
+ if(!oldHistoryIds.size)return [];
+ const issues=[],worldText=JSON.stringify(anchor||{});
+ for(const [i,npc] of (Array.isArray(cast?.npcs)?cast.npcs:[]).entries()){
+  const refs=uniq(npc?.historyRefs);if(!refs.some(id=>oldHistoryIds.has(id)))continue;
+  const npcText=JSON.stringify(npc||{});
+  if(/後代|後裔|子孫|傳承者|繼承人|後世|descendant|heir|successor/i.test(npcText))continue;
+  const firstHand=/(?:曾是|就是|身為|作為|曾任|親自|親歷|參與).{0,24}(?:初代|始祖|創建者|創始者)|(?:初代|始祖|創建者|創始者).{0,24}(?:本人|工程師|成員|領袖|祭司|設計者|研發者)|\b(?:founder|first[- ]generation)\b/i.test(npcText);
+  if(!firstHand)continue;
+  const longevity=/長壽|延命|延壽|不老|不死|休眠|凍眠|時間停滯|時間凍結|immortal|longevity|lifespan|stasis/i.test(worldText+" "+npcText);
+  if(!longevity)issues.push("CAST_NPC_"+i+"_TEMPORAL_PLAUSIBILITY")
+ }
+ return [...new Set(issues)]
+}
 
 export function mergeOpeningRegion(anchor,geography,society){
  const g=obj(geography)?geography:{},s=obj(normalizeOpeningSociety(society))?society:{},location=obj(g.location)?g.location:{};
@@ -181,7 +196,7 @@ export function worldGenerationLinkIssues({anchor,history,geography,society,futu
    const hasLink=refs.length||text(q?.factionName)||text(q?.npcName)||text(q?.locationName);
    if(!hasLink)issues.push("CAST_QUEST_"+i+"_LINK_REQUIRED")
   }
-  issues.push(...openingCastFutureIssues(cast,future))
+  issues.push(...openingCastFutureIssues(cast,future),...openingCastChronologyIssues(anchor,history,cast))
  }
  return [...new Set(issues)]
 }
