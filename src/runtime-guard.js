@@ -1,4 +1,4 @@
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=35000";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=54017";
 const clean=(v,max=1200)=>String(v??"").normalize("NFC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").replace(/\uFFFD/g,"").trim().slice(0,max);
 const SYSTEM_LINE=/^\s*(?:\[|【)\s*(?:世界動向|世界改變|世界開始記住你|系統|SYSTEM|WORLD\s*(?:EVENT|UPDATE)|DEBUG|STATE)\s*(?:\]|】)\s*[:：-]?\s*/i;
 const ROLE_LINE=/^\s*(?:narrative|scene|assistant|system|敘事|旁白)\s*[:：]\s*/i;
