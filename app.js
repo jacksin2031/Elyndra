@@ -54,7 +54,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=54017";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=54017";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=54017";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=54017";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection} from "./src/ai-autotest.js?v=54017";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=54017";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 installDebugConsoleCapture();
 recordDebug("APP_BOOT",{version:APP_VERSION,href:location.href});
@@ -900,7 +900,8 @@ function readDeveloperAutotestConfig(){
   conditionTarget:Math.max(1,Math.round(Number($("#autotestConditionTarget")?.value)||10)),
   customCondition:String($("#autotestCustomCondition")?.value||"").trim().slice(0,500),
   exportMode:["debug","world"].includes($("#autotestExportMode")?.value)?$("#autotestExportMode").value:"both",
-  disableTimeout:$("#autotestDisableTimeout")?.checked===true
+  disableTimeout:$("#autotestDisableTimeout")?.checked===true,
+  playStrategy:autotestPlayStrategy()
  }
 }
 function bindDeveloperAutotestPanel(){
@@ -920,6 +921,16 @@ async function waitForAutotestIdle(timeoutMs=12000){
  }
  if(autotestForegroundIdle())return true;
  recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});
+ return false
+}
+async function waitForAutotestActionReady(timeoutMs=38000){
+ const started=Date.now();
+ while(Date.now()-started<timeoutMs){
+  if(!playerActionFlight.active)return true;
+  await new Promise(r=>setTimeout(r,25))
+ }
+ if(!playerActionFlight.active)return true;
+ recordDebug("AUTOTEST_ACTION_READY_TIMEOUT",{timeoutMs,active:playerActionFlight.active,label:playerActionFlight.label,nonblocking:Boolean(nonblockingScene.controller),aiBusy,turnSyncBusy});
  return false
 }
 function cancelAutotestBackgroundWork(){
@@ -982,7 +993,7 @@ async function startDeveloperAutotest(config){
     appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
     const generated=await createDeveloperAutotestWorld(randomAutotestWorldRaw(Math.random,i),i);
     result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
-    gameState=generated.state;gameplayDebugSnapshot=null;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");await waitForAutotestIdle(3000);
+    gameState=generated.state;gameplayDebugSnapshot=null;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);
     if(config.mode==="worlds"){
      result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
      appendDeveloperAutotestLog(`世界 ${i} 生成驗證完成。`);continue
@@ -990,7 +1001,7 @@ async function startDeveloperAutotest(config){
     result.phase="PLAY";const recentActions=[];
     for(let turn=1;turn<=config.maxTurns;turn++){
      if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
-     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});await waitForAutotestIdle();
+     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();
      const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
      try{
       const ctrl=new AbortController();developerAutotest.controller=ctrl;
@@ -998,7 +1009,7 @@ async function startDeveloperAutotest(config){
       appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn}: ${decision.mode==="suggestion"?"[按鈕] ":decision.mode==="combat"?"[戰鬥] ":"[自由] "}${decision.action||decision.combatAction}`);
       recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
       if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
-      await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle(config.disableTimeout===true?90000:38000);
+      await executeDeveloperAutotestDecision(decision);if(firstButtonFast)await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);
       row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push({action:decision.action||decision.combatAction||"",mode:decision.mode,kind:decision.kind||"",progression:decision.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
