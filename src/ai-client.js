@@ -19,7 +19,7 @@ import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=5400
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
 import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54012";
-import {normalizeRuntimeLocation,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=54013";
+import {normalizeRuntimeLocation,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=54014";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -310,7 +310,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
 
   const [historyRaw,geographyRaw]=await Promise.all([
    resilientWorldStage("HISTORY",{
-    timeoutMs:65000,retryOnTimeout:false,maxOutputTokens:1200,
+    timeoutMs:75000,retryOnTimeout:false,maxOutputTokens:1200,
     system:`你是 Elyndra History Compiler。只生成 3 個不可改寫的過去歷史 Canon。所有內容必須直接解釋 anchor 的 centralConflict、magicCost、civilization 或 currentCrisis 如何形成。每個事件使用指定 HIST-1..3 id。不要生成未來 Timeline、地點、勢力、NPC 或任務。只輸出 JSON。`,
     user:JSON.stringify({anchor,required:{worldHistory:Array.from({length:3},(_,i)=>({id:`HIST-${i+1}`,order:i+1,era:"世界內時代",title:"重大歷史事件",category:"戰爭|王朝|宗教|技術|魔法|遷徙|災難|改革",summary:"40-80字",causes:["最多1項"],legacies:["1-2項現代仍存在影響"],discoverKeywords:["1-2線索"]}))}})
    },()=>({worldHistory:historyFallback(anchor)})),
@@ -627,9 +627,9 @@ export async function generateRegionExpansion(state,reason="player_exploration",
  if((Number(slots.sideQuests)||0)>0&&!completedStages.has("RUNTIME_QUESTS")){
   generation=await runtimeExpansionStage("RUNTIME_QUESTS",{
    signal,state,plan,maxOutputTokens:950,temperature:.4,
-   system:"你是 Elyndra Runtime Quest Architect。世界地理、社會、勢力與人物已鎖定。今次只生成 SideQuest；不得新增任何 Location/NPC/Faction/definition。任務必須引用前面已存在的地點、人物、勢力或 historyRefs，目標要可執行並留下 evidenceKeywords；如仍有 remainingClaims，只有語義真的吻合時才綁定。"+baseRules+" 輸出 schema：{sideQuests:[{title,objective,locationName,npcName,factionName,historyRefs,claimRefs,known:false,evidenceKeywords,conditions,target}]}。",
+   system:"你是 Elyndra Runtime Quest Architect。世界地理、社會、勢力與人物已鎖定。今次只生成 SideQuest；不得新增任何 Location/NPC/Faction/definition。任務必須引用前面已存在的地點、人物、勢力或 historyRefs，目標要可執行並留下 evidenceKeywords；conditions 必須永遠是陣列；target 是完成任務所需的進度／證據門檻，只能是 1-5 的整數，絕對不是 NPC 名稱、勢力名稱、任務描述、物件或陣列。如仍有 remainingClaims，只有語義真的吻合時才綁定。"+baseRules+" 輸出 schema：{sideQuests:[{title,objective,locationName,npcName,factionName,historyRefs,claimRefs,known:false,evidenceKeywords:[線索文字],conditions:[條件文字],target:1}]}。",
    user:()=>({payload,stage:"QUESTS",locked:{region,locations:generation.locations,npcs:generation.npcs,factions:generation.factions,definitions:generation.definitions},slots:{sideQuests:slots.sideQuests||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
-   apply:value=>{const sideQuests=bindRuntimeClaims(plan,"sideQuests",runtimeRows(value,"sideQuests",slots.sideQuests));if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
+   apply:value=>{const sideQuests=bindRuntimeClaims(plan,"sideQuests",runtimeRows(value,"sideQuests",slots.sideQuests).map(normalizeRuntimeSideQuest));if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
   });await checkpointStage("RUNTIME_QUESTS")
  }
 
