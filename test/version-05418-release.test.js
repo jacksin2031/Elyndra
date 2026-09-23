@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
+// Official v0.54.18 release contract; this file also anchors the final Pages deployment check.
 test("v0.54.18 is the canonical app and browser cache release",async()=>{
  const [pkgText,versionSource,html,app]=await Promise.all([
   readFile(new URL("../package.json",import.meta.url),"utf8"),
