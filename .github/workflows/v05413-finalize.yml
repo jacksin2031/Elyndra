@@ -37,5 +37,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "fix: complete v0.54.13 runtime and generation recovery"
-          CACHE_BASE_REF=origin/main npm run cache:check
+          CACHE_BASE_REF=main npm run cache:check
           git push origin HEAD:fix/v05413-runtime-resume-generation-normalization
