@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {randomAutotestWorldRaw,playerVisibleAutotestSnapshot,normalizeAutotestDecision,autotestStopReason,autotestStateFingerprint,buildAutotestReport,autotestExportSelection} from "../src/ai-autotest.js";
+import {randomAutotestWorldRaw,playerVisibleAutotestSnapshot,normalizeAutotestDecision,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,autotestWorldCoherence,buildAutotestReport,autotestExportSelection} from "../src/ai-autotest.js";
 
 function state(){
  return {
@@ -127,4 +127,48 @@ test("autotest report separates intentional foreground preemption from real AI f
  ]});
  assert.equal(report.summary.aiAttempts,2);assert.equal(report.summary.aiFailures,0);assert.equal(report.summary.aiPreemptedAttempts,1);assert.equal(report.summary.aiDegradedAttempts,0);
  assert.equal(report.summary.stageBreakdown.quality.preempted,1);assert.equal(report.issues.some(x=>x.type==="TELEMETRY_AI_CALL_FAILED"),false)
+});
+
+function coherenceState(){
+ return {
+  world:{id:"WC",name:"Coherence",state:{day:1,clock:{day:1,hour:8,minute:0,totalMinutes:0}},registry:{locations:[],npcs:[],factions:[],sideQuests:[]},generationClaims:{claims:[]},catalog:{civilizations:[],species:[],languages:[]},economy:{currencyExists:false,currencyModel:"NO_CURRENCY"},quality:{status:"PASS",source:"AI",pending:false,overall:90},creation:{difficultyRules:{hunger:true,fatigue:true,statusEffects:true}}},
+  player:{name:"Tester",hp:100,maxHp:100,level:1,knowledgeScore:0,location:"",survival:{satiety:100,fatigue:0,exposure:0,injury:0,conditions:[]}},
+  quests:{main:{title:"",stage:0,status:"ACTIVE",objectives:[]}},inventory:[],knowledge:[],events:[],discoveries:0
+ }
+}
+
+test("autotest world coherence treats unmaterialized blueprint claims as deferred-by-design, not errors",()=>{
+ const s=coherenceState();
+ s.world.generationClaims.claims=[{id:"C1",type:"BLUEPRINT_DEFINITION",status:"UNMATERIALIZED"}];
+ const out=autotestWorldCoherence(s);
+ assert.equal(out.status,"PASS");
+ assert.equal(out.generationClaims.UNMATERIALIZED,1);
+ assert.equal(out.generationClaims.pendingDefinitions,1);
+ assert.equal(out.generationClaims.deferredByDesign,1);
+ assert.equal(out.issues.length,0)
+});
+
+test("autotest world coherence reports failed claims, unresolved reservations, economy, NPC and difficulty contradictions",()=>{
+ const s=coherenceState();
+ s.world.generationClaims.claims=[
+  {id:"CF",type:"REQUIRED_ELEMENT",status:"FAILED"},
+  {id:"CR",type:"REQUIRED_ELEMENT",status:"RESERVED"}
+ ];
+ s.world.registry.locations.push({id:"L1",name:"市集",trade:{mode:"currency",currencies:[{id:"CUR-1",name:"燈票"}]}});
+ s.world.registry.npcs.push({id:"N1",name:"守門人",known:true,encountered:false,memories:[]});
+ s.events.push({id:"E1",type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:"N1"});
+ s.world.creation.difficultyRules={hunger:false,fatigue:false,statusEffects:false};
+ s.player.survival={satiety:80,fatigue:10,exposure:0,injury:0,conditions:["疲勞"]};
+ const out=autotestWorldCoherence(s),types=new Set(out.issues.map(x=>x.type));
+ assert.equal(out.status,"FAIL");
+ for(const type of ["GENERATION_CLAIM_FAILED","GENERATION_CLAIM_RESERVED_AT_EXPORT","ECONOMY_CURRENCY_REGISTRY_MISMATCH","NPC_CONVERSATION_ENCOUNTER_MISMATCH","NPC_CONVERSATION_MEMORY_MISMATCH","DIFFICULTY_SURVIVAL_RULE_MISMATCH"])assert.ok(types.has(type),type)
+});
+
+test("autotest summary embeds coherence and report promotes coherence issues",()=>{
+ const s=coherenceState();
+ s.world.generationClaims.claims=[{id:"CF",type:"REQUIRED_ELEMENT",status:"FAILED"}];
+ const summary=autotestWorldSummary(s);
+ assert.equal(summary.coherence.status,"FAIL");
+ const report=buildAutotestReport({config:{worldCount:1,maxTurns:1},startedAt:1,endedAt:2,worlds:[{index:1,status:"COMPLETED",phase:"PLAY",turns:1,actions:[],summary}],telemetry:[]});
+ assert.ok(report.issues.some(x=>x.type==="WORLD_COHERENCE_GENERATION_CLAIM_FAILED"&&x.worldIndex===1))
 });
