@@ -1,4 +1,4 @@
-// v0.54.17 release contract
+// v0.54.18 release contract
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -9,9 +9,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.54.17");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.54.18");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=54017/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=54017"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=54018/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=54018"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History/Future/character systems remain available after v0.53",async()=>{
@@ -25,7 +25,7 @@ test("History/Future/character systems remain available after v0.53",async()=>{
  assert.match(app,/runBackgroundHistoryDeepening/);assert.match(client,/export async function generateHistoryDeepening/);assert.match(historyDepth,/validateHistoryDeepeningCandidate/);
  assert.match(historyFuture,/signalHistoryResearch/);assert.match(docs,/registerHistoryDeepeningDocuments/);assert.match(heritage,/registerHistoryRelicSeeds/);
  assert.match(client,/impactScope/);assert.match(timeline,/playerCanMitigate/);assert.match(future,/playerCanRedirect/);
- assert.match(app,/\.\/src\/talent-engine\.js\?v=54017/);assert.match(app,/\.\/src\/journey-closure\.js\?v=54017/);assert.match(talent,/buildIdentitySnapshot/);assert.match(journey,/recentJourneyCheckpoints/);assert.match(progression,/未解之謎/)
+ assert.match(app,/\.\/src\/talent-engine\.js\?v=54018/);assert.match(app,/\.\/src\/journey-closure\.js\?v=54018/);assert.match(talent,/buildIdentitySnapshot/);assert.match(journey,/recentJourneyCheckpoints/);assert.match(progression,/未解之謎/)
 });
 
 test("v0.50-v0.52 causal protections remain intact after v0.53",async()=>{
@@ -36,10 +36,10 @@ test("v0.50-v0.52 causal protections remain intact after v0.53",async()=>{
   readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/world-creation.js",import.meta.url),"utf8"),
   readFile(new URL("../src/generation-claims.js",import.meta.url),"utf8"),readFile(new URL("../src/world-catalog.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/lazy-generation\.js\?v=54017/);assert.match(legacy,/ORAL_TRADITION/);assert.match(legacy,/WEAPON_RELIC/);
+ assert.match(app,/\.\/src\/lazy-generation\.js\?v=54018/);assert.match(legacy,/ORAL_TRADITION/);assert.match(legacy,/WEAPON_RELIC/);
  assert.match(visibility,/CANON_LOCKED/);assert.match(quality,/backgroundMutableFields/);assert.match(registry,/WORLD_CONSTITUTION_FORBID/);
  assert.match(lazy,/generationRevision/);assert.match(lazy,/worldSeedFingerprint/);assert.match(causal,/visibilityLockSnapshot/);
- assert.match(app,/\.\/src\/world-creation\.js\?v=54017/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
+ assert.match(app,/\.\/src\/world-creation\.js\?v=54018/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
  assert.match(client,/generation\.definitions/);assert.match(client,/forbiddenTerms/)
 });
 
@@ -50,7 +50,7 @@ test("v0.53.0 hardens Knowledge, background races, Claims and Ledger causality",
   readFile(new URL("../src/world-ledger.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),
   readFile(new URL("../src/causal-integrity.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-client\.js\?v=54017/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=54018/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
  assert.match(lazy,/LAZY_STALE_WORLD_VERSION/);assert.match(lazy,/LAZY_STALE_GENERATION_REVISION/);
  assert.match(claims,/MATERIALIZATION_DRIFT/);assert.match(ledger,/compactLedgerEntries/);assert.match(ledger,/HISTORIC/);
  assert.match(integrity,/auditCausalIntegrity/);assert.match(integrity,/VERIFIED_KNOWLEDGE_ORPHAN/);assert.match(integrity,/CLAIM_RESERVATION_ORPHAN/);assert.match(integrity,/FUTURE_HISTORY_REF_ORPHAN/);
@@ -58,12 +58,12 @@ test("v0.53.0 hardens Knowledge, background races, Claims and Ledger causality",
 });
 
 
-test("v0.54 Developer AI autotest remains available after v0.54.17 runtime checkpoint hardening",async()=>{
+test("v0.54 Developer AI autotest remains available after v0.54.18 runtime checkpoint hardening",async()=>{
  const [app,autotest]=await Promise.all([
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=54017/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=54018/);
  assert.match(app,/startDeveloperAutotest/);
  assert.match(autotest,/playerVisibleAutotestSnapshot/);
  assert.match(autotest,/buildAutotestReport/)

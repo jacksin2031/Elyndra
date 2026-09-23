@@ -1,6 +1,6 @@
-import {advanceTime} from "./world-clock.js?v=54017";
-import {currentWeather,retargetWeather,tickWeather} from "./weather-engine.js?v=54017";
-import {tickSurvival} from "./survival-engine.js?v=54017";
+import {advanceTime} from "./world-clock.js?v=54018";
+import {currentWeather,retargetWeather,tickWeather} from "./weather-engine.js?v=54018";
+import {tickSurvival} from "./survival-engine.js?v=54018";
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return Math.abs(h)};
