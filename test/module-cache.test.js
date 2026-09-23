@@ -37,7 +37,7 @@ test("v0.54.12 keeps structured AI and Developer Autotest cache graphs coherent"
  assert.match(actions,/\.\/action-intent\.js\?v=54008/);assert.match(contracts,/\.\/action-intent\.js\?v=54008/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=54008/);
  assert.match(client,/\.\/ai-settings\.js\?v=54008/);
  assert.match(client,/\.\/turn-compiler\.js\?v=54001/);assert.match(client,/\.\/turn-outcome\.js\?v=54012/);
- assert.match(client,/\.\/action-intent\.js\?v=54008/);assert.match(client,/\.\/state-sync\.js\?v=54006/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=54012/);assert.match(contracts,/\.\/state-sync\.js\?v=54006/);
+ assert.match(client,/\.\/action-intent\.js\?v=54008/);assert.match(client,/\.\/state-sync\.js\?v=54012/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=54012/);assert.match(contracts,/\.\/state-sync\.js\?v=54006/);
  assert.match(client,/\.\/knowledge-model\.js\?v=54001/);assert.match(client,/\.\/lazy-generation\.js\?v=54012/);
  for(const [source,label] of [[adventure,"adventure"],[worldEngine,"world-engine"],[causal,"causal-world-core"],[integrity,"causal-integrity"],[simulation,"world-simulation"],[storage,"storage"],[progression,"progression-ui"]]){
   const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>x==="54012"),label+" imports must use 54012")
