@@ -12,6 +12,7 @@ import {resolveTalentAction} from "./talent-engine.js?v=54018";
 import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=54018";
 import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=54018";
 import {isNpcPresent} from "./world-registry.js?v=54018";
+import {markEntityObserved} from "./visibility-lock.js?v=54018";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const PROFILES={
@@ -43,8 +44,23 @@ function localNarrative(label,roll,profile){
  if(roll.success)return `你完成了「${label}」，行動本身成功；是否出現新的可確認資訊，仍以實際觀察與世界狀態為準。`;
  return `你嘗試「${label}」，但這次沒有達成預期目的。從眼前反應看來，換一個方法會更有機會。`
 }
+function localNpcActionTarget(state,label,assessment=null){
+ const intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=clean(assessment?.actionIntent?.targetId||assessment?.targetId,120),rows=state?.world?.registry?.npcs||[];
+ const socialIntent=["TALK","PERSUADE","THREATEN","GIVE_ITEM","SHOW_ITEM"].includes(intent)||/詢問|請教|交談|對話|攀談|告訴|回答|talk|ask|speak|tell/i.test(label);
+ if(!socialIntent)return null;
+ const npc=rows.find(x=>x?.id===targetId||x?.name===targetId)||rows.find(x=>x?.name&&label.includes(x.name));
+ return npc&&isNpcPresent(state,npc)?npc:null
+}
+function markLocalNpcInteraction(state,label,assessment=null){
+ const npc=localNpcActionTarget(state,label,assessment);if(!npc)return null;
+ const firstEncounter=npc.encountered!==true;npc.known=true;npc.encountered=true;markEntityObserved(state,"npc",npc.id,{reason:"PLAYER_LOCAL_SOCIAL_ACTION"});
+ npc.memories??=[];const minute=Number(state?.world?.state?.clock?.totalMinutes)||0,summary=`玩家在當前場景主動嘗試與${npc.name}互動：「${clean(label,140)}」`;
+ npc.memories.push({id:id(),type:"interaction",summary,day:state?.world?.state?.day||1,minute,mode:"LOCAL",grounded:true});npc.memories=npc.memories.slice(-12);npc.lastActionMinute=minute;
+ state.events??=[];state.events.push({id:id(),type:"NPC_INTERACTION",visibility:"PLAYER_KNOWN",npcId:npc.id,firstEncounter,summary,day:state?.world?.state?.day||1,minute,at:Date.now()});
+ return {npcId:npc.id,firstEncounter}
+}
 export function resolveEngineFeasibility(state,label,assessment=null){
- const q=clean(label,180),intent=String(assessment?.actionIntent?.intent||"").toUpperCase(),targetId=String(assessment?.actionIntent?.targetId||"");
+ const q=clean(label,180),intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=String(assessment?.actionIntent?.targetId||assessment?.targetId||"");
  if(state.player?.status==="DOWNED")return {verdict:"BLOCK",reason:"你目前失去行動能力。",requirements:["先恢復可行動狀態"],source:"ENGINE_AUTHORITY"};
  const inventory=Array.isArray(state.inventory)?state.inventory:[],itemVerb=/使用|食用|進食|吃|喝|飲用|服用|展示|出示|交給|交出|贈送|裝備|穿上|卸下|脫下|use|eat|drink|show|give|equip|unequip/i;
  if(itemVerb.test(q)&&!inventory.some(x=>x?.name&&q.includes(x.name)))return {verdict:"BLOCK",reason:"Engine 無法在背包中確認你指定的物品。",requirements:["需要先擁有並明確指定該物品"],source:"ENGINE_AUTHORITY"};
@@ -54,9 +70,9 @@ export function resolveEngineFeasibility(state,label,assessment=null){
  }
  const registry=state.world?.registry||{};
  if(targetId){
-  const npc=(registry.npcs||[]).find(x=>x.id===targetId);
+  const npc=(registry.npcs||[]).find(x=>x.id===targetId||x.name===targetId);
   if(npc&&["TALK","PERSUADE","THREATEN","GIVE_ITEM","SHOW_ITEM"].includes(intent)&&!isNpcPresent(state,npc))return {verdict:"BLOCK",reason:"目標 NPC 目前不在可互動位置。",requirements:["目標 NPC 必須在場或可透過既有通訊方式聯絡"],source:"ENGINE_AUTHORITY"};
-  const loc=(registry.locations||[]).find(x=>x.id===targetId);
+  const loc=(registry.locations||[]).find(x=>x.id===targetId||x.name===targetId);
   if(loc&&intent==="TRAVEL"){
    if(loc.known!==true)return {verdict:"BLOCK",reason:"這個地點目前尚未成為玩家可直接前往的已知目的地。",requirements:["先發現或取得可到達資訊"],source:"ENGINE_AUTHORITY"};
    const access=locationAccessStatus(state,loc);if(!access.allowed)return {verdict:"BLOCK",reason:"前往條件尚未滿足。",requirements:access.missing.map(x=>x.hint||x.id||x.type).filter(Boolean).slice(0,4),source:"ENGINE_AUTHORITY"};
@@ -101,25 +117,25 @@ export function performAction(state,action="free",customText="",assessment=null)
   state.narrative=text;state.events.push({id:id(),type:"PLAYER_ACTION_REJECTED",visibility:"PLAYER_KNOWN",action:"free",customText:originalLabel,reason,requirements,authority:"ENGINE",aiProposal:assessment?.verdict||null,day:state.world.state.day,at:Date.now()});
   return {blocked:true,feasibilityBlocked:true,roll:null,text,minutes:0,actionKind:String(assessment?.kind||"GENERAL"),check:null,training:null,ruleEffects:{assessment,engineFeasibility}}
  }
- const label=assessment?.verdict==="ADJUST"&&proposedLabel?proposedLabel:originalLabel;
- const info=deterministicInfoAction(state,label);if(info){state.narrative=info.text;state.events.push({id:id(),type:"PLAYER_UTILITY_ACTION",visibility:"PLAYER_KNOWN",utilityKind:info.kind,customText:label,day:state.world.state.day,at:Date.now()});return {deterministic:true,roll:null,text:info.text,minutes:0,actionKind:"GENERAL",check:null,training:null,ruleEffects:{utility:info,engineFeasibility}}}
+ const label=assessment?.verdict==="ADJUST"&&proposedLabel?proposedLabel:originalLabel,npcInteraction=markLocalNpcInteraction(state,label,assessment);
+ const info=deterministicInfoAction(state,label);if(info){state.narrative=info.text;state.events.push({id:id(),type:"PLAYER_UTILITY_ACTION",visibility:"PLAYER_KNOWN",utilityKind:info.kind,customText:label,day:state.world.state.day,at:Date.now()});return {deterministic:true,roll:null,text:info.text,minutes:0,actionKind:"GENERAL",check:null,training:null,ruleEffects:{utility:info,npcInteraction,engineFeasibility}}}
  const baseProfile=actionProfile(label),assessedKind=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].includes(String(assessment?.kind||"").toUpperCase())?String(assessment.kind).toUpperCase():baseProfile.kind;
  const profile={...baseProfile,kind:baseProfile.kind==="RISKY"?"RISKY":assessedKind},directItem=resolveItemAction(state,label,{success:true});
  if(directItem?.handled){
   const minutes=Math.max(1,Math.round(Number(directItem.minutes)||2));advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL"}),questProgress=evaluateQuestState(state);
   const text=directItem.ok?(directItem.summary||directItem.output?`${directItem.summary||`你完成了「${directItem.recipe?.name||label}」，取得「${directItem.output?.name||""}」。`}`:directItem.effects?`你使用了「${directItem.itemName}」。`:`你完成了「${label}」。`):directItem.reason==="MATERIALS_MISSING"?"材料不足，無法完成這項合成。":directItem.reason==="ITEM_NOT_USABLE"?"這件物品目前沒有可以直接使用的效果。":directItem.reason==="ITEM_NOT_OWNED"?"你目前沒有指定的物品。":directItem.reason==="NPC_NOT_PRESENT"?"對方目前不在你身邊，無法展示或交付物品。":directItem.reason==="ITEM_EQUIPPED"?"這件物品目前正在裝備，先卸下才可以交出去。":"目前無法完成這個物品操作。";
   state.narrative=text;state.events.push({id:id(),type:"PLAYER_ITEM_ACTION",visibility:"PLAYER_KNOWN",action:"item",customText:label,reason:directItem.reason||"",day:state.world.state.day,minutes,at:Date.now()});
-  const worldEvent=tickWorld(state);tickMainQuest(state);return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{item:directItem,survival,questProgress,engineFeasibility}}
+  const worldEvent=tickWorld(state);tickMainQuest(state);return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{item:directItem,npcInteraction,survival,questProgress,engineFeasibility}}
  }
  const directEconomy=resolveEconomyAction(state,label,{success:true});if(directEconomy?.handled){
   const lodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),minutes=lodging&&directEconomy.ok?240:20;advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL",rest:lodging&&directEconomy.ok===true});if(lodging&&directEconomy.ok)recoverMagic(state,Math.max(8,Math.round(minutes/20)));const worldEvent=tickWorld(state);tickMainQuest(state);
   const text=directEconomy.ok?(lodging?"你完成住宿付款並休息。":"交易完成。"):"交易無法完成："+String(directEconomy.reason||"條件不足");state.narrative=text;state.events.push({id:id(),type:"PLAYER_ECONOMY_ACTION",visibility:"PLAYER_KNOWN",customText:label,ok:directEconomy.ok===true,reason:directEconomy.reason||"",day:state.world.state.day,minutes,at:Date.now()});
-  return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{economy:directEconomy,survival,engineFeasibility}}
+  return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{economy:directEconomy,npcInteraction,survival,engineFeasibility}}
  }
- const directRest=deterministicRestAction(state,label);if(directRest){state.narrative=directRest.text;state.events.push({id:id(),type:"PLAYER_REST",visibility:"PLAYER_KNOWN",customText:label,minutes:directRest.minutes,day:state.world.state.day,at:Date.now()});return {deterministic:true,roll:null,text:directRest.text,minutes:directRest.minutes,worldEvent:directRest.worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{survival:directRest.survival,engineFeasibility}}}
- const directTravel=deterministicKnownTravel(state,label);if(directTravel?.handled){state.narrative=directTravel.text;return {deterministic:!directTravel.blocked,blocked:Boolean(directTravel.blocked),roll:null,text:directTravel.text,minutes:directTravel.minutes||0,worldEvent:directTravel.worldEvent||null,actionKind:"TRAVEL",check:null,training:null,ruleEffects:{travel:directTravel.travel||null,questProgress:directTravel.questProgress||null,engineFeasibility}}}
+ const directRest=deterministicRestAction(state,label);if(directRest){state.narrative=directRest.text;state.events.push({id:id(),type:"PLAYER_REST",visibility:"PLAYER_KNOWN",customText:label,minutes:directRest.minutes,day:state.world.state.day,at:Date.now()});return {deterministic:true,roll:null,text:directRest.text,minutes:directRest.minutes,worldEvent:directRest.worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{survival:directRest.survival,npcInteraction,engineFeasibility}}}
+ const directTravel=deterministicKnownTravel(state,label);if(directTravel?.handled){state.narrative=directTravel.text;return {deterministic:!directTravel.blocked,blocked:Boolean(directTravel.blocked),roll:null,text:directTravel.text,minutes:directTravel.minutes||0,worldEvent:directTravel.worldEvent||null,actionKind:"TRAVEL",check:null,training:null,ruleEffects:{travel:directTravel.travel||null,questProgress:directTravel.questProgress||null,npcInteraction,engineFeasibility}}}
  const gate=survivalActionGate(state,profile.kind);
- if(!gate.ok){state.narrative=gate.message;state.events.push({id:id(),type:"PLAYER_ACTION_BLOCKED",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,reason:gate.reason,day:state.world.state.day,at:Date.now()});return {blocked:true,roll:null,text:gate.message,minutes:0,actionKind:profile.kind,check:null,training:null,ruleEffects:{gate}}}
+ if(!gate.ok){state.narrative=gate.message;state.events.push({id:id(),type:"PLAYER_ACTION_BLOCKED",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,reason:gate.reason,day:state.world.state.day,at:Date.now()});return {blocked:true,roll:null,text:gate.message,minutes:0,actionKind:profile.kind,check:null,training:null,ruleEffects:{gate,npcInteraction}}}
  const check=buildActionCheck(state,label,profile),roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
  advanceTime(state,profile.minutes);
@@ -130,5 +146,5 @@ export function performAction(state,action="free",customText="",assessment=null)
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,originalAction:originalLabel,actionAssessment:assessment?{verdict:assessment.verdict,kind:assessment.kind,reason:assessment.reason,confidence:assessment.confidence}:null,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress,engineFeasibility}}
+ return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress,npcInteraction,engineFeasibility}}
 }
