@@ -6,6 +6,9 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(va
 const pick=(items,random=Math.random)=>items[Math.min(items.length-1,Math.floor(clamp(random(),0,.999999999999)*items.length))];
 const text=(value,max=240)=>String(value??"").trim().slice(0,max);
 const list=value=>Array.isArray(value)?value:[];
+const DECISION_CIRCUIT_FAILURES=2;
+const DECISION_CIRCUIT_OPEN_MS=90000;
+const decisionCircuits=new Map();
 
 export function autotestExportSelection(value="both"){
  const mode=["both","debug","world"].includes(String(value))?String(value):"both";
@@ -58,8 +61,8 @@ export function randomAutotestWorldRaw(random=Math.random,index=0){
 }
 
 function visibleSuggestion(row,index){
- if(typeof row==="string")return {index,label:text(row,180),action:text(row,180),risk:""};
- return {index,label:text(row?.label||row?.action||"",180),action:text(row?.action||row?.label||"",180),kind:text(row?.kind||"",30).toUpperCase(),risk:text(row?.risk||"",30),approach:text(row?.approach||"",120),progression:row?.progression===true}
+ if(typeof row==="string")return {index,label:text(row,180),action:text(row,180),kind:"",risk:"",approach:"",progression:false,targetId:null};
+ return {index,label:text(row?.label||row?.action||"",180),action:text(row?.action||row?.label||"",180),kind:text(row?.kind||"",30).toUpperCase(),risk:text(row?.risk||"",30),approach:text(row?.approach||"",120),progression:row?.progression===true,targetId:text(row?.targetId||"",100)||null}
 }
 
 export function playerVisibleAutotestSnapshot(state={}){
@@ -105,12 +108,38 @@ function recentAutotestStalled(recentActions=[]){
  const rows=list(recentActions).filter(x=>x&&typeof x==="object").slice(-3);
  return rows.length>=2&&rows.slice(-2).every(x=>x.progressed===false)
 }
+function consecutiveAutotestStall(recentActions=[]){
+ let count=0;for(const row of list(recentActions).slice().reverse()){if(!row||typeof row!=="object"||row.progressed!==false)break;count++}return count
+}
 function antiStallSuggestion(suggestions,recent){
  const fresh=x=>!recent.has(text(x?.action||x?.label,180).toLowerCase()),active=x=>x?.progression===true&&fresh(x);
  return suggestions.find(x=>active(x)&&!["OBSERVE","GENERAL"].includes(String(x?.kind||"").toUpperCase()))
   ||suggestions.find(active)
   ||suggestions.find(x=>fresh(x)&&!["OBSERVE","GENERAL"].includes(String(x?.kind||"").toUpperCase()))
   ||null
+}
+function decisionCircuit(worldId="WORLD"){
+ const key=text(worldId,160)||"WORLD";let row=decisionCircuits.get(key);if(!row){row={failures:0,openUntil:0};decisionCircuits.set(key,row)}return row
+}
+export function resetAutotestDecisionCircuit(worldId=""){
+ if(worldId)decisionCircuits.delete(text(worldId,160)||"WORLD");else decisionCircuits.clear()
+}
+function decisionTransientFailure(error){return /AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(?:429|5\d\d)|Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(error?.message||error||""))}
+function decisionAborted(error,signal){return signal?.aborted===true||error?.code==="AI_ABORTED"||/AI_ABORTED: request cancelled by higher-priority gameplay/i.test(String(error?.message||error||""))}
+
+export function deterministicAutotestDecision(snapshot={},recentActions=[],reason="AI fallback"){
+ const combat=snapshot?.combat?.active===true,suggestions=list(snapshot?.suggestions),recent=normalizedRecent(recentActions),stall=consecutiveAutotestStall(recentActions),last=list(recentActions).filter(x=>x&&typeof x==="object").at(-1)||{},lastKind=String(last.kind||"").toUpperCase();
+ if(combat)return {mode:"combat",combatAction:"attack",action:"attack",suggestionIndex:null,reason,goalReached:false,goalEvidence:"",fallback:true};
+ const scored=suggestions.map((x,i)=>{
+  const kind=String(x?.kind||"").toUpperCase(),fresh=!recent.has(text(x?.action||x?.label,180).toLowerCase());let score=0;
+  if(fresh)score+=30;if(x?.progression===true)score+=28;if(!["OBSERVE","GENERAL"].includes(kind))score+=stall>=2?20:5;if(stall>=3&&kind&&kind!==lastKind)score+=20;if(stall>=5&&kind==="TRAVEL")score+=35;if(stall>=5&&["RISKY","SOCIAL"].includes(kind)&&kind!==lastKind)score+=10;if(["HIGH","EXTREME"].includes(String(x?.risk||"").toUpperCase()))score-=stall<5?10:0;
+  return {x,i,score}
+ }).sort((a,b)=>b.score-a.score||a.i-b.i);
+ const chosen=scored[0];
+ if(chosen&&chosen.x&&(stall<7||chosen.score>=45))return {mode:"suggestion",suggestionIndex:chosen.i,action:text(chosen.x.action||chosen.x.label,180),kind:text(chosen.x.kind||"",30),progression:chosen.x.progression===true,targetId:chosen.x.targetId||null,combatAction:null,reason:`${reason}; deterministic recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true};
+ const loc=text(snapshot?.world?.location||"目前位置",100)||"目前位置",objective=text(snapshot?.quest?.objectives?.[0]||snapshot?.quest?.title||"目前目標",100);
+ const action=stall>=7?`停止重複目前互動，沿${loc}現在可見且可安全接近的出口或通道移動一小段，尋找能推進「${objective}」的新人物或可驗證線索`:`在${loc}換一個未嘗試的方向，確認最明顯的出口、人物或可互動物件，取得一項能推進「${objective}」的新線索`;
+ return {mode:"free",suggestionIndex:null,action:text(action,180),kind:stall>=7?"TRAVEL":"OBSERVE",progression:true,targetId:null,combatAction:null,reason:`${reason}; deterministic free recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true}
 }
 
 export function normalizeAutotestDecision(value,snapshot={},recentActions=[]){
@@ -125,33 +154,46 @@ export function normalizeAutotestDecision(value,snapshot={},recentActions=[]){
   if(recentAutotestStalled(recentActions)&&(chosen?.progression!==true||["OBSERVE","GENERAL"].includes(String(chosen?.kind||"").toUpperCase()))){
    const alt=antiStallSuggestion(suggestions,recent);if(alt){i=suggestions.indexOf(alt);chosen=alt}
   }
-  return {mode:"suggestion",suggestionIndex:i,action:text(chosen?.action||chosen?.label,180),kind:text(chosen?.kind||"",30),progression:chosen?.progression===true,combatAction:null,reason,goalReached,goalEvidence}
+  return {mode:"suggestion",suggestionIndex:i,action:text(chosen?.action||chosen?.label,180),kind:text(chosen?.kind||"",30),progression:chosen?.progression===true,targetId:chosen?.targetId||null,combatAction:null,reason,goalReached,goalEvidence}
  }
  if(parsed?.mode==="free"&&text(parsed?.action,180)){
-  return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),combatAction:null,reason,goalReached,goalEvidence}
+  return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence}
  }
  if(suggestions.length){
-  const i=Math.max(0,suggestions.findIndex(x=>!recent.has(text(x?.action||x?.label,180).toLowerCase()))),chosen=suggestions[i<0?0:i];
-  return {mode:"suggestion",suggestionIndex:i<0?0:i,action:text(chosen?.action||chosen?.label,180),combatAction:null,reason:"AI decision fallback",goalReached,goalEvidence}
+  const rawIndex=suggestions.findIndex(x=>!recent.has(text(x?.action||x?.label,180).toLowerCase())),i=rawIndex<0?0:rawIndex,chosen=suggestions[i];
+  return {mode:"suggestion",suggestionIndex:i,action:text(chosen?.action||chosen?.label,180),kind:text(chosen?.kind||"",30),progression:chosen?.progression===true,targetId:chosen?.targetId||null,combatAction:null,reason:"AI decision fallback",goalReached,goalEvidence}
  }
- return {mode:"free",suggestionIndex:null,action:"觀察四周並確認目前最明顯的變化",combatAction:null,reason:"No suggestion available",goalReached,goalEvidence}
+ return {mode:"free",suggestionIndex:null,action:"觀察四周並確認目前最明顯的變化",kind:"OBSERVE",targetId:null,combatAction:null,reason:"No suggestion available",goalReached,goalEvidence}
 }
 
 export async function decideAutotestAction(state,{recentActions=[],customCondition="",signal,disableTimeout=false}={}){
- const snapshot=playerVisibleAutotestSnapshot(state),goal=text(customCondition,500);
+ const snapshot=playerVisibleAutotestSnapshot(state),goal=text(customCondition,500),worldId=text(state?.world?.id||"WORLD",160),circuit=decisionCircuit(worldId),now=Date.now();
+ if(circuit.openUntil>now){const decision=deterministicAutotestDecision(snapshot,recentActions,"Provider decision circuit open");recordDebug("AUTOTEST_DECISION_FALLBACK",{worldId,reason:"CIRCUIT_OPEN",openUntil:circuit.openUntil,action:decision.action,mode:decision.mode});return decision}
+ if(circuit.openUntil&&circuit.openUntil<=now){circuit.openUntil=0;circuit.failures=0;recordDebug("AUTOTEST_DECISION_CIRCUIT_HALF_OPEN",{worldId})}
  const system=[
   "你是 Elyndra 的自動遊玩測試玩家。你的任務不是寫故事，而是像真實玩家一樣根據目前能看見和已知的情報選下一步。",
   "你只能使用 payload.playerVisible 內的情報；不得假設、猜測或利用任何 hidden canon、director state、未探索地點、未知 NPC 或世界真相。",
   "優先選擇能推進目前目標、取得新情報、測試不同系統並避免重複循環的合理行動。",
-  "若 recentActions 最近連續兩回合 progressed=false，視為卡關：不要繼續同類低風險 OBSERVE；優先選 progression=true 的 TRAVEL、SOCIAL、INTERACT、RISKY 或自由行動去接觸人物、出口、道路與任務目標。",
+  "若 recentActions 最近連續兩回合 progressed=false，視為卡關：不要繼續同類低風險 OBSERVE；優先選 progression=true 的 TRAVEL、SOCIAL、INTERACT、RISKY 或自由行動去接觸人物、出口、道路與任務目標。若連續3/5/7回合未推進，必須逐級改變行動種類、目標與位置，不能只是換句話重複詢問同一人物。",
   "mode=suggestion 時用 suggestionIndex 指向現有按鈕；mode=free 時可以自行寫一個玩家真的可以輸入的行動；戰鬥時 mode=combat 並從 attack/defend/retreat 選一個。",
   "不要輸出 Markdown。只輸出 JSON：{\"mode\":\"suggestion|free|combat\",\"suggestionIndex\":0,\"action\":\"...\",\"combatAction\":\"attack|defend|retreat\",\"reason\":\"...\",\"goalReached\":false,\"goalEvidence\":\"...\"}。",
   goal?"另有測試停止條件："+goal+"。只有 playerVisible 已有具體證據證明條件達成時，goalReached 才可為 true；證據不足必須 false。":"沒有額外自訂停止條件。"
  ].join("\n");
- const raw=await directChat({aiTask:"action",timeoutMs:45000,disableTimeout,maxOutputTokens:700,temperature:.35,signal,system,user:JSON.stringify({playerVisible:snapshot,recentActions:list(recentActions).slice(-8),customStopCondition:goal||null})});
- const decision=normalizeAutotestDecision(raw,snapshot,recentActions);
- recordDebug("AUTOTEST_AI_DECISION",{mode:decision.mode,action:decision.action,combatAction:decision.combatAction,suggestionIndex:decision.suggestionIndex,goalReached:decision.goalReached,reason:decision.reason});
- return decision
+ try{
+  const raw=await directChat({aiTask:"action",timeoutMs:45000,retryOnTimeout:false,disableTimeout,maxOutputTokens:700,temperature:.35,signal,system,user:JSON.stringify({playerVisible:snapshot,recentActions:list(recentActions).slice(-8),customStopCondition:goal||null})});
+  circuit.failures=0;circuit.openUntil=0;
+  const decision=normalizeAutotestDecision(raw,snapshot,recentActions);
+  recordDebug("AUTOTEST_AI_DECISION",{mode:decision.mode,action:decision.action,combatAction:decision.combatAction,suggestionIndex:decision.suggestionIndex,goalReached:decision.goalReached,reason:decision.reason});
+  return decision
+ }catch(error){
+  if(decisionAborted(error,signal))throw error;
+  if(!decisionTransientFailure(error))throw error;
+  circuit.failures+=1;
+  if(circuit.failures>=DECISION_CIRCUIT_FAILURES){circuit.openUntil=Date.now()+DECISION_CIRCUIT_OPEN_MS;recordDebug("AUTOTEST_DECISION_CIRCUIT_OPEN",{worldId,failures:circuit.failures,openUntil:circuit.openUntil,error:text(error?.message||error,300)})}
+  const decision=deterministicAutotestDecision(snapshot,recentActions,error?.message||"Provider decision failure");
+  recordDebug("AUTOTEST_DECISION_FALLBACK",{worldId,reason:"PROVIDER_FAILURE",failures:circuit.failures,openUntil:circuit.openUntil||0,error:text(error?.message||error,300),action:decision.action,mode:decision.mode});
+  return decision
+ }
 }
 
 export function autotestStateFingerprint(state={}){
@@ -195,19 +237,30 @@ export function autotestWorldSummary(state={}){
  }
 }
 
+function reportedWorldStatus(world={}){
+ if(world.status==="FAILED")return "FAILED";
+ if(world.phase==="PLAY"&&Math.max(0,Number(world.turns)||0)===0)return "PLAY_NOT_STARTED";
+ const quality=String(world?.generation?.diagnostics?.quality||"").toUpperCase();
+ if(["DEGRADED","SEVERELY_DEGRADED"].includes(quality))return "DEGRADED";
+ return world.status||"COMPLETED"
+}
 export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=0,endedAt=Date.now()}={}){
  const issues=[],actions=worlds.flatMap(w=>list(w.actions)),generationFailures=worlds.filter(w=>w.status==="FAILED"&&w.phase==="GENERATION"),turnFailures=actions.filter(x=>x.error);
  for(const w of generationFailures)issues.push({severity:"ERROR",type:"WORLD_GENERATION_FAILED",worldIndex:w.index,message:text(w.error,500)});
  for(const row of turnFailures.slice(0,50))issues.push({severity:"ERROR",type:"TURN_FAILED",worldIndex:row.worldIndex,turn:row.turn,message:text(row.error,500)});
  for(const w of worlds){
-  const rows=list(w.actions),recent=[];
-  let stagnant=0;
+  const effective=reportedWorldStatus(w),quality=String(w?.generation?.diagnostics?.quality||"").toUpperCase();
+  if(effective==="PLAY_NOT_STARTED")issues.push({severity:"ERROR",type:"PLAY_NOT_STARTED",worldIndex:w.index,message:"World entered PLAY phase but completed zero turns."});
+  if(["DEGRADED","SEVERELY_DEGRADED"].includes(quality))issues.push({severity:quality==="SEVERELY_DEGRADED"?"ERROR":"WARN",type:"GENERATION_"+quality,worldIndex:w.index,message:`Generation quality=${quality}`});
+  const rows=list(w.actions),recent=[];let stagnant=0;
   for(const row of rows){
    const action=text(row?.decision?.action||row?.decision?.combatAction,180).toLowerCase();
    if(action&&recent.slice(-3).every(x=>x===action)&&recent.length>=3)issues.push({severity:"WARN",type:"REPETITIVE_ACTION_LOOP",worldIndex:w.index,turn:row.turn,message:action});
    recent.push(action);
    if(row.beforeFingerprint&&row.beforeFingerprint===row.afterFingerprint)stagnant++;else stagnant=0;
-   if(stagnant>=5){issues.push({severity:"WARN",type:"NO_STATE_PROGRESS",worldIndex:w.index,turn:row.turn,message:"5 consecutive turns produced the same state fingerprint"});stagnant=0}
+   if(stagnant===3)issues.push({severity:"WARN",type:"STATE_PROGRESS_STALLED",worldIndex:w.index,turn:row.turn,message:"3 consecutive turns produced the same state fingerprint; recovery should switch strategy."});
+   if(stagnant===5)issues.push({severity:"WARN",type:"NO_STATE_PROGRESS",worldIndex:w.index,turn:row.turn,message:"5 consecutive turns produced the same state fingerprint; recovery should switch target/action class."});
+   if(stagnant>=7){issues.push({severity:"ERROR",type:"STATE_PROGRESS_RECOVERY_FAILED",worldIndex:w.index,turn:row.turn,message:"7 consecutive turns produced the same state fingerprint; forced recovery did not create progress."});stagnant=0}
   }
  }
  const mirroredTypes=new Set(["AUTOTEST_WORLD_FAILED","AUTOTEST_TURN_FAILED"]);
@@ -239,11 +292,11 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
  generationStages.aiCompletionRatePct=generationStages.total?Math.round(generationStages.ai/generationStages.total*100):0;generationStages.fallbackCoveragePct=generationStages.total?Math.round(generationStages.fallback/generationStages.total*100):0;
  const degradedWorlds=diagnostics.filter(d=>!["HEALTHY","RECOVERED"].includes(String(d?.quality||""))).length;
  const tokenTotals=ai.reduce((out,e)=>{const u=e?.data?.usage||{};out.input+=Number(u.input)||0;out.output+=Number(u.output)||0;out.reasoning+=Number(u.reasoning)||0;out.cached+=Number(u.cached)||0;out.total+=Number(u.total)||0;return out},{input:0,output:0,reasoning:0,cached:0,total:0});
- const latencyTotal=ai.reduce((n,e)=>n+(Number(e?.data?.latencyMs)||0),0);
+ const latencyTotal=ai.reduce((n,e)=>n+(Number(e?.data?.latencyMs)||0),0),effectiveWorlds=worlds.map(w=>({...w,reportedStatus:reportedWorldStatus(w)}));
  return {
   schema:"elyndra-autotest-report-v1",startedAt:new Date(startedAt||Date.now()).toISOString(),endedAt:new Date(endedAt).toISOString(),durationMs:Math.max(0,endedAt-(startedAt||endedAt)),
-  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:worlds.filter(w=>w.status==="COMPLETED").length,worldsFailed:worlds.filter(w=>w.status==="FAILED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiBackgroundInterruptions:backgroundFailedAttempts.length,backgroundWindowCount:backgroundWindows.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
+  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:effectiveWorlds.filter(w=>w.reportedStatus==="FAILED").length,worldsDegraded:effectiveWorlds.filter(w=>w.reportedStatus==="DEGRADED").length,worldsPlayNotStarted:effectiveWorlds.filter(w=>w.reportedStatus==="PLAY_NOT_STARTED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiBackgroundInterruptions:backgroundFailedAttempts.length,backgroundWindowCount:backgroundWindows.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
   stopReasons:Object.fromEntries([...new Set(worlds.map(w=>w.stopReason).filter(Boolean))].map(reason=>[reason,worlds.filter(w=>w.stopReason===reason).length])),
-  issues,worlds:worlds.map(w=>({index:w.index,status:w.status,phase:w.phase,turns:Number(w.turns)||0,stopReason:w.stopReason||"",error:w.error||"",summary:w.summary||null,generation:w.generation||null}))
+  issues,worlds:effectiveWorlds.map(w=>({index:w.index,status:w.reportedStatus,rawStatus:w.status,phase:w.phase,turns:Number(w.turns)||0,stopReason:w.stopReason||"",error:w.error||"",summary:w.summary||null,generation:w.generation||null}))
  }
 }
