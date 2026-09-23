@@ -18,81 +18,16 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
-      - name: Harden reusable player evidence and toast DOM
-        shell: bash
-        run: |
-          python <<'PY'
-          from pathlib import Path
-
-          p=Path('src/state-sync.js')
-          s=p.read_text()
-          anchor='''function discoverySourceGrounded(state,raw){'''
-          helper='''export function playerVisibleEvidenceText(state,extra=""){
- const out=[];const direct=clean(extra,2400);if(direct)out.push(direct);const narrative=clean(state?.narrative,1200);if(narrative)out.push(narrative);
- for(const e of (state?.events||[]).slice(-20))if(e?.type==="NPC_CONVERSATION"&&e?.visibility!=="INTERNAL")out.push(clean(e.summary,900));
- for(const doc of (state?.world?.documents?.documents||[]).filter(x=>x?.read===true).slice(-20))out.push([clean(doc?.title,160),...(doc?.claims||[]).map(x=>clean(x?.text,700))].filter(Boolean).join(" "));
- return out.join("\\n")
-}
-'''
-          if 'export function playerVisibleEvidenceText' not in s:
-              if anchor not in s: raise SystemExit('state-sync evidence anchor missing')
-              s=s.replace(anchor,helper+anchor,1)
-          old='''function acquiredItemGrounded(raw,context={}){
- const name=clean(raw?.item?.name,100);return Boolean(name&&evidenceMentions(context?.observableText,name))
-}'''
-          new='''function acquiredItemGrounded(state,raw,context={}){
- const name=clean(raw?.item?.name,100);return Boolean(name&&evidenceMentions(playerVisibleEvidenceText(state,context?.observableText),name))
-}'''
-          if old not in s: raise SystemExit('acquiredItemGrounded block missing')
-          s=s.replace(old,new,1)
-          old='if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(raw,context))'
-          new='if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(state,raw,context))'
-          if old not in s: raise SystemExit('ACQUIRE_ITEM grounding call missing')
-          s=s.replace(old,new,1)
-          p.write_text(s)
-
-          p=Path('src/acquisition-notifier.js')
-          s=p.read_text()
-          start=s.index('export function pushAcquisitionNotification(row){')
-          end=s.index('export function notifyGameplayAcquisitions',start)
-          safe='''export function pushAcquisitionNotification(row){
- const root=host();if(!root||!row)return;while(root.children.length>=4)root.firstElementChild?.remove();
- const el=document.createElement("div");el.className=`gain-toast gain-toast-${String(row.type||"GENERIC").toLowerCase()}`;
- const icon=document.createElement("div");icon.className="gain-toast-icon";icon.textContent=iconFor(row.type);
- const copy=document.createElement("div");copy.className="gain-toast-copy";
- const label=document.createElement("small");label.textContent=clean(row.title,40);const name=document.createElement("strong");name.textContent=clean(row.name,100);copy.append(label,name);
- if(row.detail){const detail=document.createElement("span");detail.textContent=clean(row.detail,160);copy.appendChild(detail)}el.append(icon,copy);root.appendChild(el);
- requestAnimationFrame(()=>el.classList.add("show"));setTimeout(()=>{el.classList.remove("show");setTimeout(()=>el.remove(),260)},3000)
-}
-'''
-          s=s[:start]+safe+s[end:]
-          p.write_text(s)
-
-          p=Path('test/runtime-grounding-v05418.test.js')
-          s=p.read_text()
-          test='''
-test("item name evidence can come from prior visible NPC dialogue or a read document",()=>{
- const npc=baseState();npc.events.push({id:"E1",type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:"N1",summary:"工程師：你要找的是藍光碎屑。"});
- let r=groundStatePatch(npc,{baseRevision:0,operations:[{op:"ACQUIRE_ITEM",item:{name:"藍光碎屑",category:"MATERIAL",quantity:1}}]},{action:"撿起藍光碎屑",roll:{success:true}});assert.equal(r.patch.operations.length,1);
- const doc=baseState();doc.world.documents.documents.push({id:"D2",title:"倉庫清單",read:true,claims:[{text:"紅銅鑰匙存放於北側架。"}]});
- r=groundStatePatch(doc,{baseRevision:0,operations:[{op:"ACQUIRE_ITEM",item:{name:"紅銅鑰匙",category:"KEY",quantity:1}}]},{action:"拿起紅銅鑰匙",roll:{success:true}});assert.equal(r.patch.operations.length,1)
-});
-'''
-          if 'item name evidence can come from prior visible NPC dialogue' not in s:s+=test
-          sec='''
-test("acquisition toast renders generated labels through textContent instead of innerHTML",async()=>{const source=await import("node:fs/promises").then(fs=>fs.readFile(new URL("../src/acquisition-notifier.js",import.meta.url),"utf8"));assert.doesNotMatch(source,/\\.innerHTML\\s*=/);assert.match(source,/textContent=/)});
-'''
-          if 'acquisition toast renders generated labels through textContent' not in s:s+=sec
-          p.write_text(s)
-          PY
+      - name: Apply evidence and UI hardening
+        run: python scripts/oneshot-evidence-ui-hardening.py
       - name: Run full test suite
         run: npm test
-      - name: Commit and remove one-shot workflow
+      - name: Commit and remove one-shot files
         shell: bash
         run: |
           git config user.name "OpenAI"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/oneshot-evidence-ui-hardening.yml
+          git rm .github/workflows/oneshot-evidence-ui-hardening.yml scripts/oneshot-evidence-ui-hardening.py
           git add src/state-sync.js src/acquisition-notifier.js test/runtime-grounding-v05418.test.js
           git commit -m "fix: harden reusable acquisition evidence and toast rendering [evidence-ui-done]"
           git push origin HEAD:main
