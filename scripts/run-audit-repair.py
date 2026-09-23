@@ -1,5 +1,5 @@
 from pathlib import Path
-import re, subprocess, textwrap, traceback
+import subprocess, textwrap, traceback
 
 status = []
 error = None
@@ -19,17 +19,21 @@ else:
         status.append('embedded repair failed')
         status.append(traceback.format_exc())
 
-# Normalize the generated travel helper if present.
+# Normalize the generated travel helper without parsing the invalid regex literal.
 p = Path('src/game-engine.js')
 if p.exists():
     s = p.read_text(encoding='utf-8')
+    marker = 'function explicitTravelCommand(value,name)'
+    next_marker = 'function actionProfile'
+    start = s.find(marker)
+    end = s.find(next_marker, start + len(marker)) if start >= 0 else -1
     replacement = '''function explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim(),lower=normalized.toLowerCase(),t=target.toLowerCase();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||lower===`travel to ${t}`||lower===`go to ${t}`||lower===`walk to ${t}`}\n'''
-    s2, count = re.subn(r'function explicitTravelCommand\(value,name\)\{.*?\}(?=\s*function actionProfile)', replacement, s, count=1, flags=re.S)
-    if count == 1:
-        p.write_text(s2, encoding='utf-8')
-        status.append('explicitTravelCommand normalized')
+    if start >= 0 and end > start:
+        s = s[:start] + replacement + s[end:]
+        p.write_text(s, encoding='utf-8')
+        status.append('explicitTravelCommand normalized by boundaries')
     else:
-        status.append(f'explicitTravelCommand normalization skipped count={count}')
+        status.append(f'explicitTravelCommand normalization skipped start={start} end={end}')
 
 # Capture exact JavaScript syntax failures before the workflow gate runs.
 changed_js = [
@@ -54,7 +58,7 @@ subprocess.run(['git','config','user.email','actions@users.noreply.github.com'],
 subprocess.run(['git','add','app.js','index.html','package.json','src','api','test','.env.example','audit-repair-status.txt'], check=True)
 changed = subprocess.run(['git','diff','--cached','--quiet']).returncode != 0
 if changed:
-    subprocess.run(['git','commit','-m','wip: capture audit syntax diagnostics'], check=True)
+    subprocess.run(['git','commit','-m','fix: normalize audited travel command parser'], check=True)
     subprocess.run(['git','push','origin','HEAD:fix/audit-2026-09-24-all'], check=True)
 
 print('\n'.join(status))
