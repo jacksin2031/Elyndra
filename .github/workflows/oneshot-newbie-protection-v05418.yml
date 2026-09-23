@@ -1,0 +1,33 @@
+name: One-shot v0.54.18 newbie protection
+
+on:
+  push:
+    branches:
+      - fix/v0.54.18-newbie-protection-runtime
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply runtime patch
+        run: python .github/scripts/patch-newbie-protection-v05418.py
+      - name: Run full test suite
+        run: npm test
+      - name: Commit patch and remove one-shot files
+        run: |
+          rm -f .github/scripts/patch-newbie-protection-v05418.py
+          rm -f .github/workflows/oneshot-newbie-protection-v05418.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: add newbie protection and repair runtime progression"
+          git push origin HEAD:fix/v0.54.18-newbie-protection-runtime
