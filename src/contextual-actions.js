@@ -1,4 +1,4 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=54008";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=54016";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const RISK_LABEL=Object.freeze({LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""});
@@ -169,6 +169,24 @@ export function suggestionPresentation(state,row){
  if(difficulty==="hard")return {label:x.label,meta:RISK_LABEL[x.risk]||""};
  const parts=[x.skillHint,RISK_LABEL[x.risk],x.consequenceHint].filter(Boolean);
  return {label:x.label,meta:parts.join(" · "),approach:APPROACH_LABEL[x.approach]||""}
+}
+
+export function groundedTravelDestination(state,action="",roll={},intent={}){
+ if(roll?.success!==true)return null;
+ const inferred=inferActionKind(action),kind=String(intent?.kind||inferred).toUpperCase(),semantic=String(intent?.intent||"").toUpperCase();
+ if(kind!=="TRAVEL"&&semantic!=="TRAVEL"&&inferred!=="TRAVEL")return null;
+ const locations=Array.isArray(state?.world?.registry?.locations)?state.world.registry.locations:[],currentName=String(state?.player?.location||state?.world?.state?.location||""),current=locations.find(x=>x?.name===currentName||x?.id===currentName);
+ if(!current)return null;
+ const byId=new Map(locations.filter(Boolean).map(x=>[String(x.id||""),x])),routes=Array.isArray(state?.world?.travel?.routes)?state.world.travel.routes:[],adjacent=[];
+ for(const route of routes){
+  if(!route||route.open===false)continue;let id="";
+  if(String(route.fromId||"")===String(current.id||""))id=String(route.toId||"");else if(String(route.toId||"")===String(current.id||""))id=String(route.fromId||"");else continue;
+  const target=byId.get(id);if(!target||target===current||Array.isArray(target.accessRequirements)&&target.accessRequirements.length)continue;
+  if(!adjacent.some(x=>String(x.id)===String(target.id)))adjacent.push(target)
+ }
+ const q=String(action||"");
+ const explicit=adjacent.find(x=>x?.name&&q.includes(String(x.name)));if(explicit)return explicit;
+ return adjacent.length===1?adjacent[0]:null
 }
 
 export function groundedSuggestionFailForward(state,row,roll={}){

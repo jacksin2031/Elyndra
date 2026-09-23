@@ -612,3 +612,11 @@ OpenAI、Gemini、Agnes 都可在 AI 設定選擇「標準」或「Elyndra 自�
 - Opening Society recovers missing root historyRefs from its own faction, and orphan lore-only Cast rows are folded back into the preceding NPC before cross-stage validation.
 - Future generation gets a 3000-token structured-output floor and a 70s ceiling, with tighter prose limits, to avoid the v0.54.12 2200-token truncation + retry timeout pattern.
 - Model JSON repair now handles missing commas between properties. Single-op StatePatch responses recover their transport envelope before the normal capability and grounding validation.
+
+
+### v0.54.16 — Grounded Travel & Progress Recovery
+
+- 修正複合行動中的 TRAVEL 語義：`停止詢問／不再追問` 後實際離開或前進，不再因舊社交字詞被錯分為 SOCIAL；同地點觀察仍保持 OBSERVE。
+- 成功 TRAVEL 若行動明確點名相鄰 Canon 地點，或當前只有唯一一條可通行相鄰 Canon 路線，Engine 會在 State Sync 空回應／失敗時安全落實移動；多出口時絕不替玩家猜路。
+- 成功且標記 progression 的預驗證行動，即使 State Sync 判定 ENGINE_ONLY，也會把既有 Location／Event／NPC affordance 轉成 grounded Knowledge，避免只有 Scene 敘事而 state fingerprint 長期不變。
+- Model JSON parser 可安全補回最多四層「只缺尾端 closing brace/bracket」的截斷輸出；內部結構錯誤仍然拒絕。

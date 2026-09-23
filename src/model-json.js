@@ -39,6 +39,17 @@ function insertMissingPropertyCommas(value){
  return out
 }
 
+function closeUnfinishedModelJSON(value){
+ let inString=false,escaped=false,stack=[];
+ for(const ch of value){
+  if(inString){if(escaped)escaped=false;else if(ch==="\\")escaped=true;else if(ch==='"')inString=false;continue}
+  if(ch==='"'){inString=true;continue}
+  if(ch==='{')stack.push('}');else if(ch==='[')stack.push(']');else if(ch==='}'||ch===']'){if(stack.at(-1)!==ch)return value;stack.pop()}
+ }
+ if(inString||!stack.length||stack.length>4)return value;
+ return value+[...stack].reverse().join('')
+}
+
 export function parseModelJSON(raw){
  const source=String(raw??"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```$/,"").trim();
  if(!source)throw new Error("INVALID_MODEL_JSON: empty response");
@@ -54,6 +65,8 @@ export function parseModelJSON(raw){
   if(structural!==repaired)try{return JSON.parse(structural)}catch(error){lastError=error}
   const properties=insertMissingPropertyCommas(structural);
   if(properties!==structural)try{return JSON.parse(properties)}catch(error){lastError=error}
+  const closed=closeUnfinishedModelJSON(properties);
+  if(closed!==properties)try{return JSON.parse(closed)}catch(error){lastError=error}
  }
  const detail=lastError?.message||"parse failed";
  throw new Error("INVALID_MODEL_JSON: "+detail)

@@ -9,11 +9,11 @@ import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=48000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=51000";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=54013";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=54016";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
-import {normalizeActionIntent} from "./action-intent.js?v=54008";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54013";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54013";
+import {normalizeActionIntent} from "./action-intent.js?v=54016";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54016";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54016";
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=54013";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
