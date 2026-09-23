@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import {normalizeRuntimeLocation,bindRuntimeClaims} from "../src/runtime-generation-normalizer.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {groundStatePatch} from "../src/state-sync.js";
@@ -28,4 +29,10 @@ test("v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locati
  r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"不存在"}]},{action:"前進"});assert.equal(r.patch.operations.length,0);assert.equal(r.rejected[0].reason,"MOVE_TARGET_NOT_CANONICAL");
  r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"哨站"}]},{action:"前進"});assert.equal(r.patch.operations.length,1);
  r=groundStatePatch(state,{operations:[{op:"GENERATE_CONTENT",generation:{locations:[{name:"新區"}]}},{op:"MOVE_PLAYER",location:"新區"}]},{action:"探索未知新區"});assert.equal(r.patch.operations.some(x=>x.op==="MOVE_PLAYER"),true)
+});
+
+test("v0.54.12 ai-client release edges follow changed turn contracts",async()=>{
+ const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ assert.match(client,/\.\/turn-outcome\.js\?v=54012/);
+ assert.match(client,/\.\/ai-runtime-contracts\.js\?v=54012/)
 });
