@@ -1,0 +1,38 @@
+from pathlib import Path
+
+p = Path("src/world-compiler.js")
+s = p.read_text(encoding="utf-8")
+anchor = '''export function openingCastFutureIssues(cast,future){
+ const issues=[],rows=castPlayerFacingText(cast),events=Array.isArray(future?.worldTimeline)?future.worldTimeline:[];
+ for(const [i,event] of events.entries()){
+  if((Number(event?.earliestDay)||1)<=1)continue;
+  if(rows.some(row=>FUTURE_CURRENT_STATE.test(row)&&futureSemanticOverlap(row,event)>=2))issues.push("CAST_FUTURE_"+i+"_PREMATURE_CURRENT_STATE")
+ }
+ return [...new Set(issues)]
+}
+'''
+addition = anchor + '''export function openingCastChronologyIssues(anchor,history,cast){
+ const oldHistoryIds=new Set((Array.isArray(history)?history:[]).filter(event=>/(?:[1-9]\\d{2,}\\s*年|百年|數百年|數世紀|centur|hundred years)/i.test(JSON.stringify(event||{}))).map(event=>text(event?.id)).filter(Boolean));
+ if(!oldHistoryIds.size)return [];
+ const issues=[],worldText=JSON.stringify(anchor||{});
+ for(const [i,npc] of (Array.isArray(cast?.npcs)?cast.npcs:[]).entries()){
+  const refs=uniq(npc?.historyRefs);if(!refs.some(id=>oldHistoryIds.has(id)))continue;
+  const npcText=JSON.stringify(npc||{});
+  if(/後代|後裔|子孫|傳承者|繼承人|後世|descendant|heir|successor/i.test(npcText))continue;
+  const firstHand=/(?:曾是|就是|身為|作為|曾任|親自|親歷|參與).{0,24}(?:初代|始祖|創建者|創始者)|(?:初代|始祖|創建者|創始者).{0,24}(?:本人|工程師|成員|領袖|祭司|設計者|研發者)|\\b(?:founder|first[- ]generation)\\b/i.test(npcText);
+  if(!firstHand)continue;
+  const longevity=/長壽|延命|延壽|不老|不死|休眠|凍眠|時間停滯|時間凍結|immortal|longevity|lifespan|stasis/i.test(worldText+" "+npcText);
+  if(!longevity)issues.push("CAST_NPC_"+i+"_TEMPORAL_PLAUSIBILITY")
+ }
+ return [...new Set(issues)]
+}
+'''
+if s.count(anchor) != 1:
+    raise SystemExit(f"chronology insertion anchor count={s.count(anchor)}")
+s = s.replace(anchor, addition, 1)
+old = "issues.push(...openingCastFutureIssues(cast,future))"
+new = "issues.push(...openingCastFutureIssues(cast,future),...openingCastChronologyIssues(anchor,history,cast))"
+if s.count(old) != 1:
+    raise SystemExit(f"validation hook count={s.count(old)}")
+s = s.replace(old, new, 1)
+p.write_text(s, encoding="utf-8")
