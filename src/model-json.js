@@ -19,6 +19,18 @@ function stripTrailingModelCommas(value){
  return out
 }
 
+function insertMissingModelCommas(value){
+ let out="",inString=false,escaped=false;
+ for(let i=0;i<value.length;i++){
+  const ch=value[i];
+  if(inString){out+=ch;if(escaped)escaped=false;else if(ch==="\\")escaped=true;else if(ch==='"')inString=false;continue}
+  if(ch==='"'){inString=true;out+=ch;continue}
+  if(ch==='{'||ch==='['){let j=out.length-1;while(j>=0&&/\s/.test(out[j]))j--;if(out[j]==='}'||out[j]===']')out=out.slice(0,j+1)+','+out.slice(j+1)}
+  out+=ch
+ }
+ return out
+}
+
 export function parseModelJSON(raw){
  const source=String(raw??"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```$/,"").trim();
  if(!source)throw new Error("INVALID_MODEL_JSON: empty response");
@@ -30,6 +42,8 @@ export function parseModelJSON(raw){
   catch(error){lastError=error}
   const repaired=stripTrailingModelCommas(candidate);
   if(repaired!==candidate)try{return JSON.parse(repaired)}catch(error){lastError=error}
+  const structural=insertMissingModelCommas(repaired);
+  if(structural!==repaired)try{return JSON.parse(structural)}catch(error){lastError=error}
  }
  const detail=lastError?.message||"parse failed";
  throw new Error("INVALID_MODEL_JSON: "+detail)

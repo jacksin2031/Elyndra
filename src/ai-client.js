@@ -1,7 +1,7 @@
 import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54008";
 import {seedDirective} from "./seed-contract.js?v=48000";
 import {recognitionForNpc} from "./recognition-engine.js?v=276";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54011";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54012";
 import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54001";
 import {sanitizePlayerText} from "./runtime-guard.js?v=35000";
 import {helperSnapshot} from "./helper-context.js?v=54005";
@@ -9,16 +9,17 @@ import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=48000";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=276";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=51000";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=54007";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=54012";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=35000";
 import {normalizeActionIntent} from "./action-intent.js?v=54008";
 import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54008";
 import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54008";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=54006";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=54012";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54001";
 import {historyDepthSnapshot} from "./history-depth.js?v=47000";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54001";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54011";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54012";
+import {normalizeRuntimeLocation,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=54012";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -550,27 +551,12 @@ function emptyRuntimeGeneration(){return {locations:[],npcs:[],factions:[],sideQ
 function runtimeRoot(value){return value&&typeof value==="object"&&!Array.isArray(value)?(value.generation&&typeof value.generation==="object"&&!Array.isArray(value.generation)?value.generation:value):{}}
 function runtimeRows(value,key,limit=0){const rows=Array.isArray(runtimeRoot(value)?.[key])?runtimeRoot(value)[key]:[];return rows.slice(0,Math.max(0,Number(limit)||0))}
 function runtimeIdentity(value){return String(value||"").trim().toLocaleLowerCase()}
-function cleanRuntimeClaimRefs(plan,key,row){
- const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copy={...row},refs=Array.isArray(row?.claimRefs)?row.claimRefs.map(String).filter(Boolean):[];
- copy.claimRefs=[...new Set(refs.filter(id=>{
-  const claim=claims.get(id);if(!claim)return true;
-  if(claim.type!=="BLUEPRINT_DEFINITION")return true;
-  return key==="definitions"&&String(row?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()
- }))];return copy
-}
 function runtimeNewLocations(state,plan,rows){
- const existing=new Set((state?.world?.registry?.locations||[]).map(x=>runtimeIdentity(x?.name)).filter(Boolean));
- return (rows||[]).filter(row=>{const name=runtimeIdentity(row?.name);return name&&!existing.has(name)}).map(row=>cleanRuntimeClaimRefs(plan,"locations",row))
+ const existing=new Set((state?.world?.registry?.locations||[]).map(x=>runtimeIdentity(x?.name)).filter(Boolean)),allowedWeatherIds=(state?.world?.bible?.weatherSystem?.phenomena||[]).map(x=>String(x?.id||"")).filter(Boolean);
+ const fresh=(rows||[]).filter(row=>{const name=runtimeIdentity(row?.name);return name&&!existing.has(name)}).map(row=>normalizeRuntimeLocation(row,allowedWeatherIds));
+ return bindRuntimeClaims(plan,"locations",fresh)
 }
-function runtimeDefinitions(plan,rows){
- const defs=(rows||[]).map(row=>cleanRuntimeClaimRefs(plan,"definitions",row)),claims=(plan?.claims||[]).filter(x=>x.type==="BLUEPRINT_DEFINITION"),used=new Set(defs.flatMap(x=>Array.isArray(x.claimRefs)?x.claimRefs.map(String):[]));
- for(const claim of claims){
-  if(used.has(String(claim.id)))continue;
-  const hit=defs.find(x=>String(x?.kind||"").toUpperCase()===String(claim.definitionKind||"").toUpperCase()&&!(x.claimRefs||[]).some(id=>used.has(String(id))));
-  if(hit){hit.claimRefs=[...new Set([...(hit.claimRefs||[]),String(claim.id)])];used.add(String(claim.id))}
- }
- return defs
-}
+function runtimeDefinitions(plan,rows){return bindRuntimeClaims(plan,"definitions",rows||[])}
 function runtimeRefs(rows,key){return new Set((rows||[]).flatMap(row=>Array.isArray(row?.[key])?row[key]:[]).map(String).filter(Boolean))}
 function runtimeProgressErrors(state,plan,generation){
  const report=validateLazyGenerationCandidate(state,generation,plan);
@@ -608,7 +594,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
 
  if(!completedStages.has("RUNTIME_GEOGRAPHY")){generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
   signal,state,plan,maxOutputTokens:1600,temperature:.5,
-  system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
+  system:"你是 Elyndra Runtime Geography Architect。今次只完善世界的地理骨架與 World Catalog definition，不生成 NPC、Faction、SideQuest。地點先定物理環境、accessRequirements、weatherProfile、historyRefs、lore；文化與交易留給下一階段。accessRequirements 只能是 [] 或既有 Engine id 的結構化條件 [{type:"ITEM_OWNED|ITEM_USED|ITEM_SHOWN|ITEM_GIVEN|FACT_KNOWN|EVENT_OCCURRED",id:"既有 id",hint:"提示"}]；若沒有可引用的既有 id 必須輸出 []，自然語言危險／進入建議寫進 lore.story。weatherProfile 必須是 {zone:"",affinities:["既有 WTH id"],suppressions:["既有 WTH id"]}。lore 必須是 {story:"",unlockKeywords:[],minMatches:1}。BLUEPRINT_DEFINITION claim 必須由 matching kind definition 綁定；MEMORIAL legacy echo 必須由 location 綁定。"+baseRules+" 輸出 schema：{region,reason,locations:[{name,type,region,description,historyRefs,claimRefs,echoRefs,known:false,accessRequirements,weatherProfile,lore}],definitions:[{kind,name,description,traits,regions,historyRefs,claimRefs}]}。",
   user:()=>({payload:{...payload,allowedHistoryRefs,existingLocationNames},stage:"GEOGRAPHY",slots:{locations:slots.locations||0,definitions:slots.definitions||0},claims:plan.claims||[],legacyEchoes:(plan.legacyEchoes||[]).filter(x=>x.kind==="MEMORIAL"),instruction:"locations 最多生成 slots.locations；至少生成 1 個真正新地點即可完成本次 Geography checkpoint，不得重建 existingLocationNames。"}),
   apply:value=>{
    const root=runtimeRoot(value),locations=runtimeNewLocations(state,plan,runtimeRows(value,"locations",slots.locations)),definitions=runtimeDefinitions(plan,runtimeRows(value,"definitions",slots.definitions));
