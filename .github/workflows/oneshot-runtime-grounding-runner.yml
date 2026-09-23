@@ -30,6 +30,7 @@ jobs:
               raise SystemExit('embedded patch marker not found')
           raw=s.split(marker,1)[1].split("\n          PY",1)[0]
           code="\n".join(line[10:] if line.startswith("          ") else line for line in raw.splitlines())
+          code=code.replace("' if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,...revision};'","'if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,...revision};'")
           exec(compile(code,'embedded-runtime-grounding.py','exec'),{})
           PY
       - name: Run tests
