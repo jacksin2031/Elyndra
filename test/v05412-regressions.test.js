@@ -14,7 +14,8 @@ test("v0.54.12 Engine removes mismatched causal claim refs and binds them to a s
  const plan={claims:[{id:"C-F",type:"FUTURE_ANCHOR",historyRefs:["HIST-1"]},{id:"C-H",type:"HISTORY_ANCHOR",sourceRef:"HIST-1",historyRefs:["HIST-1"]}]};
  const rows=[{name:"錯誤地點",description:"x",historyRefs:["HIST-3"],claimRefs:["C-F"]},{name:"正確地點",description:"y",historyRefs:["HIST-1"],claimRefs:[]}];
  const out=bindRuntimeClaims(plan,"locations",rows);
- assert.deepEqual(out[0].claimRefs,[]);assert.deepEqual(new Set(out[1].claimRefs),new Set(["C-F","C-H"]))
+ assert.deepEqual(out[0].claimRefs,[]);assert.deepEqual(new Set(out[1].claimRefs),new Set(["C-F","C-H"]));
+ const definitions=bindRuntimeClaims(plan,"definitions",[{kind:"LANGUAGE",name:"史語",description:"x",historyRefs:["HIST-1"],claimRefs:["C-F"]}]);assert.deepEqual(definitions[0].claimRefs,[])
 });
 
 test("v0.54.12 parser repairs missing commas between model-generated array objects",()=>{
@@ -25,5 +26,6 @@ test("v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locati
  const state={player:{location:"礦坑"},world:{state:{location:"礦坑"},registry:{locations:[{id:"L1",name:"礦坑"},{id:"L2",name:"哨站"}]}}};
  let r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"礦坑"}]},{action:"前進"});assert.equal(r.patch.operations.length,0);assert.equal(r.rejected[0].reason,"MOVE_TARGET_UNCHANGED");
  r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"不存在"}]},{action:"前進"});assert.equal(r.patch.operations.length,0);assert.equal(r.rejected[0].reason,"MOVE_TARGET_NOT_CANONICAL");
- r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"哨站"}]},{action:"前進"});assert.equal(r.patch.operations.length,1)
+ r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"哨站"}]},{action:"前進"});assert.equal(r.patch.operations.length,1);
+ r=groundStatePatch(state,{operations:[{op:"GENERATE_CONTENT",generation:{locations:[{name:"新區"}]}},{op:"MOVE_PLAYER",location:"新區"}]},{action:"探索未知新區"});assert.equal(r.patch.operations.some(x=>x.op==="MOVE_PLAYER"),true)
 });

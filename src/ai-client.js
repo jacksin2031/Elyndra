@@ -612,7 +612,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
   signal,state,plan,maxOutputTokens:1400,temperature:.45,
   system:"你是 Elyndra Runtime Society Architect。地理與 definitions 已鎖定。今次只為新地點補 culture/trade，並按 slots 生成地方 Faction；不可改地點名稱、物理描述、weatherProfile 或 definitions。locationDetails 必須對 requiredLocationNames 每一個名稱逐字建立一項，不可漏項、改名或合併。Faction 必須引用已鎖定 history/location 因果，並優先實現 remainingClaims。"+baseRules+" 輸出 schema：{locationDetails:[{locationName,culture:{identity,etiquette,taboos,food,beliefs,architecture,clothing,hospitality,namingStyle,languageNotes},trade:{mode,currencies,commonBarter,foreignAcceptance,priceCulture,questReward,combatReward}}],factions:[{name,goal,description,historyRefs,claimRefs,known:false,locationName,culture,trade,lore}]}。",
   user:()=>({payload,stage:"SOCIETY",locked:{region,locations:generation.locations,definitions:generation.definitions},requiredLocationNames:generation.locations.map(x=>String(x.name||"")),slots:{factions:slots.factions||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
-  apply:value=>{let next=applyRuntimeLocationDetails(generation,value),factions=runtimeRows(value,"factions",slots.factions);if((Number(slots.factions)||0)>0&&factions.length<Number(slots.factions))throw new Error("RUNTIME_SOCIETY_FACTION_COUNT");return {...next,factions}}
+  apply:value=>{let next=applyRuntimeLocationDetails(generation,value),factions=bindRuntimeClaims(plan,"factions",runtimeRows(value,"factions",slots.factions));if((Number(slots.factions)||0)>0&&factions.length<Number(slots.factions))throw new Error("RUNTIME_SOCIETY_FACTION_COUNT");return {...next,factions}}
  });await checkpointStage("RUNTIME_SOCIETY")}
 
  if((Number(slots.npcs)||0)>0&&!completedStages.has("RUNTIME_CAST")){
@@ -620,7 +620,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
    signal,state,plan,maxOutputTokens:1500,temperature:.5,
    system:"你是 Elyndra Runtime Cast Architect。地理、地方社會與勢力已鎖定。今次只生成 NPC，不得新增或改寫 Location/Faction/definition。NPC 必須落在既有或今次已鎖定地點，提供 historyRefs、companionProfile、behaviorProfile、lore；ORAL_TRADITION legacy echo 只能在這一階段由 NPC 綁定。優先實現 remainingClaims。"+baseRules+" 輸出 schema：{npcs:[{name,role,description,personality,goal,locationName,factionName,historyRefs,claimRefs,echoRefs,knowledgeScope,known:false,behaviorProfile,companionProfile,lore}]}。",
    user:()=>({payload,stage:"CAST",locked:{region,locations:generation.locations,factions:generation.factions,definitions:generation.definitions},slots:{npcs:slots.npcs||0},remainingClaims:runtimeRemainingClaims(plan,generation),legacyEchoes:runtimeRemainingEchoes(plan,generation).filter(x=>x.kind==="ORAL_TRADITION")}),
-   apply:value=>{const npcs=runtimeRows(value,"npcs",slots.npcs);if(npcs.length<Number(slots.npcs))throw new Error("RUNTIME_CAST_NPC_COUNT");const oral=(plan.legacyEchoes||[]).filter(x=>x.kind==="ORAL_TRADITION").map(x=>String(x.id)),bound=runtimeRefs(npcs,"echoRefs");for(const id of oral)if(!bound.has(id))throw new Error("RUNTIME_CAST_ORAL_ECHO_UNBOUND:"+id);return {...generation,npcs}}
+   apply:value=>{const npcs=bindRuntimeClaims(plan,"npcs",runtimeRows(value,"npcs",slots.npcs));if(npcs.length<Number(slots.npcs))throw new Error("RUNTIME_CAST_NPC_COUNT");const oral=(plan.legacyEchoes||[]).filter(x=>x.kind==="ORAL_TRADITION").map(x=>String(x.id)),bound=runtimeRefs(npcs,"echoRefs");for(const id of oral)if(!bound.has(id))throw new Error("RUNTIME_CAST_ORAL_ECHO_UNBOUND:"+id);return {...generation,npcs}}
   });await checkpointStage("RUNTIME_CAST")
  }
 
@@ -629,7 +629,7 @@ export async function generateRegionExpansion(state,reason="player_exploration",
    signal,state,plan,maxOutputTokens:950,temperature:.4,
    system:"你是 Elyndra Runtime Quest Architect。世界地理、社會、勢力與人物已鎖定。今次只生成 SideQuest；不得新增任何 Location/NPC/Faction/definition。任務必須引用前面已存在的地點、人物、勢力或 historyRefs，目標要可執行並留下 evidenceKeywords；如仍有 remainingClaims，只有語義真的吻合時才綁定。"+baseRules+" 輸出 schema：{sideQuests:[{title,objective,locationName,npcName,factionName,historyRefs,claimRefs,known:false,evidenceKeywords,conditions,target}]}。",
    user:()=>({payload,stage:"QUESTS",locked:{region,locations:generation.locations,npcs:generation.npcs,factions:generation.factions,definitions:generation.definitions},slots:{sideQuests:slots.sideQuests||0},remainingClaims:runtimeRemainingClaims(plan,generation)}),
-   apply:value=>{const sideQuests=runtimeRows(value,"sideQuests",slots.sideQuests);if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
+   apply:value=>{const sideQuests=bindRuntimeClaims(plan,"sideQuests",runtimeRows(value,"sideQuests",slots.sideQuests));if(sideQuests.length<Number(slots.sideQuests))throw new Error("RUNTIME_QUESTS_COUNT");return {...generation,sideQuests}}
   });await checkpointStage("RUNTIME_QUESTS")
  }
 

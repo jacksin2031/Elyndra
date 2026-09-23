@@ -40,14 +40,19 @@ export function normalizeRuntimeLocation(row={},allowedWeatherIds=[]){
  const access=normalizeRuntimeAccess(row.accessRequirements),lore=normalizeRuntimeLore(row.lore);
  return {...row,lore,weatherProfile:normalizeRuntimeWeatherProfile(row.weatherProfile,allowedWeatherIds),accessRequirements:access.requirements,accessNotes:access.notes}
 }
+function runtimeClaimAllowedForKey(claim,key){
+ if(claim?.type==="BLUEPRINT_DEFINITION")return key==="definitions";
+ if(key==="definitions")return claim?.type==="REQUIRED_ELEMENT";
+ return true
+}
 export function bindRuntimeClaims(plan,key,rows=[]){
  const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copies=(rows||[]).map(row=>({...row,claimRefs:uniq(row?.claimRefs,6)}));
  for(const row of copies){
-  row.claimRefs=row.claimRefs.filter(id=>{const claim=claims.get(String(id));if(!claim)return false;if(claim.type==="BLUEPRINT_DEFINITION"&&key!=="definitions")return false;return materialSatisfiesClaim(claim,row)})
+  row.claimRefs=row.claimRefs.filter(id=>{const claim=claims.get(String(id));return Boolean(claim&&runtimeClaimAllowedForKey(claim,key)&&materialSatisfiesClaim(claim,row))})
  }
  const used=new Set(copies.flatMap(row=>row.claimRefs.map(String)));
  for(const claim of claims.values()){
-  const id=String(claim.id);if(used.has(id))continue;if(claim.type==="BLUEPRINT_DEFINITION"&&key!=="definitions")continue;
+  const id=String(claim.id);if(used.has(id)||!runtimeClaimAllowedForKey(claim,key))continue;
   const hit=copies.find(row=>materialSatisfiesClaim(claim,row));if(!hit)continue;hit.claimRefs=[...new Set([...hit.claimRefs,id])];used.add(id)
  }
  return copies
