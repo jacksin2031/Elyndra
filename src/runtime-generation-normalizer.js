@@ -41,6 +41,20 @@ export function normalizeRuntimeLocation(row={},allowedWeatherIds=[]){
  return {...row,lore,weatherProfile:normalizeRuntimeWeatherProfile(row.weatherProfile,allowedWeatherIds),accessRequirements:access.requirements,accessNotes:access.notes}
 }
 
+export function normalizeRuntimeNpc(row={}){
+ const knowledgeScope=uniq(Array.isArray(row?.knowledgeScope)?row.knowledgeScope:[],12),behaviorRaw=row?.behaviorProfile,behavior=behaviorRaw&&typeof behaviorRaw==="object"&&!Array.isArray(behaviorRaw)?behaviorRaw:{},behaviorText=typeof behaviorRaw==="string"?clean(behaviorRaw,220):"";
+ const behaviorProfile={mannerisms:uniq(behavior.mannerisms,4),speechPatterns:uniq(behavior.speechPatterns,4),habits:uniq(behavior.habits,4),values:uniq(behavior.values,4),fears:uniq(behavior.fears,4),contradictions:uniq(behavior.contradictions,4),promises:uniq(behavior.promises,4),grudges:uniq(behavior.grudges,4)};
+ if(!behaviorProfile.speechPatterns.length&&clean(behavior.greeting,180))behaviorProfile.speechPatterns=[clean(behavior.greeting,180)];
+ if(!behaviorProfile.fears.length&&clean(behavior.fear,180))behaviorProfile.fears=[clean(behavior.fear,180)];
+ if(behaviorText&&!behaviorProfile.habits.length)behaviorProfile.habits=[behaviorText];
+ const companionRaw=row?.companionProfile,companion=companionRaw&&typeof companionRaw==="object"&&!Array.isArray(companionRaw)?companionRaw:{},companionText=typeof companionRaw==="string"?clean(companionRaw,220):"",join=Math.round(Number(companion.joinThreshold)),leave=Math.round(Number(companion.leaveThreshold));
+ const companionProfile={joinThreshold:Number.isFinite(join)?Math.max(5,Math.min(90,join)):35,leaveThreshold:Number.isFinite(leave)?Math.max(0,Math.min(70,leave)):10,motives:uniq(companion.motives,4),boundaries:uniq(companion.boundaries,4)};
+ if(!companionProfile.motives.length&&clean(companion.reason,180))companionProfile.motives=[clean(companion.reason,180)];
+ if(!companionProfile.boundaries.length&&Array.isArray(companion.conditions))companionProfile.boundaries=uniq(companion.conditions,4);
+ if(companionText&&!companionProfile.boundaries.length)companionProfile.boundaries=[companionText];
+ return {...row,knowledgeScope,behaviorProfile,companionProfile}
+}
+
 export function normalizeRuntimeSideQuest(row={}){
  const evidenceKeywords=uniq(row?.evidenceKeywords,8),rawConditions=row?.conditions;
  const conditionRows=rawConditions==null?[]:(Array.isArray(rawConditions)?rawConditions:[rawConditions]);

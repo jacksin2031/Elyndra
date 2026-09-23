@@ -27,7 +27,7 @@ import {playerOriginSnapshot} from "./player-origin.js?v=54012";
 import {originRuntimeSnapshot} from "./origin-runtime.js?v=54012";
 import {normalizeSuggestionIntents} from "./turn-compiler.js?v=54012";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=54012";
-import {buildContextualActionSet} from "./contextual-actions.js?v=54012";
+import {buildContextualActionSet} from "./contextual-actions.js?v=54015";
 import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=54013";
 import {currentStateRevision} from "./state-sync.js?v=54013";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
