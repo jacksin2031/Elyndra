@@ -57,7 +57,7 @@ jobs:
           compact_new='日期窗口由 Engine slots 決定，你不要自行改 earliest/latest。所有自由文字欄位保持精簡：directorTruth 與 observableEffect 各最多 40 字；conditions 各最多 2 項；affectedRegions 最多 2 項；domains 最多 2 項；不要輸出 Markdown、解釋或額外欄位。只輸出 JSON。'
           if compact in s: s=s.replace(compact,compact_new,1)
           cast_schema='companionProfile,lore}]}。'
-          cast_schema_new='companionProfile,lore:{story:"40-80字",unlockKeywords:["1-2個實體線索"],minMatches:1}}]}。'
+          cast_schema_new='companionProfile,lore:{story:40-80字文字,unlockKeywords:[1-2個實體線索],minMatches:1}}]}。'
           if cast_schema not in s: raise SystemExit('runtime CAST lore schema anchor missing')
           s=s.replace(cast_schema,cast_schema_new,1)
           write(p,s)
