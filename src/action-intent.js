@@ -6,6 +6,7 @@ const SOCIAL_ACTION=/說|問|詢問|交談|對話|展示|出示|交給|贈送|�
 const TRAVEL_ACTION=/前往|走到|走出|離開|移動|旅行|穿越|跟隨|跟上|踏出|進入|深入|前進|後退|退到|朝.+前進|沿著.+前進|循著.+(?:走|前進)|travel|go to|walk|move|follow/;
 const ABANDONED_SOCIAL=/(?:不再|停止|放棄|結束)(?:繼續)?(?:追問|詢問|提問|交談|對話|問)|(?:不再|停止|放棄).{0,24}(?:問|詢問).{0,36}(?:轉身|離開|跟上|前進|移動|踏出)/;
 const OBSERVE_ACTION=/觀察|查看|檢查|搜尋|尋找|調查|聆聽|閱讀|比對|痕跡|目擊|誰會.*反應|測試.*反應|找出.*(?:線索|證據|異常|人物)|observe|inspect|search|listen|read|trace|witness|reaction/;
+const GENERIC_NPC_REFERENCE=/護衛|守衛|士兵|陌生人|傷者|男人|女人|居民|店員|商人|引路人|那個人|那人|對方|那名人物|那名人|guard|stranger|soldier|merchant|resident/i;
 export function inferActionKind(action=""){
  const q=clean(action).toLowerCase();
  if(RISKY_ACTION.test(q))return "RISKY";
@@ -37,21 +38,34 @@ export function inferActionIntent(action="",kind=""){
  else if(/互動|打開|推開|拉動|觸碰|interact|open|push|pull/.test(q))intent="INTERACT";
  return {intent,k}
 }
+function targetRows(snapshot={}){
+ const npcs=Array.isArray(snapshot?.registry?.npcs)?snapshot.registry.npcs:Array.isArray(snapshot?.knowledge?.nearbyNpcs)?snapshot.knowledge.nearbyNpcs:[];
+ const locations=Array.isArray(snapshot?.knowledge?.knownLocations)?snapshot.knowledge.knownLocations:Array.isArray(snapshot?.registry?.locations)?snapshot.registry.locations:[];
+ return {npcs,locations}
+}
+function canonicalTargetById(targetId,snapshot={}){
+ const id=clean(targetId,100);if(!id)return null;
+ const {npcs,locations}=targetRows(snapshot),npc=npcs.find(x=>clean(x?.id,100)===id);if(npc)return {targetId:id,target:clean(npc?.name,120)||null};
+ const loc=locations.find(x=>typeof x!=="string"&&clean(x?.id,100)===id);if(loc)return {targetId:id,target:clean(loc?.name,120)||null};
+ return null
+}
 function targetFromSnapshot(action,snapshot={}){
- const q=clean(action),npcs=snapshot?.registry?.npcs||snapshot?.knowledge?.nearbyNpcs||[],locations=snapshot?.knowledge?.knownLocations||snapshot?.registry?.locations||[];
+ const q=clean(action),{npcs,locations}=targetRows(snapshot);
  for(const n of npcs){const name=clean(n?.name,80);if(name&&q.includes(name))return {targetId:clean(n?.id,100)||null,target:name}}
- for(const l of locations){const name=clean(typeof l==="string"?l:l?.name,100);if(name&&q.includes(name))return {targetId:clean(l?.id,100)||null,target:name}}
+ for(const n of npcs){const role=clean(n?.role,80);if(role&&role.length>=2&&q.includes(role))return {targetId:clean(n?.id,100)||null,target:clean(n?.name,80)||role}}
+ for(const l of locations){const name=clean(typeof l==="string"?l:l?.name,100);if(name&&q.includes(name))return {targetId:clean(typeof l==="string"?"":l?.id,100)||null,target:name}}
+ if(npcs.length===1&&GENERIC_NPC_REFERENCE.test(q)){const n=npcs[0];return {targetId:clean(n?.id,100)||null,target:clean(n?.name,80)||clean(n?.role,80)||null}}
  return {targetId:null,target:null}
 }
 export function normalizeActionIntent(raw={},action="",kind="",snapshot={}){
- const q=clean(action),base=inferActionIntent(q,kind),r=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{},candidate=String(r.intent||base.intent).toUpperCase(),resolvedIntent=INTENTS.has(candidate)?candidate:base.intent,resolvedKind=KINDS.has(String(r.kind||base.k).toUpperCase())?String(r.kind||base.k).toUpperCase():base.k,t=targetFromSnapshot(q,snapshot);
- const subs=(Array.isArray(r.subActions)?r.subActions:[]).map(x=>clean(x,120)).filter(Boolean).slice(0,5);
+ const q=clean(action),base=inferActionIntent(q,kind),r=raw&&typeof raw==="object"&&!Array.isArray(raw)?raw:{},candidate=String(r.intent||base.intent).toUpperCase(),resolvedIntent=INTENTS.has(candidate)?candidate:base.intent,resolvedKind=KINDS.has(String(r.kind||base.k).toUpperCase())?String(r.kind||base.k).toUpperCase():base.k;
+ const canonical=canonicalTargetById(r.targetId,snapshot),t=canonical||targetFromSnapshot(`${q} ${clean(r.target,120)}`,snapshot),subs=(Array.isArray(r.subActions)?r.subActions:[]).map(x=>clean(x,120)).filter(Boolean).slice(0,5);
  return {
   raw:q,
   intent:resolvedIntent,
   kind:resolvedKind,
-  targetId:clean(r.targetId,100)||t.targetId,
-  target:clean(r.target,120)||t.target,
+  targetId:t.targetId,
+  target:t.target||clean(r.target,120)||null,
   method:clean(r.method,120)||null,
   tool:clean(r.tool,120)||null,
   subActions:subs.length?subs:[q].filter(Boolean)
