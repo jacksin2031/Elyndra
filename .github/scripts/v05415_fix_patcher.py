@@ -24,5 +24,9 @@ cache_anchor='replace_all("app.js", \'?v=54014\', \'?v=54015\')\n'
 if cache_anchor not in s:
     raise SystemExit('app cache anchor missing')
 s=s.replace(cache_anchor,cache_anchor+'replace_all("src/adventure-engine.js", \'contextual-actions.js?v=54012\', \'contextual-actions.js?v=54015\')\n',1)
+test_anchor='replace_all("test/module-cache.test.js", \'54014\', \'54015\')\n'
+if test_anchor not in s:
+    raise SystemExit('module cache anchor missing')
+s=s.replace(test_anchor,test_anchor+'replace_all("test/module-cache.test.js", \'["54012","54013"].includes(x)\', \'["54012","54013","54015"].includes(x)\')\n',1)
 p.write_text(s,encoding='utf-8')
-print('patcher matching and cache edge repaired')
+print('patcher matching, cache edge, and cache test allowlist repaired')
