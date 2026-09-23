@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {openingCastChronologyIssues,worldGenerationLinkIssues} from "../src/world-compiler.js";
 
 const anchor={
@@ -40,4 +41,11 @@ test("world generation link validation promotes chronology contradictions to a C
  const cast={npcs:[{name:"雙轉零九",role:"工程師",locationName:"中央祭壇",historyRefs:["HIST-1"],lore:{story:"他曾是初代共振鐵環的研發工程師。"}}],sideQuests:[],suggestions:[]};
  const issues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
  assert.ok(issues.includes("CAST_NPC_0_TEMPORAL_PLAUSIBILITY"),issues.join(","));
+});
+
+test("Opening Cast AI contract prevents century-old founder survival unless chronology is grounded",()=>{
+ const client=readFileSync(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ assert.match(client,/historyRefs 指向百年以上的歷史/);
+ assert.match(client,/長壽、延命、休眠、時間停滯/);
+ assert.match(client,/後代、傳承者、繼承人、記錄持有人/);
 });
