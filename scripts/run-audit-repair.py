@@ -1,64 +1,63 @@
 from pathlib import Path
-import subprocess, textwrap, traceback
+import subprocess
 
 status = []
-error = None
-already_patched = Path('src/state-session.js').exists() and 'STATE_PATCH_OPERATIONS_LIMIT_EXCEEDED' in Path('src/state-sync.js').read_text(encoding='utf-8')
-if already_patched:
-    status.append('embedded repair already applied; skipping replay')
-else:
-    try:
-        workflow = Path('.github/workflows/tmp-first-button-progressive-expansion.yml').read_text(encoding='utf-8')
-        start = workflow.index("python - <<'PY'\n") + len("python - <<'PY'\n")
-        end = workflow.index("\n          PY", start)
-        body = textwrap.dedent(workflow[start:end])
-        exec(compile(body, '<embedded-audit-repair>', 'exec'), {'__name__': '__main__'})
-        status.append('embedded repair completed')
-    except BaseException as exc:
-        error = exc
-        status.append('embedded repair failed')
-        status.append(traceback.format_exc())
-
-# Normalize the generated travel helper without parsing the invalid regex literal.
 p = Path('src/game-engine.js')
-if p.exists():
-    s = p.read_text(encoding='utf-8')
-    marker = 'function explicitTravelCommand(value,name)'
-    next_marker = 'function actionProfile'
-    start = s.find(marker)
-    end = s.find(next_marker, start + len(marker)) if start >= 0 else -1
-    replacement = '''function explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim(),lower=normalized.toLowerCase(),t=target.toLowerCase();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||lower===`travel to ${t}`||lower===`go to ${t}`||lower===`walk to ${t}`}\n'''
-    if start >= 0 and end > start:
-        s = s[:start] + replacement + s[end:]
-        p.write_text(s, encoding='utf-8')
-        status.append('explicitTravelCommand normalized by boundaries')
-    else:
-        status.append(f'explicitTravelCommand normalization skipped start={start} end={end}')
+if not p.exists():
+    raise SystemExit('src/game-engine.js missing')
 
-# Capture exact JavaScript syntax failures before the workflow gate runs.
-changed_js = [
-    'api/_ai.js','api/action.js','api/health.js','api/helper.js','api/history-deepen.js','api/narrate.js','api/npc.js','api/summarize.js','api/turn-scene.js','api/turn-state.js','api/turn.js','api/world.js',
-    'app.js','src/action-intent.js','src/ai-client.js','src/game-engine.js','src/progression-ui.js','src/state-session.js','src/state-sync.js','src/storage.js','src/version.js','test/audit-fixes-v05419.test.js','test/first-button-fast-path-v05417.test.js'
-]
-syntax_failures = []
-for name in changed_js:
-    if not Path(name).exists():
-        continue
-    check = subprocess.run(['node','--check',name], text=True, capture_output=True)
-    if check.returncode:
-        syntax_failures.append(f'--- {name} ---\n{check.stderr.strip()}')
-status.append(f'syntax failures={len(syntax_failures)}')
-status.extend(syntax_failures)
+s = p.read_text(encoding='utf-8')
+
+# v0.54.19 regression guard: the previous parser normalizer replaced the
+# whole region between explicitTravelCommand and actionProfile and therefore
+# removed PROFILES plus the actionProfile export.
+profiles = '''const PROFILES={
+ OBSERVE:{dc:10,minutes:15},
+ SOCIAL:{dc:11,minutes:20},
+ TRAVEL:{dc:12,minutes:45},
+ RISKY:{dc:14,minutes:30},
+ GENERAL:{dc:12,minutes:30}
+};
+'''
+
+if 'const PROFILES=' not in s:
+    marker = 'function actionProfile(input="")'
+    idx = s.find(marker)
+    if idx < 0:
+        raise RuntimeError('actionProfile marker not found')
+    s = s[:idx] + profiles + s[idx:]
+    status.append('restored PROFILES')
+else:
+    status.append('PROFILES already present')
+
+plain = 'function actionProfile(input="")'
+exported = 'export function actionProfile(input="")'
+if exported not in s:
+    if plain not in s:
+        raise RuntimeError('actionProfile declaration not found')
+    s = s.replace(plain, exported, 1)
+    status.append('restored actionProfile export')
+else:
+    status.append('actionProfile export already present')
+
+p.write_text(s, encoding='utf-8')
+
+# Fail immediately if this focused repair introduces a syntax regression.
+check = subprocess.run(['node', '--check', str(p)], text=True, capture_output=True)
+if check.returncode:
+    raise RuntimeError(check.stderr.strip())
+status.append('src/game-engine.js syntax PASS')
 
 Path('audit-repair-status.txt').write_text('\n'.join(status) + '\n', encoding='utf-8')
 
-# Persist diagnostic/source output on the isolated repair branch.
-subprocess.run(['git','config','user.name','Elyndra Audit Repair'], check=True)
-subprocess.run(['git','config','user.email','actions@users.noreply.github.com'], check=True)
-subprocess.run(['git','add','app.js','index.html','package.json','src','api','test','.env.example','audit-repair-status.txt'], check=True)
-changed = subprocess.run(['git','diff','--cached','--quiet']).returncode != 0
+# Persist the focused repair before the workflow's full-suite gate so a later
+# failing assertion can be inspected without losing the already-correct fix.
+subprocess.run(['git', 'config', 'user.name', 'Elyndra Audit Repair'], check=True)
+subprocess.run(['git', 'config', 'user.email', 'actions@users.noreply.github.com'], check=True)
+subprocess.run(['git', 'add', 'src/game-engine.js', 'audit-repair-status.txt'], check=True)
+changed = subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode != 0
 if changed:
-    subprocess.run(['git','commit','-m','fix: normalize audited travel command parser'], check=True)
-    subprocess.run(['git','push','origin','HEAD:fix/audit-2026-09-24-all'], check=True)
+    subprocess.run(['git', 'commit', '-m', 'fix: restore v0.54.19 action profiles after parser repair'], check=True)
+    subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
 
 print('\n'.join(status))
