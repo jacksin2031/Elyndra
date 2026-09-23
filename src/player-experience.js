@@ -132,8 +132,33 @@ function openingSuggestions(narrative=""){
  return uniq(out,4)
 }
 
+function hanNgrams(value,size=4){
+ const text=clean(value,1400).replace(/[^\u3400-\u9fff]/g,"");const out=new Set();
+ for(let i=0;i+size<=text.length;i++)out.add(text.slice(i,i+size));
+ return out
+}
+function openingFutureOverlap(state,narrative){
+ const opening=hanNgrams(narrative);if(!opening.size)return null;
+ for(const event of state.world?.timeline||[]){
+  if(event?.status!=="SCHEDULED")continue;
+  const future=hanNgrams(event.observableEffect);let shared=0;
+  for(const gram of future){if(opening.has(gram)&&++shared>=2)return event}
+ }
+ return null
+}
+function severeOpening(value=""){return /(?:大規模|全面)(?:戰爭|屠殺|攻擊)|攻城|屠殺|處決|大量死亡|遍地屍體|瘟疫爆發|城市崩塌|末日|滅絕|軍隊正在攻擊|靈性暴走/.test(clean(value,1200))}
+function safeOpeningHook(state){
+ const cue=currentWeatherCue(state)||"遠處傳來一陣你還無法辨認來源的環境聲";
+ return `${cue}。聲音突然停了一瞬；附近有人也停下手上的工作，朝同一個方向看了一眼，隨即避開你的視線。你可以先確認出入口、觀察對方正在注意甚麼，或者用最簡單的方式試著交談。`
+}
+export function sanitizeOpeningForPacing(state,narrative=""){
+ const text=clean(narrative,1200),day=Math.max(1,Number(state.world?.state?.day)||1);if(day>1)return {narrative:text,replaced:false,reason:"",timelineId:null};
+ const overlap=openingFutureOverlap(state,text),severe=severeOpening(text);if(!overlap&&!severe)return {narrative:text,replaced:false,reason:"",timelineId:null};
+ return {narrative:safeOpeningHook(state),replaced:true,reason:overlap?"FUTURE_OVERLAP":"NEWBIE_DANGER",timelineId:overlap?.id||null}
+}
+
 export function applyOpeningExperience(state,narrative="",suggestions=[]){
- const x=ensurePlayerExperience(state),base=clean(narrative,1200),quality=openingHookQuality(base);
+ const x=ensurePlayerExperience(state),guard=sanitizeOpeningForPacing(state,narrative),base=guard.narrative,quality=openingHookQuality(base);
  let next=base;
  if(!quality.strong){
   const cue=currentWeatherCue(state)||"遠處突然傳來一聲短促的金屬撞擊";
@@ -142,6 +167,7 @@ export function applyOpeningExperience(state,narrative="",suggestions=[]){
  }
  const roleplay=openingSuggestions(next),incoming=uniq(suggestions,4),generic=/觀察四周|繼續探索|確認自己|目前目標|查看周圍|探索周圍/;
  const merged=uniq([...incoming.filter(x=>!generic.test(x)),...roleplay],4);
+ if(guard.replaced){state.events??=[];state.events.push({id:uid("EV"),type:"OPENING_HOOK_DECONFLICTED",visibility:"INTERNAL",reason:guard.reason,timelineId:guard.timelineId,day:Number(state.world?.state?.day)||1,at:Date.now()})}
  if(x&&!x.opening.hookPresented){
   const hookId=uid("HOOK");x.opening={...x.opening,hookPresented:true,hookId,presentedDay:Number(state.world?.state?.day)||1};
   state.events??=[];state.events.push({id:uid("EV"),type:"OPENING_HOOK_PRESENTED",visibility:"INTERNAL",hookId,summary:"開局事件已進入玩家可直接感知的場景。",day:Number(state.world?.state?.day)||1,at:Date.now()})
