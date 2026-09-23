@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, '[evidence-ui-done]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -80,14 +79,9 @@ test("item name evidence can come from prior visible NPC dialogue or a read docu
 });
 '''
           if 'item name evidence can come from prior visible NPC dialogue' not in s:s+=test
-          p.write_text(s)
-
-          p=Path('test/runtime-grounding-v05418.test.js')
-          # Source-level security contract keeps generated names out of innerHTML.
           sec='''
 test("acquisition toast renders generated labels through textContent instead of innerHTML",async()=>{const source=await import("node:fs/promises").then(fs=>fs.readFile(new URL("../src/acquisition-notifier.js",import.meta.url),"utf8"));assert.doesNotMatch(source,/\\.innerHTML\\s*=/);assert.match(source,/textContent=/)});
 '''
-          s=p.read_text()
           if 'acquisition toast renders generated labels through textContent' not in s:s+=sec
           p.write_text(s)
           PY
