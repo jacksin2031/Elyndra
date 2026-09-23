@@ -1,0 +1,75 @@
+name: Apply v0.54.12 review hardening
+
+on:
+  push:
+    branches: [fix/v05412-runtime-schema-normalization]
+    paths: [.github/workflows/apply-v05412-review.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/v05412-runtime-schema-normalization
+      - name: Apply review fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          def rw(path,fn):
+              p=Path(path);s=p.read_text(encoding='utf-8');n=fn(s)
+              if n==s: raise SystemExit(f'no change for {path}')
+              p.write_text(n,encoding='utf-8')
+
+          def normalizer(s):
+              old='''export function bindRuntimeClaims(plan,key,rows=[]){\n const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copies=(rows||[]).map(row=>({...row,claimRefs:uniq(row?.claimRefs,6)}));\n for(const row of copies){\n  row.claimRefs=row.claimRefs.filter(id=>{const claim=claims.get(String(id));if(!claim)return false;if(claim.type==="BLUEPRINT_DEFINITION"&&key!=="definitions")return false;return materialSatisfiesClaim(claim,row)})\n }\n const used=new Set(copies.flatMap(row=>row.claimRefs.map(String)));\n for(const claim of claims.values()){\n  const id=String(claim.id);if(used.has(id))continue;if(claim.type==="BLUEPRINT_DEFINITION"&&key!=="definitions")continue;\n  const hit=copies.find(row=>materialSatisfiesClaim(claim,row));if(!hit)continue;hit.claimRefs=[...new Set([...hit.claimRefs,id])];used.add(id)\n }\n return copies\n}'''
+              new='''function runtimeClaimAllowedForKey(claim,key){\n if(claim?.type==="BLUEPRINT_DEFINITION")return key==="definitions";\n if(key==="definitions")return claim?.type==="REQUIRED_ELEMENT";\n return true\n}\nexport function bindRuntimeClaims(plan,key,rows=[]){\n const claims=new Map((plan?.claims||[]).map(x=>[String(x.id),x])),copies=(rows||[]).map(row=>({...row,claimRefs:uniq(row?.claimRefs,6)}));\n for(const row of copies){\n  row.claimRefs=row.claimRefs.filter(id=>{const claim=claims.get(String(id));return Boolean(claim&&runtimeClaimAllowedForKey(claim,key)&&materialSatisfiesClaim(claim,row))})\n }\n const used=new Set(copies.flatMap(row=>row.claimRefs.map(String)));\n for(const claim of claims.values()){\n  const id=String(claim.id);if(used.has(id)||!runtimeClaimAllowedForKey(claim,key))continue;\n  const hit=copies.find(row=>materialSatisfiesClaim(claim,row));if(!hit)continue;hit.claimRefs=[...new Set([...hit.claimRefs,id])];used.add(id)\n }\n return copies\n}'''
+              if old not in s: raise SystemExit('normalizer claim block missing')
+              return s.replace(old,new)
+          rw('src/runtime-generation-normalizer.js',normalizer)
+
+          def client(s):
+              olds=[
+               ('factions=runtimeRows(value,"factions",slots.factions);','factions=bindRuntimeClaims(plan,"factions",runtimeRows(value,"factions",slots.factions));'),
+               ('const npcs=runtimeRows(value,"npcs",slots.npcs);','const npcs=bindRuntimeClaims(plan,"npcs",runtimeRows(value,"npcs",slots.npcs));'),
+               ('const sideQuests=runtimeRows(value,"sideQuests",slots.sideQuests);','const sideQuests=bindRuntimeClaims(plan,"sideQuests",runtimeRows(value,"sideQuests",slots.sideQuests));')
+              ]
+              for old,new in olds:
+               if old not in s: raise SystemExit('ai-client review marker missing: '+old)
+               s=s.replace(old,new)
+              return s
+          rw('src/ai-client.js',client)
+
+          def state_sync(s):
+              old='''export function groundStatePatch(state,patch={},context={}){\n const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220);\n for(const [index,raw] of (Array.isArray(next.operations)?next.operations:[]).entries()){'''
+              new='''export function groundStatePatch(state,patch={},context={}){\n const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220),ops=Array.isArray(next.operations)?next.operations:[],generatedLocations=new Set(ops.filter(x=>String(x?.op||"").toUpperCase()==="GENERATE_CONTENT").flatMap(x=>(x?.generation?.locations||[]).flatMap(loc=>[clean(loc?.id,120),clean(loc?.name,120)])).filter(Boolean));\n for(const [index,raw] of ops.entries()){'''
+              if old not in s: raise SystemExit('state-sync header marker missing')
+              s=s.replace(old,new)
+              old2='''   if(!target||!entity){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}\n   if(entity?.name===current||entity?.id===current){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_UNCHANGED"});continue}'''
+              new2='''   if(!target||(!entity&&!generatedLocations.has(target))){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}\n   if(entity&&(entity?.name===current||entity?.id===current)){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_UNCHANGED"});continue}'''
+              if old2 not in s: raise SystemExit('state-sync target marker missing')
+              return s.replace(old2,new2)
+          rw('src/state-sync.js',state_sync)
+
+          def tests(s):
+              marker=''' assert.deepEqual(out[0].claimRefs,[]);assert.deepEqual(new Set(out[1].claimRefs),new Set(["C-F","C-H"]))\n});'''
+              repl=''' assert.deepEqual(out[0].claimRefs,[]);assert.deepEqual(new Set(out[1].claimRefs),new Set(["C-F","C-H"]));\n const definitions=bindRuntimeClaims(plan,"definitions",[{kind:"LANGUAGE",name:"史語",description:"x",historyRefs:["HIST-1"],claimRefs:["C-F"]}]);assert.deepEqual(definitions[0].claimRefs,[])\n});'''
+              if marker not in s: raise SystemExit('claim test marker missing')
+              s=s.replace(marker,repl)
+              marker2=''' r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"哨站"}]},{action:"前進"});assert.equal(r.patch.operations.length,1)\n});'''
+              repl2=''' r=groundStatePatch(state,{operations:[{op:"MOVE_PLAYER",location:"哨站"}]},{action:"前進"});assert.equal(r.patch.operations.length,1);\n r=groundStatePatch(state,{operations:[{op:"GENERATE_CONTENT",generation:{locations:[{name:"新區"}]}},{op:"MOVE_PLAYER",location:"新區"}]},{action:"探索未知新區"});assert.equal(r.patch.operations.some(x=>x.op==="MOVE_PLAYER"),true)\n});'''
+              if marker2 not in s: raise SystemExit('move test marker missing')
+              return s.replace(marker2,repl2)
+          rw('test/v05412-regressions.test.js',tests)
+
+          Path('.github/workflows/apply-v05412-review.yml').unlink()
+          PY
+          git config user.name "Elyndra Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: harden runtime claim and travel grounding boundaries"
+          git push origin HEAD:fix/v05412-runtime-schema-normalization
