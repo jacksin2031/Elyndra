@@ -4,7 +4,7 @@ import {evaluateQuestEvidence} from "./quest-engine.js?v=54018";
 import {npcInteractionMode} from "./world-registry.js?v=54018";
 import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=54018";
 import {deriveSceneTitle} from "./runtime-guard.js?v=54018";
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=54018";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=540181";
 import {markEntityObserved} from "./visibility-lock.js?v=54018";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);

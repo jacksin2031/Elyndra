@@ -10,7 +10,7 @@ import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline}
 import {playerWeatherSnapshot} from "./weather-engine.js?v=54018";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=540181";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=54018";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=54018";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=540181";
 import {normalizeActionIntent} from "./action-intent.js?v=54018";
 import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54018";
 import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=540181";

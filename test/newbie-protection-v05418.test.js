@@ -4,6 +4,7 @@ import {readFile} from "node:fs/promises";
 import {createTimelinePacing,normalizeWorldTimeline,triggerDueTimelineEvents} from "../src/world-timeline.js";
 import {eventDangerProfile,eventDangerTier,eventAllowedByPacing,pacedTimelinePressure} from "../src/world-pacing.js";
 import {sceneNarratorSystem} from "../src/ai-runtime-contracts.js";
+import {applyOpeningExperience} from "../src/player-experience.js";
 
 function state(day=1,danger=5){
  const pacing=createTimelinePacing(15);
@@ -52,4 +53,16 @@ test("early timeline pressure is capped by the same danger profile",()=>{
 
 test("non-contextual lexical anomalies are covered by fallback quality review",async()=>{
  const source=await readFile(new URL("../src/world-quality.js",import.meta.url),"utf8");assert.match(source,/LEXICAL_SANITY/);assert.match(source,/凝液、髓液、結晶液/)
+});
+
+
+test("opening hook cannot pre-play an untriggered Future during newbie protection",()=>{
+ const s=state(1,5);s.world.timeline=[{id:"TL-FUTURE",status:"SCHEDULED",observableEffect:"石牆滲出黑血，霧中傳來木槌擊地聲，赤足孩童逃竄。"}];
+ const out=applyOpeningExperience(s,"石壁裂縫滲出黑血，霧中傳來木槌擊地聲，赤足孩子正朝外逃走。周圍的人還未理解發生了甚麼。",[]);
+ assert.doesNotMatch(out.narrative,/滲出黑血|木槌擊地|赤足孩/);assert.match(out.narrative,/聲音突然停/);assert.ok(s.events.some(e=>e.type==="OPENING_HOOK_DECONFLICTED"&&e.reason==="FUTURE_OVERLAP"&&e.timelineId==="TL-FUTURE"))
+});
+
+test("newbie opening downgrades severe world-driven catastrophe into a low-risk actionable hook",()=>{
+ const s=state(1,5);const out=applyOpeningExperience(s,"王城正在全面戰爭，軍隊正在攻擊居民，街上遍地屍體，城門已經進入攻城狀態。",[]);
+ assert.doesNotMatch(out.narrative,/全面戰爭|遍地屍體|攻城/);assert.ok(s.events.some(e=>e.type==="OPENING_HOOK_DECONFLICTED"&&e.reason==="NEWBIE_DANGER"))
 });
