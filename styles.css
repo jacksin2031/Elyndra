@@ -996,3 +996,11 @@ body[data-world-genre="末日異世界"]{
 .world-ready-notice strong{font-size:13px;color:#dff7e8}
 .world-ready-notice span{font-size:11px;line-height:1.55;color:var(--muted)}
 @media(max-width:720px){.world-ready-notice{left:16px;right:16px;bottom:76px;min-width:0;max-width:none}}
+\n/* Runtime acquisition feedback: appears only after committed state diffs. */
+.gain-toast-stack{position:fixed;z-index:1200;top:76px;right:18px;width:min(340px,calc(100vw - 32px));display:flex;flex-direction:column;gap:9px;pointer-events:none}
+.gain-toast{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(17,20,27,.92);box-shadow:0 12px 30px rgba(0,0,0,.28);backdrop-filter:blur(12px);transform:translateX(24px) scale(.97);opacity:0;transition:transform .24s ease,opacity .24s ease}
+.gain-toast.show{transform:translateX(0) scale(1);opacity:1}
+.gain-toast-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.08);font-size:17px;flex:none}
+.gain-toast-copy{display:flex;min-width:0;flex-direction:column;gap:1px}.gain-toast-copy small{font-size:11px;letter-spacing:.08em;opacity:.68}.gain-toast-copy strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gain-toast-copy span{font-size:12px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:720px){.gain-toast-stack{top:auto;right:12px;bottom:112px;width:min(360px,calc(100vw - 24px))}.gain-toast{padding:10px 12px}}
+@media(prefers-reduced-motion:reduce){.gain-toast{transition:none}}

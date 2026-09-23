@@ -45,6 +45,7 @@ import {worldMapSnapshot} from "./src/world-map.js?v=54017";
 import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=54017";
 import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=54017";
 import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=54017";
+import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=54018g";
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=54017";
 import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=54017";
 import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=54017";
@@ -146,6 +147,7 @@ function recordGameplayStateChanges(state,reason="refresh"){
  if(prev.mainQuest.stage!==next.mainQuest.stage||prev.mainQuest.status!==next.mainQuest.status||prev.mainQuest.objective!==next.mainQuest.objective)recordDebug("GAME_MAIN_QUEST_UPDATED",{...meta,questId:next.mainQuest.id,title:next.mainQuest.title,fromStage:prev.mainQuest.stage,toStage:next.mainQuest.stage,fromStatus:prev.mainQuest.status,toStatus:next.mainQuest.status,objective:next.mainQuest.objective});
  if(!prev.combat.active&&next.combat.active)recordDebug("GAME_COMBAT_STARTED",{...meta,enemyId:next.combat.enemyId,enemyName:next.combat.enemyName,enemyHp:next.combat.enemyHp});
  else if(prev.combat.active&&!next.combat.active)recordDebug("GAME_COMBAT_ENDED",{...meta,enemyId:prev.combat.enemyId,enemyName:prev.combat.enemyName});
+ notifyGameplayAcquisitions(prev,next);
  gameplayDebugSnapshot=next
 }
 function preemptBackgroundWorldEvolution(){
@@ -169,11 +171,15 @@ function commitStatePatch(state,patch,plan,context={}){
  const grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
  if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
  const valid=validateStatePatch(effectivePatch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
- if(!Array.isArray(effectivePatch.operations)||!effectivePatch.operations.length)return {applied:false,empty:true,rejected:grounded.rejected.length,revision:currentStateRevision(state)};
- const revision=assessPatchRevision(state,effectivePatch,plan);if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,...revision};
+ if(!Array.isArray(effectivePatch.operations)||!effectivePatch.operations.length)return {applied:false,empty:true,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],revision:currentStateRevision(state)};
+ const revision=assessPatchRevision(state,effectivePatch,plan); if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],...revision};
  const candidate=statePatchToCandidate(effectivePatch,state);applyTurnCandidate(state,candidate,{...context,directorMode:plan.mode});
  const next=bumpStateRevision(state,"STATE_PATCH_"+plan.mode);
- return {applied:true,rebased:revision.rebased===true,rebasedFrom:revision.rebasedFrom??null,rejected:grounded.rejected.length,revision:next,operations:effectivePatch.operations.length}
+ return {applied:true,rebased:revision.rebased===true,rebasedFrom:revision.rebasedFrom??null,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],revision:next,operations:effectivePatch.operations.length}
+}
+function commitSceneGroundedEvidence(state,operations,plan,context={}){
+ const rows=[],seen=new Set();for(const raw of Array.isArray(operations)?operations:[]){const type=String(raw?.op||"").toUpperCase(),key=type+":"+String(raw?.item?.name||raw?.title||raw?.location||raw?.sourceId||"");if(!type||seen.has(key))continue;seen.add(key);rows.push(structuredClone(raw))}
+ if(!rows.length)return {applied:false,empty:true};const capabilities=[...new Set([...(plan?.capabilities||[]),...rows.map(x=>String(x?.op||"").toUpperCase())])],evidencePlan={...plan,mode:"FAST",baseRevision:currentStateRevision(state),capabilities},patch={baseRevision:currentStateRevision(state),operations:rows};return commitStatePatch(state,patch,evidencePlan,context)
 }
 function commitGroundedProgressionFallback(state,discovery,plan,context={}){
  if(!discovery||context.roll?.success!==true||!(plan?.capabilities||[]).includes("DISCOVER_FACT"))return {applied:false};
@@ -194,7 +200,7 @@ function commitGroundedTravelFallback(state,plan,context={}){
 }
 function commitGroundedPickupFallback(state,plan,context={}){
  if(context.roll?.success!==true||!(plan?.capabilities||[]).includes("ACQUIRE_ITEM"))return {applied:false};
- const item=groundedPickupItemFromAction(context.action,context.roll);if(!item)return {applied:false};
+ const item=groundedPickupItemFromAction(context.action,context.roll,context.observableText);if(!item)return {applied:false};
  if((state.inventory||[]).some(x=>String(x?.name||"")===item.name)){recordDebug("ENGINE_PICKUP_FAIL_FORWARD_REUSED",{action:String(context.action||"").slice(0,180),itemName:item.name});return {applied:false,reused:true}}
  const patch={baseRevision:Number(plan.baseRevision)||0,operations:[{op:"ACQUIRE_ITEM",item}]},committed=commitStatePatch(state,patch,plan,context);
  if(committed.applied)recordDebug("ENGINE_PICKUP_FAIL_FORWARD_APPLIED",{action:String(context.action||"").slice(0,180),itemName:item.name,revision:committed.revision});
@@ -557,7 +563,7 @@ async function runAction(action,customText="",options={}){
   await persist();await refresh();scheduleWorldEvolution(effective||"player_exploration",BACKGROUND_IDLE_GRACE_MS);return
  }
 
- let foregroundSceneCtrl=null,pendingPlayerActionResult=null,pendingSceneTransport="",pendingSceneRevision=baseRevision;
+ let foregroundSceneCtrl=null,pendingPlayerActionResult=null,pendingSceneTransport="",pendingSceneRevision=baseRevision,pendingEvidenceOperations=[];
  try{
   setTurnSyncing(true,`State Sync ${syncPlan.mode} · ${syncPlan.dirty.join(" / ")||"minimal"}`);
   foregroundSceneCtrl=new AbortController();nonblockingScene.controller=foregroundSceneCtrl;nonblockingScene.worldId=turnWorldId;nonblockingScene.revision=baseRevision;
@@ -570,13 +576,13 @@ async function runAction(action,customText="",options={}){
   if(stateResult.status!=="fulfilled"){
    recordDebug("STATE_SYNC_AI_FAILED",{action:effective,mode:syncPlan.mode,error:stateResult.reason?.message||String(stateResult.reason),elapsedMs:Date.now()-debugTurnStarted});
    if(syncPlan.mode==="DEEP")throw stateResult.reason;
-   const travel=commitGroundedTravelFallback(gameState,syncPlan,{action:effective,roll,intent:assessment?.actionIntent,fromLocation:locationBeforeSync}),pickup=commitGroundedPickupFallback(gameState,syncPlan,{action:effective,roll}),fallback=commitGroundedProgressionFallback(gameState,roll?.success===true?preboundFailForward:null,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll});
+   const travel=commitGroundedTravelFallback(gameState,syncPlan,{action:effective,roll,intent:assessment?.actionIntent,fromLocation:locationBeforeSync}),pickup=commitGroundedPickupFallback(gameState,syncPlan,{action:effective,roll}),fallback=commitGroundedProgressionFallback(gameState,roll?.success===true?preboundFailForward:null,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll});pendingEvidenceOperations=[...(pickup.deferredEvidence||[]),...(fallback.deferredEvidence||[])];
    recordDebug("STATE_SYNC_FAST_EMPTY_FALLBACK",{action:effective,revision:currentStateRevision(gameState),groundedProgress:Boolean(fallback.applied||fallback.reused),groundedPickup:Boolean(pickup.applied||pickup.reused),groundedTravel:Boolean(travel.applied)})
   }else if(stateResult.value){
-   const committed=commitStatePatch(gameState,stateResult.value,syncPlan,{action:effective,roll});
+   const committed=commitStatePatch(gameState,stateResult.value,syncPlan,{action:effective,roll});pendingEvidenceOperations=[...(committed.deferredEvidence||[])];
    if(committed.stale){recordDebug("STATE_PATCH_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,currentRevision:committed.currentRevision});if(syncPlan.mode==="DEEP")throw new Error("STATE_PATCH_STALE")}
    else{
-    const travel=roll?.success===true?commitGroundedTravelFallback(gameState,syncPlan,{action:effective,roll,intent:assessment?.actionIntent,fromLocation:locationBeforeSync}):{applied:false},pickup=!committed.applied&&roll?.success===true?commitGroundedPickupFallback(gameState,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll}):{applied:false},fallback=!committed.applied&&roll?.success===true?commitGroundedProgressionFallback(gameState,preboundFailForward,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll}):{applied:false};
+    const travel=roll?.success===true?commitGroundedTravelFallback(gameState,syncPlan,{action:effective,roll,intent:assessment?.actionIntent,fromLocation:locationBeforeSync}):{applied:false},pickup=!committed.applied&&roll?.success===true?commitGroundedPickupFallback(gameState,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll}):{applied:false},fallback=!committed.applied&&roll?.success===true?commitGroundedProgressionFallback(gameState,preboundFailForward,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll}):{applied:false};pendingEvidenceOperations=[...pendingEvidenceOperations,...(pickup.deferredEvidence||[]),...(fallback.deferredEvidence||[])];
     recordDebug("STATE_SYNC_AI_COMPLETED",{action:effective,directorMode:syncPlan.mode,elapsedMs:Date.now()-debugTurnStarted,transport:jobs.transport,operations:committed.operations??0,rejectedGrounding:committed.rejected??0,groundedProgress:Boolean(fallback.applied||fallback.reused),groundedPickup:Boolean(pickup.applied||pickup.reused),groundedTravel:Boolean(travel.applied),revision:currentStateRevision(gameState),rebased:committed.rebased===true})
    }
   }
@@ -600,7 +606,7 @@ async function runAction(action,customText="",options={}){
    if(playerResult.status==="fulfilled"){
     const applied=applyPlayerActionScene(playerResult.value,{worldId:turnWorldId,baseRevision,expectedRevision,roll,action:effective,previousSuggestions,previousSuggestionIntents});
     recordDebug(applied?"PLAYER_ACTION_AI_COMPLETED":"PLAYER_ACTION_AI_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,expectedRevision,currentRevision:currentStateRevision(gameState),elapsedMs:Date.now()-debugTurnStarted,transport});
-    if(applied){await persist();await refresh()}
+    if(applied){const observableText=String(playerResult.value?.narrative||gameState.narrative||"");const evidence=commitSceneGroundedEvidence(gameState,pendingEvidenceOperations,syncPlan,{action:effective,roll,observableText,evidencePhase:"SCENE"});const pickup=commitGroundedPickupFallback(gameState,{...syncPlan,baseRevision:currentStateRevision(gameState)},{action:effective,roll,observableText});recordDebug("SCENE_GROUNDED_ACQUISITIONS",{action:effective,evidenceApplied:evidence.applied===true,evidenceOperations:evidence.operations||0,evidenceRejected:evidence.rejected||0,pickupApplied:pickup.applied===true});await persist();await refresh()}
    }else recordDebug("PLAYER_ACTION_AI_FAILED",{action:effective,mode:syncPlan.mode,error:playerResult.reason?.message||String(playerResult.reason),elapsedMs:Date.now()-debugTurnStarted})
   }).finally(()=>{if(nonblockingScene.controller===ctrl){nonblockingScene.controller=null;nonblockingScene.worldId=null;nonblockingScene.revision=null}finishPlayerActionFlight(effective,ctrl.signal.aborted?"scene_aborted":"scene_settled");updateAIStatusBadge();if(gameState)void refresh()})
  }else{finishPlayerActionFlight(effective,"scene_unavailable");await refresh()}

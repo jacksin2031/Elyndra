@@ -72,3 +72,11 @@ export function walletSummary(state){
  for(const loc of state.world?.registry?.locations||[])if(loc.known===true)for(const c of loc.trade?.currencies||[])known.set(c.id,c);
  return Object.entries(w).filter(([,amount])=>amount>0).map(([id,amount])=>({id,amount,currency:known.get(id)||null}))
 }
+
+export function reconcileWorldEconomy(state){
+ state.world??={};const profiles=[];for(const row of [...(state.world?.registry?.locations||[]),...(state.world?.registry?.factions||[])])if(row?.trade&&typeof row.trade==="object")profiles.push(row.trade);
+ const currencies=new Map();for(const trade of profiles)for(const c of trade?.currencies||[])if(c?.id&&c?.name&&!currencies.has(c.id))currencies.set(c.id,{id:c.id,name:c.name,symbol:c.symbol||"",issuer:c.issuer||"",description:c.description||""});
+ const list=[...currencies.values()],modes=[...new Set(profiles.map(x=>x?.mode).filter(Boolean))],questReward=Math.max(0,...profiles.map(x=>Number(x?.questReward)||0)),combatReward=Math.max(0,...profiles.map(x=>Number(x?.combatReward)||0));
+ state.world.economy={...(state.world.economy||{}),currencyExists:list.length>0,currencyModel:list.length?(list.length>1?"REGIONAL_MULTI_CURRENCY":"REGIONAL_CURRENCY"):"NO_CURRENCY",currencies:list,tradeModes:modes,questReward,combatReward,reconciledAt:Date.now()};
+ return state.world.economy
+}

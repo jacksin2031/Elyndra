@@ -27,7 +27,7 @@ test("v0.54.1 DISCOVER_FACT requires an explicit Engine-groundable source",()=>{
  assert.equal(validateStatePatch(phantom,plan).valid,true);
  const grounded=groundStatePatch(groundingState(),phantom);assert.equal(grounded.patch.operations.length,0);assert.equal(grounded.rejected[0].reason,"DISCOVERY_SOURCE_NOT_OBSERVABLE");
  const location={baseRevision:3,operations:[{op:"DISCOVER_FACT",title:"聲音異常",text:"目前位置可直接感知聲音傳播異常",factId:"",evidenceType:"OBSERVED",sourceKind:"LOCATION",sourceId:"L1"}]};
- assert.equal(groundStatePatch(groundingState(),location).patch.operations.length,1)
+ assert.equal(groundStatePatch(groundingState(),location,{observableText:"你直接察覺到聲音異常，聲音傳播方式與常態不同。"}).patch.operations.length,1)
 });
 
 test("v0.54.1 legacy observation evidence no longer drifts into testimony",()=>{

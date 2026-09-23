@@ -30,7 +30,7 @@ test("ENGINE_ONLY and DEFERRED narration remains async internally but keeps play
 test("FAST and DEEP commit StatePatch without waiting for Player Action narration",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8"),run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
  const stateAwait=run.indexOf("await stateSyncResult"),commit=run.indexOf("commitStatePatch",stateAwait),sceneContinuation=run.indexOf("void pendingPlayerActionResult.then");
- assert.ok(stateAwait>=0&&commit>stateAwait&&sceneContinuation>commit);assert.doesNotMatch(run,/await playerActionResult/);
+ assert.ok(stateAwait>=0&&commit>stateAwait&&sceneContinuation>commit);assert.doesNotMatch(run,/await playerActionResult/);assert.match(run,/commitSceneGroundedEvidence/);
  assert.match(run,/playerActionResult=jobs\.playerAction\.then\(/);assert.match(run,/stateSyncResult=jobs\.stateSync\.then\(/);assert.match(run,/STATE_SYNC_AI_COMPLETED/)
 });
 

@@ -5,10 +5,12 @@ import {npcInteractionMode} from "./world-registry.js?v=54017";
 import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=54017";
 import {deriveSceneTitle} from "./runtime-guard.js?v=54017";
 import {roleplayFallbackSuggestions} from "./player-experience.js?v=54017";
+import {markEntityObserved} from "./visibility-lock.js?v=54017";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
  const mode=npcInteractionMode(state,npc);if(!mode)throw new Error("NPC_CONTACT_UNAVAILABLE");
+ const firstEncounter=mode==="LOCAL"&&npc.encountered!==true;if(mode==="LOCAL"){npc.known=true;npc.encountered=true;markEntityObserved(state,"npc",npc.id,{reason:"NPC_LOCAL_CONVERSATION"})}
  const minutes=npcConversationMinutes(state,mode),before=state.world.state.clock?.totalMinutes||0;
  advanceTime(state,minutes);
  npc.memories??=[];
@@ -16,7 +18,7 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  npc.memories.push({id:id(),type:"conversation",summary,day:state.world.state.day,minute:state.world.state.clock.totalMinutes,mode});
  npc.memories=npc.memories.slice(-12);
  const progressed=evaluateQuestEvidence(state,String(message||"")+" "+String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
- const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
+ const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,firstEncounter,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
  state.events.push(event);
  if(mode==="LOCAL")establishNpcRemoteContact(state,npc);
  const worldEvent=tickWorld(state);

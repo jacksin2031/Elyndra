@@ -1,5 +1,5 @@
 import {normalizeLore} from "./lore-engine.js?v=54017";
-import {normalizeCultureProfile,normalizeTradeProfile} from "./world-locality.js?v=54017";
+import {normalizeCultureProfile,normalizeTradeProfile,reconcileWorldEconomy} from "./world-locality.js?v=54017";
 import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=54017";
 import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=54017";
 import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=54017";
@@ -18,7 +18,7 @@ export function ensureWorldRegistry(state){
  r.locations??=[];r.npcs??=[];r.factions??=[];r.sideQuests??=[];
  for(const list of [r.locations,r.npcs,r.factions,r.sideQuests])for(const x of list)if(x.known==null)x.known=true;
  for(const n of r.npcs){if(n.encountered==null)n.encountered=Boolean(n.companion?.status==="ACTIVE"||(n.memories||[]).length||(Number(n.trust)||0)!==0);ensureNpcRemoteContact(state,n)}
- ensureVisibilityLocks(state);ensureWorldCatalog(state);ensureTravelNetwork(state);return r
+ ensureVisibilityLocks(state);ensureWorldCatalog(state);ensureTravelNetwork(state);reconcileWorldEconomy(state);return r
 }
 export function repairPlayerLocation(state){
  const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
@@ -44,7 +44,7 @@ export function isNpcPresent(state,npc){
  if(npc.companion?.status==="ACTIVE")return true;
  const loc=currentLocationRecord(state);return Boolean(loc&&npc.locationId===loc.id)
 }
-export function npcInteractionMode(state,npc){if(!npc||npc.known!==true||npc.encountered!==true||npc.alive===false)return null;if(isNpcPresent(state,npc))return "LOCAL";if(canRemoteContactNpc(state,npc))return "REMOTE";return null}
+export function npcInteractionMode(state,npc){if(!npc||npc.known!==true||npc.alive===false)return null;if(isNpcPresent(state,npc))return "LOCAL";if(npc.encountered===true&&canRemoteContactNpc(state,npc))return "REMOTE";return null}
 export function canInteractWithNpc(state,npc){return Boolean(npcInteractionMode(state,npc))}
 export function resolvePlayerLocation(state,raw,context={}){
  const token=String(raw??"").trim();if(!token)return null;const r=ensureWorldRegistry(state),entity=r.locations.find(x=>x.id===token||x.name===token);if(!entity)return null;

@@ -3,7 +3,7 @@ const DIRTY_KEYS=["location","knowledge","worldNameKnowledge","calendarKnowledge
 const EFFECTS=new Set(["MINOR_POSITIVE","POSITIVE","MAJOR_POSITIVE","MINOR_NEGATIVE","NEGATIVE","MAJOR_NEGATIVE"]);
 const IMPACT_SCALE=new Set(["MINOR","STANDARD","MAJOR"]);
 const PATCH_OPS=new Set(["DISCOVER_FACT","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","REVEAL_ENTITY","MOVE_PLAYER","ACQUIRE_ITEM","START_ENCOUNTER","NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL","LEARN_RECIPE","LEARN_MAGIC","GENERATE_CONTENT","WORLD_IMPACT_SIGNAL","TIMELINE_SIGNAL"]);
-const DISCOVERY_SOURCE_KINDS=new Set(["CANON","LOCATION","NPC","EVENT","ITEM"]);
+const DISCOVERY_SOURCE_KINDS=new Set(["CANON","LOCATION","NPC","EVENT","ITEM","DOCUMENT"]);
 const REBASE_SAFE=new Set(["NPC_RELATIONSHIP_SIGNAL","FACTION_REPUTATION_SIGNAL","QUEST_HINT","COMPANION_SIGNAL"]);
 const IMMEDIATE_KEYS=new Set(["location","knowledge","worldNameKnowledge","calendarKnowledge","inventory","quest","entityReveal","generation","encounter"]);
 const PERSISTENT_KEYS=new Set(["npcRelation","faction","worldImpact","timeline","magicLearning","recipe","companion"]);
@@ -23,13 +23,15 @@ const emptyFlags=()=>Object.fromEntries(DIRTY_KEYS.map(k=>[k,false]));
 const truthyKeys=flags=>DIRTY_KEYS.filter(k=>flags?.[k]===true);
 
 const PHYSICAL_PICKUP=/撿(?:起|取|走)?|拾(?:起|取|走)?|拿起|捏起|取下|取走|採集|收集|pick\s*up|collect|gather/i;
-export function groundedPickupItemFromAction(action="",roll={}){
+const normalizeEvidenceText=v=>String(v||"").normalize("NFKC").toLowerCase().replace(/\s+/g,"");
+function evidenceMentions(text,name){const a=normalizeEvidenceText(text),b=normalizeEvidenceText(name);return Boolean(a&&b&&a.includes(b))}
+export function groundedPickupItemFromAction(action="",roll={},observableText=""){
  if(roll?.success!==true)return null;
  const q=clean(action,220);if(!q||!PHYSICAL_PICKUP.test(q))return null;
  const m=q.match(/(?:撿(?:起|取|走)?|拾(?:起|取|走)?|拿起|捏起|取下|取走|採集|收集|pick\s*up|collect|gather)\s*(?:那|這)?(?:一)?(?:枚|片|個|塊|份|支|把|件|顆|粒|束|瓶|本|張)?\s*([^，。；、,.;!?！？]{2,28}?)(?=\s*(?:並|然後|再|後|並且|放入|收入|收進|$))/i);
  if(!m)return null;
- const name=clean(m[1],40).replace(/^(?:地上|桌上|眼前|旁邊|附近)(?:的)?/,"").trim();if(name.length<2||!q.includes(name))return null;
- return {name,description:"由玩家本回合直接拾取的可見物件；詳細性質尚待確認。",category:"MATERIAL",quantity:1,identified:false,evidenceFactId:"",historyRefs:[],craftingTags:[],useEffects:[],checkBonuses:{}}
+ const name=clean(m[1],40).replace(/^(?:地上|桌上|眼前|旁邊|附近)(?:的)?/,"").trim();if(name.length<2||!q.includes(name)||!evidenceMentions(observableText,name))return null;
+ return {name,description:"由本回合可見敘事確認並由玩家成功拾取的物件；詳細性質尚待確認。",category:"MATERIAL",quantity:1,identified:false,evidenceFactId:"",historyRefs:[],craftingTags:[],useEffects:[],checkBonuses:{}}
 }
 
 function repeatedSameAction(snapshot,action){
@@ -95,7 +97,7 @@ export function bumpStateRevision(state,reason="ENGINE"){
 }
 export function statePatchSchema(plan={}){
  const allowed=new Set(plan.capabilities||[]),rows=[];
- if(allowed.has("DISCOVER_FACT"))rows.push('{"op":"DISCOVER_FACT","title":"...","text":"...","factId":"","evidenceType":"OBSERVED|HEARD|READ|EXAMINED","sourceKind":"CANON|LOCATION|NPC|EVENT|ITEM","sourceId":"既有且本回合可觀察的 id"}');
+ if(allowed.has("DISCOVER_FACT"))rows.push('{"op":"DISCOVER_FACT","title":"...","text":"...","factId":"","evidenceType":"OBSERVED|HEARD|READ|EXAMINED","sourceKind":"CANON|LOCATION|NPC|EVENT|ITEM|DOCUMENT","sourceId":"既有且本回合可觀察的 id"}');
  if(allowed.has("SET_WORLD_NAME_KNOWN"))rows.push('{"op":"SET_WORLD_NAME_KNOWN"}');
  if(allowed.has("SET_CALENDAR_KNOWN"))rows.push('{"op":"SET_CALENDAR_KNOWN"}');
  if(allowed.has("REVEAL_ENTITY"))rows.push('{"op":"REVEAL_ENTITY","kind":"location|npc|faction|sideQuest","id":"既有 id"}');
@@ -151,6 +153,15 @@ function currentLocationRecord(state){
  const rows=state?.world?.registry?.locations||[],name=clean(state?.player?.location||state?.world?.state?.location,120);
  return rows.find(x=>x?.id===name||x?.name===name)||null
 }
+function sourceEvidenceText(state,raw,context={}){
+ const direct=clean(context?.observableText,2400),sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),registry=state?.world?.registry||{};
+ const out=[];if(direct)out.push(direct);
+ if(sourceKind==="NPC")for(const e of (state?.events||[]).slice(-12))if(e?.type==="NPC_CONVERSATION"&&e?.npcId===sourceId&&e?.visibility!=="INTERNAL")out.push(clean(e.summary,900));
+ if(sourceKind==="DOCUMENT"){const doc=(state?.world?.documents?.documents||[]).find(x=>x?.id===sourceId&&x?.read===true);if(doc)out.push([doc.title,...(doc.claims||[]).map(x=>x?.text)].filter(Boolean).join(" "))}
+ if(sourceKind==="ITEM"){const item=(state?.inventory||[]).find(x=>x?.id===sourceId);if(item)out.push([item.name,item.description].filter(Boolean).join(" "))}
+ if(sourceKind==="EVENT"){const event=(state?.events||[]).find(x=>x?.id===sourceId&&x?.visibility!=="INTERNAL");if(event)out.push(clean(event.summary,900))}
+ return out.join("\n")
+}
 function discoverySourceGrounded(state,raw){
  const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),registry=state?.world?.registry||{},current=currentLocationRecord(state);
  if(!DISCOVERY_SOURCE_KINDS.has(sourceKind)||!sourceId)return false;
@@ -165,26 +176,42 @@ function discoverySourceGrounded(state,raw){
  }
  if(sourceKind==="EVENT")return (state?.events||[]).some(e=>e?.id===sourceId&&e?.visibility!=="INTERNAL");
  if(sourceKind==="ITEM")return (state?.inventory||[]).some(i=>i?.id===sourceId);
+ if(sourceKind==="DOCUMENT")return (state?.world?.documents?.documents||[]).some(d=>d?.id===sourceId&&d?.read===true);
  return false
 }
-function acquiredItemGrounded(raw,action=""){
- const q=clean(action,220),name=clean(raw?.item?.name,100);
- return Boolean(q&&name&&ACQUIRE_ITEM_WORD.test(q)&&q.includes(name))
+function discoveryNameGrounded(state,raw,context={}){
+ const title=clean(raw?.title,100);return Boolean(title&&evidenceMentions(sourceEvidenceText(state,raw,context),title))
+}
+function acquiredItemGrounded(raw,context={}){
+ const name=clean(raw?.item?.name,100);return Boolean(name&&evidenceMentions(context?.observableText,name))
+}
+function travelIntentGrounded(context={},action=""){
+ const kind=String(context?.intent?.kind||context?.roll?.profile?.kind||"").toUpperCase();return kind==="TRAVEL"||/前往|移動|走向|走到|進入|抵達|沿著|循著|travel|move|go to|enter/i.test(action)
 }
 export function groundStatePatch(state,patch={},context={}){
- const next=structuredClone(patch||{}),accepted=[],rejected=[],action=clean(context?.action,220),ops=Array.isArray(next.operations)?next.operations:[],generatedLocations=new Set(ops.filter(x=>String(x?.op||"").toUpperCase()==="GENERATE_CONTENT").flatMap(x=>(x?.generation?.locations||[]).flatMap(loc=>[clean(loc?.id,120),clean(loc?.name,120)])).filter(Boolean));
+ const next=structuredClone(patch||{}),accepted=[],rejected=[],deferredEvidence=[],action=clean(context?.action,220),ops=Array.isArray(next.operations)?next.operations:[],generatedLocations=new Set(ops.filter(x=>String(x?.op||"").toUpperCase()==="GENERATE_CONTENT").flatMap(x=>(x?.generation?.locations||[]).flatMap(loc=>[clean(loc?.id,120),clean(loc?.name,120)])).filter(Boolean));
  for(const [index,raw] of ops.entries()){
   const type=String(raw?.op||"").toUpperCase();
-  if(type==="DISCOVER_FACT"&&!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
-  if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(raw,action)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NOT_GROUNDED_IN_PLAYER_ACTION"});continue}
+  if(type==="DISCOVER_FACT"){
+   if(!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
+   if(!discoveryNameGrounded(state,raw,context)){rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
+  }
+  if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
   if(type==="MOVE_PLAYER"){
    const target=clean(raw?.location,120),current=clean(state?.player?.location||state?.world?.state?.location,120),locations=state?.world?.registry?.locations||[],entity=locations.find(x=>x?.id===target||x?.name===target);
-   if(!target||(!entity&&!generatedLocations.has(target))){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}
+   if(!target){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}
+   if(!entity&&!generatedLocations.has(target)){
+    const observable=clean(context?.observableText,2400);
+    if(travelIntentGrounded(context,action)&&evidenceMentions(observable,target)){
+     accepted.push({...raw,materializeLocation:{name:target,type:"可到達地點",region:clean(state?.world?.state?.region,80),description:`「${target}」已在本回合可見敘事中被確認為可實際前往的地點。`,known:true}});continue
+    }
+    rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});if(travelIntentGrounded(context,action))deferredEvidence.push(structuredClone(raw));continue
+   }
    if(entity&&(entity?.name===current||entity?.id===current)){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_UNCHANGED"});continue}
   }
   accepted.push(raw)
  }
- next.operations=accepted;return {patch:next,rejected}
+ next.operations=accepted;return {patch:next,rejected,deferredEvidence}
 }
 function semanticWorldImpact(raw){
  const kind=String(raw.targetKind||""),axis=clean(raw.axis,40),allowed={location:new Set(["safety","prosperity","supply","infrastructure","stability"]),npc:new Set(["trust"]),faction:new Set(["resources","influence","stability"]),world:new Set(["tension","crisisPressure"])};
@@ -200,7 +227,7 @@ export function statePatchToCandidate(patch,state){
   else if(type==="SET_WORLD_NAME_KNOWN")c.worldNameKnown=true;
   else if(type==="SET_CALENDAR_KNOWN")c.calendarKnown=true;
   else if(type==="REVEAL_ENTITY")c.entityReveals.push({kind:raw.kind,id:clean(raw.id,120)});
-  else if(type==="MOVE_PLAYER")c.location=clean(raw.location,120);
+  else if(type==="MOVE_PLAYER"){if(raw.materializeLocation){c.generation??={locations:[],npcs:[],factions:[],sideQuests:[]};c.generation.locations??=[];c.generation.locations.push(structuredClone(raw.materializeLocation))}c.location=clean(raw.location,120)}
   else if(type==="ACQUIRE_ITEM")c.items.push(structuredClone(raw.item));
   else if(type==="START_ENCOUNTER")c.encounter={type:"combat",enemy:structuredClone(raw.enemy)}
   else if(type==="NPC_RELATIONSHIP_SIGNAL")c.npcChanges.push({npcId:clean(raw.npcId,120),trustEffect:String(raw.effect||"").toUpperCase()});

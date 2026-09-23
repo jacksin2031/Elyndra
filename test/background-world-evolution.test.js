@@ -53,7 +53,7 @@ test("StatePatch commit releases foreground before late Scene narration and prev
  assert.match(client,/export function startTurnAIJobs/);assert.match(client,/stateSync=immediateStateAI\?directChat/);
  const run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
  const stateAwait=run.indexOf("await stateSyncResult"),sceneContinuation=run.indexOf("void pendingPlayerActionResult.then"),commit=run.indexOf("commitStatePatch",stateAwait);
- assert.ok(stateAwait>=0&&commit>stateAwait&&sceneContinuation>commit);assert.doesNotMatch(run,/await playerActionResult/);
+ assert.ok(stateAwait>=0&&commit>stateAwait&&sceneContinuation>commit);assert.doesNotMatch(run,/await playerActionResult/);assert.match(run,/commitSceneGroundedEvidence/);
  assert.match(app,/function applyPlayerActionScene/);assert.match(app,/expectedRevision/);assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);
  const preview=sceneTurnPreview({narrative:"你看見門後有微光。",sceneTitle:"檢查門後",suggestions:["靠近觀察","先後退"]},{success:true},{action:"看門",priorSuggestions:[]});
  assert.equal(preview.narrative,"你看見門後有微光。");assert.equal(preview.sceneTitle,"檢查門後");assert.deepEqual(preview.suggestions,["靠近觀察","先後退"])

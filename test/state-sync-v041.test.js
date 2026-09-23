@@ -82,14 +82,14 @@ test("successful pickup wording enables ACQUIRE_ITEM even when suggestion kind i
 test("ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup action",()=>{
  const state={player:{location:"石室"},world:{state:{location:"石室"},registry:{locations:[{id:"L1",name:"石室"}],npcs:[]},canon:{facts:[]}},events:[],inventory:[]};
  const patch={baseRevision:4,operations:[{op:"ACQUIRE_ITEM",item:{name:"藍光碎屑",description:"指尖可見淡藍微光",category:"MATERIAL",quantity:1}}]};
- const ok=groundStatePatch(state,patch,{action:"用指尖捏起藍光碎屑並收起"});assert.equal(ok.patch.operations.length,1);
+ const ok=groundStatePatch(state,patch,{action:"用指尖捏起藍光碎屑並收起",observableText:"你看見並成功收起藍光碎屑。"});assert.equal(ok.patch.operations.length,1);
  const invented=groundStatePatch(state,{...patch,operations:[{op:"ACQUIRE_ITEM",item:{name:"古代王冠",category:"ARTIFACT",quantity:1}}]},{action:"用指尖捏起藍光碎屑並收起"});
- assert.equal(invented.patch.operations.length,0);assert.equal(invented.rejected[0].reason,"ITEM_NOT_GROUNDED_IN_PLAYER_ACTION")
+ assert.equal(invented.patch.operations.length,0);assert.equal(invented.rejected[0].reason,"ITEM_NAME_NOT_OBSERVED")
 });
 
 
 test("Engine pickup fail-forward extracts only explicit successful physical pickup nouns",()=>{
- const item=groundedPickupItemFromAction("小心撥開枯草，用指尖捏起那枚藍光碎屑並收起",{success:true});
+ const item=groundedPickupItemFromAction("小心撥開枯草，用指尖捏起那枚藍光碎屑並收起",{success:true},"旁白確認你把藍光碎屑握在手中。");
  assert.equal(item?.name,"藍光碎屑");assert.equal(item?.identified,false);assert.equal(item?.category,"MATERIAL");
  assert.equal(groundedPickupItemFromAction("仔細觀察藍光碎屑",{success:true}),null);
  assert.equal(groundedPickupItemFromAction("捏起那枚藍光碎屑",{success:false}),null)

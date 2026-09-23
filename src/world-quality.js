@@ -104,13 +104,17 @@ export function fallbackWorldEvaluation(candidate,diagnostics,reason="AI_CRITIC_
  const opening=clean(candidate?.openingHook,1000),worldName=clean(candidate?.worldName,100),start=clean(candidate?.worldBible?.startingLocation,100),theme=clean(candidate?.worldTheme,200),originOpening=candidate?.originOpening||{},knowledgePolicy=String(originOpening.knowledgePolicy||candidate?.worldBible?.blueprintProfile?.origin?.knowledgePolicy||"EARTH_ONLY").toUpperCase();
  const localStartKnowledge=["PARTIAL_LOCAL","BRIEFED_PARTIAL","LOCAL_BASELINE"].includes(knowledgePolicy),worldNameLeak=originOpening.worldNameKnown===true?false:Boolean(worldName&&opening.includes(worldName)),startLeak=localStartKnowledge?false:Boolean(start&&opening.includes(start)),themeLeak=Boolean(theme&&opening.includes(theme));
  if(worldNameLeak||startLeak||themeLeak){score-=16;findings.push({severity:"CRITICAL",targetType:"KNOWLEDGE_BOUNDARY",problem:"開場超出 Origin 授權的玩家知識邊界，或直接洩漏 Director-level 主題。",recommendation:"依 Origin knowledgePolicy 只使用角色合理已知內容，其餘只保留可直接感知的聲音、光線、氣味、觸感與可見變化。",requiresRegeneration:true})}
+ const historyText=JSON.stringify(candidate?.worldHistory||[]),npcRows=Array.isArray(candidate?.generation?.npcs)?candidate.generation.npcs:[],remoteHistory=/百年|數百年|數世紀|centur|hundred years/i.test(historyText),legacyWitness=npcRows.find(n=>/初代|始祖|創建者|創始|founder|first generation/i.test(JSON.stringify(n||{}))),longevity=/長壽|延命|延壽|不老|不死|休眠|凍眠|immortal|longevity|lifespan/i.test(JSON.stringify({bible:candidate?.worldBible||{},npc:legacyWitness||{}}));
+ if(remoteHistory&&legacyWitness&&!longevity){score-=8;findings.push({severity:"MEDIUM",targetType:"CHARACTERS",problem:`角色「${clean(legacyWitness.name,80)||"未命名角色"}」被描述為遙遠歷史時期的第一代／創建人物，但世界或角色設定沒有交代壽命、延命、休眠或其他時間跨度機制。`,recommendation:"補充角色壽命／延命機制，或把角色改為後代、傳承者、記錄持有人，避免年代矛盾。",requiresRegeneration:true})}
  score=Math.round(clamp(score,0,100));
  const dimensions=Object.fromEntries(WORLD_QUALITY_DIMENSIONS.map(k=>[k,score]));
  if(findings.some(x=>x.targetType==="MAGIC_SYSTEM"))dimensions.magicSystem=Math.max(20,score-18);
  if(findings.some(x=>x.targetType==="FUTURE_EVENTS"))dimensions.futureEvents=Math.max(20,score-22);
  if(findings.some(x=>x.targetType==="PROVENANCE"))dimensions.historyIntegration=Math.max(25,score-15);
  if(findings.some(x=>x.targetType==="KNOWLEDGE_BOUNDARY"))dimensions.knowledgeBoundary=Math.max(10,score-30);
- return normalizeWorldEvaluation({overall:score,dimensions,findings},{source:"FALLBACK",reason})
+ const evaluation=normalizeWorldEvaluation({overall:score,dimensions,findings},{source:"FALLBACK",reason});
+ if(String(reason||"")==="BACKGROUND_AI_CRITIC_PENDING")return {...evaluation,overall:null,status:"PENDING",official:false,pending:true,provisionalOverall:evaluation.overall};
+ return {...evaluation,official:false,pending:false}
 }
 
 export function applyFallbackRecoveryPatch(candidate,input,diagnostics){
@@ -219,8 +223,8 @@ export function validateExpansionProvenance(state,generation){
 }
 
 export function worldHealthSnapshot(state){
- const r=state?.world?.registry||{},historyIds=new Set((state?.world?.history||[]).map(x=>clean(x?.id,120)).filter(Boolean)),issues=[];let score=Number(state?.world?.quality?.overall);
- if(!Number.isFinite(score))score=90;
+ const r=state?.world?.registry||{},historyIds=new Set((state?.world?.history||[]).map(x=>clean(x?.id,120)).filter(Boolean)),issues=[];const quality=state?.world?.quality||{};let score=Number(quality?.overall);
+ if(!Number.isFinite(score))score=quality?.pending===true?75:90;
  for(const [label,list] of [["LOCATION",r.locations||[]],["NPC",r.npcs||[]],["FACTION",r.factions||[]]])for(const x of list){
   const refs=uniq(x?.historyRefs);
   if(historyIds.size&&!refs.length){score-=4;issues.push(label+"_HISTORY_REF_MISSING:"+clean(x?.name,80))}
