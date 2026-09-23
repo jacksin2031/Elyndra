@@ -19,13 +19,18 @@ jobs:
       - name: Apply v0.54.16 patch
         run: |
           python3 scripts/v05416_finalize.py
-          sed -i 's|action-intent.js?v=54008|action-intent.js?v=54016|g' src/ai-runtime-contracts.js
+          sed -i 's|action-intent.js?v=54008|action-intent.js?v=54016|g' src/ai-runtime-contracts.js src/ai-client.js
+          sed -i 's|model-json.js?v=54013|model-json.js?v=54016|g' src/ai-client.js
+          sed -i 's|turn-outcome.js?v=54013|turn-outcome.js?v=54016|g' src/ai-client.js
+          sed -i 's|ai-runtime-contracts.js?v=54013|ai-runtime-contracts.js?v=54016|g' src/ai-client.js
       - name: Syntax and regression suite
         run: |
           node --check app.js
           node --check src/action-intent.js
           node --check src/contextual-actions.js
           node --check src/model-json.js
+          node --check src/ai-client.js
+          node --check src/ai-runtime-contracts.js
           npm test
           git diff --check
       - name: Finalize commit and verify cache graph
