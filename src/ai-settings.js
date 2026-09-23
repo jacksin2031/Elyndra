@@ -69,13 +69,17 @@ async function gemini(s,{system,user,temperature,signal,maxOutputTokens,aiTask,d
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));const timeoutValue=v=>Math.max(5000,Math.min(120000,Math.round(Number(v)||30000)));
 const providerTimeoutError=ms=>Object.assign(new Error(`AI_TIMEOUT: Provider 在 ${Math.round(ms/1000)} 秒內未完成回應`),{code:"AI_TIMEOUT"});
 const providerAbortError=()=>Object.assign(new Error("AI_ABORTED: request cancelled by higher-priority gameplay"),{code:"AI_ABORTED"});
-let directAIRuntimeControl={disableTimeout:false,signal:null,pauseWhenHidden:false};
-export function setDirectAIRuntimeControl(control={}){
- directAIRuntimeControl={disableTimeout:control?.disableTimeout===true,signal:control?.signal||null,pauseWhenHidden:control?.pauseWhenHidden!==false};
- return {...directAIRuntimeControl}
+const RUNTIME_CONTROL_KEY="__ELYNDRA_DIRECT_AI_RUNTIME_CONTROL__";
+function directAIRuntimeControl(){
+ const current=globalThis[RUNTIME_CONTROL_KEY];
+ if(current&&typeof current==="object")return current;
+ const initial={disableTimeout:false,signal:null,pauseWhenHidden:false};globalThis[RUNTIME_CONTROL_KEY]=initial;return initial
 }
-export function clearDirectAIRuntimeControl(){directAIRuntimeControl={disableTimeout:false,signal:null,pauseWhenHidden:false}}
-function runtimeHidden(){return directAIRuntimeControl.pauseWhenHidden===true&&typeof document!=="undefined"&&document?.hidden===true}
+export function setDirectAIRuntimeControl(control={}){
+ const next={disableTimeout:control?.disableTimeout===true,signal:control?.signal||null,pauseWhenHidden:control?.pauseWhenHidden!==false};globalThis[RUNTIME_CONTROL_KEY]=next;return {...next}
+}
+export function clearDirectAIRuntimeControl(){globalThis[RUNTIME_CONTROL_KEY]={disableTimeout:false,signal:null,pauseWhenHidden:false}}
+function runtimeHidden(){const runtime=directAIRuntimeControl();return runtime.pauseWhenHidden===true&&typeof document!=="undefined"&&document?.hidden===true}
 async function waitForRuntimeForeground(parentSignals=[]){
  if(!runtimeHidden())return;
  await new Promise((resolve,reject)=>{
@@ -88,7 +92,7 @@ async function waitForRuntimeForeground(parentSignals=[]){
  })
 }
 function abortProviderWhenHidden(controller){
- if(directAIRuntimeControl.pauseWhenHidden!==true||typeof document==="undefined")return {cleanup:()=>{},wasPaused:()=>false};
+ const runtime=directAIRuntimeControl();if(runtime.pauseWhenHidden!==true||typeof document==="undefined")return {cleanup:()=>{},wasPaused:()=>false};
  let paused=false;const onVisibility=()=>{if(document.hidden){paused=true;try{controller.abort(Object.assign(new Error("AI_BACKGROUND_PAUSED"),{code:"AI_BACKGROUND_PAUSED"}))}catch{}}};
  document.addEventListener("visibilitychange",onVisibility);
  return {cleanup:()=>document.removeEventListener("visibilitychange",onVisibility),wasPaused:()=>paused}
@@ -110,7 +114,7 @@ export async function hardProviderDeadline(promise,{controller=null,timeoutMs=30
 }
 export async function directChat(args){
  const s=loadAISettings();if(!s.endpoint||!s.model||!s.apiKey)throw new Error("DIRECT_AI_NOT_CONFIGURED");
- const timeoutDisabled=args?.disableTimeout===true||directAIRuntimeControl.disableTimeout===true,timeoutMs=timeoutDisabled?0:Math.max(timeoutValue(args?.timeoutMs),taskTimeoutFloor(args?.aiTask)),parentSignals=[args?.signal,directAIRuntimeControl.signal].filter(Boolean);let last,attempt=0;
+ const runtime=directAIRuntimeControl(),timeoutDisabled=args?.disableTimeout===true||runtime.disableTimeout===true,timeoutMs=timeoutDisabled?0:Math.max(timeoutValue(args?.timeoutMs),taskTimeoutFloor(args?.aiTask)),parentSignals=[args?.signal,runtime.signal].filter(Boolean);let last,attempt=0;
  while(attempt<2){
   if(parentSignals.some(signal=>signal?.aborted))throw providerAbortError();
   if(runtimeHidden()){recordDebug("AI_BACKGROUND_PAUSED",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",phase:"BEFORE_REQUEST"});await waitForRuntimeForeground(parentSignals)}
