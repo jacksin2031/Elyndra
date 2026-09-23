@@ -982,7 +982,7 @@ async function startDeveloperAutotest(config){
     appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
     const generated=await createDeveloperAutotestWorld(randomAutotestWorldRaw(Math.random,i),i);
     result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
-    gameState=generated.state;gameplayDebugSnapshot=null;if(config.mode!=="worlds"&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");await refresh();show("game");await waitForAutotestIdle(3000);
+    gameState=generated.state;gameplayDebugSnapshot=null;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");await waitForAutotestIdle(3000);
     if(config.mode==="worlds"){
      result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
      appendDeveloperAutotestLog(`世界 ${i} 生成驗證完成。`);continue
@@ -990,7 +990,7 @@ async function startDeveloperAutotest(config){
     result.phase="PLAY";const recentActions=[];
     for(let turn=1;turn<=config.maxTurns;turn++){
      if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
-     developerAutotest.turn=turn;if(needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");await waitForAutotestIdle();
+     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});await waitForAutotestIdle();
      const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
      try{
       const ctrl=new AbortController();developerAutotest.controller=ctrl;
