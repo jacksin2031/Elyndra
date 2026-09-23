@@ -1,6 +1,10 @@
 const uid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 export function normalizeLore(input){
+ if(typeof input==="string"){
+  const story=clean(input,800);if(!story)return null;
+  return {story,unlockKeywords:[],minMatches:1,known:false,revealedDay:null}
+ }
  if(!input||typeof input!=="object"||Array.isArray(input))return null;
  const story=clean(input.story,800);
  if(!story)return null;
@@ -46,7 +50,7 @@ export function resolveLocalLoreAction(state,action){
   if(kind!=="item"&&entity.known!==true)continue;
   const lore=visibleLore(entity),surface=clean(entity.description,400);
   if(lore)return {kind,entityId:entity.id,name,text:`${name}：${lore}`,source:"stored-lore"};
-  if(surface)return {kind,entityId:entity.id,name,text:`${name}：${surface}`,source:"stored-description"};
+  if(surface)return {kind,entityId:entity.id,name,text:`${name}：${surface}`,source:"stored-description"}
  }
  if(/背包|inventory/i.test(q)){
   const names=(state.inventory||[]).map(x=>x.name).filter(Boolean);
