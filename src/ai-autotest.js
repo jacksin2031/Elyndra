@@ -126,6 +126,13 @@ export function resetAutotestDecisionCircuit(worldId=""){
 }
 function decisionTransientFailure(error){return /AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(?:429|5\d\d)|Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(error?.message||error||""))}
 function decisionAborted(error,signal){return signal?.aborted===true||error?.code==="AI_ABORTED"||/AI_ABORTED: request cancelled by higher-priority gameplay/i.test(String(error?.message||error||""))}
+function forceRecoveryForDecision(decision,recentActions=[]){
+ const stall=consecutiveAutotestStall(recentActions);if(stall<3)return false;
+ const action=text(decision?.action,180).toLowerCase(),recent=normalizedRecent(recentActions),kind=String(decision?.kind||"").toUpperCase(),last=list(recentActions).filter(x=>x&&typeof x==="object").at(-1)||{},lastKind=String(last.kind||"").toUpperCase(),repeated=Boolean(action&&recent.has(action)),sameKind=Boolean(kind&&kind===lastKind);
+ if(stall>=7)return true;
+ if(stall>=5)return repeated||sameKind||["OBSERVE","SOCIAL","GENERAL",""].includes(kind);
+ return repeated||(sameKind&&decision?.progression!==true)
+}
 
 export function deterministicAutotestDecision(snapshot={},recentActions=[],reason="AI fallback"){
  const combat=snapshot?.combat?.active===true,suggestions=list(snapshot?.suggestions),recent=normalizedRecent(recentActions),stall=consecutiveAutotestStall(recentActions),last=list(recentActions).filter(x=>x&&typeof x==="object").at(-1)||{},lastKind=String(last.kind||"").toUpperCase();
@@ -136,7 +143,7 @@ export function deterministicAutotestDecision(snapshot={},recentActions=[],reaso
   return {x,i,score}
  }).sort((a,b)=>b.score-a.score||a.i-b.i);
  const chosen=scored[0];
- if(chosen&&chosen.x&&(stall<7||chosen.score>=45))return {mode:"suggestion",suggestionIndex:chosen.i,action:text(chosen.x.action||chosen.x.label,180),kind:text(chosen.x.kind||"",30),progression:chosen.x.progression===true,targetId:chosen.x.targetId||null,combatAction:null,reason:`${reason}; deterministic recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true};
+ if(chosen&&chosen.x&&stall<7)return {mode:"suggestion",suggestionIndex:chosen.i,action:text(chosen.x.action||chosen.x.label,180),kind:text(chosen.x.kind||"",30),progression:chosen.x.progression===true,targetId:chosen.x.targetId||null,combatAction:null,reason:`${reason}; deterministic recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true};
  const loc=text(snapshot?.world?.location||"目前位置",100)||"目前位置",objective=text(snapshot?.quest?.objectives?.[0]||snapshot?.quest?.title||"目前目標",100);
  const action=stall>=7?`停止重複目前互動，沿${loc}現在可見且可安全接近的出口或通道移動一小段，尋找能推進「${objective}」的新人物或可驗證線索`:`在${loc}換一個未嘗試的方向，確認最明顯的出口、人物或可互動物件，取得一項能推進「${objective}」的新線索`;
  return {mode:"free",suggestionIndex:null,action:text(action,180),kind:stall>=7?"TRAVEL":"OBSERVE",progression:true,targetId:null,combatAction:null,reason:`${reason}; deterministic free recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true}
@@ -182,7 +189,11 @@ export async function decideAutotestAction(state,{recentActions=[],customConditi
  try{
   const raw=await directChat({aiTask:"action",timeoutMs:45000,retryOnTimeout:false,disableTimeout,maxOutputTokens:700,temperature:.35,signal,system,user:JSON.stringify({playerVisible:snapshot,recentActions:list(recentActions).slice(-8),customStopCondition:goal||null})});
   circuit.failures=0;circuit.openUntil=0;
-  const decision=normalizeAutotestDecision(raw,snapshot,recentActions);
+  let decision=normalizeAutotestDecision(raw,snapshot,recentActions);
+  if(forceRecoveryForDecision(decision,recentActions)){
+   const goalReached=decision.goalReached,goalEvidence=decision.goalEvidence,priorAction=decision.action,stall=consecutiveAutotestStall(recentActions),forced=deterministicAutotestDecision(snapshot,recentActions,"Anti-stall override");
+   decision={...forced,goalReached,goalEvidence};recordDebug("AUTOTEST_STALL_RECOVERY",{worldId,stall,priorAction,action:decision.action,mode:decision.mode,kind:decision.kind||""})
+  }
   recordDebug("AUTOTEST_AI_DECISION",{mode:decision.mode,action:decision.action,combatAction:decision.combatAction,suggestionIndex:decision.suggestionIndex,goalReached:decision.goalReached,reason:decision.reason});
   return decision
  }catch(error){
