@@ -1,0 +1,37 @@
+name: Temporary Cast Future Prompt Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tmp-cast-future-prompt-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Patch Cast future authoring contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/ai-client.js')
+          s = p.read_text(encoding='utf-8')
+          old = '支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。'
+          new = '支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。Future Timeline 只代表尚未觸發的可能事件：任何 earliestDay 大於 1 的事件都不可在 NPC description/personality/goal、sideQuest 或 suggestions 寫成 Day 1 已經發生、正在發生或已造成現況；可以寫成擔心、傳聞、預警、準備、防範或可能風險。只有 earliestDay=1 的事件先可以當成開局現況。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。'
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one Cast prompt anchor, found {count}')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+          rm .github/workflows/tmp-cast-future-prompt-patch.yml
+          git config user.name 'JackSin'
+          git config user.email 'a24dc523@dhw.ac.jp'
+          git add src/ai-client.js .github/workflows/tmp-cast-future-prompt-patch.yml
+          git commit -m 'fix: constrain opening cast against untriggered futures'
+          git push origin HEAD:main
