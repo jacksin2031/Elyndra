@@ -6,6 +6,7 @@ import {applyNpcConversationTurn} from "../src/npc-conversation.js";
 import {reconcileWorldEconomy} from "../src/world-locality.js";
 import {fallbackWorldEvaluation} from "../src/world-quality.js";
 import {deriveAcquisitionNotifications} from "../src/acquisition-notifier.js";
+import {WORLD_CONSTITUTION} from "../src/world-engine.js";
 
 const baseState=()=>({player:{location:"中央祭壇",knowledgeScore:0,wallet:{}},world:{state:{day:1,region:"核心區",location:"中央祭壇",clock:{day:1,hour:8,minute:0,totalMinutes:480}},registry:{locations:[{id:"L1",name:"中央祭壇",region:"核心區",known:true,trade:{mode:"barter",currencies:[],questReward:0,combatReward:0}}],npcs:[],factions:[],sideQuests:[]},canon:{facts:[{id:"F1",visibility:"public",text:"外環入口受高壓閥控制"}]},documents:{documents:[]}},events:[],inventory:[],knowledge:[],suggestions:[]});
 
@@ -24,3 +25,5 @@ test("global economy reconciles actual regional currencies",()=>{const s=baseSta
 test("pending background critic never masquerades as an official numeric score",()=>{const q=fallbackWorldEvaluation({worldName:"渦輪廢土",worldTheme:"殘魂蒸汽",openingHook:"冷凝水滴落。",worldBible:{startingLocation:"祭壇",magicCost:"每次抽取殘魂都會永久磨損共鳴器。"},worldTimeline:[],generation:{locations:[],npcs:[],factions:[]}}, {stages:{}}, "BACKGROUND_AI_CRITIC_PENDING");assert.equal(q.status,"PENDING");assert.equal(q.overall,null);assert.equal(q.official,false);assert.equal(q.pending,true);assert.ok(Number.isFinite(q.provisionalOverall))});
 
 test("committed state diffs produce compact acquisition notifications",()=>{const prev={inventory:{},knowledge:{},locations:{L1:{known:true,name:"中央祭壇"}},npcs:{N1:{encountered:false,name:"工程師"}},mainQuest:{stage:1,status:"ACTIVE",objective:"觀察"}},next={inventory:{I1:{quantity:1,name:"藍光碎屑"}},knowledge:{K1:{title:"高壓氣閥",status:"UNCONFIRMED"}},locations:{L1:{known:true,name:"中央祭壇"},L2:{known:true,name:"外環"}},npcs:{N1:{encountered:true,name:"工程師",role:"技師"}},mainQuest:{stage:2,status:"ACTIVE",title:"找出路",objective:"前往外環"}};const rows=deriveAcquisitionNotifications(prev,next);assert.ok(rows.some(x=>x.type==="ITEM"&&x.name==="藍光碎屑"));assert.ok(rows.some(x=>x.type==="KNOWLEDGE"&&x.name==="高壓氣閥"));assert.ok(rows.some(x=>x.type==="LOCATION"));assert.ok(rows.some(x=>x.type==="NPC"));assert.ok(rows.some(x=>x.type==="QUEST"))});
+
+test("world constitution requires chronology and lifespan consistency",()=>{const rule=WORLD_CONSTITUTION.find(x=>x.id==="C-012");assert.ok(rule);assert.match(rule.text,/年齡|世代/);assert.match(rule.text,/長壽|延命/);assert.match(rule.text,/後代|傳承者/)});

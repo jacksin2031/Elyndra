@@ -23,7 +23,8 @@ export const WORLD_CONSTITUTION=[
  {id:"C-008",text:"世界不得默認採用現實地球曆法、國家制度或全球通用貨幣；地方文化與交易制度必須由 Canon 定義"},
  {id:"C-009",text:"世界未來事件在創世時只 Canonize 為 Director 層的潛在事件；Engine 必須同時檢查 activation／cancel／escalation conditions，玩家可以在規則允許時阻止、延遲或加速，不得把偏好當成必然劇情"},
  {id:"C-010",text:"世界過去歷史 Skeleton 在創世時 Canonize 並不可改寫；玩家研究後可 Lazy Deepen 尚未定義的人物、文獻、遺物、地點痕跡與不同記錄版本，但不得改變既有 title、summary、causes、legacies、era、category 或已發生因果；生成隱藏細節本身不等於玩家已知。"},
- {id:"C-011",text:"天氣由世界 Canon 定義並由 Engine 按世界時間與地區推進；天氣可為異世界獨有現象，不得被敘事 AI 臨時改寫"}
+ {id:"C-011",text:"天氣由世界 Canon 定義並由 Engine 按世界時間與地區推進；天氣可為異世界獨有現象，不得被敘事 AI 臨時改寫"},
+ {id:"C-012",text:"角色年齡、世代與世界歷史必須時間一致；若仍存活角色被設定為百年前、數百年前或更早時期的第一代、始祖、創建者或直接見證者，Canon 必須明確定義足以解釋其存活的長壽、延命、不老、休眠或等價機制，否則必須改為後代、傳承者或記錄持有人"}
 ];
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return h}
 function localWorldName(seed){const a=["艾","賽","諾","維","伊","洛","瑟","亞"],b=["蘭","爾","恩","斯","姆","亞","里","德"],c=["達","拉","恩","亞","爾","斯"];const h=Math.abs(hash(JSON.stringify(seed)));return a[h%a.length]+b[Math.floor(h/a.length)%b.length]+c[Math.floor(h/(a.length*b.length))%c.length]}
