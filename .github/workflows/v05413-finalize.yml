@@ -1,0 +1,117 @@
+name: v0.54.13 finalize
+
+on:
+  push:
+    branches:
+      - fix/v05413-runtime-resume-generation-normalization
+    paths:
+      - .github/workflows/v05413-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v05413-runtime-resume-generation-normalization
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply source patch and current test contracts
+        shell: bash
+        run: |
+          awk '/python - <<'"'"'PY'"'"'/{flag=1;next}/^          PY$/{flag=0}flag{sub(/^          /,"");print}' .github/workflows/v05413-branch-patch.yml > /tmp/v05413-patch.py
+          test -s /tmp/v05413-patch.py
+          python /tmp/v05413-patch.py
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def read(p): return Path(p).read_text(encoding='utf-8')
+          def write(p,s): Path(p).write_text(s,encoding='utf-8')
+
+          # AI settings tests now follow the v0.54.13 browser edge and Future budget.
+          p='test/ai-settings.test.js'; s=read(p)
+          s=s.replace('ai-settings\\.js\\?v=54012','ai-settings\\.js\\?v=54013')
+          s=s.replace('providerTokenBudget("agnes","adaptive","future",1200),1600','providerTokenBudget("agnes","adaptive","future",1200),3000')
+          s=s.replace('["future",1200,1600]','["future",1200,3000]')
+          write(p,s)
+
+          # Missing property commas are recoverable now; preserve a separate unrecoverable-error test.
+          p='test/model-json.test.js'; s=read(p)
+          old='''test("model JSON parser normalizes native JSON syntax errors",()=>{\n assert.throws(\n  ()=>parseModelJSON('{"worldBible":{"era":"潮紀" "tone":"灰暗"}}'),\n  /INVALID_MODEL_JSON:.*Expected/\n )\n});'''
+          new='''test("model JSON parser still rejects unrecoverable native JSON syntax errors",()=>{\n assert.throws(\n  ()=>parseModelJSON('{"worldBible":{"era":"潮紀",,"tone":"灰暗"}}'),\n  /INVALID_MODEL_JSON/\n )\n});'''
+          if old not in s: raise SystemExit('model-json legacy error test anchor missing')
+          write(p,s.replace(old,new,1))
+
+          # Cache graph test: release-root imports must be 54013; unchanged historical edges stay pinned.
+          p='test/module-cache.test.js'; s=read(p)
+          start=s.index('test("v0.54.')
+          replacement=r'''test("v0.54.13 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
+ const [html,app,client,stateSync,actions,settings,contracts,adventure,turnOutcome,lazy,knowledge,worldEngine,simulation,npc,storage,progression]=await Promise.all([
+  readFile(new URL("../index.html",import.meta.url),"utf8"),
+  readFile(new URL("../app.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/state-sync.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-runtime-contracts.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/turn-outcome.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/knowledge-model.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/npc-engine.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
+ ]);
+ assert.match(html,/app\.js\?v=54013/);
+ const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
+ assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="54013"),"all app browser imports must use the v0.54.13 release token");
+ assert.match(actions,/\.\/action-intent\.js\?v=54008/);assert.match(contracts,/\.\/action-intent\.js\?v=54008/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=54008/);
+ assert.match(client,/\.\/ai-settings\.js\?v=54013/);
+ assert.match(client,/\.\/turn-compiler\.js\?v=54001/);assert.match(client,/\.\/turn-outcome\.js\?v=54013/);
+ assert.match(client,/\.\/action-intent\.js\?v=54008/);assert.match(client,/\.\/state-sync\.js\?v=54013/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=54013/);assert.match(contracts,/\.\/state-sync\.js\?v=54013/);
+ assert.match(client,/\.\/knowledge-model\.js\?v=54001/);assert.match(client,/\.\/lazy-generation\.js\?v=54012/);assert.match(client,/\.\/model-json\.js\?v=54013/);assert.match(client,/\.\/world-compiler\.js\?v=54013/);
+ for(const [source,label] of [[adventure,"adventure"],[worldEngine,"world-engine"],[simulation,"world-simulation"],[storage,"storage"],[progression,"progression-ui"]]){
+  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>/^\d+$/.test(x)),label+" imports must remain explicitly versioned")
+ }
+ assert.match(actions,/groundedSuggestionFailForward/);assert.match(stateSync,/groundStatePatch/);assert.match(settings,/reasoning_effort:"low"/);assert.match(lazy,/generationRevision/);assert.match(knowledge,/UNCONFIRMED/);assert.match(npc,/NPC_AUTONOMOUS_ACTION/);assert.match(app,/startDeveloperAutotest/);
+});
+'''
+          write(p,s[:start]+replacement)
+
+          # Staged compiler expectations follow the larger one-shot Future budget and cache edges.
+          p='test/staged-world-compiler.test.js'; s=read(p)
+          s=s.replace('for(const timeout of [35000,50000,55000,65000])','for(const timeout of [35000,50000,55000,65000,70000])')
+          s=s.replace('for(const budget of [500,800,900,1000,1100,1400,1600,2200])','for(const budget of [500,800,900,1000,1100,1400,1600,3000])')
+          s=s.replace('timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200','timeoutMs:70000,retryOnTimeout:false,maxOutputTokens:3000')
+          s=s.replace('ai-settings\\.js\\?v=54008','ai-settings\\.js\\?v=54013')
+          s=s.replace('world-compiler\\.js\\?v=54012','world-compiler\\.js\\?v=54013')
+          write(p,s)
+
+          # v0.54.12 behaviour regressions remain, but current release edges are v0.54.13.
+          p='test/v05412-regressions.test.js'; s=read(p)
+          s=s.replace('turn-outcome\\.js\\?v=54012','turn-outcome\\.js\\?v=54013')
+          s=s.replace('ai-runtime-contracts\\.js\\?v=54012','ai-runtime-contracts\\.js\\?v=54013')
+          write(p,s)
+          PY
+
+          rm -f .github/workflows/v05413-branch-patch.yml .github/workflows/v05413-finalize.yml
+          npm test
+          git diff --check
+
+      - name: Commit, verify PR cache graph, and push
+        shell: bash
+        run: |
+          git config user.name "elyndra-release-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: complete v0.54.13 runtime and generation recovery"
+          CACHE_BASE_REF=main npm run cache:check
+          git push origin HEAD:fix/v05413-runtime-resume-generation-normalization
