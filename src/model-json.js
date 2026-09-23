@@ -31,6 +31,14 @@ function insertMissingModelCommas(value){
  return out
 }
 
+function insertMissingPropertyCommas(value){
+ const key='"(?:\\\\.|[^"\\\\])*"\\s*:';
+ let out=value;
+ out=out.replace(new RegExp('([}\\]"])(\\s*)('+key+')','g'),'$1,$2$3');
+ out=out.replace(new RegExp('(\\b(?:true|false|null)|-?\\d+(?:\\.\\d+)?)(\\s*)('+key+')','g'),'$1,$2$3');
+ return out
+}
+
 export function parseModelJSON(raw){
  const source=String(raw??"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```$/,"").trim();
  if(!source)throw new Error("INVALID_MODEL_JSON: empty response");
@@ -44,6 +52,8 @@ export function parseModelJSON(raw){
   if(repaired!==candidate)try{return JSON.parse(repaired)}catch(error){lastError=error}
   const structural=insertMissingModelCommas(repaired);
   if(structural!==repaired)try{return JSON.parse(structural)}catch(error){lastError=error}
+  const properties=insertMissingPropertyCommas(structural);
+  if(properties!==structural)try{return JSON.parse(properties)}catch(error){lastError=error}
  }
  const detail=lastError?.message||"parse failed";
  throw new Error("INVALID_MODEL_JSON: "+detail)
