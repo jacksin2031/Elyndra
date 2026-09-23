@@ -1,0 +1,74 @@
+name: One-shot FIRST_BUTTON visible-ready fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Patch FIRST_BUTTON readiness semantics
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('app.js')
+          s=p.read_text(encoding='utf-8')
+          old='import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection} from "./src/ai-autotest.js?v=54017";'
+          new='import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=54017";'
+          assert old in s, 'autotest import anchor missing'
+          s=s.replace(old,new,1)
+
+          old='  disableTimeout:$("#autotestDisableTimeout")?.checked===true\n }'
+          new='  disableTimeout:$("#autotestDisableTimeout")?.checked===true,\n  playStrategy:autotestPlayStrategy()\n }'
+          assert old in s, 'config anchor missing'
+          s=s.replace(old,new,1)
+
+          old='''async function waitForAutotestIdle(timeoutMs=12000){\n const started=Date.now();\n while(Date.now()-started<timeoutMs){\n  if(autotestForegroundIdle())return true;\n  await new Promise(r=>setTimeout(r,80))\n }\n if(autotestForegroundIdle())return true;\n recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});\n return false\n}\n'''
+          new=old+'''async function waitForAutotestActionReady(timeoutMs=38000){\n const started=Date.now();\n while(Date.now()-started<timeoutMs){\n  if(!playerActionFlight.active)return true;\n  await new Promise(r=>setTimeout(r,25))\n }\n if(!playerActionFlight.active)return true;\n recordDebug("AUTOTEST_ACTION_READY_TIMEOUT",{timeoutMs,active:playerActionFlight.active,label:playerActionFlight.label,nonblocking:Boolean(nonblockingScene.controller),aiBusy,turnSyncBusy});\n return false\n}\n'''
+          assert old in s, 'idle helper anchor missing'
+          s=s.replace(old,new,1)
+
+          old='await refresh();show("game");await waitForAutotestIdle(3000);'
+          new='await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);'
+          assert old in s, 'initial ready anchor missing'
+          s=s.replace(old,new,1)
+
+          old='recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});await waitForAutotestIdle();'
+          new='recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();'
+          assert old in s, 'turn pre-decision anchor missing'
+          s=s.replace(old,new,1)
+
+          old='await executeDeveloperAutotestDecision(decision);await waitForAutotestIdle(config.disableTimeout===true?90000:38000);'
+          new='await executeDeveloperAutotestDecision(decision);if(firstButtonFast)await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);'
+          assert old in s, 'post-action wait anchor missing'
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8')
+          oldq='app.js?v=54017'
+          newq='app.js?v=54017f2'
+          assert oldq in h, 'app cache query anchor missing'
+          h=h.replace(oldq,newq)
+          idx.write_text(h,encoding='utf-8')
+
+          test=Path('test/first-button-fast-path-v05417.test.js')
+          test.write_text('''import test from "node:test";\nimport assert from "node:assert/strict";\nimport {readFile} from "node:fs/promises";\n\ntest("FIRST_BUTTON runner config preserves selected strategy",async()=>{\n const source=await readFile(new URL("../app.js",import.meta.url),"utf8");\n assert.match(source,/autotestExportSelection,autotestPlayStrategy/);\n assert.match(source,/playStrategy:autotestPlayStrategy\\(\\)/);\n assert.match(source,/const firstButtonFast=config\\.playStrategy===\\"FIRST_BUTTON\\"/);\n assert.match(source,/AUTOTEST_RUNTIME_EXPANSION_SKIPPED/);\n});\n\ntest("FIRST_BUTTON waits for visible action readiness, not whole background idle",async()=>{\n const source=await readFile(new URL("../app.js",import.meta.url),"utf8");\n assert.match(source,/async function waitForAutotestActionReady\\(timeoutMs=38000\\)/);\n assert.match(source,/if\\(!playerActionFlight\\.active\\)return true/);\n assert.match(source,/AUTOTEST_ACTION_READY_TIMEOUT/);\n assert.match(source,/if\\(firstButtonFast\\)await waitForAutotestActionReady\\(config\\.disableTimeout===true\\?90000:38000\\);else await waitForAutotestIdle/);\n});\n\ntest("FIRST_BUTTON initial and per-turn expansion paths are nonblocking",async()=>{\n const source=await readFile(new URL("../app.js",import.meta.url),"utf8");\n assert.match(source,/config\\.mode!==\\"worlds\\"&&!firstButtonFast&&needsExpansion\\(gameState\\)\\)await expandDeveloperAutotestWorld/);\n assert.match(source,/!firstButtonFast&&needsExpansion\\(gameState\\)\\)await expandDeveloperAutotestWorld/);\n const html=await readFile(new URL("../index.html",import.meta.url),"utf8");\n assert.match(html,/app\\.js\\?v=54017f2/);\n});\n''',encoding='utf-8')
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+      - name: Run full test suite
+        run: npm test
+      - name: Commit patch and remove one-shot workflow
+        run: |
+          rm .github/workflows/oneshot-first-button-ready.yml
+          git config user.name "A24DC523"
+          git config user.email "a24dc523@dhw.ac.jp"
+          git add app.js index.html test/first-button-fast-path-v05417.test.js .github/workflows/oneshot-first-button-ready.yml
+          git commit -m "fix: press first action as soon as UI unlocks"
+          git push origin HEAD:main
