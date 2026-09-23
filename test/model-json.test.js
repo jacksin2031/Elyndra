@@ -7,10 +7,10 @@ test("model JSON parser accepts fenced JSON and surrounding prose",()=>{
  assert.deepEqual(parseModelJSON('result follows: {"stage":"CORE_RULES"} done'),{stage:"CORE_RULES"})
 });
 
-test("model JSON parser normalizes native JSON syntax errors",()=>{
+test("model JSON parser still rejects unrecoverable native JSON syntax errors",()=>{
  assert.throws(
-  ()=>parseModelJSON('{"worldBible":{"era":"潮紀" "tone":"灰暗"}}'),
-  /INVALID_MODEL_JSON:.*Expected/
+  ()=>parseModelJSON('{"worldBible":{"era":"潮紀",,"tone":"灰暗"}}'),
+  /INVALID_MODEL_JSON/
  )
 });
 

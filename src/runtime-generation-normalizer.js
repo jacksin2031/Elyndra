@@ -1,4 +1,4 @@
-import {normalizeLore} from "./lore-engine.js?v=276";
+import {normalizeLore} from "./lore-engine.js?v=54013";
 import {normalizeWeatherProfile} from "./weather-engine.js?v=54012";
 import {materialSatisfiesClaim} from "./generation-claims.js?v=54012";
 

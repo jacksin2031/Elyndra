@@ -591,3 +591,12 @@ OpenAI、Gemini、Agnes 都可在 AI 設定選擇「標準」或「Elyndra 自�
 - Runtime claim refs 改由 Engine 語義驗證與補綁；錯綁 FUTURE/HISTORY/BLUEPRINT claim 會清理，符合 historyRefs／definition kind 的新實體會自動綁定。
 - TRAVEL StatePatch 不再接受移動到目前同一地點或不存在的地點，避免假進展。
 - Model JSON parser 可修復陣列物件之間漏逗號的常見模型輸出錯誤。
+
+
+### v0.54.13 — Runtime Resume & Generation Shape Recovery
+
+- Checkpointed Runtime Expansion remains eligible until the entire Geography → Society → Cast → Quest plan is complete, even after enough locations already exist.
+- String-form NPC lore is accepted as safe hidden lore instead of aborting Cast; Runtime Cast also requests the explicit lore object schema.
+- Opening Society recovers missing root historyRefs from its own faction, and orphan lore-only Cast rows are folded back into the preceding NPC before cross-stage validation.
+- Future generation gets a 3000-token structured-output floor and a 70s ceiling, with tighter prose limits, to avoid the v0.54.12 2200-token truncation + retry timeout pattern.
+- Model JSON repair now handles missing commas between properties. Single-op StatePatch responses recover their transport envelope before the normal capability and grounding validation.

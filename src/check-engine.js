@@ -1,4 +1,4 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=54012";
+import {ensureWorldRegistry} from "./world-registry.js?v=54013";
 import {weatherActionModifier} from "./weather-engine.js?v=54012";
 import {survivalModifier} from "./survival-engine.js?v=54012";
 import {cultureActionModifier} from "./culture-engine.js?v=54012";

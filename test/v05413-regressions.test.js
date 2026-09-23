@@ -6,6 +6,7 @@ import {needsExpansion} from "../src/knowledge-graph.js";
 import {worldGenerationLinkIssues,mergeOpeningRegion} from "../src/world-compiler.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {providerTokenBudget} from "../src/ai-settings.js";
+import {validateStatePatch} from "../src/state-sync.js";
 
 test("v0.54.13 accepts string lore without aborting generated NPC canonization",()=>{
  const lore=normalizeLore("他是壁障撕裂當日的倖存者，現在守著脊線。"),story=lore?.story||"";
@@ -42,4 +43,10 @@ test("v0.54.13 Agnes Future gets enough structured output headroom to avoid 2200
  assert.equal(providerTokenBudget("agnes","standard","future",2200),3000);
  const settings=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8");
  assert.match(settings,/AI_TASK_TIMEOUT_FLOORS=\{future:70000\}/)
+});
+
+
+test("v0.54.13 repairs a single-op StatePatch envelope before normal validation",()=>{
+ const patch={op:"REVEAL_ENTITY",kind:"npc",id:"NPC-1"},plan={baseRevision:9,capabilities:["REVEAL_ENTITY"]};
+ const report=validateStatePatch(patch,plan);assert.equal(report.valid,true,report.errors.join(","));assert.equal(patch.baseRevision,9);assert.equal(patch.operations.length,1);assert.equal(patch.operations[0].op,"REVEAL_ENTITY")
 });
