@@ -69,12 +69,30 @@ async function gemini(s,{system,user,temperature,signal,maxOutputTokens,aiTask,d
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));const timeoutValue=v=>Math.max(5000,Math.min(120000,Math.round(Number(v)||30000)));
 const providerTimeoutError=ms=>Object.assign(new Error(`AI_TIMEOUT: Provider 在 ${Math.round(ms/1000)} 秒內未完成回應`),{code:"AI_TIMEOUT"});
 const providerAbortError=()=>Object.assign(new Error("AI_ABORTED: request cancelled by higher-priority gameplay"),{code:"AI_ABORTED"});
-let directAIRuntimeControl={disableTimeout:false,signal:null};
+let directAIRuntimeControl={disableTimeout:false,signal:null,pauseWhenHidden:false};
 export function setDirectAIRuntimeControl(control={}){
- directAIRuntimeControl={disableTimeout:control?.disableTimeout===true,signal:control?.signal||null};
+ directAIRuntimeControl={disableTimeout:control?.disableTimeout===true,signal:control?.signal||null,pauseWhenHidden:control?.pauseWhenHidden!==false};
  return {...directAIRuntimeControl}
 }
-export function clearDirectAIRuntimeControl(){directAIRuntimeControl={disableTimeout:false,signal:null}}
+export function clearDirectAIRuntimeControl(){directAIRuntimeControl={disableTimeout:false,signal:null,pauseWhenHidden:false}}
+function runtimeHidden(){return directAIRuntimeControl.pauseWhenHidden===true&&typeof document!=="undefined"&&document?.hidden===true}
+async function waitForRuntimeForeground(parentSignals=[]){
+ if(!runtimeHidden())return;
+ await new Promise((resolve,reject)=>{
+  const signals=[...new Set((Array.isArray(parentSignals)?parentSignals:[]).filter(Boolean))],cleanups=[];
+  const done=()=>{for(const fn of cleanups)fn()};
+  const visible=()=>{if(typeof document!=="undefined"&&!document.hidden){done();resolve()}};
+  document.addEventListener("visibilitychange",visible);cleanups.push(()=>document.removeEventListener("visibilitychange",visible));
+  const abort=()=>{done();reject(providerAbortError())};
+  for(const signal of signals){if(signal?.aborted){abort();return}signal?.addEventListener?.("abort",abort,{once:true});cleanups.push(()=>signal?.removeEventListener?.("abort",abort))}
+ })
+}
+function abortProviderWhenHidden(controller){
+ if(directAIRuntimeControl.pauseWhenHidden!==true||typeof document==="undefined")return {cleanup:()=>{},wasPaused:()=>false};
+ let paused=false;const onVisibility=()=>{if(document.hidden){paused=true;try{controller.abort(Object.assign(new Error("AI_BACKGROUND_PAUSED"),{code:"AI_BACKGROUND_PAUSED"}))}catch{}}};
+ document.addEventListener("visibilitychange",onVisibility);
+ return {cleanup:()=>document.removeEventListener("visibilitychange",onVisibility),wasPaused:()=>paused}
+}
 export async function hardProviderDeadline(promise,{controller=null,timeoutMs=30000,parentSignal=null,parentSignals=[]}={}){
  const rawMs=Number(timeoutMs),useTimeout=Number.isFinite(rawMs)&&rawMs>0,ms=useTimeout?Math.max(1,Math.round(rawMs)):0;
  let timer=0;const listeners=[],races=[Promise.resolve(promise)];
@@ -90,5 +108,25 @@ export async function hardProviderDeadline(promise,{controller=null,timeoutMs=30
  try{return await Promise.race(races)}
  finally{if(timer)clearTimeout(timer);for(const [signal,fn] of listeners)signal?.removeEventListener?.("abort",fn)}
 }
-export async function directChat(args){const s=loadAISettings();if(!s.endpoint||!s.model||!s.apiKey)throw new Error("DIRECT_AI_NOT_CONFIGURED");const timeoutDisabled=args?.disableTimeout===true||directAIRuntimeControl.disableTimeout===true,timeoutMs=timeoutDisabled?0:Math.max(timeoutValue(args?.timeoutMs),taskTimeoutFloor(args?.aiTask)),parentSignals=[args?.signal,directAIRuntimeControl.signal].filter(Boolean);let last;for(let attempt=0;attempt<2;attempt++){if(parentSignals.some(signal=>signal?.aborted))throw providerAbortError();const ctrl=new AbortController();try{const call=s.provider==="gemini"?gemini:openAICompatible;const pending=Promise.resolve().then(()=>call(s,{...args,signal:ctrl.signal}));return await hardProviderDeadline(pending,{controller:ctrl,timeoutMs,parentSignals})}catch(e){const parentAborted=parentSignals.some(signal=>signal?.aborted)||e?.code==="AI_ABORTED",err=parentAborted?providerAbortError():e;last=err;recordDebug("AI_CALL_FAILED",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",tier:optimizationTier(args?.aiTask),attempt:attempt+1,timeoutMs:timeoutDisabled?null:timeoutMs,timeoutDisabled,error:err.message,aborted:parentAborted});if(!parentAborted&&attempt===0&&(/AI_HTTP_(429|5\d\d)/.test(err.message)||((args?.retryOnTimeout!==false)&&(err.code==="AI_TIMEOUT"||err.name==="AbortError"||err.name==="TimeoutError")))){await sleep(700);continue}throw err}}throw last}
+export async function directChat(args){
+ const s=loadAISettings();if(!s.endpoint||!s.model||!s.apiKey)throw new Error("DIRECT_AI_NOT_CONFIGURED");
+ const timeoutDisabled=args?.disableTimeout===true||directAIRuntimeControl.disableTimeout===true,timeoutMs=timeoutDisabled?0:Math.max(timeoutValue(args?.timeoutMs),taskTimeoutFloor(args?.aiTask)),parentSignals=[args?.signal,directAIRuntimeControl.signal].filter(Boolean);let last,attempt=0;
+ while(attempt<2){
+  if(parentSignals.some(signal=>signal?.aborted))throw providerAbortError();
+  if(runtimeHidden()){recordDebug("AI_BACKGROUND_PAUSED",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",phase:"BEFORE_REQUEST"});await waitForRuntimeForeground(parentSignals)}
+  const ctrl=new AbortController(),visibility=abortProviderWhenHidden(ctrl);
+  try{
+   const call=s.provider==="gemini"?gemini:openAICompatible,pending=Promise.resolve().then(()=>call(s,{...args,signal:ctrl.signal}));
+   const result=await hardProviderDeadline(pending,{controller:ctrl,timeoutMs,parentSignals});visibility.cleanup();return result
+  }catch(e){
+   const backgroundPaused=visibility.wasPaused()&&!parentSignals.some(signal=>signal?.aborted);visibility.cleanup();
+   if(backgroundPaused){recordDebug("AI_BACKGROUND_PAUSED",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",phase:"IN_FLIGHT"});await waitForRuntimeForeground(parentSignals);continue}
+   const parentAborted=parentSignals.some(signal=>signal?.aborted)||e?.code==="AI_ABORTED",err=parentAborted?providerAbortError():e;last=err;
+   recordDebug("AI_CALL_FAILED",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",tier:optimizationTier(args?.aiTask),attempt:attempt+1,timeoutMs:timeoutDisabled?null:timeoutMs,timeoutDisabled,error:err.message,aborted:parentAborted});
+   if(!parentAborted&&attempt===0&&(/AI_HTTP_(429|5\d\d)/.test(err.message)||((args?.retryOnTimeout!==false)&&(err.code==="AI_TIMEOUT"||err.name==="AbortError"||err.name==="TimeoutError")))){attempt++;await sleep(700);continue}
+   throw err
+  }
+ }
+ throw last
+}
 export async function testDirectAI(){const text=await directChat({aiTask:"action",system:"Connection test. Reply with exactly ELYNDRA_OK",user:"ELYNDRA connection test"});if(!String(text).trim())throw new Error("EMPTY_AI_RESPONSE");return true}
