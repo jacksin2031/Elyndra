@@ -1,0 +1,161 @@
+name: v0.54.13 branch patch
+
+on:
+  push:
+    branches:
+      - fix/v05413-runtime-resume-generation-normalization
+    paths:
+      - .github/workflows/v05413-branch-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v05413-runtime-resume-generation-normalization
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply v0.54.13 source and cache graph patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, json
+
+          ROOT=Path('.')
+          TOKEN='54013'
+          VERSION='0.54.13'
+
+          def read(path): return (ROOT/path).read_text(encoding='utf-8')
+          def write(path,text): (ROOT/path).write_text(text,encoding='utf-8')
+          def replace(path,old,new,count=None):
+              s=read(path); n=s.count(old)
+              if count is not None and n!=count: raise SystemExit(f'{path}: expected {count} occurrences of {old!r}, got {n}')
+              if n==0: raise SystemExit(f'{path}: missing {old!r}')
+              write(path,s.replace(old,new))
+
+          # State Patch shape recovery: repair only the transport envelope, then use the same validator.
+          p='src/state-sync.js'; s=read(p)
+          old='export function validateStatePatch(patch,plan={}){\n const errors=[];if(!patch||typeof patch!=="object"||Array.isArray(patch))return {valid:false,errors:["STATE_PATCH_INVALID"]};'
+          new='export function validateStatePatch(patch,plan={}){\n if(patch&&typeof patch==="object"&&!Array.isArray(patch)){\n  if(!Array.isArray(patch.operations)&&PATCH_OPS.has(String(patch.op||"").toUpperCase())){const op=structuredClone(patch);delete op.baseRevision;patch.operations=[op]}\n  if(Array.isArray(patch.operations)&&(!Number.isInteger(Number(patch.baseRevision))||Number(patch.baseRevision)<0))patch.baseRevision=Math.max(0,Math.round(Number(plan.baseRevision)||0))\n }\n const errors=[];if(!patch||typeof patch!=="object"||Array.isArray(patch))return {valid:false,errors:["STATE_PATCH_INVALID"]};'
+          if old not in s: raise SystemExit('state-sync validateStatePatch anchor missing')
+          write(p,s.replace(old,new,1))
+
+          # Direct Future: enough headroom to finish once; compact long free-text fields.
+          p='src/ai-client.js'; s=read(p)
+          old='resilientWorldStage("FUTURE",{\n    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200,'
+          new='resilientWorldStage("FUTURE",{\n    timeoutMs:70000,retryOnTimeout:false,maxOutputTokens:3000,'
+          if old not in s: raise SystemExit('direct FUTURE budget anchor missing')
+          s=s.replace(old,new,1)
+          compact='日期窗口由 Engine slots 決定，你不要自行改 earliest/latest。只輸出 JSON。'
+          compact_new='日期窗口由 Engine slots 決定，你不要自行改 earliest/latest。所有自由文字欄位保持精簡：directorTruth 與 observableEffect 各最多 40 字；conditions 各最多 2 項；affectedRegions 最多 2 項；domains 最多 2 項；不要輸出 Markdown、解釋或額外欄位。只輸出 JSON。'
+          if compact in s: s=s.replace(compact,compact_new,1)
+          cast_schema='companionProfile,lore}]}。'
+          cast_schema_new='companionProfile,lore:{story:"40-80字",unlockKeywords:["1-2個實體線索"],minMatches:1}}]}。'
+          if cast_schema not in s: raise SystemExit('runtime CAST lore schema anchor missing')
+          s=s.replace(cast_schema,cast_schema_new,1)
+          write(p,s)
+
+          # Server Future mirrors the direct path.
+          p='api/world.js'; s=read(p)
+          s2,n=re.subn(r'(stageJSON\(diagnostics,"FUTURE",\{\s*\n\s*)timeoutMs:55000,maxOutputTokens:2200',r'\1timeoutMs:70000,maxOutputTokens:3000',s,count=1)
+          if n!=1: raise SystemExit(f'api/world FUTURE budget patch count={n}')
+          write(p,s2)
+
+          # Version contract.
+          replace('src/version.js','APP_VERSION="0.54.12"','APP_VERSION="0.54.13"',1)
+          replace('package.json','"version": "0.54.12"','"version": "0.54.13"',1)
+          p='api/health.js'; s=read(p)
+          if '0.54.12' in s: write(p,s.replace('0.54.12','0.54.13'))
+          p='index.html'; s=read(p)
+          if 'app.js?v=54012' not in s: raise SystemExit('index app token missing')
+          write(p,s.replace('app.js?v=54012','app.js?v=54013'))
+
+          # app.js is a fresh release module graph; direct children all use the release token.
+          p='app.js'; s=read(p)
+          s,n=re.subn(r'(from "\./src/[^"?]+\.js\?v=)54012(";)',r'\g<1>54013\2',s)
+          if n<20: raise SystemExit(f'app release imports patched only {n}')
+          write(p,s)
+
+          # Propagate the cache token only along reverse edges of changed browser modules.
+          changed={
+            'src/lore-engine.js','src/knowledge-graph.js','src/world-compiler.js','src/ai-settings.js','src/model-json.js',
+            'src/state-sync.js','src/ai-client.js','app.js','src/version.js'
+          }
+          modules=['app.js']+[str(x).replace('\\','/') for x in Path('src').rglob('*.js')]
+          imp_re=re.compile(r'((?:from\s+|import\s+)["\'])(\.{1,2}/[^"\'?]+\.js)(?:\?v=(\d+))?(["\'])')
+          def target_of(importer,spec):
+              return str((Path(importer).parent/spec).resolve().relative_to(Path.cwd().resolve())).replace('\\','/')
+          impacted=set(changed)
+          again=True
+          while again:
+              again=False
+              for importer in modules:
+                  src=read(importer); replacements=[]
+                  for m in imp_re.finditer(src):
+                      target=target_of(importer,m.group(2))
+                      if target in impacted and m.group(3)!=TOKEN:
+                          replacements.append((m.start(),m.end(),m.group(1)+m.group(2)+'?v='+TOKEN+m.group(4)))
+                  if replacements:
+                      for a,b,val in reversed(replacements): src=src[:a]+val+src[b:]
+                      write(importer,src)
+                      if importer not in impacted: impacted.add(importer);again=True
+
+          # Release tests.
+          p='test/version-ui.test.js'; s=read(p).replace('0.54.12','0.54.13').replace('54012','54013');write(p,s)
+
+          p='test/module-cache.test.js'; s=read(p)
+          s=s.replace('v0.54.12 keeps structured AI and Developer Autotest cache graphs coherent','v0.54.13 keeps structured AI and Developer Autotest cache graphs coherent')
+          s=s.replace('app\\.js\\?v=54012','app\\.js\\?v=54013')
+          s=s.replace('appImports.every(x=>x==="54012")','appImports.every(x=>x==="54013")')
+          s=s.replace('all app browser imports must use the release token','all app browser imports must use the v0.54.13 release token')
+          s=s.replace('ai-settings\\.js\\?v=54008','ai-settings\\.js\\?v=54013')
+          s=s.replace('state-sync\\.js\\?v=54012','state-sync\\.js\\?v=54013')
+          s=s.replace('tokens.every(x=>x==="54012")','tokens.every(x=>["54012","54013"].includes(x))')
+          s=s.replace('imports must use 54012','imports must use tracked release tokens')
+          write(p,s)
+
+          p='test/ai-settings.test.js'; s=read(p)
+          s=s.replace('providerTokenBudget("agnes","adaptive","future",1200),1600','providerTokenBudget("agnes","adaptive","future",1200),3000')
+          write(p,s)
+
+          p='test/staged-world-compiler.test.js'; s=read(p)
+          s=s.replace('timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2200','timeoutMs:70000,retryOnTimeout:false,maxOutputTokens:3000')
+          write(p,s)
+
+          p='test/ai-timeout.test.js'; s=read(p)
+          if '[35000,50000,55000,65000]' in s:s=s.replace('[35000,50000,55000,65000]','[35000,50000,55000,65000,70000]')
+          write(p,s)
+
+          p='test/v05413-regressions.test.js'; s=read(p)
+          s=s.replace('import {providerTokenBudget} from "../src/ai-settings.js";','import {providerTokenBudget} from "../src/ai-settings.js";\nimport {validateStatePatch} from "../src/state-sync.js";')
+          s+='''\n\ntest("v0.54.13 repairs a single-op StatePatch envelope before normal validation",()=>{\n const patch={op:"REVEAL_ENTITY",kind:"npc",id:"NPC-1"},plan={baseRevision:9,capabilities:["REVEAL_ENTITY"]};\n const report=validateStatePatch(patch,plan);assert.equal(report.valid,true,report.errors.join(","));assert.equal(patch.baseRevision,9);assert.equal(patch.operations.length,1);assert.equal(patch.operations[0].op,"REVEAL_ENTITY")\n});\n'''
+          write(p,s)
+
+          # README release note.
+          p='README.md'; s=read(p)
+          if '### v0.54.13 — Runtime Resume & Generation Shape Recovery' not in s:
+              s+='''\n\n### v0.54.13 — Runtime Resume & Generation Shape Recovery\n\n- Checkpointed Runtime Expansion remains eligible until the entire Geography → Society → Cast → Quest plan is complete, even after enough locations already exist.\n- String-form NPC lore is accepted as safe hidden lore instead of aborting Cast; Runtime Cast also requests the explicit lore object schema.\n- Opening Society recovers missing root historyRefs from its own faction, and orphan lore-only Cast rows are folded back into the preceding NPC before cross-stage validation.\n- Future generation gets a 3000-token structured-output floor and a 70s ceiling, with tighter prose limits, to avoid the v0.54.12 2200-token truncation + retry timeout pattern.\n- Model JSON repair now handles missing commas between properties. Single-op StatePatch responses recover their transport envelope before the normal capability and grounding validation.\n'''
+          write(p,s)
+
+          print('Impacted browser modules:')
+          print('\n'.join(sorted(impacted)))
+          PY
+
+          rm .github/workflows/v05413-branch-patch.yml
+          npm test
+          git diff --check
+      - name: Commit verified branch patch
+        shell: bash
+        run: |
+          git config user.name "elyndra-release-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: complete v0.54.13 runtime and generation recovery"
+          git push origin HEAD:fix/v05413-runtime-resume-generation-normalization
