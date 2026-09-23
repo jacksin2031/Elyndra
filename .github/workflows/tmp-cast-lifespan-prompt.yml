@@ -1,0 +1,29 @@
+name: Temporary Cast Lifespan Prompt Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tmp-cast-lifespan-prompt.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Apply Cast lifespan prompt rule
+        run: python scripts/tmp-cast-lifespan-prompt.py
+      - name: Commit patch and cleanup
+        shell: bash
+        run: |
+          rm scripts/tmp-cast-lifespan-prompt.py
+          rm .github/workflows/tmp-cast-lifespan-prompt.yml
+          git config user.name 'JackSin'
+          git config user.email 'a24dc523@dhw.ac.jp'
+          git add src/ai-client.js scripts/tmp-cast-lifespan-prompt.py .github/workflows/tmp-cast-lifespan-prompt.yml
+          git commit -m 'fix: constrain opening cast historical lifespan'
+          git push origin HEAD:main
