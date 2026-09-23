@@ -1,0 +1,47 @@
+name: One-shot test contract sync v0.54.17
+on:
+  push:
+    branches: [tmp-test-sync-v05417]
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: tmp-test-sync-v05417
+          fetch-depth: 0
+      - name: Sync current cache/version assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          # Every browser import in the current release graph is v=54017.
+          for p in Path('test').glob('*.test.js'):
+              s=p.read_text(encoding='utf-8')
+              n=re.sub(r'v=\d+', 'v=54017', s)
+              if p.name=='version-ui.test.js':
+                  n=n.replace('0.54.16','0.54.17')
+              if p.name=='module-cache.test.js':
+                  n=n.replace('v0.54.16','v0.54.17')
+                  n=n.replace('x==="54016"','x==="54017"')
+                  n=re.sub(r'\["54012","54013","54015","54016"\]', '["54017"]', n)
+              if p.name=='ai-autotest-controls-v0544.test.js':
+                  n=n.replace('timeoutDisabled=args\\?\\.disableTimeout===true\\|\\|directAIRuntimeControl\\.disableTimeout===true','const runtime=directAIRuntimeControl\\(\\),timeoutDisabled=args\\?\\.disableTimeout===true\\|\\|runtime\\.disableTimeout===true')
+                  n=n.replace('parentSignals=\\[args\\?\\.signal,directAIRuntimeControl\\.signal\\]','parentSignals=\\[args\\?\\.signal,runtime\\.signal\\]')
+              if p.name=='background-world-evolution.test.js':
+                  n=n.replace('parentSignals=\\[args\\?\\.signal,directAIRuntimeControl\\.signal\\]','parentSignals=\\[args\\?\\.signal,runtime\\.signal\\]')
+              if n!=s:
+                  p.write_text(n,encoding='utf-8')
+                  print('updated',p)
+          PY
+      - name: Remove one-shot workflow and commit
+        run: |
+          rm .github/workflows/test-contract-sync-v05417.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test .github/workflows/test-contract-sync-v05417.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "test: sync current release cache and runtime contracts"
+          git push origin HEAD:tmp-test-sync-v05417
