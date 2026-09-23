@@ -1,7 +1,9 @@
-name: Temporary FIRST_BUTTON Progressive Expansion Patch
+name: Audit repair executor
 
 on:
   push:
+    branches:
+      - fix/audit-2026-09-24-all
     paths:
       - '.github/workflows/tmp-first-button-progressive-expansion.yml'
 
@@ -9,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  patch:
+  repair:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -18,61 +20,295 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '20'
-      - name: Patch FIRST_BUTTON progressive expansion
+      - name: Apply audit repairs
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('app.js')
-          s=p.read_text(encoding='utf-8')
+          import json,re
 
-          old='''const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,batchController:null,lastReport:null,lastMessage:"",logs:[],hiddenAt:0,lastVisibleAt:0,backgroundInterruptions:0,backgroundDurationMs:0};\nconst AUTOTEST_BACKGROUND_GRACE_MS=15000;'''
-          new='''const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,batchController:null,lastReport:null,lastMessage:"",logs:[],hiddenAt:0,lastVisibleAt:0,backgroundInterruptions:0,backgroundDurationMs:0};\nconst autotestRuntimeExpansion={running:false,controller:null,reason:"",turn:0};\nconst AUTOTEST_BACKGROUND_GRACE_MS=15000;'''
-          if s.count(old)!=1: raise SystemExit(f'autotest state anchor count={s.count(old)}')
+          def rd(p): return Path(p).read_text(encoding='utf-8')
+          def wr(p,s): Path(p).write_text(s,encoding='utf-8')
+          def one(p,old,new):
+              s=rd(p); n=s.count(old)
+              if n!=1: raise SystemExit(f'{p}: expected one anchor, got {n}: {old[:120]!r}')
+              wr(p,s.replace(old,new,1))
+
+          # Release/version and cache contract.
+          pkg=json.loads(rd('package.json')); pkg['version']='0.54.19'; wr('package.json',json.dumps(pkg,ensure_ascii=False,indent=2)+'\n')
+          wr('src/version.js','export const APP_VERSION="0.54.19";\n')
+          for p in [Path('app.js'),Path('index.html'),Path('src/ai-client.js'),Path('src/game-engine.js'),Path('src/state-sync.js'),Path('src/progression-ui.js'),Path('src/storage.js'),Path('src/action-intent.js')]:
+              s=rd(p).replace('?v=540181','?v=54019').replace('?v=54018','?v=54019')
+              wr(p,s)
+
+          # F01: StatePatch validator must authorize every operation and reject >10 atomically.
+          one('src/state-sync.js',
+              ' if(!Array.isArray(patch.operations))errors.push("STATE_PATCH_OPERATIONS_INVALID");\n const allowed=new Set(plan.capabilities||[]);\n for(const raw of (patch.operations||[]).slice(0,10)){',
+              ' const operations=Array.isArray(patch.operations)?patch.operations:[];\n if(!Array.isArray(patch.operations))errors.push("STATE_PATCH_OPERATIONS_INVALID");\n if(operations.length>10)errors.push("STATE_PATCH_OPERATIONS_LIMIT_EXCEEDED");\n const allowed=new Set(plan.capabilities||[]);\n for(const raw of operations){')
+
+          # F02: strip explicit negated clauses from intent inference.
+          p='src/action-intent.js'; s=rd(p)
+          anchor='const GENERIC_NPC_REFERENCE=/護衛|守衛|士兵|陌生人|傷者|男人|女人|居民|店員|商人|引路人|那個人|那人|對方|那名人物|那名人|guard|stranger|soldier|merchant|resident/i;\n'
+          if s.count(anchor)!=1: raise SystemExit('action-intent generic NPC anchor')
+          s=s.replace(anchor,anchor+'const NEGATED_CLAUSE=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意)[^，,。；;!?！？]{0,80}/gi;\nfunction positiveIntentText(action=""){return clean(action).replace(NEGATED_CLAUSE," ").trim()}\n',1)
+          s=s.replace(' const q=clean(action).toLowerCase();\n if(RISKY_ACTION.test(q))return "RISKY";',' const q=positiveIntentText(action).toLowerCase();\n if(RISKY_ACTION.test(q))return "RISKY";',1)
+          s=s.replace(' const q=clean(action),k=KINDS.has(String(kind).toUpperCase())?String(kind).toUpperCase():inferActionKind(q);',' const rawQ=clean(action),q=positiveIntentText(rawQ),k=KINDS.has(String(kind).toUpperCase())?String(kind).toUpperCase():inferActionKind(q);',1)
+          wr(p,s)
+
+          # F02: deterministic mutation fast paths only accept explicit positive commands.
+          p='src/game-engine.js'; s=rd(p)
+          anchor='const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";\n'
+          guards='''const AMBIGUOUS_MUTATION=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意|如果|假如|若果|若|除非|是否|能否|可否|要不要|[?？]|[「」『』])/i;\nfunction explicitMutationCommand(value){const q=clean(value,180);return Boolean(q)&&!AMBIGUOUS_MUTATION.test(q)}\nfunction explicitRestCommand(value){const q=clean(value,180);return explicitMutationCommand(q)&&/^(?:請)?(?:休息|睡眠|睡覺|紮營|露營|rest|sleep|camp)(?:一下|一會兒|一陣|吧)?[。.!！]?$/i.test(q)}\nfunction explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||new RegExp(`^(?:travel\\s+to|go\\s+to|walk\\s+to)\\s+${target.replace(/[.*+?^${}()|[\\]\\]/g,"\\\\$&")}$`,"i").test(normalized)}\n'''
+          if s.count(anchor)!=1: raise SystemExit('game-engine clean anchor')
+          s=s.replace(anchor,anchor+guards,1)
+          s=s.replace(' if(/休息|睡眠|紮營|露營|住宿|旅店|投宿|rest|sleep|camp|lodging|inn/.test(q))return {kind:"GENERAL",dc:7,minutes:240,rest:true};',' if(explicitRestCommand(q)||(/住宿|旅店|投宿|lodging|inn/.test(q)&&explicitMutationCommand(q)))return {kind:"GENERAL",dc:7,minutes:240,rest:true};',1)
+          s=s.replace(' if(!/休息|睡眠|睡覺|紮營|露營|rest|sleep|camp/i.test(q))return null;',' if(!explicitRestCommand(q))return null;',1)
+          s=s.replace(' if(!target||!/前往|移動|走到|旅行|去|travel|go to|walk/i.test(q))return null;',' if(!target||!explicitTravelCommand(q,target.name))return null;',1)
+          s=s.replace(' const profile={...baseProfile,kind:baseProfile.kind==="RISKY"?"RISKY":assessedKind},directItem=resolveItemAction(state,label,{success:true});',' const profile={...baseProfile,kind:baseProfile.kind==="RISKY"?"RISKY":assessedKind},mutationFastPath=explicitMutationCommand(label),directItem=mutationFastPath?resolveItemAction(state,label,{success:true}):null;',1)
+          s=s.replace(' const directEconomy=resolveEconomyAction(state,label,{success:true});if(directEconomy?.handled){',' const directEconomy=mutationFastPath?resolveEconomyAction(state,label,{success:true}):null;if(directEconomy?.handled){',1)
+          wr(p,s)
+
+          # F03: reusable identity + epoch guard.
+          wr('src/state-session.js','''export function createStateSessionGuard(initialState=null){\n let epoch=0,state=initialState??null;\n return {\n  capture(current=state){return {epoch,state:current??null}},\n  replace(next){state=next??null;epoch+=1;return {epoch,state}},\n  isCurrent(token,current=state){return Boolean(token)&&token.epoch===epoch&&token.state===state&&current===state},\n  get epoch(){return epoch},\n  get state(){return state}\n }\n}\n''')
+
+          p='app.js'; s=rd(p)
+          sync_import='import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=54019";\n'
+          if s.count(sync_import)!=1: raise SystemExit('app state-sync import')
+          s=s.replace(sync_import,sync_import+'import {createStateSessionGuard} from "./src/state-session.js?v=54019";\n',1)
+          global_line='const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();\n'
+          if s.count(global_line)!=1: raise SystemExit('app globals')
+          s=s.replace(global_line,global_line+'const stateSession=createStateSessionGuard(null);\nfunction captureStateSession(){return stateSession.capture(gameState)}\nfunction isCurrentStateSession(token){return stateSession.isCurrent(token,gameState)}\n',1)
+
+          preempt='function preemptBackgroundAI(){preemptNonblockingScene();preemptBackgroundWorldEvolution();preemptBackgroundWorldQuality();preemptBackgroundHistory();preemptDeferredDirector()}\n'
+          if s.count(preempt)!=1: raise SystemExit('preempt anchor')
+          s=s.replace(preempt,preempt+'''function cancelStateBoundWork(reason="STATE_REPLACED"){\n if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}\n if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}\n if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}\n if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}\n preemptBackgroundAI();deferredDirector.queue.length=0;\n if(playerActionFlight.active)finishPlayerActionFlight(playerActionFlight.label||"state","state_replaced");\n recordDebug("STATE_BOUND_WORK_CANCELLED",{reason})\n}\nfunction replaceGameState(next,reason="STATE_REPLACED"){cancelStateBoundWork(reason);gameState=next??null;stateSession.replace(gameState);gameplayDebugSnapshot=null;npcChatHistory=new Map();recordDebug("STATE_SESSION_REPLACED",{reason,epoch:stateSession.epoch,worldId:gameState?.world?.id||null});return gameState}\n''',1)
+
+          # persist accepts an exact captured state and rejects stale writes before autosave.
+          a=s.index('async function persist(){if(gameState){'); b=s.index('function fallbackActionButtons',a)
+          old=s[a:b]
+          body=old[len('async function persist(){if(gameState){'):].rsplit('}}',1)[0]
+          body=body.replace('gameState','state')
+          new='async function persist(state=gameState,sessionToken=null){if(state){\n if(sessionToken&&!isCurrentStateSession(sessionToken))return false;'+body+'\n if(sessionToken&&!isCurrentStateSession(sessionToken))return false;return true\n}return false}\n'
+          s=s[:a]+new+s[b:]
+
+          # Scene commits use captured identity, not whichever global state exists later.
+          old='function applyPlayerActionScene(scene,{worldId,baseRevision,expectedRevision,roll,action,previousSuggestions=[],previousSuggestionIntents=[]}={}){\n const revision=Number.isFinite(Number(expectedRevision))?Number(expectedRevision):Number(baseRevision);\n if(!scene||!gameState||gameState.world?.id!==worldId||currentStateRevision(gameState)!==revision)return false;\n const preview=sceneTurnPreview(scene,roll,{action,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents});\n if(preview.narrative)gameState.narrative=preview.narrative;if(preview.sceneTitle)gameState.sceneTitle=preview.sceneTitle;\n if(preview.suggestionIntents?.length){const contextual=buildContextualActionSet(gameState,preview.suggestionIntents);gameState.suggestionIntents=contextual.all;gameState.suggestions=contextual.all.map(x=>x.label)}\n else if(preview.suggestions?.length){const contextual=buildContextualActionSet(gameState,preview.suggestions);gameState.suggestionIntents=contextual.all;gameState.suggestions=contextual.all.map(x=>x.label)}\n return true\n}'
+          new='function applyPlayerActionScene(scene,{worldId,baseRevision,expectedRevision,roll,action,previousSuggestions=[],previousSuggestionIntents=[],state=gameState,sessionToken=null}={}){\n const revision=Number.isFinite(Number(expectedRevision))?Number(expectedRevision):Number(baseRevision);\n if(!scene||!state||(sessionToken&&!isCurrentStateSession(sessionToken))||state.world?.id!==worldId||currentStateRevision(state)!==revision)return false;\n const preview=sceneTurnPreview(scene,roll,{action,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents});\n if(preview.narrative)state.narrative=preview.narrative;if(preview.sceneTitle)state.sceneTitle=preview.sceneTitle;\n if(preview.suggestionIntents?.length){const contextual=buildContextualActionSet(state,preview.suggestionIntents);state.suggestionIntents=contextual.all;state.suggestions=contextual.all.map(x=>x.label)}\n else if(preview.suggestions?.length){const contextual=buildContextualActionSet(state,preview.suggestions);state.suggestionIntents=contextual.all;state.suggestions=contextual.all.map(x=>x.label)}\n return true\n}'
+          if s.count(old)!=1: raise SystemExit('scene apply anchor')
           s=s.replace(old,new,1)
 
-          old='''async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED"){\n const pending=pendingRuntimeGenerationPlan(gameState);if(!developerAutotestActive||!gameState||!aiStatus.aiConfigured||(!needsExpansion(gameState)&&!pending))return false;\n const plan=pending||planLazyGeneration(gameState,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id,resumeStage:plan.checkpoint?.stage||null});\n try{\n  const ex=await generateRegionExpansion(gameState,reason,{signal:developerAutotest.batchController?.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage)});if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");'''
-          new='''async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED",options={}){\n const pending=pendingRuntimeGenerationPlan(gameState);if(!developerAutotestActive||!gameState||!aiStatus.aiConfigured||(!needsExpansion(gameState)&&!pending))return false;\n const background=options?.background===true,signal=options?.signal||developerAutotest.batchController?.signal,plan=pending||planLazyGeneration(gameState,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id,resumeStage:plan.checkpoint?.stage||null,background});\n try{\n  const ex=await generateRegionExpansion(gameState,reason,{signal,plan,onStage:background?undefined:stage=>commitRuntimeStageCheckpoint(plan,stage)});if(signal?.aborted)throw signal.reason||new DOMException("AutoTest expansion aborted","AbortError");if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");'''
-          if s.count(old)!=1: raise SystemExit(f'expand start anchor count={s.count(old)}')
-          s=s.replace(old,new,1)
+          # Nonblocking narration captures both object identity and epoch.
+          start=s.index('function startNonblockingPlayerNarration('); end=s.index('function removePersistedDeferredTurn',start)
+          block=s[start:end]
+          block=block.replace('function startNonblockingPlayerNarration({action,roll,snapshot,plan,intent,previousSuggestions,previousSuggestionIntents,startedAt}){\n preemptNonblockingScene();const ctrl=new AbortController(),worldId=gameState?.world?.id,baseRevision=Number(plan?.baseRevision)||currentStateRevision(gameState);',
+          'function startNonblockingPlayerNarration({action,roll,snapshot,plan,intent,previousSuggestions,previousSuggestionIntents,startedAt,state=gameState,sessionToken=captureStateSession()}){\n preemptNonblockingScene();const ctrl=new AbortController(),worldId=state?.world?.id,baseRevision=Number(plan?.baseRevision)||currentStateRevision(state);',1)
+          block=block.replace('if(ctrl.signal.aborted)return;const applied=applyPlayerActionScene(scene,{worldId,baseRevision,roll,action,previousSuggestions,previousSuggestionIntents});','if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken))return;const applied=applyPlayerActionScene(scene,{worldId,baseRevision,roll,action,previousSuggestions,previousSuggestionIntents,state,sessionToken});',1)
+          block=block.replace('currentRevision:gameState?currentStateRevision(gameState):null','currentRevision:isCurrentStateSession(sessionToken)?currentStateRevision(state):null')
+          block=block.replace('if(applied){await persist();await refresh()}','if(applied){await persist(state,sessionToken);if(isCurrentStateSession(sessionToken))await refresh()}')
+          s=s[:start]+block+s[end:]
 
-          old='''  await persist();await refresh();recordDebug("AUTOTEST_RUNTIME_EXPANSION_COMPLETED",{reason,planId:plan.id,elapsedMs:Date.now()-startedAt,locations:added.locations?.length||0,npcs:added.npcs?.length||0,factions:added.factions?.length||0,sideQuests:added.sideQuests?.length||0});return true\n }catch(e){const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(gameState,plan,e?.message||"AUTOTEST_RUNTIME_EXPANSION_FAILED");recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:e?.message||String(e),checkpointed,resumeStage:plan.checkpoint?.stage||null,elapsedMs:Date.now()-startedAt});return false}\n}\nasync function executeDeveloperAutotestDecision(decision){'''
-          new='''  await persist();if(!background)await refresh();recordDebug("AUTOTEST_RUNTIME_EXPANSION_COMPLETED",{reason,planId:plan.id,elapsedMs:Date.now()-startedAt,locations:added.locations?.length||0,npcs:added.npcs?.length||0,factions:added.factions?.length||0,sideQuests:added.sideQuests?.length||0,background});return true\n }catch(e){const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(gameState,plan,e?.message||"AUTOTEST_RUNTIME_EXPANSION_FAILED");recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:e?.message||String(e),checkpointed,resumeStage:plan.checkpoint?.stage||null,elapsedMs:Date.now()-startedAt,background});return false}\n}\nfunction autotestRecentStallCount(rows=[]){let count=0;for(const row of rows.slice().reverse()){if(row?.progressed!==false)break;count++}return count}\nfunction scheduleDeveloperAutotestExpansion(reason="FIRST_BUTTON_STALL_RECOVERY",turn=0){\n if(!developerAutotestActive||!developerAutotest.running||!gameState||!aiStatus.aiConfigured||autotestRuntimeExpansion.running||!needsExpansion(gameState))return false;\n const batchSignal=developerAutotest.batchController?.signal;if(batchSignal?.aborted)return false;\n const ctrl=new AbortController(),worldId=gameState.world?.id,relay=()=>{if(!ctrl.signal.aborted)ctrl.abort(batchSignal?.reason||new DOMException("AutoTest batch stopped","AbortError"))};if(batchSignal)batchSignal.addEventListener("abort",relay,{once:true});\n autotestRuntimeExpansion.running=true;autotestRuntimeExpansion.controller=ctrl;autotestRuntimeExpansion.reason=reason;autotestRuntimeExpansion.turn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_STARTED",{reason,turn,worldId});\n void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal}).then(ok=>recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok})).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl)autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0});\n return true\n}\nasync function executeDeveloperAutotestDecision(decision){'''
-          if s.count(old)!=1: raise SystemExit(f'expand end anchor count={s.count(old)}')
+          # Runtime stage checkpoint takes explicit state/token and validates before canonization.
+          old='async function commitRuntimeStageCheckpoint(plan,{stage,generation,region="",reason=""}={}){\n if(!gameState||!plan||!stage)return null;'
+          new='async function commitRuntimeStageCheckpoint(plan,{stage,generation,region="",reason=""}={},sessionToken=captureStateSession(),state=gameState){\n if(!state||!plan||!stage)return null;if(!isCurrentStateSession(sessionToken))throw new DOMException("State session replaced","AbortError");'
+          if s.count(old)!=1: raise SystemExit('runtime checkpoint start')
           s=s.replace(old,new,1)
+          cp0=s.index('async function commitRuntimeStageCheckpoint('); cp1=s.index('function scheduleWorldEvolution',cp0)
+          cp=s[cp0:cp1].replace('gameState','state').replace('await persist()','await persist(state,sessionToken)')
+          cp=cp.replace('state=state','state=gameState') if False else cp
+          # previous replace changed default and capture helper arguments; restore exact signature pieces.
+          cp=cp.replace('sessionToken=captureStateSession(),state=state','sessionToken=captureStateSession(),state=gameState')
+          cp=cp.replace('isCurrentStateSession(sessionToken)','isCurrentStateSession(sessionToken)')
+          s=s[:cp0]+cp+s[cp1:]
 
-          old='''function cancelAutotestBackgroundWork(){\n if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}\n if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}\n if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}\n if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}\n preemptBackgroundAI()\n}'''
-          new='''function cancelAutotestBackgroundWork(){\n if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}\n if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}\n if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}\n if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}\n const expansionCtrl=autotestRuntimeExpansion.controller;if(expansionCtrl&&!expansionCtrl.signal.aborted)expansionCtrl.abort(new DOMException("AutoTest stopping","AbortError"));\n preemptBackgroundAI()\n}'''
-          if s.count(old)!=1: raise SystemExit(f'cancel anchor count={s.count(old)}')
+          # Background world evolution captures state+epoch and passes them to onStage.
+          e0=s.index('async function runBackgroundWorldEvolution(){'); e1=s.index('function beginPlayerActionFlight',e0)
+          eb=s[e0:e1]
+          eb=eb.replace(' const worldId=gameState.world?.id,reason=', ' const state=gameState,sessionToken=captureStateSession(),worldId=gameState.world?.id,reason=',1)
+          eb=eb.replace('generateRegionExpansion(gameState,reason,{signal:ctrl.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage)})','generateRegionExpansion(state,reason,{signal:ctrl.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage,sessionToken,state)})',1)
+          eb=eb.replace('if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)', 'if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)||state.world?.id!==worldId)',1)
+          # after awaited generation, all mutation/validation refers to captured state
+          marker='  if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)||state.world?.id!==worldId)'
+          pos=eb.index(marker)
+          head,tail=eb[:pos],eb[pos:]
+          tail=tail.replace('gameState','state').replace('await persist()','await persist(state,sessionToken)')
+          # finally scheduling should use current global only if same session; don't mutate stale captured plan further.
+          tail=tail.replace('if(state&&aiStatus.aiConfigured){','if(isCurrentStateSession(sessionToken)&&state&&aiStatus.aiConfigured){')
+          eb=head+tail
+          s=s[:e0]+eb+s[e1:]
+
+          # Deferred director captures state+epoch before AI await.
+          d0=s.index('async function runDeferredDirector(){'); d1=s.index('function scheduleHistoryDeepening',d0)
+          db=s[d0:d1]
+          db=db.replace(' const task=deferredDirector.queue[0],worldId=gameState.world?.id,ctrl=', ' const task=deferredDirector.queue[0],state=gameState,sessionToken=captureStateSession(),worldId=gameState.world?.id,ctrl=',1)
+          db=db.replace('const snapshot=buildSnapshot(gameState)','const snapshot=buildSnapshot(state)',1).replace('currentStateRevision(gameState)','currentStateRevision(state)')
+          db=db.replace('if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;','if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)||state.world?.id!==worldId)return;',1)
+          # only post-await mutation block and caught retry bookkeeping use captured state
+          awaitpos=db.index('  const patch=await generateStatePatch')
+          h,t=db[:awaitpos],db[awaitpos:]
+          t=t.replace('commitStatePatch(gameState','commitStatePatch(state').replace('gameState?.events','state?.events').replace('gameState?.world?.deferredTurns','state?.world?.deferredTurns').replace('await persist()','await persist(state,sessionToken)')
+          db=h+t
+          s=s[:d0]+db+s[d1:]
+
+          # History background captures state+epoch and rejects late response before commit.
+          h0=s.index('async function runBackgroundHistoryDeepening(){'); h1=s.index('function scheduleWorldQualityCritic',h0)
+          hb=s[h0:h1]
+          hb=hb.replace(' const worldId=gameState.world?.id,ctrl=', ' const state=gameState,sessionToken=captureStateSession(),worldId=gameState.world?.id,ctrl=',1)
+          hb=hb.replace('generateHistoryDeepening(gameState,plan','generateHistoryDeepening(state,plan',1)
+          hb=hb.replace('if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)', 'if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)||state.world?.id!==worldId)',1)
+          pos=hb.index('  if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)')
+          hh,ht=hb[:pos],hb[pos:]
+          for oldx,newx in [('abortHistoryDeepening(gameState','abortHistoryDeepening(state'),('validateHistoryDeepeningCandidate(gameState','validateHistoryDeepeningCandidate(state'),('commitHistoryDeepening(gameState','commitHistoryDeepening(state'),('registerHistoryDeepeningDocuments(gameState','registerHistoryDeepeningDocuments(state'),('registerHistoryRelicSeeds(gameState','registerHistoryRelicSeeds(state'),('bumpStateRevision(gameState','bumpStateRevision(state'),('await persist()','await persist(state,sessionToken)')]: ht=ht.replace(oldx,newx)
+          hb=hh+ht
+          s=s[:h0]+hb+s[h1:]
+
+          # Quality critic captures state+epoch and rejects late response before repair/canon mutation.
+          q0=s.index('async function runBackgroundWorldQualityCritic(){'); q1=s.index('function pendingRuntimeGenerationPlan',q0)
+          qb=s[q0:q1]
+          qb=qb.replace(' const worldId=gameState.world?.id,baseVersion=', ' const state=gameState,sessionToken=captureStateSession(),worldId=gameState.world?.id,baseVersion=',1)
+          qb=qb.replace('runWorldQualityCritic(gameState','runWorldQualityCritic(state',1)
+          qb=qb.replace('if(ctrl.signal.aborted||!gameState||gameState.world?.id!==worldId)return;', 'if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)||state.world?.id!==worldId)return;',1)
+          pos=qb.index('  if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken)')
+          qh,qt=qb[:pos],qb[pos:]
+          for oldx,newx in [('recordBackgroundQualityReview(gameState','recordBackgroundQualityReview(state'),('gameState.world?.version','state.world?.version'),('applyUnseenWorldRepair(gameState','applyUnseenWorldRepair(state'),('bumpStateRevision(gameState','bumpStateRevision(state'),('gameState.events.push','state.events.push'),('await persist()','await persist(state,sessionToken)')]: qt=qt.replace(oldx,newx)
+          qb=qh+qt
+          s=s[:q0]+qb+s[q1:]
+
+          # runAction: capture exact state and replace its internal global state references with captured object.
+          r0=s.index('async function runAction(action,customText="",options={}){'); r1=s.index('$("#newWorldBtn")',r0)
+          rb=s[r0:r1]
+          rb=rb.replace(' if(!gameState)return;markForegroundActivity();preemptBackgroundAI();',' if(!gameState)return;const actionState=gameState,actionSession=captureStateSession();markForegroundActivity();preemptBackgroundAI();',1)
+          # from first action-state usage onward, state operations use captured object
+          split=rb.index(' if(turnSyncBusy)')
+          rh,rt=rb[:split],rb[split:].replace('gameState','actionState')
+          rb=rh+rt
+          rb=rb.replace('assessment=await assessPlayerAction(actionState,requested)}','assessment=await assessPlayerAction(actionState,requested);if(!isCurrentStateSession(actionSession))return}',1)
+          rb=rb.replace('await persist()','await persist(actionState,actionSession)')
+          # all nonblocking narration calls carry same token/state
+          rb=rb.replace('startedAt:debugTurnStarted});','startedAt:debugTurnStarted,state:actionState,sessionToken:actionSession});')
+          # after blocking state sync await, reject stale result before any commit
+          rb=rb.replace('  const stateResult=await stateSyncResult;','  const stateResult=await stateSyncResult;\n  if(!isCurrentStateSession(actionSession)){recordDebug("STALE_STATE_SESSION_DISCARDED",{scope:"STATE_SYNC",action:effective});return}',1)
+          # foreground scene callback has same state+epoch.
+          rb=rb.replace('if(ctrl.signal.aborted||!actionState)return;','if(ctrl.signal.aborted||!isCurrentStateSession(actionSession))return;',1)
+          rb=rb.replace('previousSuggestions,previousSuggestionIntents});','previousSuggestions,previousSuggestionIntents,state:actionState,sessionToken:actionSession});')
+          s=s[:r0]+rb+s[r1:]
+
+          # Every explicit state replacement goes through one gate, including same-world slot loads.
+          replacements={
+           'gameState=migrate(await loadWorld())':'replaceGameState(migrate(await loadWorld()),"CONTINUE_AUTOSAVE")',
+           'gameState=newGame(seed);applyWorldCreationState(gameState,seed);':'replaceGameState(newGame(seed),"NEW_WORLD");applyWorldCreationState(gameState,seed);',
+           'if(!accepted){gameState=null;':'if(!accepted){replaceGameState(null,"WORLD_CREATION_CANCELLED");',
+           'onLoad:async loaded=>{gameState=migrate(loaded);':'onLoad:async loaded=>{replaceGameState(migrate(loaded),"LOAD_SLOT");',
+           'gameState=migrate(await importWorld(e.target.files[0]))':'replaceGameState(migrate(await importWorld(e.target.files[0])),"IMPORT_WORLD")',
+           'await deleteWorld();gameState=null;':'await deleteWorld();replaceGameState(null,"RESET_WORLD");',
+           'cancelAutotestBackgroundWork();gameState=null;gameplayDebugSnapshot=null;':'cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");',
+           'gameState=generated.state;gameplayDebugSnapshot=null;':'replaceGameState(generated.state,"AUTOTEST_WORLD_READY");',
+           'gameState=originalState;gameplayDebugSnapshot=null;':'replaceGameState(originalState,"AUTOTEST_RESTORE");'
+          }
+          for oldx,newx in replacements.items():
+              n=s.count(oldx)
+              if n!=1: raise SystemExit(f'state replacement anchor {oldx[:60]} count={n}')
+              s=s.replace(oldx,newx,1)
+
+          # F05: FIRST_BUTTON progressive expansion runs concurrently, never before the click.
+          dev='const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,batchController:null,lastReport:null,lastMessage:"",logs:[],hiddenAt:0,lastVisibleAt:0,backgroundInterruptions:0,backgroundDurationMs:0};\n'
+          if s.count(dev)!=1: raise SystemExit('autotest state')
+          s=s.replace(dev,dev+'const autotestRuntimeExpansion={running:false,controller:null,reason:"",turn:0};\n',1)
+          old='async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED"){\n const pending=pendingRuntimeGenerationPlan(gameState);if(!developerAutotestActive||!gameState||!aiStatus.aiConfigured||(!needsExpansion(gameState)&&!pending))return false;\n const plan=pending||planLazyGeneration(gameState,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id,resumeStage:plan.checkpoint?.stage||null});\n try{\n  const ex=await generateRegionExpansion(gameState,reason,{signal:developerAutotest.batchController?.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint(plan,stage)});if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");'
+          new='async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED",options={}){\n const state=gameState,sessionToken=captureStateSession(),pending=pendingRuntimeGenerationPlan(state);if(!developerAutotestActive||!state||!aiStatus.aiConfigured||(!needsExpansion(state)&&!pending))return false;\n const background=options?.background===true,signal=options?.signal||developerAutotest.batchController?.signal,plan=pending||planLazyGeneration(state,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id,resumeStage:plan.checkpoint?.stage||null,background});\n try{\n  const ex=await generateRegionExpansion(state,reason,{signal,plan,onStage:background?undefined:stage=>commitRuntimeStageCheckpoint(plan,stage,sessionToken,state)});if(signal?.aborted||!isCurrentStateSession(sessionToken))throw signal?.reason||new DOMException("AutoTest expansion stale","AbortError");if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");'
+          if s.count(old)!=1: raise SystemExit('autotest expand start')
           s=s.replace(old,new,1)
-
-          old='''     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();\n     const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};'''
-          new='''     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";let firstButtonExpansionReason="";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState)){const stall=autotestRecentStallCount(recentActions),sparseWorld=(gameState.world?.registry?.locations||[]).length<=1&&turn>=5;if(stall>=3||sparseWorld)firstButtonExpansionReason=stall>=3?"FIRST_BUTTON_STALL_RECOVERY":"FIRST_BUTTON_SPARSE_WORLD";else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn,stall})}if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();\n     const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};'''
-          if s.count(old)!=1: raise SystemExit(f'turn expansion anchor count={s.count(old)}')
+          x0=s.index('async function expandDeveloperAutotestWorld('); x1=s.index('async function executeDeveloperAutotestDecision',x0)
+          xb=s[x0:x1]
+          for oldx,newx in [('validateLazyGenerationCandidate(gameState','validateLazyGenerationCandidate(state'),('canonizeGeneration(gameState','canonizeGeneration(state'),('commitLazyGeneration(gameState','commitLazyGeneration(state'),('recordExpansion(gameState','recordExpansion(state'),('gameState.world.state.flags.requestExpansion','state.world.state.flags.requestExpansion'),('markWorldEvolution(gameState','markWorldEvolution(state'),('bumpStateRevision(gameState','bumpStateRevision(state'),('await persist();await refresh()','await persist(state,sessionToken);if(!background&&isCurrentStateSession(sessionToken))await refresh()'),('abortLazyGeneration(gameState','abortLazyGeneration(state')]: xb=xb.replace(oldx,newx)
+          xb=xb.replace('sideQuests:added.sideQuests?.length||0});return true','sideQuests:added.sideQuests?.length||0,background});return true')
+          xb=xb.replace('elapsedMs:Date.now()-startedAt});return false','elapsedMs:Date.now()-startedAt,background});return false')
+          xb+='''function autotestRecentStallCount(rows=[]){let count=0;for(const row of rows.slice().reverse()){if(row?.progressed!==false)break;count++}return count}\nfunction scheduleDeveloperAutotestExpansion(reason="FIRST_BUTTON_STALL_RECOVERY",turn=0){\n if(!developerAutotestActive||!developerAutotest.running||!gameState||!aiStatus.aiConfigured||autotestRuntimeExpansion.running||!needsExpansion(gameState))return false;\n const stateToken=captureStateSession(),batchSignal=developerAutotest.batchController?.signal;if(batchSignal?.aborted)return false;\n const ctrl=new AbortController(),worldId=gameState.world?.id,relay=()=>{if(!ctrl.signal.aborted)ctrl.abort(batchSignal?.reason||new DOMException("AutoTest batch stopped","AbortError"))};if(batchSignal)batchSignal.addEventListener("abort",relay,{once:true});\n autotestRuntimeExpansion.running=true;autotestRuntimeExpansion.controller=ctrl;autotestRuntimeExpansion.reason=reason;autotestRuntimeExpansion.turn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_STARTED",{reason,turn,worldId});\n void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal}).then(ok=>{if(isCurrentStateSession(stateToken))recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok})}).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl)autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0});\n return true\n}\n'''
+          s=s[:x0]+xb+s[x1:]
+          cancel=' if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}\n preemptBackgroundAI()\n}'
+          if s.count(cancel)!=1: raise SystemExit('autotest cancel')
+          s=s.replace(cancel,' if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}\n const expansionCtrl=autotestRuntimeExpansion.controller;if(expansionCtrl&&!expansionCtrl.signal.aborted)expansionCtrl.abort(new DOMException("AutoTest stopping","AbortError"));\n preemptBackgroundAI()\n}',1)
+          old='developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn});if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();'
+          new='developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";let firstButtonExpansionReason="";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState)){const stall=autotestRecentStallCount(recentActions),sparseWorld=(gameState.world?.registry?.locations||[]).length<=1&&turn>=5;if(stall>=3||sparseWorld)firstButtonExpansionReason=stall>=3?"FIRST_BUTTON_STALL_RECOVERY":"FIRST_BUTTON_SPARSE_WORLD";else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn,stall})}if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();'
+          if s.count(old)!=1: raise SystemExit('autotest turn anchor')
           s=s.replace(old,new,1)
+          turnstart='      recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});\n      if(config.stopCondition'
+          if s.count(turnstart)!=1: raise SystemExit('autotest decision anchor')
+          s=s.replace(turnstart,'      recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});\n      if(firstButtonFast&&firstButtonExpansionReason){const scheduled=scheduleDeveloperAutotestExpansion(firstButtonExpansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:firstButtonExpansionReason,turn,scheduled})}\n      if(config.stopCondition',1)
 
-          old='''      recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});\n      if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}\n      await executeDeveloperAutotestDecision(decision);'''
-          new='''      recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});\n      if(firstButtonFast&&firstButtonExpansionReason){const scheduled=scheduleDeveloperAutotestExpansion(firstButtonExpansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:firstButtonExpansionReason,turn,scheduled})}\n      if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}\n      await executeDeveloperAutotestDecision(decision);'''
-          if s.count(old)!=1: raise SystemExit(f'decision anchor count={s.count(old)}')
+          # Modal accessibility: dialog semantics are in index; JS adds focus entry/trap/restore/Escape.
+          modal='function openModal(html){$("#modalContent").innerHTML=html;$("#modal").classList.remove("hidden")}$("#closeModal").onclick=()=>$("#modal").classList.add("hidden");$("#modal").onclick=e=>{if(e.target.id==="modal")$("#modal").classList.add("hidden")};'
+          modal_new='let modalRestoreFocus=null;function closeModal(){const modal=$("#modal");if(!modal||modal.classList.contains("hidden"))return;modal.classList.add("hidden");const target=modalRestoreFocus;modalRestoreFocus=null;if(target&&document.contains(target)&&typeof target.focus==="function")target.focus()}function modalFocusables(){return qsa("#modal button:not([disabled]),#modal input:not([disabled]),#modal select:not([disabled]),#modal textarea:not([disabled]),#modal [href],#modal [tabindex]:not([tabindex=\\"-1\\"])")}function openModal(html){modalRestoreFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;$("#modalContent").innerHTML=html;$("#modal").classList.remove("hidden");requestAnimationFrame(()=>{(modalFocusables()[0]||$("#closeModal"))?.focus()})}$("#closeModal").onclick=closeModal;$("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};document.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal||modal.classList.contains("hidden"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key!=="Tab")return;const items=modalFocusables();if(!items.length)return;const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}});'
+          if s.count(modal)!=1: raise SystemExit('modal anchor')
+          s=s.replace(modal,modal_new,1)
+          wr(p,s)
+
+          # F04 save manager normal empty-state UX.
+          p='src/progression-ui.js'; s=rd(p)
+          s=s.replace('export async function openSaveManagerUI(state,openModal,{onLoad,onImport}={}){','export function saveManagerCapabilities(state){const loaded=Boolean(state&&typeof state==="object"&&state.world&&state.player);return {canSave:loaded,canExport:loaded}}\nexport async function openSaveManagerUI(state,openModal,{onLoad,onImport,errorMessage=""}={}){\n const capabilities=saveManagerCapabilities(state);',1)
+          s=s.replace('<button class="primary" data-save-slot="${n}">保存</button>','<button class="primary" data-save-slot="${n}" ${capabilities.canSave?"":"disabled aria-disabled=\\"true\\""}>保存</button>')
+          s=s.replace('<button id="exportBtn" class="secondary">匯出 .elyndra</button>','<button id="exportBtn" class="secondary" ${capabilities.canExport?"":"disabled aria-disabled=\\"true\\""}>匯出 .elyndra</button>')
+          # Add human-readable empty/error state immediately after existing intro paragraph.
+          needle='<p class="muted">遊戲仍會自動存檔；另外提供 3 個手動存檔槽。每個存檔包含角色狀態、任務、筆記、背包、配方、世界地圖與 Canon。</p>'
+          if needle not in s: raise SystemExit('save manager intro')
+          s=s.replace(needle,needle+'${capabilities.canSave?"":"<p class=\\"muted\\">目前未載入世界；仍可讀取或匯入存檔，但不能保存或匯出。</p>"}${errorMessage?`<p role="alert">${esc(errorMessage)}</p>`:""}',1)
+          old='qsa("#modalContent [data-save-slot]").forEach(b=>b.onclick=async()=>{const n=Number(b.dataset.saveSlot),label=prompt("存檔名稱","手動存檔 "+n);if(label==null)return;await saveWorldSlot(state,n,label);await openSaveManagerUI(state,openModal,{onLoad,onImport})});'
+          new='qsa("#modalContent [data-save-slot]").forEach(b=>b.onclick=async()=>{if(!capabilities.canSave)return;const n=Number(b.dataset.saveSlot),label=prompt("存檔名稱","手動存檔 "+n);if(label==null)return;try{await saveWorldSlot(state,n,label);await openSaveManagerUI(state,openModal,{onLoad,onImport})}catch(e){await openSaveManagerUI(state,openModal,{onLoad,onImport,errorMessage:"保存失敗："+(e?.message||String(e))})}});'
+          if s.count(old)!=1: raise SystemExit('save handler')
           s=s.replace(old,new,1)
-          p.write_text(s,encoding='utf-8')
+          wr(p,s)
 
-          t=Path('test/first-button-fast-path-v05417.test.js')
-          q=t.read_text(encoding='utf-8')
-          old=''' assert.match(source,/!firstButtonFast&&needsExpansion\\(gameState\\)\\)await expandDeveloperAutotestWorld/);\n const html=await readFile(new URL("../index.html",import.meta.url),"utf8");'''
-          new=''' assert.match(source,/!firstButtonFast&&needsExpansion\\(gameState\\)\\)await expandDeveloperAutotestWorld/);\n assert.match(source,/function scheduleDeveloperAutotestExpansion/);\n assert.match(source,/AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_STARTED/);\n assert.match(source,/if\\(firstButtonFast&&firstButtonExpansionReason\\)\\{const scheduled=scheduleDeveloperAutotestExpansion/);\n assert.match(source,/expandDeveloperAutotestWorld\\(reason,\\{background:true,signal:ctrl\\.signal\\}\\)/);\n assert.doesNotMatch(source,/firstButtonFast&&needsExpansion\\(gameState\\)\\)await expandDeveloperAutotestWorld/);\n const html=await readFile(new URL("../index.html",import.meta.url),"utf8");'''
-          if q.count(old)!=1: raise SystemExit(f'test anchor count={q.count(old)}')
-          q=q.replace(old,new,1)
-          t.write_text(q,encoding='utf-8')
+          # Storage perf: cached DB and lightweight autosave existence lookup.
+          p='src/storage.js'; s=rd(p)
+          old='function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}'
+          new='let dbPromise=null;function openDB(){if(dbPromise)return dbPromise;dbPromise=new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>{db.close();dbPromise=null};resolve(db)};req.onerror=()=>{dbPromise=null;reject(req.error)}});return dbPromise}'
+          if s.count(old)!=1: raise SystemExit('storage openDB')
+          s=s.replace(old,new,1)
+          s=s.replace('export async function hasWorld(){return !!(await loadWorld())}','export async function hasWorld(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).getKey("autosave");r.onsuccess=()=>resolve(r.result!==undefined);r.onerror=()=>reject(r.error)})}',1)
+          wr(p,s)
+
+          # API hard gate: disabled-by-default server route, bearer auth, request cap, rate limit, abort propagation, output cap, array-content parity.
+          wr('api/_ai.js','''import {timingSafeEqual} from "node:crypto";\nconst json=(res,status,data)=>{res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");res.end(JSON.stringify(data))};\nconst rateBuckets=new Map();\nfunction envInt(name,fallback,min,max){const n=Math.round(Number(process.env[name]));return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback}\nfunction bodyBytes(body){try{return Buffer.byteLength(typeof body==="string"?body:JSON.stringify(body??{}),"utf8")}catch{return Number.MAX_SAFE_INTEGER}}\nfunction equalSecret(a,b){const x=Buffer.from(String(a||"")),y=Buffer.from(String(b||""));return x.length===y.length&&x.length>0&&timingSafeEqual(x,y)}\nfunction clientKey(req){return String(req.headers?.["x-forwarded-for"]||req.socket?.remoteAddress||"unknown").split(",")[0].trim()}\nfunction consumeRate(req){const limit=envInt("ELYNDRA_RATE_LIMIT_PER_MINUTE",30,1,600),now=Date.now(),key=clientKey(req),bucket=rateBuckets.get(key);if(!bucket||now-bucket.started>=60000){rateBuckets.set(key,{started:now,count:1});return true}if(bucket.count>=limit)return false;bucket.count+=1;return true}\nexport function methodGuard(req,res){if(req.method!=="POST"){json(res,405,{error:"METHOD_NOT_ALLOWED"});return false}const expected=String(process.env.ELYNDRA_SERVER_TOKEN||"");if(!expected){json(res,503,{error:"SERVER_API_DISABLED"});return false}const auth=String(req.headers?.authorization||"").replace(/^Bearer\\s+/i,"");if(!equalSecret(auth,expected)){json(res,401,{error:"UNAUTHORIZED"});return false}const max=envInt("ELYNDRA_MAX_REQUEST_BYTES",49152,1024,262144);if(bodyBytes(req.body)>max){json(res,413,{error:"REQUEST_TOO_LARGE"});return false}if(!consumeRate(req)){json(res,429,{error:"RATE_LIMITED"});return false}if(!req.elyndraSignal&&typeof AbortController!=="undefined"){const ctrl=new AbortController(),abort=()=>{if(!ctrl.signal.aborted)ctrl.abort(new Error("CLIENT_DISCONNECTED"))};req.elyndraSignal=ctrl.signal;req.once?.("aborted",abort)}return true}\nexport function safeBody(req){const body=typeof req.body==="string"?JSON.parse(req.body||"{}"):(req.body||{});const max=envInt("ELYNDRA_MAX_REQUEST_BYTES",49152,1024,262144);if(bodyBytes(body)>max)throw Object.assign(new Error("REQUEST_TOO_LARGE"),{code:"REQUEST_TOO_LARGE",statusCode:413});return body}\nfunction extractText(data){const value=data?.choices?.[0]?.message?.content??data?.output_text??"";if(Array.isArray(value))return value.map(x=>typeof x==="string"?x:String(x?.text??x?.content??"")).join("");return String(value??"")}\nexport async function callModel({system,user,temperature=.7,timeoutMs=30000,maxOutputTokens=1200,signal=null}){const endpoint=process.env.AI_API_URL,apiKey=process.env.AI_API_KEY,model=process.env.AI_MODEL;if(!endpoint||!model)throw Object.assign(new Error("AI_NOT_CONFIGURED"),{code:"AI_NOT_CONFIGURED"});const prompt=String(system||"")+String(user||"");if(Buffer.byteLength(prompt,"utf8")>65536)throw Object.assign(new Error("AI_CONTEXT_TOO_LARGE"),{code:"AI_CONTEXT_TOO_LARGE",statusCode:413});timeoutMs=Math.max(5000,Math.min(120000,Math.round(Number(timeoutMs)||30000)));const ctrl=new AbortController();let timedOut=false,upstreamAbort=null;if(signal){upstreamAbort=()=>{if(!ctrl.signal.aborted)ctrl.abort(signal.reason||new Error("CLIENT_ABORT"))};if(signal.aborted)upstreamAbort();else signal.addEventListener?.("abort",upstreamAbort,{once:true})}const timer=setTimeout(()=>{timedOut=true;if(!ctrl.signal.aborted)ctrl.abort(new Error("AI_TIMEOUT"))},timeoutMs),limit=Math.max(256,Math.min(4096,Math.round(Number(maxOutputTokens)||1200)));try{const r=await fetch(endpoint,{method:"POST",signal:ctrl.signal,headers:{"Content-Type":"application/json",...(apiKey?{Authorization:`Bearer ${apiKey}`}:{})},body:JSON.stringify({model,temperature,max_completion_tokens:limit,messages:[{role:"system",content:system},{role:"user",content:user}]})});if(!r.ok)throw new Error(`UPSTREAM_${r.status}`);return extractText(await r.json())}catch(e){if(timedOut)throw Object.assign(new Error(`AI_TIMEOUT: upstream provider exceeded ${Math.round(timeoutMs/1000)} seconds`),{code:"AI_TIMEOUT"});throw e}finally{clearTimeout(timer);if(signal&&upstreamAbort)signal.removeEventListener?.("abort",upstreamAbort)}}\nexport {json};\n''')
+          for pth in Path('api').glob('*.js'):
+              if pth.name in {'_ai.js','health.js'}: continue
+              text=pth.read_text(encoding='utf-8')
+              text=text.replace('callModel({','callModel({signal:req.elyndraSignal,')
+              pth.write_text(text,encoding='utf-8')
+          p='api/summarize.js'; s=rd(p).replace('temperature:.2})','temperature:.2,maxOutputTokens:700})'); wr(p,s)
+          wr('api/health.js','''import {json} from "./_ai.js";\nimport {APP_VERSION} from "../src/version.js";\nexport default async function handler(req,res){json(res,200,{ok:true,aiConfigured:Boolean(process.env.AI_API_URL&&process.env.AI_MODEL&&process.env.ELYNDRA_SERVER_TOKEN),serverAuthRequired:true,version:APP_VERSION})}\n''')
+          wr('.env.example','''# OpenAI-compatible Chat Completions endpoint\nAI_API_URL=\nAI_API_KEY=\nAI_MODEL=\n\n# Optional server AI routes are disabled until an explicit bearer token is configured.\nELYNDRA_SERVER_TOKEN=\nELYNDRA_MAX_REQUEST_BYTES=49152\nELYNDRA_RATE_LIMIT_PER_MINUTE=30\n''')
+
+          # Server transport auth is opt-in and never hard-coded into public Pages.
+          p='src/ai-client.js'; s=rd(p)
+          old='async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});'
+          if old in s:s=s.replace(old,'async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});',1)
+          # Normalize the duplicate player-experience module URL instance.
+          s=s.replace('./player-experience.js?v=540181','./player-experience.js?v=54019').replace('./player-experience.js?v=54018','./player-experience.js?v=54019')
+          wr(p,s)
+
+          # Modal markup semantics and app cache token.
+          p='index.html'; s=rd(p)
+          s=s.replace('<div id="modal" class="modal hidden"><div class="modal-card"><button id="closeModal" class="close">×</button><div id="modalContent"></div></div></div>','<div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Elyndra 對話框"><div class="modal-card"><button id="closeModal" class="close" type="button" aria-label="關閉對話框">×</button><div id="modalContent"></div></div></div>')
+          s=re.sub(r'app\.js\?v=\d+', 'app.js?v=54019', s)
+          wr(p,s)
+
+          # Regression tests for the reproduced audit defects.
+          wr('test/audit-fixes-v05419.test.js','''import test from "node:test";\nimport assert from "node:assert/strict";\nimport {readFile} from "node:fs/promises";\nimport {newGame} from "../src/world-engine.js";\nimport {canonizeGeneration} from "../src/world-registry.js";\nimport {ensureTravelNetwork} from "../src/travel-engine.js";\nimport {performAction} from "../src/game-engine.js";\nimport {inferActionIntent} from "../src/action-intent.js";\nimport {validateStatePatch} from "../src/state-sync.js";\nimport {createStateSessionGuard} from "../src/state-session.js";\nimport {saveManagerCapabilities} from "../src/progression-ui.js";\nimport {methodGuard} from "../api/_ai.js";\nconst seed={worldviewMode:"style",genre:"奇幻",scale:"小型",danger:2,magic:2,politics:2,playHours:8,prompt:"audit"};\nconst reveal=n=>Array.from({length:n},(_,i)=>({op:"REVEAL_ENTITY",kind:"npc",id:`NPC-${i}`}));\ntest("F01 validates all StatePatch operations and rejects operation 11",()=>{const plan={baseRevision:0,capabilities:["REVEAL_ENTITY"]};assert.equal(validateStatePatch({baseRevision:0,operations:[]},plan).valid,true);assert.equal(validateStatePatch({baseRevision:0,operations:reveal(10)},plan).valid,true);const eleven=validateStatePatch({baseRevision:0,operations:reveal(11)},plan);assert.equal(eleven.valid,false);assert.ok(eleven.errors.includes("STATE_PATCH_OPERATIONS_LIMIT_EXCEEDED"));const tail=validateStatePatch({baseRevision:0,operations:[...reveal(10),{op:"SET_WORLD_NAME_KNOWN",value:true}]},plan);assert.equal(tail.valid,false)});\ntest("F02 negated rest/travel never trigger deterministic mutation",()=>{const s=newGame(seed);canonizeGeneration(s,{locations:[{name:"灰港",type:"港鎮",region:"灰岸",description:"港口",known:true},{name:"星丘",type:"山丘",region:"灰岸",description:"高地",known:true}]});s.player.location="灰港";s.world.state.location="灰港";ensureTravelNetwork(s);const before=s.world.state.clock.totalMinutes;performAction(s,"free","我不想睡覺，先查看狀態",{verdict:"ALLOW",kind:"OBSERVE",actionIntent:{intent:"OBSERVE"}});assert.ok(s.world.state.clock.totalMinutes-before<240);assert.equal(inferActionIntent("我不想睡覺，先查看狀態").intent,"OBSERVE");const loc=s.player.location;performAction(s,"free","我不想去星丘，只想查看地圖",{verdict:"ALLOW",kind:"OBSERVE",actionIntent:{intent:"OBSERVE"}});assert.equal(s.player.location,loc);assert.equal(inferActionIntent("我不想去星丘，只想查看地圖").intent,"OBSERVE");const moved=performAction(s,"free","前往星丘",{verdict:"ALLOW",kind:"TRAVEL",actionIntent:{intent:"TRAVEL"}});assert.equal(moved.deterministic,true);assert.equal(s.player.location,"星丘")});\ntest("F03 session guard rejects stale work even for identical world id",()=>{const a={world:{id:"same"}},b={world:{id:"same"}},g=createStateSessionGuard(a),t=g.capture(a);g.replace(b);assert.equal(g.isCurrent(t,b),false)});\ntest("F03 app guards action, scene and runtime checkpoint writes by epoch+identity",async()=>{const app=await readFile(new URL("../app.js",import.meta.url),"utf8");for(const x of ["replaceGameState(","captureStateSession()","isCurrentStateSession(actionSession)","commitRuntimeStageCheckpoint(plan,stage,sessionToken,state)","STATE_SESSION_REPLACED"])assert.ok(app.includes(x),x)});\ntest("F04 no-world save/export is disabled",()=>{assert.deepEqual(saveManagerCapabilities(null),{canSave:false,canExport:false});assert.deepEqual(saveManagerCapabilities({world:{},player:{}}),{canSave:true,canExport:true})});\ntest("F05 FIRST_BUTTON expansion is background scheduled, not awaited",async()=>{const app=await readFile(new URL("../app.js",import.meta.url),"utf8");assert.match(app,/function scheduleDeveloperAutotestExpansion/);assert.match(app,/FIRST_BUTTON_STALL_RECOVERY/);assert.match(app,/FIRST_BUTTON_SPARSE_WORLD/);assert.match(app,/void expandDeveloperAutotestWorld\(reason,\{background:true,signal:ctrl\.signal\}\)/);assert.doesNotMatch(app,/if\(firstButtonFast&&firstButtonExpansionReason\)[^{]*\{[^}]*await expandDeveloperAutotestWorld/)});\nfunction res(){return {statusCode:0,headers:{},body:null,setHeader(k,v){this.headers[k]=v},end(v){this.body=JSON.parse(v)}}}\ntest("F06 server AI rejects disabled, unauthorized and oversized requests before provider call",()=>{const old={token:process.env.ELYNDRA_SERVER_TOKEN,max:process.env.ELYNDRA_MAX_REQUEST_BYTES};try{delete process.env.ELYNDRA_SERVER_TOKEN;let r=res();assert.equal(methodGuard({method:"POST",headers:{},body:{}},r),false);assert.equal(r.statusCode,503);process.env.ELYNDRA_SERVER_TOKEN="secret";r=res();assert.equal(methodGuard({method:"POST",headers:{},body:{}},r),false);assert.equal(r.statusCode,401);process.env.ELYNDRA_MAX_REQUEST_BYTES="1024";r=res();assert.equal(methodGuard({method:"POST",headers:{authorization:"Bearer secret","x-forwarded-for":"audit-large"},body:{snapshot:"x".repeat(4096)}},r),false);assert.equal(r.statusCode,413)}finally{if(old.token===undefined)delete process.env.ELYNDRA_SERVER_TOKEN;else process.env.ELYNDRA_SERVER_TOKEN=old.token;if(old.max===undefined)delete process.env.ELYNDRA_MAX_REQUEST_BYTES;else process.env.ELYNDRA_MAX_REQUEST_BYTES=old.max}});\n''')
+
+          # Legacy FIRST_BUTTON static test gets the new app cache token and no broken negative substring assertion.
+          p='test/first-button-fast-path-v05417.test.js'; s=rd(p).replace('54018','54019').replace('540181','54019')
+          s=s.replace(' assert.doesNotMatch(source,/firstButtonFast&&needsExpansion\\(gameState\\)\\)await expandDeveloperAutotestWorld/);','')
+          wr(p,s)
           PY
-      - name: Run full test suite
+      - name: Syntax gate
+        run: |
+          find . -path './.git' -prune -o -name '*.js' -type f -print0 | xargs -0 -n1 node --check
+      - name: Full test suite
         run: npm test
-      - name: Commit patch and cleanup
+      - name: Commit audited source fixes to repair branch
         shell: bash
         run: |
-          rm .github/workflows/tmp-first-button-progressive-expansion.yml
-          git config user.name 'JackSin'
-          git config user.email 'a24dc523@dhw.ac.jp'
-          git add app.js test/first-button-fast-path-v05417.test.js .github/workflows/tmp-first-button-progressive-expansion.yml
-          git commit -m 'fix: expand stalled FIRST_BUTTON worlds in background'
-          git push origin HEAD:main
+          git config user.name 'Elyndra Audit Repair'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app.js index.html package.json src api test .env.example
+          git commit -m 'fix: close audit runtime and API defects'
+          git push origin HEAD:fix/audit-2026-09-24-all
