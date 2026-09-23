@@ -33,7 +33,7 @@ test("v0.54.6 autotest rechecks foreground idle at the timeout boundary",async()
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  const start=app.indexOf("function autotestForegroundIdle"),end=app.indexOf("function cancelAutotestBackgroundWork",start),block=app.slice(start,end);
  assert.match(block,/if\(autotestForegroundIdle\(\)\)return true/);
- assert.match(app,/await executeDeveloperAutotestDecision\(decision\);await waitForAutotestIdle\(config\.disableTimeout===true\?90000:38000\)/)
+ assert.match(app,/if\(firstButtonFast\)await waitForAutotestActionReady\(config\.disableTimeout===true\?90000:38000\);else await waitForAutotestIdle\(config\.disableTimeout===true\?90000:38000\)/)
 });
 
 
