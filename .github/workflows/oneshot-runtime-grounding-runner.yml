@@ -52,6 +52,10 @@ jobs:
           p=Path('index.html')
           t=p.read_text().replace('app.js?v=54017f2','app.js?v=54017g',1)
           p.write_text(t)
+
+          p=Path('test/first-button-fast-path-v05417.test.js')
+          t=p.read_text().replace('assert.match(html,/app\\.js\\?v=54017f2/);','assert.match(html,/app\\.js\\?v=54017g/);',1)
+          p.write_text(t)
           PY
       - name: Run tests
         run: npm test
