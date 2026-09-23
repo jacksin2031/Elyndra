@@ -97,7 +97,7 @@ function normalizeOpeningCast(cast){
  }
  cast.npcs=normalized;return cast
 }
-const FUTURE_CURRENT_STATE=/(?:已經|已開始|已發生|已出現|已滲入|已侵蝕|已爆發|正在|現正|眼下|目前|此刻|現在).{0,18}(?:發生|出現|開始|滲入|滲透|侵蝕|爆發|襲擊|攻擊|撞擊|撞碎|崩壞|失控|蔓延|逼近|入侵)|(?:發生|出現|滲入|侵蝕|爆發|襲擊|攻擊|撞擊|撞碎|崩壞|失控|蔓延|入侵).{0,10}(?:了|中|當前|目前)/i;
+const FUTURE_CURRENT_STATE=/(?:已經|已開始|已發生|已出現|已滲入|已侵蝕|已爆發|正在|現正|眼下|目前|此刻|現在).{0,18}(?:發生|出現|開始|滲入|滲透|侵蝕|爆發|襲擊|攻擊|撞擊|撞碎|崩壞|失控|蔓延|逼近|入侵)/i;
 function semanticFragments(value){
  const src=text(value).normalize("NFKC").toLowerCase(),out=[];
  for(const token of (src.match(/[a-z0-9][a-z0-9_-]{3,}/g)||[]))out.push(token);
