@@ -143,6 +143,11 @@ export function buildContextualActionSet(state,input=[]){
  const selected=uniq([...main.slice(0,3),high],4).map(x=>seal(state,x)).filter(Boolean);
  return {primary:selected.filter(x=>!["HIGH","EXTREME"].includes(x.risk)).slice(0,3),highRisk:selected.filter(x=>["HIGH","EXTREME"].includes(x.risk)).slice(0,1),all:selected}
 }
+function trustedSuggestionHasKnownDestination(state,action){
+ const current=String(state.player?.location||"");
+ return (state.world?.registry?.locations||[]).some(loc=>loc?.known===true&&loc?.name&&String(loc.name)!==current&&String(action||"").includes(String(loc.name)))
+}
+function trustedSuggestionObservationDominant(action){return /觀察|查看|檢查|搜尋|尋找|調查|辨識|比對|描摹|記錄|線索|證據|痕跡|observe|inspect|search|investigate|compare|trace/i.test(String(action||""))}
 export function trustedSuggestionAssessment(state,row){
  const x=normalizeContextualSuggestion(row),v=row?.validatedContext;
  if(!x||row?.prevalidated!==true||!v)return null;
@@ -152,7 +157,7 @@ export function trustedSuggestionAssessment(state,row){
   const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===v.targetId);
   if(npc&&!(npc.known===true&&npc.alive!==false))return null
  }
- const engineKind=inferActionKind(x.action),kind=engineKind==="GENERAL"?x.kind:engineKind;
+ const engineKind=inferActionKind(x.action),localObserve=x.kind==="OBSERVE"&&engineKind==="TRAVEL"&&trustedSuggestionObservationDominant(x.action)&&!trustedSuggestionHasKnownDestination(state,x.action),kind=localObserve?"OBSERVE":engineKind==="GENERAL"?x.kind:engineKind;
  const actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});
  const corrected=kind!==x.kind;
  return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議的場景前提仍有效，Engine 已重新驗證其語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}

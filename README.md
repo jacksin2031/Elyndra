@@ -1,5 +1,13 @@
 # Elyndra
 
+### v0.54.15 — Runtime Society / Visibility Recovery
+
+- Runtime Society 增加專屬輸出 headroom，第二次編譯會自動提高 token budget 並要求縮短文字、完整閉合 JSON，避免 Agnes 在 1600-token 邊界反覆截斷。
+- Runtime Cast 新增 NPC shape normalizer，修復 `knowledgeScope`、`behaviorProfile`、`companionProfile` 漂移造成的 checkpoint 重試。
+- 同一地點內「離開祭壇中心去搜尋／觀察」不再因「離開」一詞誤判成跨地點 TRAVEL；明確指向另一個已知 Canon 地點時仍維持 TRAVEL。
+- 開局 Cast 的「附近 NPC」現在只公開其存在與外觀（`known:true`），不公開 lore／秘密，令社交路線能在第一幕真正進入玩家可見行動循環。
+
+
 **Elyndra** 是一款 AI × TRPG × World Discovery 的異世界網頁 RPG。
 
 > 每一個世界，都有自己的真相。
