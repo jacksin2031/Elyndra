@@ -1,6 +1,6 @@
 import {isNpcPresent} from "./world-registry.js?v=54018";
 import {normalizeCheckBonuses} from "./check-engine.js?v=54018";
-import {ensureSurvival} from "./survival-engine.js?v=54018";
+import {ensureSurvival,survivalRules} from "./survival-engine.js?v=54018";
 import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=54018";
 import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=54018";
 
@@ -104,7 +104,8 @@ function applyEffect(state,effect){
  return 0
 }
 function refreshSurvivalConditions(state){
- const s=ensureSurvival(state),out=[];if(s.satiety<=35)out.push("飢餓");if(s.fatigue>=65)out.push("疲勞");if(s.exposure>=65)out.push("環境暴露");if(s.injury>=55)out.push("傷勢");s.conditions=out
+ const s=ensureSurvival(state),rules=survivalRules(state);if(!rules.statusEffects){s.conditions=[];return}
+ const out=[];if(rules.hunger&&s.satiety<=35)out.push("飢餓");if(rules.fatigue&&s.fatigue>=65)out.push("疲勞");if(s.exposure>=65)out.push("環境暴露");if(s.injury>=55)out.push("傷勢");s.conditions=out
 }
 export function canUseItem(item){
  const x=normalizeItem(item);return Boolean(x&&x.identified!==false&&x.useEffects.length&&x.category!=="KEY"&&x.category!=="QUEST")
