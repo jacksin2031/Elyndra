@@ -135,9 +135,11 @@ export function validateStatePatch(patch,plan={}){
  const errors=[];if(!patch||typeof patch!=="object"||Array.isArray(patch))return {valid:false,errors:["STATE_PATCH_INVALID"]};
  if(!Number.isInteger(Number(patch.baseRevision))||Number(patch.baseRevision)<0)errors.push("STATE_PATCH_BASE_REVISION_INVALID");
  if(Number(patch.baseRevision)!==Number(plan.baseRevision))errors.push("STATE_PATCH_BASE_REVISION_MISMATCH");
+ const operations=Array.isArray(patch.operations)?patch.operations:[];
  if(!Array.isArray(patch.operations))errors.push("STATE_PATCH_OPERATIONS_INVALID");
+ if(operations.length>10)errors.push("STATE_PATCH_OPERATIONS_LIMIT_EXCEEDED");
  const allowed=new Set(plan.capabilities||[]);
- for(const raw of (patch.operations||[]).slice(0,10)){
+ for(const raw of operations){
   const type=String(raw?.op||"").toUpperCase();if(!PATCH_OPS.has(type)||!allowed.has(type)){errors.push("STATE_PATCH_OPERATION_NOT_ALLOWED:"+type);continue}
   if(type==="DISCOVER_FACT"){
    if(!clean(raw.title,100)||!clean(raw.text,500))errors.push("STATE_PATCH_DISCOVERY_INVALID");
