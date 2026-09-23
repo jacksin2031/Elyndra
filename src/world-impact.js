@@ -1,5 +1,5 @@
 import {addCrisisPressure,ensureCrisis} from "./crisis-engine.js?v=54018";
-import {applyTimelineImpact} from "./world-timeline.js?v=54018";
+import {applyTimelineImpact} from "./world-timeline.js?v=540181";
 import {validateRecognitionCandidate,registerImpactRecognition} from "./recognition-engine.js?v=54018";
 
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));

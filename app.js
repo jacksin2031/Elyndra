@@ -9,7 +9,7 @@ import {maintainSession} from "./src/session-maintenance.js?v=54018";
 import {performAction} from "./src/game-engine.js?v=54018";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=54018";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=54018";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=54018";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=540181";
 import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=54018";
 import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=54018";
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=54018";
@@ -38,7 +38,7 @@ import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=5401
 import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=54018";
 import {marketSnapshot} from "./src/economy-engine.js?v=54018";
 import {cultureSnapshot} from "./src/culture-engine.js?v=54018";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=54018";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=540181";
 import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=54018";
 import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=54018";
 import {worldMapSnapshot} from "./src/world-map.js?v=54018";
@@ -515,8 +515,11 @@ async function runAction(action,customText="",options={}){
  const preboundFailForward=options?.suggestion?groundedSuggestionFailForward(gameState,options.suggestion,{success:true}):null;
  const previousSuggestions=[...(gameState.suggestions||[])],previousSuggestionIntents=[...(gameState.suggestionIntents||[])],impactBefore=ensureWorldImpact(gameState).records.length;
  if(assessment?.verdict!=="BLOCK"){
-  const localLore=resolveLocalLoreAction(gameState,effective);
-  if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});bumpStateRevision(gameState,"LOCAL_LORE_ACTION");finishPlayerActionFlight(effective,"local_engine");await persist();await refresh();return}
+  const socialAction=assessment?.intent==="TALK"||assessment?.kind==="SOCIAL"||/(詢問|請教|交談|對話|攀談|問(?:他|她|對方|.+?怎樣|.+?如何)|告訴|回答|talk|ask|speak|tell)/i.test(effective);
+  if(!socialAction){
+   const localLore=resolveLocalLoreAction(gameState,effective);
+   if(localLore){gameState.narrative=localLore.text;gameState.sceneTitle=deriveSceneTitle(gameState,effective);gameState.suggestions=fallbackActionButtons(effective);gameState.suggestionIntents=[];gameState.events??=[];gameState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:gameState.world?.state?.day||1,at:Date.now()});bumpStateRevision(gameState,"LOCAL_LORE_ACTION");finishPlayerActionFlight(effective,"local_engine");await persist();await refresh();return}
+  }
  }
  const actionResult=performAction(gameState,action,customText,assessment),{roll,text:localText}=actionResult;gameState.narrative=localText;
  if(!actionResult.blocked)bumpStateRevision(gameState,actionResult.deterministic?"ENGINE_DETERMINISTIC_ACTION":"ENGINE_ACTION");

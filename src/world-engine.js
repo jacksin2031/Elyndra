@@ -1,6 +1,6 @@
 import {revealStoredLore} from "./lore-engine.js?v=54018";
 import {createWorldSeedContract,validateSeedCompliance,localSeedCompliance} from "./seed-contract.js?v=54018";
-import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=54018";
+import {createTimelinePacing,validateWorldTimeline} from "./world-timeline.js?v=540181";
 import {normalizeCalendar} from "./world-locality.js?v=54018";
 import {sanitizePlayerText,sanitizeSuggestions,sanitizeLocationName} from "./runtime-guard.js?v=54018";
 import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./communication-engine.js?v=54018";

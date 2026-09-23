@@ -1,5 +1,5 @@
 import {advanceTime} from "./world-clock.js?v=54018";
-import {tickWorld} from "./world-simulation.js?v=54018";
+import {tickWorld} from "./world-simulation.js?v=540181";
 import {evaluateQuestEvidence} from "./quest-engine.js?v=54018";
 import {npcInteractionMode} from "./world-registry.js?v=54018";
 import {npcConversationMinutes} from "./communication-engine.js?v=54018";
