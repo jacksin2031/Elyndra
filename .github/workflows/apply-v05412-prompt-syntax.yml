@@ -1,0 +1,35 @@
+name: Apply v0.54.12 prompt syntax fix
+
+on:
+  push:
+    branches: [fix/v05412-runtime-schema-normalization]
+    paths: [.github/workflows/apply-v05412-prompt-syntax.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/v05412-runtime-schema-normalization
+      - name: Fix runtime geography prompt literal
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/ai-client.js');s=p.read_text(encoding='utf-8')
+          old='accessRequirements 只能是 [] 或既有 Engine id 的結構化條件 [{type:"ITEM_OWNED|ITEM_USED|ITEM_SHOWN|ITEM_GIVEN|FACT_KNOWN|EVENT_OCCURRED",id:"既有 id",hint:"提示"}]；若沒有可引用的既有 id 必須輸出 []，自然語言危險／進入建議寫進 lore.story。weatherProfile 必須是 {zone:"",affinities:["既有 WTH id"],suppressions:["既有 WTH id"]}。lore 必須是 {story:"",unlockKeywords:[],minMatches:1}。'
+          new='accessRequirements 只能是空陣列，或使用既有 Engine id 的結構化條件物件；type 僅限 ITEM_OWNED、ITEM_USED、ITEM_SHOWN、ITEM_GIVEN、FACT_KNOWN、EVENT_OCCURRED，並必須包含既有 id。若沒有可引用的既有 id 必須輸出空陣列；自然語言危險／進入建議寫進 lore.story。weatherProfile 必須使用 zone、affinities、suppressions 三個欄位，其中 affinities／suppressions 只引用既有 WTH id。lore 必須使用 story、unlockKeywords、minMatches 三個欄位。'
+          if old not in s: raise SystemExit('prompt marker missing')
+          p.write_text(s.replace(old,new),encoding='utf-8')
+          Path('.github/workflows/apply-v05412-prompt-syntax.yml').unlink()
+          PY
+          node --check src/ai-client.js
+          git config user.name "Elyndra Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: repair runtime geography prompt syntax"
+          git push origin HEAD:fix/v05412-runtime-schema-normalization
