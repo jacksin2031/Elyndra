@@ -19,12 +19,15 @@ jobs:
         with:
           node-version: 24
       - name: Apply runtime patch
-        run: python .github/scripts/patch-newbie-protection-v05418.py
+        run: |
+          python .github/scripts/patch-newbie-protection-v05418.py
+          python .github/scripts/patch-newbie-protection-v05418-fix.py
       - name: Run full test suite
         run: npm test
       - name: Commit patch and remove one-shot files
         run: |
           rm -f .github/scripts/patch-newbie-protection-v05418.py
+          rm -f .github/scripts/patch-newbie-protection-v05418-fix.py
           rm -f .github/workflows/oneshot-newbie-protection-v05418.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
