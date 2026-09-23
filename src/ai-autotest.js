@@ -280,6 +280,29 @@ export function autotestStopReason(state={},progress={},config={},lastDecision={
  return ""
 }
 
+export function autotestWorldCoherence(state={}){
+ const world=state.world||{},registry=world.registry||{},claims=list(world.generationClaims?.claims),catalog=world.catalog||{},issues=[];
+ const claimCounts={UNMATERIALIZED:0,RESERVED:0,MATERIALIZED:0,FAILED:0};for(const claim of claims){const status=String(claim?.status||"UNMATERIALIZED").toUpperCase();claimCounts[status]=(claimCounts[status]||0)+1}
+ const failedClaims=claims.filter(x=>String(x?.status||"").toUpperCase()==="FAILED"),reservedClaims=claims.filter(x=>String(x?.status||"").toUpperCase()==="RESERVED"),pendingDefinitions=claims.filter(x=>x?.type==="BLUEPRINT_DEFINITION"&&String(x?.status||"").toUpperCase()!=="MATERIALIZED");
+ if(failedClaims.length)issues.push({severity:"ERROR",type:"GENERATION_CLAIM_FAILED",message:`${failedClaims.length} generation claims are FAILED.`,ids:failedClaims.map(x=>x.id).filter(Boolean).slice(0,12)});
+ if(reservedClaims.length)issues.push({severity:"WARN",type:"GENERATION_CLAIM_RESERVED_AT_EXPORT",message:`${reservedClaims.length} generation claims remain RESERVED at export.`,ids:reservedClaims.map(x=>x.id).filter(Boolean).slice(0,12)});
+ const quality=world.quality||{},qualityPending=quality.pending===true||quality.backgroundPending===true||String(quality.status||"").toUpperCase()==="PENDING";
+ if(qualityPending)issues.push({severity:"WARN",type:"WORLD_QUALITY_PENDING",message:"Background World Critic had not completed when this world snapshot was exported."});
+ const tradeProfiles=[...list(registry.locations),...list(registry.factions)].map(x=>x?.trade).filter(x=>x&&typeof x==="object"),localCurrencies=new Map();for(const trade of tradeProfiles)for(const currency of list(trade?.currencies)){const id=text(currency?.id||currency?.name,100);if(id&&!localCurrencies.has(id))localCurrencies.set(id,currency)}
+ const hasLocalCurrency=localCurrencies.size>0,economy=world.economy||{},currencyConsistent=!hasLocalCurrency||economy.currencyExists===true;
+ if(!currencyConsistent)issues.push({severity:"ERROR",type:"ECONOMY_CURRENCY_REGISTRY_MISMATCH",message:"Local trade defines currency but world.economy.currencyExists is false."});
+ const npcById=new Map(list(registry.npcs).map(n=>[String(n?.id||""),n]).filter(([id])=>id)),conversationIds=[...new Set(list(state.events).filter(e=>e?.type==="NPC_CONVERSATION").map(e=>String(e?.npcId||"")).filter(Boolean))],encounterMismatch=[],memoryMismatch=[];
+ for(const id of conversationIds){const npc=npcById.get(id);if(!npc)continue;if(npc.encountered!==true)encounterMismatch.push(id);if(!list(npc.memories).some(m=>String(m?.type||"").toLowerCase()==="conversation"))memoryMismatch.push(id)}
+ if(encounterMismatch.length)issues.push({severity:"ERROR",type:"NPC_CONVERSATION_ENCOUNTER_MISMATCH",message:"NPC conversation exists but encountered is false.",ids:encounterMismatch.slice(0,12)});
+ if(memoryMismatch.length)issues.push({severity:"ERROR",type:"NPC_CONVERSATION_MEMORY_MISMATCH",message:"NPC conversation exists but no grounded conversation memory was retained.",ids:memoryMismatch.slice(0,12)});
+ const rules=world.creation?.difficultyRules||{},survival=state.player?.survival||{},survivalMismatch=[];
+ if(rules.hunger===false&&Number.isFinite(Number(survival.satiety))&&Number(survival.satiety)<99.999)survivalMismatch.push("HUNGER_DISABLED_SATIETY_CHANGED");
+ if(rules.fatigue===false&&Number(survival.fatigue)>0.001)survivalMismatch.push("FATIGUE_DISABLED_VALUE_CHANGED");
+ if(rules.statusEffects===false&&list(survival.conditions).length)survivalMismatch.push("STATUS_EFFECTS_DISABLED_CONDITIONS_PRESENT");
+ if(survivalMismatch.length)issues.push({severity:"ERROR",type:"DIFFICULTY_SURVIVAL_RULE_MISMATCH",message:survivalMismatch.join(","),details:survivalMismatch});
+ return {status:issues.some(x=>x.severity==="ERROR")?"FAIL":issues.length?"WARN":"PASS",issues,generationClaims:{...claimCounts,total:claims.length,pendingDefinitions:pendingDefinitions.length,deferredByDesign:claimCounts.UNMATERIALIZED||0},catalog:{civilizations:list(catalog.civilizations).length,species:list(catalog.species).length,languages:list(catalog.languages).length},quality:{status:quality.status||"",source:quality.source||"",pending:qualityPending,overall:quality.overall??null,provisionalOverall:quality.provisionalOverall??null},economy:{currencyExists:economy.currencyExists===true,currencyModel:economy.currencyModel||"",localCurrencyCount:localCurrencies.size,consistent:currencyConsistent},npcConversations:{count:conversationIds.length,encounterMismatch:encounterMismatch.length,memoryMismatch:memoryMismatch.length},survival:{difficultyRules:{hunger:rules.hunger,fatigue:rules.fatigue,statusEffects:rules.statusEffects},satiety:Number(survival.satiety),fatigue:Number(survival.fatigue),conditions:list(survival.conditions)}}
+}
+
 export function autotestWorldSummary(state={}){
  const registry=state.world?.registry||{},main=state.quests?.main||{},clock=state.world?.state?.clock||{};
  return {
@@ -287,7 +310,8 @@ export function autotestWorldSummary(state={}){
   day:Number(state.world?.state?.day||clock.day)||1,totalMinutes:Number(clock.totalMinutes)||0,playerStatus:state.player?.status||"",
   hp:Number(state.player?.hp)||0,level:Number(state.player?.level)||1,knowledgeScore:Number(state.player?.knowledgeScore)||0,discoveries:Number(state.discoveries)||0,
   mainQuest:{title:main.title||"",stage:Number(main.stage)||0,status:main.status||""},
-  counts:{inventory:list(state.inventory).length,knowledge:list(state.knowledge).length,npcs:list(registry.npcs).length,knownNpcs:list(registry.npcs).filter(x=>x?.known===true).length,locations:list(registry.locations).length,knownLocations:list(registry.locations).filter(x=>x?.known===true).length,events:list(state.events).length}
+  counts:{inventory:list(state.inventory).length,knowledge:list(state.knowledge).length,npcs:list(registry.npcs).length,knownNpcs:list(registry.npcs).filter(x=>x?.known===true).length,locations:list(registry.locations).length,knownLocations:list(registry.locations).filter(x=>x?.known===true).length,events:list(state.events).length},
+  coherence:autotestWorldCoherence(state)
  }
 }
 
@@ -306,6 +330,7 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
   const effective=reportedWorldStatus(w),quality=String(w?.generation?.diagnostics?.quality||"").toUpperCase();
   if(effective==="PLAY_NOT_STARTED")issues.push({severity:"ERROR",type:"PLAY_NOT_STARTED",worldIndex:w.index,message:"World entered PLAY phase but completed zero turns."});
   if(["DEGRADED","SEVERELY_DEGRADED"].includes(quality))issues.push({severity:quality==="SEVERELY_DEGRADED"?"ERROR":"WARN",type:"GENERATION_"+quality,worldIndex:w.index,message:`Generation quality=${quality}`});
+  for(const issue of list(w?.summary?.coherence?.issues).slice(0,20))issues.push({...structuredClone(issue),type:"WORLD_COHERENCE_"+String(issue?.type||"ISSUE"),worldIndex:w.index});
   const rows=list(w.actions),recent=[];let stagnant=0;
   for(const row of rows){
    const action=text(row?.decision?.action||row?.decision?.combatAction,180).toLowerCase();
