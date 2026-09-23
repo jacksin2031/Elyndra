@@ -8,7 +8,19 @@ const text=(value,max=240)=>String(value??"").trim().slice(0,max);
 const list=value=>Array.isArray(value)?value:[];
 const DECISION_CIRCUIT_FAILURES=2;
 const DECISION_CIRCUIT_OPEN_MS=90000;
+const AUTOTEST_PLAY_STRATEGY_KEY="elyndra:autotest-play-strategy:v1";
 const decisionCircuits=new Map();
+
+function currentAutotestPlayStrategy(){
+ try{return globalThis?.localStorage?.getItem(AUTOTEST_PLAY_STRATEGY_KEY)==="FIRST_BUTTON"?"FIRST_BUTTON":"AI_DECISION"}catch{return "AI_DECISION"}
+}
+function setAutotestPlayStrategy(value){
+ const strategy=value==="FIRST_BUTTON"?"FIRST_BUTTON":"AI_DECISION";
+ try{globalThis?.localStorage?.setItem(AUTOTEST_PLAY_STRATEGY_KEY,strategy)}catch{}
+ globalThis.__ELYNDRA_AUTOTEST_PLAY_STRATEGY__=strategy;
+ return strategy
+}
+export function autotestPlayStrategy(){return currentAutotestPlayStrategy()}
 
 export function autotestExportSelection(value="both"){
  const mode=["both","debug","world"].includes(String(value))?String(value):"both";
@@ -92,6 +104,36 @@ export function playerVisibleAutotestSnapshot(state={}){
  }
 }
 
+export function firstButtonAutotestDecision(state={}){
+ const snapshot=playerVisibleAutotestSnapshot(state),worldId=text(state?.world?.id||"WORLD",160);
+ if(snapshot.combat?.active===true){
+  const decision={mode:"combat",combatAction:"attack",action:"attack",suggestionIndex:null,kind:"COMBAT",progression:false,targetId:null,reason:"FIRST_BUTTON",goalReached:false,goalEvidence:"",firstButton:true};
+  recordDebug("AUTOTEST_FIRST_BUTTON_DECISION",{worldId,mode:decision.mode,combatAction:"attack"});return decision
+ }
+ const chosen=list(snapshot.suggestions)[0];
+ if(chosen){
+  const decision={mode:"suggestion",suggestionIndex:0,action:text(chosen.action||chosen.label,180),kind:text(chosen.kind||"",30),progression:chosen.progression===true,targetId:chosen.targetId||null,combatAction:null,reason:"FIRST_BUTTON",goalReached:false,goalEvidence:"",firstButton:true};
+  recordDebug("AUTOTEST_FIRST_BUTTON_DECISION",{worldId,mode:decision.mode,suggestionIndex:0,action:decision.action,kind:decision.kind});return decision
+ }
+ const decision={mode:"free",suggestionIndex:null,action:"觀察四周並確認目前最明顯的變化",kind:"OBSERVE",progression:false,targetId:null,combatAction:null,reason:"FIRST_BUTTON_UNAVAILABLE_FALLBACK",goalReached:false,goalEvidence:"",firstButton:true,firstButtonUnavailable:true};
+ recordDebug("AUTOTEST_FIRST_BUTTON_UNAVAILABLE",{worldId,location:snapshot?.world?.location||"",fallbackAction:decision.action});return decision
+}
+
+function installAutotestStrategyUi(){
+ if(typeof document==="undefined"||typeof MutationObserver==="undefined")return;
+ const inject=()=>{
+  const mode=document.querySelector("#autotestMode");if(!mode||document.querySelector("#autotestPlayStrategy"))return;
+  const host=mode.closest("label");if(!host)return;
+  const label=document.createElement("label");label.dataset.autotestStrategyInjected="true";label.innerHTML='遊玩策略<select id="autotestPlayStrategy"><option value="AI_DECISION">AI 自主決策</option><option value="FIRST_BUTTON">固定第一個行動按鈕</option></select>';
+  host.after(label);
+  const select=label.querySelector("#autotestPlayStrategy"),start=document.querySelector("#autotestStart");select.value=currentAutotestPlayStrategy();select.disabled=Boolean(start?.disabled);
+  select.addEventListener("change",()=>{const strategy=setAutotestPlayStrategy(select.value);recordDebug("AUTOTEST_PLAY_STRATEGY_CHANGED",{strategy})});
+  start?.addEventListener("click",()=>recordDebug("AUTOTEST_PLAY_STRATEGY_SELECTED",{strategy:currentAutotestPlayStrategy()}),{capture:true,once:true})
+ };
+ const observer=new MutationObserver(inject);observer.observe(document.documentElement,{childList:true,subtree:true});queueMicrotask(inject)
+}
+installAutotestStrategyUi();
+
 function parseDecision(value){
  if(value&&typeof value==="object")return value;
  const raw=String(value||"").trim().replace(/^\`\`\`(?:json)?/i,"").replace(/\`\`\`$/,"").trim();
@@ -174,6 +216,7 @@ export function normalizeAutotestDecision(value,snapshot={},recentActions=[]){
 }
 
 export async function decideAutotestAction(state,{recentActions=[],customCondition="",signal,disableTimeout=false}={}){
+ if(currentAutotestPlayStrategy()==="FIRST_BUTTON")return firstButtonAutotestDecision(state);
  const snapshot=playerVisibleAutotestSnapshot(state),goal=text(customCondition,500),worldId=text(state?.world?.id||"WORLD",160),circuit=decisionCircuit(worldId),now=Date.now();
  if(circuit.openUntil>now){const decision=deterministicAutotestDecision(snapshot,recentActions,"Provider decision circuit open");recordDebug("AUTOTEST_DECISION_FALLBACK",{worldId,reason:"CIRCUIT_OPEN",openUntil:circuit.openUntil,action:decision.action,mode:decision.mode});return decision}
  if(circuit.openUntil&&circuit.openUntil<=now){circuit.openUntil=0;circuit.failures=0;recordDebug("AUTOTEST_DECISION_CIRCUIT_HALF_OPEN",{worldId})}
@@ -306,7 +349,7 @@ export function buildAutotestReport({config={},worlds=[],telemetry=[],startedAt=
  const latencyTotal=ai.reduce((n,e)=>n+(Number(e?.data?.latencyMs)||0),0),effectiveWorlds=worlds.map(w=>({...w,reportedStatus:reportedWorldStatus(w)}));
  return {
   schema:"elyndra-autotest-report-v1",startedAt:new Date(startedAt||Date.now()).toISOString(),endedAt:new Date(endedAt).toISOString(),durationMs:Math.max(0,endedAt-(startedAt||endedAt)),
-  config:structuredClone(config),summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:effectiveWorlds.filter(w=>w.reportedStatus==="FAILED").length,worldsDegraded:effectiveWorlds.filter(w=>w.reportedStatus==="DEGRADED").length,worldsPlayNotStarted:effectiveWorlds.filter(w=>w.reportedStatus==="PLAY_NOT_STARTED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiBackgroundInterruptions:backgroundFailedAttempts.length,backgroundWindowCount:backgroundWindows.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
+  config:{...structuredClone(config),playStrategy:currentAutotestPlayStrategy()},summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:effectiveWorlds.filter(w=>w.reportedStatus==="FAILED").length,worldsDegraded:effectiveWorlds.filter(w=>w.reportedStatus==="DEGRADED").length,worldsPlayNotStarted:effectiveWorlds.filter(w=>w.reportedStatus==="PLAY_NOT_STARTED").length,totalTurns:actions.length,issues:issues.length,aiRequests:ai.length,aiSuccessfulResponses:successfulResponses.length,aiEmptyResponses:emptyResponses.length,aiAttempts:ai.length+allFailedAttempts.length,aiFailures:failedAttempts.length,aiPreemptedAttempts:preemptedAttempts.length,aiBackgroundInterruptions:backgroundFailedAttempts.length,backgroundWindowCount:backgroundWindows.length,aiDegradedAttempts:failedAttempts.length+emptyResponses.length,aiTimeouts:timeoutFailures.length,aiTransportFailures:transportFailures.length,aiLatencyAverageMs:ai.length?Math.round(latencyTotal/ai.length):0,generationDegradedWorlds:degradedWorlds,generationStages,stageBreakdown,tokenTotals},
   stopReasons:Object.fromEntries([...new Set(worlds.map(w=>w.stopReason).filter(Boolean))].map(reason=>[reason,worlds.filter(w=>w.stopReason===reason).length])),
   issues,worlds:effectiveWorlds.map(w=>({index:w.index,status:w.reportedStatus,rawStatus:w.status,phase:w.phase,turns:Number(w.turns)||0,stopReason:w.stopReason||"",error:w.error||"",summary:w.summary||null,generation:w.generation||null}))
  }
