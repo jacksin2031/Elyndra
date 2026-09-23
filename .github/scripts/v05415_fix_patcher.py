@@ -20,5 +20,9 @@ new='''async function runtimeExpansionStage(stage,{signal,system,user,maxOutputT
 t=t[:fn_start]+new+t[fn_end:]
 """
 s=s[:start]+replacement+s[end:]
+cache_anchor='replace_all("app.js", \'?v=54014\', \'?v=54015\')\n'
+if cache_anchor not in s:
+    raise SystemExit('app cache anchor missing')
+s=s.replace(cache_anchor,cache_anchor+'replace_all("src/adventure-engine.js", \'contextual-actions.js?v=54012\', \'contextual-actions.js?v=54015\')\n',1)
 p.write_text(s,encoding='utf-8')
-print('patcher matching repaired')
+print('patcher matching and cache edge repaired')
