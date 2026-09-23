@@ -162,6 +162,12 @@ function sourceEvidenceText(state,raw,context={}){
  if(sourceKind==="EVENT"){const event=(state?.events||[]).find(x=>x?.id===sourceId&&x?.visibility!=="INTERNAL");if(event)out.push(clean(event.summary,900))}
  return out.join("\n")
 }
+export function playerVisibleEvidenceText(state,extra=""){
+ const out=[];const direct=clean(extra,2400);if(direct)out.push(direct);const narrative=clean(state?.narrative,1200);if(narrative)out.push(narrative);
+ for(const e of (state?.events||[]).slice(-20))if(e?.type==="NPC_CONVERSATION"&&e?.visibility!=="INTERNAL")out.push(clean(e.summary,900));
+ for(const doc of (state?.world?.documents?.documents||[]).filter(x=>x?.read===true).slice(-20))out.push([clean(doc?.title,160),...(doc?.claims||[]).map(x=>clean(x?.text,700))].filter(Boolean).join(" "));
+ return out.join("\n")
+}
 function discoverySourceGrounded(state,raw){
  const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),registry=state?.world?.registry||{},current=currentLocationRecord(state);
  if(!DISCOVERY_SOURCE_KINDS.has(sourceKind)||!sourceId)return false;
@@ -182,8 +188,8 @@ function discoverySourceGrounded(state,raw){
 function discoveryNameGrounded(state,raw,context={}){
  const title=clean(raw?.title,100);return Boolean(title&&evidenceMentions(sourceEvidenceText(state,raw,context),title))
 }
-function acquiredItemGrounded(raw,context={}){
- const name=clean(raw?.item?.name,100);return Boolean(name&&evidenceMentions(context?.observableText,name))
+function acquiredItemGrounded(state,raw,context={}){
+ const name=clean(raw?.item?.name,100);return Boolean(name&&evidenceMentions(playerVisibleEvidenceText(state,context?.observableText),name))
 }
 function travelIntentGrounded(context={},action=""){
  const kind=String(context?.intent?.kind||context?.roll?.profile?.kind||"").toUpperCase();return kind==="TRAVEL"||/前往|移動|走向|走到|進入|抵達|沿著|循著|travel|move|go to|enter/i.test(action)
@@ -196,7 +202,7 @@ export function groundStatePatch(state,patch={},context={}){
    if(!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(raw?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
    if(!discoveryNameGrounded(state,raw,context)){rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
   }
-  if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
+  if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(state,raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
   if(type==="MOVE_PLAYER"){
    const target=clean(raw?.location,120),current=clean(state?.player?.location||state?.world?.state?.location,120),locations=state?.world?.registry?.locations||[],entity=locations.find(x=>x?.id===target||x?.name===target);
    if(!target){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}

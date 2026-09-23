@@ -10,5 +10,13 @@ export function deriveAcquisitionNotifications(prev,next){
  return out.slice(0,8)
 }
 function host(){if(typeof document==="undefined")return null;let el=document.getElementById("gainToastStack");if(el)return el;el=document.createElement("div");el.id="gainToastStack";el.className="gain-toast-stack";el.setAttribute("aria-live","polite");el.setAttribute("aria-atomic","false");document.body.appendChild(el);return el}
-export function pushAcquisitionNotification(row){const root=host();if(!root||!row)return;while(root.children.length>=4)root.firstElementChild?.remove();const el=document.createElement("div");el.className=`gain-toast gain-toast-${String(row.type||"GENERIC").toLowerCase()}`;el.innerHTML=`<div class="gain-toast-icon">${iconFor(row.type)}</div><div class="gain-toast-copy"><small>${clean(row.title,40)}</small><strong>${clean(row.name,100)}</strong>${row.detail?`<span>${clean(row.detail,160)}</span>`:""}</div>`;root.appendChild(el);requestAnimationFrame(()=>el.classList.add("show"));setTimeout(()=>{el.classList.remove("show");setTimeout(()=>el.remove(),260)},3000)}
+export function pushAcquisitionNotification(row){
+ const root=host();if(!root||!row)return;while(root.children.length>=4)root.firstElementChild?.remove();
+ const el=document.createElement("div");el.className=`gain-toast gain-toast-${String(row.type||"GENERIC").toLowerCase()}`;
+ const icon=document.createElement("div");icon.className="gain-toast-icon";icon.textContent=iconFor(row.type);
+ const copy=document.createElement("div");copy.className="gain-toast-copy";
+ const label=document.createElement("small");label.textContent=clean(row.title,40);const name=document.createElement("strong");name.textContent=clean(row.name,100);copy.append(label,name);
+ if(row.detail){const detail=document.createElement("span");detail.textContent=clean(row.detail,160);copy.appendChild(detail)}el.append(icon,copy);root.appendChild(el);
+ requestAnimationFrame(()=>el.classList.add("show"));setTimeout(()=>{el.classList.remove("show");setTimeout(()=>el.remove(),260)},3000)
+}
 export function notifyGameplayAcquisitions(prev,next){for(const row of deriveAcquisitionNotifications(prev,next))pushAcquisitionNotification(row)}

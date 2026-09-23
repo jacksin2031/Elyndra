@@ -28,3 +28,12 @@ test("pending background critic never masquerades as an official numeric score",
 test("committed state diffs produce compact acquisition notifications",()=>{const prev={inventory:{},knowledge:{},locations:{L1:{known:true,name:"中央祭壇"}},npcs:{N1:{encountered:false,name:"工程師"}},mainQuest:{stage:1,status:"ACTIVE",objective:"觀察"}},next={inventory:{I1:{quantity:1,name:"藍光碎屑"}},knowledge:{K1:{title:"高壓氣閥",status:"UNCONFIRMED"}},locations:{L1:{known:true,name:"中央祭壇"},L2:{known:true,name:"外環"}},npcs:{N1:{encountered:true,name:"工程師",role:"技師"}},mainQuest:{stage:2,status:"ACTIVE",title:"找出路",objective:"前往外環"}};const rows=deriveAcquisitionNotifications(prev,next);assert.ok(rows.some(x=>x.type==="ITEM"&&x.name==="藍光碎屑"));assert.ok(rows.some(x=>x.type==="KNOWLEDGE"&&x.name==="高壓氣閥"));assert.ok(rows.some(x=>x.type==="LOCATION"));assert.ok(rows.some(x=>x.type==="NPC"));assert.ok(rows.some(x=>x.type==="QUEST"))});
 
 test("world constitution requires chronology and lifespan consistency",()=>{const rule=WORLD_CONSTITUTION.find(x=>x.id==="C-012");assert.ok(rule);assert.match(rule.text,/年齡|世代/);assert.match(rule.text,/長壽|延命/);assert.match(rule.text,/後代|傳承者/)});
+
+test("item name evidence can come from prior visible NPC dialogue or a read document",()=>{
+ const npc=baseState();npc.events.push({id:"E1",type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:"N1",summary:"工程師：你要找的是藍光碎屑。"});
+ let r=groundStatePatch(npc,{baseRevision:0,operations:[{op:"ACQUIRE_ITEM",item:{name:"藍光碎屑",category:"MATERIAL",quantity:1}}]},{action:"撿起藍光碎屑",roll:{success:true}});assert.equal(r.patch.operations.length,1);
+ const doc=baseState();doc.world.documents.documents.push({id:"D2",title:"倉庫清單",read:true,claims:[{text:"紅銅鑰匙存放於北側架。"}]});
+ r=groundStatePatch(doc,{baseRevision:0,operations:[{op:"ACQUIRE_ITEM",item:{name:"紅銅鑰匙",category:"KEY",quantity:1}}]},{action:"拿起紅銅鑰匙",roll:{success:true}});assert.equal(r.patch.operations.length,1)
+});
+
+test("acquisition toast renders generated labels through textContent instead of innerHTML",async()=>{const source=await import("node:fs/promises").then(fs=>fs.readFile(new URL("../src/acquisition-notifier.js",import.meta.url),"utf8"));assert.doesNotMatch(source,/\.innerHTML\s*=/);assert.match(source,/textContent=/)});
