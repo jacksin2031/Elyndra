@@ -1,12 +1,19 @@
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
 const INTENTS=new Set(["OBSERVE","TALK","TRAVEL","STEAL","ATTACK","USE_ITEM","GIVE_ITEM","SHOW_ITEM","CAST","CRAFT","REST","EAT","INTERACT","PERSUADE","THREATEN","SNEAK","GENERAL"]);
+const RISKY_ACTION=/攀|跳|破壞|偷|竊|闖|攻擊|潛入|撬|climb|jump|break|steal|attack|sneak|lockpick/;
+const SOCIAL_ACTION=/說|問|詢問|交談|對話|展示|出示|交給|贈送|說服|威脅|talk|ask|question|show|give|persuade|threat/;
+const TRAVEL_ACTION=/前往|走到|走出|離開|移動|旅行|穿越|跟隨|跟上|踏出|進入|深入|前進|後退|退到|朝.+前進|沿著.+前進|循著.+(?:走|前進)|travel|go to|walk|move|follow/;
+const ABANDONED_SOCIAL=/(?:不再|停止|放棄|結束)(?:繼續)?(?:追問|詢問|提問|交談|對話|問)|(?:不再|停止|放棄).{0,24}(?:問|詢問).{0,36}(?:轉身|離開|跟上|前進|移動|踏出)/;
+const OBSERVE_ACTION=/觀察|查看|檢查|搜尋|尋找|調查|聆聽|閱讀|比對|痕跡|目擊|誰會.*反應|測試.*反應|找出.*(?:線索|證據|異常|人物)|observe|inspect|search|listen|read|trace|witness|reaction/;
 export function inferActionKind(action=""){
  const q=clean(action).toLowerCase();
- if(/攀|跳|破壞|偷|竊|闖|攻擊|潛入|撬|climb|jump|break|steal|attack|sneak|lockpick/.test(q))return "RISKY";
- if(/說|問|詢問|交談|對話|展示|出示|交給|贈送|說服|威脅|talk|ask|question|show|give|persuade|threat/.test(q))return "SOCIAL";
- if(/前往|走到|離開|移動|旅行|穿越|跟隨|travel|go to|walk|move|follow/.test(q))return "TRAVEL";
- if(/觀察|查看|檢查|搜尋|尋找|調查|聆聽|閱讀|比對|痕跡|目擊|誰會.*反應|測試.*反應|找出.*(?:線索|證據|異常|人物)|observe|inspect|search|listen|read|trace|witness|reaction/.test(q))return "OBSERVE";
+ if(RISKY_ACTION.test(q))return "RISKY";
+ const travel=TRAVEL_ACTION.test(q),social=SOCIAL_ACTION.test(q);
+ if(travel&&(!social||ABANDONED_SOCIAL.test(q)))return "TRAVEL";
+ if(social)return "SOCIAL";
+ if(travel)return "TRAVEL";
+ if(OBSERVE_ACTION.test(q))return "OBSERVE";
  return "GENERAL"
 }
 export function inferActionIntent(action="",kind=""){
