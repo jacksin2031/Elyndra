@@ -29,17 +29,12 @@ jobs:
               if text.count(old)!=1: raise SystemExit(f"expected one marker in {path}, got {text.count(old)}")
               write(path,text.replace(old,new,1))
 
-          # v0.57.2 version contract.
           replace_once("package.json",'"version": "0.57.1"','"version": "0.57.2"')
           replace_once("src/version.js",'APP_VERSION="0.57.1"','APP_VERSION="0.57.2"')
 
-          # P2: completion must end with the linked commitment actually KEPT.
           p="src/quest-engine.js"
-          old='const linked=resolveNpcCommitment(state,npc,q.commitmentId,"KEPT",`玩家完成了「${q.title}」。`);if(!linked.ok)return false}'
-          new='const linked=resolveNpcCommitment(state,npc,q.commitmentId,"KEPT",`玩家完成了「${q.title}」。`);if(!linked.ok||linked.commitment?.status!=="KEPT")return false}'
-          replace_once(p,old,new)
+          replace_once(p,'const linked=resolveNpcCommitment(state,npc,q.commitmentId,"KEPT",`玩家完成了「${q.title}」。`);if(!linked.ok)return false}','const linked=resolveNpcCommitment(state,npc,q.commitmentId,"KEPT",`玩家完成了「${q.title}」。`);if(!linked.ok||linked.commitment?.status!=="KEPT")return false}')
 
-          # P2: validate NPC cognition plus Quest <-> NPC <-> Commitment referential integrity.
           p="src/state-validator.js"
           item_marker='const ITEM_EFFECTS=new Set(["RESTORE_HP","RESTORE_SATIETY","REDUCE_FATIGUE","REDUCE_EXPOSURE","REDUCE_INJURY","REDUCE_MAGIC_STRAIN"]);\n'
           helpers='''const QUEST_LIFECYCLE_STATUSES=new Set(["HIDDEN","DISCOVERABLE","OFFERED","ACTIVE","DECLINED","EXPIRED","FAILED","ABANDONED","COMPLETED"]);\nconst COMMITMENT_STATUSES=new Set(["OPEN","KEPT","BROKEN","EXPIRED"]);\nfunction validCommitment(x){return obj(x)&&typeof x.id==="string"&&Boolean(x.id)&&COMMITMENT_STATUSES.has(String(x.status||"").toUpperCase())&&(x.questId==null||typeof x.questId==="string")&&(x.targetId==null||typeof x.targetId==="string")}\nfunction validNpcCognition(x){if(!obj(x))return false;if(x.memory!=null&&(!obj(x.memory)||!arr(x.memory.recent||[])||!arr(x.memory.longTerm||[])))return false;if(x.beliefs!=null&&!arr(x.beliefs))return false;if(x.relationships!=null&&!obj(x.relationships))return false;if(x.commitments!=null&&(!arr(x.commitments)||x.commitments.some(c=>!validCommitment(c))))return false;if(x.planner!=null&&!obj(x.planner))return false;return true}\nfunction validateQuestCommitmentLinks(registry,errors){\n const npcById=new Map(registry.npcs.map(n=>[n.id,n])),questById=new Map(registry.sideQuests.map(q=>[q.id,q]));\n for(const npc of registry.npcs)if(npc.cognition!=null&&!validNpcCognition(npc.cognition))errors.push("NPC_COGNITION_INVALID");\n for(const q of registry.sideQuests){\n  const status=String(q.status||"").toUpperCase();if(q.status!=null&&!QUEST_LIFECYCLE_STATUSES.has(status))errors.push("QUEST_LIFECYCLE_INVALID");if(q.issuerNpcId&&!npcById.has(q.issuerNpcId))errors.push("QUEST_ISSUER_INVALID");if(!q.commitmentId)continue;\n  const issuer=npcById.get(q.issuerNpcId),commitments=issuer?.cognition?.commitments,commitment=Array.isArray(commitments)?commitments.find(c=>c.id===q.commitmentId):null;\n  if(!issuer||!commitment||commitment.questId!==q.id||commitment.targetId!==issuer.id){errors.push("QUEST_COMMITMENT_LINK_INVALID");continue}\n  const cStatus=String(commitment.status||"").toUpperCase();\n  if(status==="ACTIVE"&&cStatus!=="OPEN")errors.push("QUEST_COMMITMENT_STATE_INVALID");\n  if(status==="COMPLETED"&&cStatus!=="KEPT")errors.push("QUEST_COMMITMENT_STATE_INVALID");\n  if(status==="ABANDONED"&&cStatus!=="BROKEN")errors.push("QUEST_COMMITMENT_STATE_INVALID");\n  if(status==="FAILED"&&!["BROKEN","EXPIRED"].includes(cStatus))errors.push("QUEST_COMMITMENT_STATE_INVALID");\n  if(status==="EXPIRED"&&cStatus!=="EXPIRED")errors.push("QUEST_COMMITMENT_STATE_INVALID");\n  if(["HIDDEN","DISCOVERABLE","OFFERED","DECLINED"].includes(status))errors.push("QUEST_COMMITMENT_STATE_INVALID")\n }\n for(const npc of registry.npcs)for(const commitment of Array.isArray(npc.cognition?.commitments)?npc.cognition.commitments:[]){if(!commitment.questId)continue;const quest=questById.get(commitment.questId);if(!quest||quest.issuerNpcId!==npc.id||quest.commitmentId!==commitment.id)errors.push("QUEST_COMMITMENT_LINK_INVALID")}\n}\n'''
@@ -47,46 +42,23 @@ jobs:
           quest_marker='  if(registry.sideQuests.some(x=>!validEntity(x,"title")))errors.push("QUEST_REGISTRY_INVALID")\n'
           replace_once(p,quest_marker,quest_marker+'  validateQuestCommitmentLinks(registry,errors)\n')
 
-          # P3: least privilege for Pages workflow. Test job no longer inherits deployment writes.
           p=".github/workflows/pages.yml"
           replace_once(p,'permissions:\n  contents: read\n  actions: read\n  pages: write\n  id-token: write\n','permissions:\n  contents: read\n')
           replace_once(p,'  deploy:\n    if:','  deploy:\n    permissions:\n      contents: read\n      pages: write\n      id-token: write\n    if:')
 
-          # CI contract follows the least-privilege layout.
           p="test/ci-workflow.test.js"
           replace_once(p,' assert.match(yml,/actions:\\s*read/);\n',''' const workflowPermissions=(yml.match(/permissions:\\n((?:  [^\\n]+\\n)+)concurrency:/)||[])[1]||"";\n assert.match(workflowPermissions,/contents:\\s*read/);\n assert.doesNotMatch(workflowPermissions,/pages:\\s*write/);\n assert.doesNotMatch(workflowPermissions,/id-token:\\s*write/);\n const deployBlock=(yml.split(/\\n  deploy:\\n/)[1]||"");\n assert.match(deployBlock,/permissions:\\n\\s+contents:\\s*read\\n\\s+pages:\\s*write\\n\\s+id-token:\\s*write/);\n''')
 
-          # Canonical release tests.
+          # Patch-release cache generation. This is intentionally mechanical.
+          for path in [Path("app.js"),*Path("src").rglob("*.js"),*Path("test").rglob("*.js")]:
+              write(path,read(path).replace("?v=57001","?v=57002"))
+          html=read("index.html")
+          html=re.sub(r'(app\.js\?v=)\d+',r'\g<1>57002',html)
+          write("index.html",html)
+
           for path in ["test/version-0551-release.test.js","test/version-ui.test.js"]:
-              text=read(path).replace("0.57.1","0.57.2").replace("57001","57002")
-              write(path,text)
+              write(path,read(path).replace("0.57.1","0.57.2").replace("57001","57002"))
 
-          # Update only cache-bust edges in the reverse dependency closure of changed browser modules.
-          roots={"src/quest-engine.js","src/state-validator.js","src/version.js"}
-          modules=[Path("app.js"),*Path("src").rglob("*.js")]
-          module_names={p.as_posix() for p in modules}
-          pattern=re.compile(r'(?P<prefix>(?:from\\s+|import\\s+)["\\'])(?P<spec>\\.{1,2}/[^"\\'?]+\\.js)(?:\\?v=(?P<token>\\d+))?(?P<suffix>["\\'])')
-          impacted=set(roots)
-          changed=True
-          while changed:
-              changed=False
-              for path in modules:
-                  importer=path.as_posix();text=read(path);edits=[]
-                  for m in pattern.finditer(text):
-                      target=(path.parent/Path(m.group("spec"))).resolve().relative_to(Path.cwd().resolve()).as_posix()
-                      if target in impacted:
-                          repl=f'{m.group("prefix")}{m.group("spec")}?v=57002{m.group("suffix")}'
-                          if m.group(0)!=repl: edits.append((m.start(),m.end(),repl))
-                          if importer not in impacted: impacted.add(importer);changed=True
-                  if edits:
-                      for a,b,repl in reversed(edits): text=text[:a]+repl+text[b:]
-                      write(path,text)
-          if "app.js" in impacted:
-              html=read("index.html")
-              html=re.sub(r'(app\\.js\\?v=)\\d+',r'\\g<1>57002',html)
-              write("index.html",html)
-
-          # Regression tests for the remaining review gaps.
           test=r'''import test from "node:test";
           import assert from "node:assert/strict";
           import {acceptNpcSideQuest} from "../src/npc-quest-interaction.js";
@@ -99,17 +71,13 @@ jobs:
           function quest(s,n){const q={id:"Q-1",title:"測試任務",objective:"完成測試",issuerNpcId:n.id,known:true,status:"OFFERED",progress:0,target:1,evidence:[],conditions:[],matchedConditions:[],matchedKeywords:[]};s.world.registry.sideQuests.push(q);return q}
 
           test("v0.57.2 validator accepts a consistent quest commitment graph",()=>{const s=state(),n=npc(s),q=quest(s,n);const a=acceptNpcSideQuest(s,q.id,n.id);assert.equal(a.ok,true);const result=validateSaveState(s);assert.equal(result.valid,true,result.errors.join(","))});
-
           test("v0.57.2 validator rejects a commitment owned by the wrong NPC target",()=>{const s=state(),n=npc(s),q=quest(s,n);const a=acceptNpcSideQuest(s,q.id,n.id);a.commitment.targetId="NPC-B";const result=validateSaveState(s);assert.equal(result.valid,false);assert.ok(result.errors.includes("QUEST_COMMITMENT_LINK_INVALID"))});
-
           test("v0.57.2 validator rejects a missing quest issuer",()=>{const s=state(),n=npc(s),q=quest(s,n);q.issuerNpcId="NPC-MISSING";const result=validateSaveState(s);assert.equal(result.valid,false);assert.ok(result.errors.includes("QUEST_ISSUER_INVALID"))});
-
           test("v0.57.2 completion fails closed when linked commitment was already broken",()=>{const s=state(),n=npc(s),q=quest(s,n);const a=acceptNpcSideQuest(s,q.id,n.id);q.progress=1;resolveNpcCommitment(s,n,a.commitment.id,"BROKEN","先前已違約");assert.equal(a.commitment.status,"BROKEN");assert.equal(completeSideQuest(s,q.id),false);assert.equal(q.status,"ACTIVE");assert.equal(s.events.some(e=>e.type==="QUEST_COMPLETED"),false)});
           '''
           test="\n".join(line[10:] if line.startswith("          ") else line for line in test.splitlines())+"\n"
           write("test/v0572-review-hardening.test.js",test)
 
-          # Obsolete write-capable one-shot workflow should not remain enabled indefinitely.
           old=Path(".github/workflows/v0552-cache-finalize.yml")
           if old.exists(): old.unlink()
           PY
