@@ -1,5 +1,0 @@
-PROFILES already present
-actionProfile export already present
-deterministic rest command already hardened
-deterministic travel command already hardened
-src/game-engine.js syntax PASS
