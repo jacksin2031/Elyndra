@@ -1,27 +1,8 @@
-not ok 77 - F05 FIRST_BUTTON expansion is background scheduled, not awaited
-  error: |-
-  code: 'ERR_ASSERTION'
-  expected:
-  operator: 'match'
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/audit-fixes-v05419.test.js:20:317)
 
-not ok 223 - v0.54.19 FIRST_BUTTON stall recovery bypasses only the generic expansion gate
-  error: |-
-  code: 'ERR_ASSERTION'
-  expected:
-  operator: 'match'
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/first-button-stall-recovery-v05419.test.js:7:9)
-
-not ok 224 - v0.54.19 computes FIRST_BUTTON stalls even when needsExpansion is false
-  error: |-
-  code: 'ERR_ASSERTION'
-  expected:
-  operator: 'match'
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/first-button-stall-recovery-v05419.test.js:16:9)
 
 # tests 590
-# pass 587
-# fail 3
+# pass 590
+# fail 0
 # cancelled 0
 # skipped 0
 # todo 0
