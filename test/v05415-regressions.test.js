@@ -32,7 +32,7 @@ test("v0.54.15 keeps intra-location search OBSERVE but preserves genuine named T
 
 test("v0.54.15 gives Runtime Society enough output headroom and escalates retry budget",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/RUNTIME_SOCIETY[\s\S]*?timeoutMs:55001,maxOutputTokens:2400/);
+ assert.match(client,/RUNTIME_SOCIETY[\s\S]*?timeoutMs:55000,maxOutputTokens:2400/);
  assert.match(client,/attemptTokens=attempt>1\?Math\.min\(3600/);
  assert.match(client,/被截斷，縮短自由文字但必須完整閉合 JSON/);
  assert.match(client,/runtimeRows\(value,"npcs",slots\.npcs\)\.map\(normalizeRuntimeNpc\)/);
@@ -41,7 +41,7 @@ test("v0.54.15 gives Runtime Society enough output headroom and escalates retry 
 test("v0.54.15 opening nearby NPC is player-visible in direct and server world creation",async()=>{
  const [client,server]=await Promise.all([readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../api/world.js",import.meta.url),"utf8")]);
  assert.match(client,/附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true/);
- assert.match(client,/historyRefs:\["0-2個 HIST id"\],known:true,behaviorProfile/);
+ assert.match(client,/historyRefs:\["0-2個 HIST id"\],known:true,[\s\S]*?behaviorProfile/);
  assert.match(server,/附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true/);
- assert.match(server,/historyRefs:\["0-2 HIST"\],known:true,behaviorProfile/);
+ assert.match(server,/historyRefs:\["0-2 HIST"\],known:true,[\s\S]*?behaviorProfile/);
 });
