@@ -21,7 +21,9 @@ jobs:
         with:
           node-version: '20'
       - name: Apply v0.55.0 patch
-        run: python scripts/tmp-apply-v0550.py
+        run: |
+          python scripts/tmp-apply-v0550.py
+          python scripts/tmp-fix-v0550-compat.py
       - name: Bump package version
         run: npm version 0.55.0 --no-git-tag-version --allow-same-version
       - name: Run full test suite
@@ -29,7 +31,7 @@ jobs:
       - name: Commit verified release branch
         shell: bash
         run: |
-          rm .github/workflows/tmp-v0550-ai-contract-hardening.yml scripts/tmp-apply-v0550.py
+          rm .github/workflows/tmp-v0550-ai-contract-hardening.yml scripts/tmp-apply-v0550.py scripts/tmp-fix-v0550-compat.py
           git config user.name 'JackSin'
           git config user.email 'japanjacksin@gmail.com'
           git add -A
