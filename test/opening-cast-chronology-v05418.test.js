@@ -23,10 +23,10 @@ test("opening cast allows descendants or inheritors of old founders",()=>{
  assert.deepEqual(openingCastChronologyIssues(anchor,history,cast),[]);
 });
 
-test("opening cast allows first-hand ancient witnesses when longevity is explicitly grounded",()=>{
+test("opening cast rejects first-hand ancient witnesses when only global longevity is grounded",()=>{
  const longLived={...anchor,magicCost:"共振術能延壽，但每十年會永久失去一種感官。"};
  const cast={npcs:[{name:"雙轉零九",historyRefs:["HIST-1"],lore:{story:"他曾是初代共振鐵環的研發工程師。"}}]};
- assert.deepEqual(openingCastChronologyIssues(longLived,history,cast),[]);
+ assert.deepEqual(openingCastChronologyIssues(longLived,history,cast),["CAST_NPC_0_TEMPORAL_PLAUSIBILITY"]);
 });
 
 test("opening cast chronology guard ignores unrelated old history not referenced by the NPC",()=>{

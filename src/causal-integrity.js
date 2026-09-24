@@ -1,14 +1,14 @@
-import {ensureWorldLedger} from "./world-ledger.js?v=55000";
-import {ensureGenerationClaims,reconcileGenerationClaims,validateGenerationClaims,materialSatisfiesClaim,forbiddenTermMatch} from "./generation-claims.js?v=55000";
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=55000";
-import {ensureFutureEngine} from "./future-engine.js?v=55000";
-import {ensureHistoryLegacy} from "./history-legacy.js?v=55000";
-import {ensureWorldCatalog,worldCatalogDefinitions} from "./world-catalog.js?v=55000";
-import {ensureVisibilityLocks} from "./visibility-lock.js?v=55000";
-import {ensureLazyGeneration} from "./lazy-generation.js?v=55000";
-import {ensureHistoryDepth} from "./history-depth.js?v=55000";
-import {ensureDocumentRuntime} from "./document-engine.js?v=55000";
-import {ensureItemHeritage} from "./item-heritage.js?v=55000";
+import {ensureWorldLedger} from "./world-ledger.js?v=55001";
+import {ensureGenerationClaims,reconcileGenerationClaims,validateGenerationClaims,materialSatisfiesClaim,forbiddenTermMatch} from "./generation-claims.js?v=55001";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=55001";
+import {ensureFutureEngine} from "./future-engine.js?v=55001";
+import {ensureHistoryLegacy} from "./history-legacy.js?v=55001";
+import {ensureWorldCatalog,worldCatalogDefinitions} from "./world-catalog.js?v=55001";
+import {ensureVisibilityLocks} from "./visibility-lock.js?v=55001";
+import {ensureLazyGeneration} from "./lazy-generation.js?v=55001";
+import {ensureHistoryDepth} from "./history-depth.js?v=55001";
+import {ensureDocumentRuntime} from "./document-engine.js?v=55001";
+import {ensureItemHeritage} from "./item-heritage.js?v=55001";
 
 const LOCK_RANK={UNSEEN:0,HINTED:1,OBSERVED:2,KNOWN:3,CANON_LOCKED:4};
 const uniq=v=>[...new Set(v)];
@@ -85,6 +85,15 @@ export function auditCausalIntegrity(state){
   const rank=LOCK_RANK[String(row.visibilityLock||"UNSEEN")]??0;if(row.known===true&&rank<LOCK_RANK.KNOWN)errors.push(issue("VISIBILITY_KNOWN_DOWNGRADE",row.id,row.visibilityLock));if(row.kind==="npc"&&row.encountered===true&&rank<LOCK_RANK.OBSERVED)errors.push(issue("VISIBILITY_ENCOUNTER_DOWNGRADE",row.id,row.visibilityLock))
  }
  for(const row of worldCatalogDefinitions(state)){const forbidden=forbiddenTermMatch(state,row);if(forbidden)errors.push(issue("FORBIDDEN_CATALOG_MATERIAL",row.id,forbidden))}
+ const causalBible={...(state.world?.bible||{})};delete causalBible.blueprintProfile;
+ const forbiddenSurfaces=[
+  ["FORBIDDEN_WORLD_BIBLE","WORLD_BIBLE",causalBible],
+  ["FORBIDDEN_WORLD_TIMELINE","WORLD_TIMELINE",state.world?.timeline||[]],
+  ["FORBIDDEN_WORLD_HISTORY","WORLD_HISTORY",state.world?.history||[]],
+  ["FORBIDDEN_WORLD_FUTURE","WORLD_FUTURES",state.world?.futures||[]],
+  ["FORBIDDEN_CANON_FACT","CANON_FACTS",state.world?.canon?.facts||[]]
+ ];
+ for(const [code,ref,value] of forbiddenSurfaces){const forbidden=forbiddenTermMatch(state,value);if(forbidden)errors.push(issue(code,ref,forbidden))}
  for(const future of state.world.futures||[])for(const hid of future.historicalLinks||[])if(!historyIds.has(hid))errors.push(issue("FUTURE_HISTORY_REF_ORPHAN",future.id,hid));
  const activePlans=lazy.plans.filter(x=>x.status==="PLANNED"),expectedRevision=Number(lazy.generationRevision)+1,currentVersion=Number(state.world?.version)||1;
  for(const plan of activePlans){if(Number(plan.worldVersion)!==currentVersion)warnings.push(issue("LAZY_PLAN_STALE_WORLD",plan.id,plan.worldVersion+"!="+currentVersion));if(Number(plan.generationRevision)!==expectedRevision)warnings.push(issue("LAZY_PLAN_STALE_REVISION",plan.id,plan.generationRevision+"!="+expectedRevision))}

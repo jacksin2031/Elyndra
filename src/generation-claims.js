@@ -1,4 +1,4 @@
-import {worldCatalogDefinitions,ensureWorldCatalog} from "./world-catalog.js?v=55000";
+import {worldCatalogDefinitions,ensureWorldCatalog} from "./world-catalog.js?v=55001";
 
 const clean=(v,max=200)=>typeof v==="string"?v.trim().slice(0,max):"";
 const STATUS=new Set(["UNMATERIALIZED","RESERVED","MATERIALIZED","FAILED"]);
@@ -45,7 +45,9 @@ export function constitutionForbidTerms(state){
  for(const term of state.world?.creation?.blueprintProfile?.forbidden||[])if(clean(term,160))terms.push(clean(term,160));
  return [...new Set(terms)]
 }
-export function forbiddenTermMatch(state,value){const hay=norm(typeof value==="string"?value:JSON.stringify(value??{}));return constitutionForbidTerms(state).find(term=>{const needle=norm(term);return needle&&hay.includes(needle)})||null}
+export function forbiddenTermMatch(state,value){
+ const source=typeof value==="string"?value:JSON.stringify(value??{});return constitutionForbidTerms(state).find(term=>positiveMaterialMention({description:source},term))||null
+}
 function upsert(state,input){
  const root=ensureGenerationClaims(state),key=clean(input.key,220);if(!key)return null;
  let claim=root.claims.find(x=>x.key===key);
@@ -70,17 +72,22 @@ export function syncGenerationClaimsFromConstitution(state){
  return ensureGenerationClaims(state).claims
 }
 function registryEntities(state){
- const r=state.world?.registry||{};return [
+ const r=state.world?.registry||{},facts=Array.isArray(state.world?.canon?.facts)?state.world.canon.facts:[];return [
   ...(r.locations||[]).map(x=>({kind:"location",id:x.id,name:x.name,description:x.description,historyRefs:x.historyRefs||[]})),
   ...(r.npcs||[]).map(x=>({kind:"npc",id:x.id,name:x.name,description:x.description,historyRefs:x.historyRefs||[]})),
   ...(r.factions||[]).map(x=>({kind:"faction",id:x.id,name:x.name,description:x.description,historyRefs:x.historyRefs||[]})),
-  ...(r.sideQuests||[]).map(x=>({kind:"sideQuest",id:x.id,name:x.title,description:x.objective,historyRefs:x.historyRefs||[]}))
+  ...(r.sideQuests||[]).map(x=>({kind:"sideQuest",id:x.id,name:x.title,description:x.objective,historyRefs:x.historyRefs||[]})),
+  ...facts.filter(x=>x?.id).map(x=>({kind:"fact",id:x.id,name:x.title||"",description:x.text||"",historyRefs:x.historyId?[x.historyId]:[]}))
  ]}
-function searchable(row){return norm([row?.name,row?.description,...(row?.traits||[]),...(row?.regions||[])].filter(Boolean).join(" "))}
+function searchableRaw(row){return [row?.name,row?.description,...(row?.traits||[]),...(row?.regions||[])].filter(Boolean).join(" ")}
+function positiveMaterialMention(row,term){
+ const source=String(searchableRaw(row)||"").normalize("NFKC").toLocaleLowerCase(),needle=String(term||"").normalize("NFKC").toLocaleLowerCase();if(!needle)return false;
+ let at=source.indexOf(needle);while(at>=0){const before=source.slice(Math.max(0,at-28),at),after=source.slice(at+needle.length,Math.min(source.length,at+needle.length+24));const negated=/(?:沒有|不存在|並不存在|從未存在|禁止|不得|不可|排除|無此|without|forbid|prohibit|does not exist|never existed|no\s*$)/i.test(before)||/^(?:並)?(?:不存在|沒有|並無|被禁止|does not exist|is forbidden)/i.test(after.trim());if(!negated)return true;at=source.indexOf(needle,at+needle.length)}return false
+}
 export function materialSatisfiesClaim(claim,row){
  if(!claim||!row)return false;
  if(claim.type==="BLUEPRINT_DEFINITION")return String(row.kind||"").toUpperCase()===claim.definitionKind;
- if(claim.type==="REQUIRED_ELEMENT"){const needle=norm(claim.label);return Boolean(needle&&searchable(row).includes(needle))}
+ if(claim.type==="REQUIRED_ELEMENT")return positiveMaterialMention(row,claim.label);
  if(claim.type==="HISTORY_ANCHOR")return Boolean(claim.sourceRef&&(row.historyRefs||[]).includes(claim.sourceRef));
  if(claim.type==="FUTURE_ANCHOR")return Boolean((claim.historyRefs||[]).some(id=>(row.historyRefs||[]).includes(id)));
  return false

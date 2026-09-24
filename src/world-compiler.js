@@ -94,10 +94,13 @@ function normalizeOpeningCast(cast){
  for(const raw of cast.npcs){
   if(!obj(raw))continue;
   const identity=Boolean(text(raw.name)||text(raw.role)||text(raw.locationName));
-  if(identity){normalized.push(raw);continue}
+  if(identity){if(obj(raw.chronology))raw.chronology={relation:text(raw.chronology.relation)||"CONTEMPORARY",birthEra:text(raw.chronology.birthEra)||"CURRENT",mechanismRef:text(raw.chronology.mechanismRef),mechanism:text(raw.chronology.mechanism)};normalized.push(raw);continue}
   if(raw.lore!=null&&normalized.length&&!normalized.at(-1)?.lore)normalized[normalized.length-1]={...normalized.at(-1),lore:raw.lore}
  }
  cast.npcs=normalized;return cast
+}
+export function openingCastTimelineSnapshot(future){
+ return (Array.isArray(future?.worldTimeline)?future.worldTimeline:[]).map(x=>({id:text(x?.id),title:text(x?.title),earliestDay:Number(x?.earliestDay)||1,latestDay:Number(x?.latestDay)||Number(x?.earliestDay)||1,triggerDay:Number(x?.triggerDay)||null,status:text(x?.status)||"PENDING",observableEffect:text(x?.observableEffect),links:obj(x?.links)?structuredClone(x.links):{historyRefs:[],locationRefs:[]}}))
 }
 const FUTURE_CURRENT_STATE=/(?:已經|已開始|已發生|已出現|已滲入|已侵蝕|已爆發|正在|現正|眼下|目前|此刻|現在).{0,18}(?:發生|出現|開始|滲入|滲透|侵蝕|爆發|襲擊|攻擊|撞擊|撞碎|崩壞|失控|蔓延|逼近|入侵)/i;
 function semanticFragments(value){
@@ -126,18 +129,23 @@ export function openingCastFutureIssues(cast,future){
  }
  return [...new Set(issues)]
 }
+const CHRONOLOGY_MECHANISM=/長壽|延命|延壽|不老|不死|休眠|凍眠|時間停滯|時間凍結|時間位移|immortal|longevity|lifespan|stasis|time displacement/i;
+function chronologyBasisValid(anchor,history,npc){
+ const c=obj(npc?.chronology)?npc.chronology:{},relation=text(c.relation).toUpperCase(),mechanism=text(c.mechanism),ref=text(c.mechanismRef);if(!["LONG_LIVED","STASIS","TIME_DISPLACED"].includes(relation)||!mechanism||!CHRONOLOGY_MECHANISM.test(mechanism)||!ref)return false;
+ if(ref==="WORLD_MAGIC_COST")return CHRONOLOGY_MECHANISM.test(text(anchor?.magicCost));
+ const pm=ref.match(/^PUBLIC_FACT:(\d+)$/);if(pm){const fact=(Array.isArray(anchor?.publicFacts)?anchor.publicFacts:[])[Math.max(0,Number(pm[1])-1)];return Boolean(fact&&CHRONOLOGY_MECHANISM.test(String(fact)))}
+ const h=(Array.isArray(history)?history:[]).find(x=>text(x?.id)===ref);return Boolean(h&&CHRONOLOGY_MECHANISM.test(JSON.stringify(h)))
+}
 export function openingCastChronologyIssues(anchor,history,cast){
  const oldHistoryIds=new Set((Array.isArray(history)?history:[]).filter(event=>/(?:[1-9]\d{2,}\s*年|百年|數百年|數世紀|centur|hundred years)/i.test(JSON.stringify(event||{}))).map(event=>text(event?.id)).filter(Boolean));
  if(!oldHistoryIds.size)return [];
- const issues=[],worldText=JSON.stringify(anchor||{});
+ const issues=[];
  for(const [i,npc] of (Array.isArray(cast?.npcs)?cast.npcs:[]).entries()){
   const refs=uniq(npc?.historyRefs);if(!refs.some(id=>oldHistoryIds.has(id)))continue;
   const npcText=JSON.stringify(npc||{});
   if(/後代|後裔|子孫|傳承者|繼承人|後世|descendant|heir|successor/i.test(npcText))continue;
   const firstHand=/(?:曾是|就是|身為|作為|曾任|親自|親歷|參與).{0,24}(?:初代|始祖|創建者|創始者)|(?:初代|始祖|創建者|創始者).{0,24}(?:本人|工程師|成員|領袖|祭司|設計者|研發者)|\b(?:founder|first[- ]generation)\b/i.test(npcText);
-  if(!firstHand)continue;
-  const longevity=/長壽|延命|延壽|不老|不死|休眠|凍眠|時間停滯|時間凍結|immortal|longevity|lifespan|stasis/i.test(worldText+" "+npcText);
-  if(!longevity)issues.push("CAST_NPC_"+i+"_TEMPORAL_PLAUSIBILITY")
+  if(firstHand&&!chronologyBasisValid(anchor,history,npc))issues.push("CAST_NPC_"+i+"_TEMPORAL_PLAUSIBILITY")
  }
  return [...new Set(issues)]
 }

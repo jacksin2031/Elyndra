@@ -1,25 +1,25 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=55000";
-import {seedDirective} from "./seed-contract.js?v=55000";
-import {recognitionForNpc} from "./recognition-engine.js?v=55000";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=55000";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=55000";
-import {sanitizePlayerText} from "./runtime-guard.js?v=55000";
-import {helperSnapshot} from "./helper-context.js?v=55000";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=55000";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=55000";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=55000";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=55000";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=55000";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=55000";
-import {normalizeActionIntent} from "./action-intent.js?v=55000";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=55000";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=55000";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=55000";
-import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=55000";
-import {historyDepthSnapshot} from "./history-depth.js?v=55000";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=55000";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=55000";
-import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=55000";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=55001";
+import {seedDirective} from "./seed-contract.js?v=55001";
+import {recognitionForNpc} from "./recognition-engine.js?v=55001";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=55001";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=55001";
+import {sanitizePlayerText} from "./runtime-guard.js?v=55001";
+import {helperSnapshot} from "./helper-context.js?v=55001";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=55001";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=55001";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=55001";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=55001";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=55001";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=55001";
+import {normalizeActionIntent} from "./action-intent.js?v=55001";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=55001";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=55001";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=55001";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=55001";
+import {historyDepthSnapshot} from "./history-depth.js?v=55001";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=55001";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=55001";
+import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=55001";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -357,8 +357,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
   let cast=await resilientWorldStage("CAST",{
    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:1600,
-   system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。這名附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true；這只公開人物存在與外觀，不代表玩家知道其 lore、秘密或知識。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。若 NPC 的 historyRefs 指向百年以上的歷史，不可把 NPC 寫成該時代仍存活至今的初代／始祖／創建本人，除非 anchor 或 NPC 明確提供長壽、延命、休眠、時間停滯等足以解釋跨度的機制；否則必須寫成後代、傳承者、繼承人、記錄持有人或其他合理的現代身份。Future Timeline 只代表尚未觸發的可能事件：任何 earliestDay 大於 1 的事件都不可在 NPC description/personality/goal、sideQuest 或 suggestions 寫成 Day 1 已經發生、正在發生或已造成現況；可以寫成擔心、傳聞、預警、準備、防範或可能風險。只有 earliestDay=1 的事件先可以當成開局現況。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
-   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:future.worldTimeline.map(x=>({id:x.id,title:x.title,observableEffect:x.observableEffect,links:x.links}))},required:{npcs:[{name:"附近人物",role:"具體身份或職責；不得輸出「角色」",description:"40-80字",personality:"具體人格特徵；不得輸出「簡短」",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:true,behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"具體可執行目標；不得輸出「簡短」",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
+   system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。這名附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true；這只公開人物存在與外觀，不代表玩家知道其 lore、秘密或知識。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。若 NPC 的 historyRefs 指向百年以上的歷史，不可把 NPC 寫成該時代仍存活至今的初代／始祖／創建本人，除非該 NPC 自己的 chronology 明確提供 LONG_LIVED／STASIS／TIME_DISPLACED；長壽、延命、休眠、時間停滯等非常規存活都必須由這個角色自己的 chronology 綁定，且 mechanismRef 必須指向具體 PUBLIC_FACT:n、HIST-id 或 WORLD_MAGIC_COST 的 Canon 機制；世界其他地方只要出現「長壽」字眼並不算此人物的時間證據。沒有可驗證機制時必須寫成後代、傳承者、繼承人、記錄持有人或其他合理的現代身份。Future Timeline payload 已包含 earliestDay/latestDay/triggerDay/status：任何 earliestDay 大於 1 且未 TRIGGERED 的事件都不可在 NPC description/personality/goal、sideQuest 或 suggestions 寫成 Day 1 已經發生、正在發生或已造成現況；可以寫成擔心、傳聞、預警、準備、防範或可能風險。只有 earliestDay=1 的事件才可作為開局現況。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
+   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:openingCastTimelineSnapshot(future)},required:{npcs:[{name:"附近人物",role:"具體身份或職責；不得輸出「角色」",description:"40-80字",personality:"具體人格特徵；不得輸出「簡短」",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:true,chronology:{relation:"CONTEMPORARY|DESCENDANT|LONG_LIVED|STASIS|TIME_DISPLACED",birthEra:"CURRENT 或世界內時代",mechanismRef:"一般角色留空；非常規存活只可 PUBLIC_FACT:n / HIST-id / WORLD_MAGIC_COST",mechanism:"一般角色留空；非常規存活填入對應 Canon 機制"},behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"具體可執行目標；不得輸出「簡短」",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
   },()=>castFallback(anchor,history,region,society));
   if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2||generatedTemplateLeak(cast)){markWorldFallback("CAST",generatedTemplateLeak(cast)?"SEMANTIC_INVALID:TEMPLATE_LEAK":"STRUCTURE_INVALID");cast=castFallback(anchor,history,region,society)};
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
