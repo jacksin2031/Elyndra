@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "../src/autotest-export.js";
 
 const world=id=>({id,world:{id},player:{status:"ALIVE"}});
@@ -19,4 +20,9 @@ test("v0.57.3 export snapshot survives reload through storage fallback when Inde
  const snapshot=buildAutotestExportSnapshot({appVersion:"0.57.3",report:{summary:{issues:56}},results:[{index:1,status:"COMPLETED",world:world("W")}],exportMode:"both"});
  const saved=await saveLastAutotestExportSnapshot(snapshot,{indexedDBImpl:null,storage});assert.equal(saved.backend,"localStorage");assert.equal(saved.persisted,true);
  const restored=await loadLastAutotestExportSnapshot({indexedDBImpl:null,storage});assert.equal(restored.debugPayload.summary.issues,56);assert.equal(restored.worlds[0].world.id,"W")
+});
+
+test("v0.57.3 never background-downloads the completed batch and keeps Blob leases long enough for browser handoff",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8"),start=app.indexOf("async function exportDeveloperAutotestResults"),end=app.indexOf("function downloadDeveloperAutotestArtifact",start),producer=app.slice(start,end);
+ assert.ok(start>=0&&end>start);assert.doesNotMatch(producer,/autotestDownload\(/);assert.match(producer,/saveLastAutotestExportSnapshot/);assert.match(app,/setTimeout\(cleanup,120000\)/);assert.doesNotMatch(app,/revokeObjectURL\(url\),800/);assert.match(app,/id="autotestRetryDebug"/);assert.match(app,/id="autotestRetryWorld"/);assert.match(app,/id="autotestRetryRecovery"/)
 });
