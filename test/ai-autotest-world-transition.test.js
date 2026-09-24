@@ -27,3 +27,11 @@ test("stale world expansion completion cannot unlock a newer world's expansion",
  const start=app.indexOf("function scheduleDeveloperAutotestExpansion"),end=app.indexOf("async function executeDeveloperAutotestDecision",start),block=app.slice(start,end);
  assert.match(block,/if\(autotestRuntimeExpansion\.controller===ctrl\)\{autotestRuntimeExpansion\.controller=null;autotestRuntimeExpansion\.running=false;autotestRuntimeExpansion\.reason="";autotestRuntimeExpansion\.turn=0\}/);
 });
+
+test("manual Stop remains the explicit whole-batch abort path",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ const start=app.indexOf("function bindDeveloperAutotestPanel"),end=app.indexOf("function openDeveloperAutotestPanel",start),block=app.slice(start,end);
+ assert.match(block,/developerAutotest\.stopRequested=true/);
+ assert.match(block,/developerAutotest\.batchController\?\.abort\(reason\)/);
+ assert.match(block,/AUTOTEST_STOP_REQUESTED/);
+});
