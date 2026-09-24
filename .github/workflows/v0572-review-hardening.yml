@@ -1,4 +1,4 @@
-name: Apply v0.57.2 review hardening
+name: Apply v0.57.2 product hardening
 on:
   push:
     branches: [fix/v0.57.2-review-hardening]
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 20
-      - name: Apply focused hardening patch
+      - name: Apply focused product patch
         shell: bash
         run: |
           python3 <<'PY'
@@ -42,13 +42,6 @@ jobs:
           quest_marker='  if(registry.sideQuests.some(x=>!validEntity(x,"title")))errors.push("QUEST_REGISTRY_INVALID")\n'
           replace_once(p,quest_marker,quest_marker+'  validateQuestCommitmentLinks(registry,errors)\n')
 
-          p=".github/workflows/pages.yml"
-          replace_once(p,'permissions:\n  contents: read\n  actions: read\n  pages: write\n  id-token: write\n','permissions:\n  contents: read\n')
-          replace_once(p,'  deploy:\n    if:','  deploy:\n    permissions:\n      contents: read\n      pages: write\n      id-token: write\n    if:')
-
-          p="test/ci-workflow.test.js"
-          replace_once(p,' assert.match(yml,/actions:\\s*read/);\n',''' const workflowPermissions=(yml.match(/permissions:\\n((?:  [^\\n]+\\n)+)concurrency:/)||[])[1]||"";\n assert.match(workflowPermissions,/contents:\\s*read/);\n assert.doesNotMatch(workflowPermissions,/pages:\\s*write/);\n assert.doesNotMatch(workflowPermissions,/id-token:\\s*write/);\n const deployBlock=(yml.split(/\\n  deploy:\\n/)[1]||"");\n assert.match(deployBlock,/permissions:\\n\\s+contents:\\s*read\\n\\s+pages:\\s*write\\n\\s+id-token:\\s*write/);\n''')
-
           # Patch-release cache generation. This is intentionally mechanical.
           for path in [Path("app.js"),*Path("src").rglob("*.js"),*Path("test").rglob("*.js")]:
               write(path,read(path).replace("?v=57001","?v=57002"))
@@ -56,12 +49,10 @@ jobs:
           html=re.sub(r'(app\.js\?v=)\d+',r'\g<1>57002',html)
           write("index.html",html)
 
-          # Canonical release assertions include both normal strings and escaped regex literals.
           for path in ["test/version-0551-release.test.js","test/version-ui.test.js"]:
               text=read(path).replace("0.57.1","0.57.2").replace("0\\.57\\.1","0\\.57\\.2").replace("57001","57002")
               write(path,text)
 
-          # Module cache contract has literal token assertions in addition to import specifiers.
           p="test/module-cache.test.js"
           text=read(p).replace("57001","57002")
           text=text.replace("v0.56.1 keeps structured AI and Developer Autotest cache graphs coherent","v0.57.2 keeps structured AI and Developer Autotest cache graphs coherent")
@@ -86,18 +77,14 @@ jobs:
           '''
           test="\n".join(line[10:] if line.startswith("          ") else line for line in test.splitlines())+"\n"
           write("test/v0572-review-hardening.test.js",test)
-
-          old=Path(".github/workflows/v0552-cache-finalize.yml")
-          if old.exists(): old.unlink()
           PY
       - name: Verify complete suite against current main
         run: GITHUB_EVENT_NAME=pull_request GITHUB_BASE_REF=main CACHE_BASE_REF=main npm test
-      - name: Commit only verified changes
+      - name: Commit verified product changes
         shell: bash
         run: |
-          git rm .github/workflows/v0572-review-hardening.yml
           git config user.name "Elyndra Review Fix Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -A
+          git add package.json index.html app.js src test
           git commit -m "v0.57.2: complete quest integrity hardening"
           git push origin HEAD:fix/v0.57.2-review-hardening
