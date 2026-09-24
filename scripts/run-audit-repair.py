@@ -50,8 +50,6 @@ status.append('src/game-engine.js syntax PASS')
 
 Path('audit-repair-status.txt').write_text('\n'.join(status) + '\n', encoding='utf-8')
 
-# Persist the focused repair before the workflow's full-suite gate so a later
-# failing assertion can be inspected without losing the already-correct fix.
 subprocess.run(['git', 'config', 'user.name', 'Elyndra Audit Repair'], check=True)
 subprocess.run(['git', 'config', 'user.email', 'actions@users.noreply.github.com'], check=True)
 subprocess.run(['git', 'add', 'src/game-engine.js', 'audit-repair-status.txt'], check=True)
@@ -60,4 +58,17 @@ if changed:
     subprocess.run(['git', 'commit', '-m', 'fix: restore v0.54.19 action profiles after parser repair'], check=True)
     subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
 
+# Keep an inspectable copy of the full test output while the temporary repair
+# workflow is active. GitHub's connector does not expose raw step logs, so this
+# file makes the exact failing assertion available on the repair branch.
+test_run = subprocess.run(['npm', 'test'], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+output = test_run.stdout or ''
+Path('audit-test-output.txt').write_text(output[-60000:], encoding='utf-8')
+subprocess.run(['git', 'add', 'audit-test-output.txt'], check=True)
+diagnostic_changed = subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode != 0
+if diagnostic_changed:
+    subprocess.run(['git', 'commit', '-m', 'chore: capture v0.54.19 failing test output'], check=True)
+    subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
+
+status.append(f'full suite diagnostic exit={test_run.returncode}')
 print('\n'.join(status))
