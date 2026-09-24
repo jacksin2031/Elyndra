@@ -1,3 +1,5 @@
 PROFILES already present
 actionProfile export already present
+hardened deterministic rest command
+hardened deterministic travel command
 src/game-engine.js syntax PASS

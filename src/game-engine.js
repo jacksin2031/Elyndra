@@ -100,12 +100,12 @@ function deterministicInfoAction(state,label){
  return null
 }
 function deterministicRestAction(state,label){
- const q=clean(label,180);if(!/休息|睡眠|睡覺|紮營|露營|rest|sleep|camp/i.test(q))return null;
+ const q=clean(label,180);if(!explicitRestCommand(q))return null;
  const minutes=/睡眠|睡覺|sleep/i.test(q)?480:/紮營|露營|camp/i.test(q)?60:120;advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL",rest:true});recoverMagic(state,Math.max(8,Math.round(minutes/20)));const worldEvent=tickWorld(state);tickMainQuest(state);
  return {handled:true,minutes,survival,worldEvent,text:`你休息了 ${minutes} 分鐘。身體狀態按時間與環境條件恢復。`}
 }
 function deterministicKnownTravel(state,label){
- const q=clean(label,180),target=(state.world?.registry?.locations||[]).find(x=>x.known===true&&x.name&&q.includes(x.name));if(!target||!/前往|移動|走到|旅行|去|travel|go to|walk/i.test(q))return null;
+ const q=clean(label,180),target=(state.world?.registry?.locations||[]).find(x=>x.known===true&&x.name&&q.includes(x.name));if(!target||!explicitTravelCommand(q,target.name))return null;
  const gate=survivalActionGate(state,"TRAVEL");if(!gate.ok)return {handled:true,blocked:true,text:gate.message,reason:gate.reason};
  const access=locationAccessStatus(state,target);if(!access.allowed)return {handled:true,blocked:true,text:access.missing.map(x=>x.hint||"尚未滿足進入條件").join(" · "),reason:"ACCESS_REQUIREMENT_MISSING"};
  const plan=findTravelPlan(state,target.id);if(!plan)return {handled:true,blocked:true,text:"目前沒有可用的 Canon 路線前往 "+target.name+"。",reason:"NO_CANON_ROUTE"};
