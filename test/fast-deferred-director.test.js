@@ -23,8 +23,8 @@ test("Deferred Director uses revision-aware StatePatch and persisted retry queue
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/scheduleDeferredDirector\(\{action:effective,roll,intent:assessment\?\.actionIntent,plan:syncPlan,queuedAt:Date\.now\(\)\},1200\)/);
  assert.match(app,/generateStatePatch\(task\.action,task\.roll,snapshot,plan/);
- assert.match(app,/commitStatePatch\(gameState,patch,plan/);
- assert.match(app,/deferredPlanFrom\(basePlan,currentStateRevision\(gameState\)\)/);
+ assert.match(app,/commitStatePatch\(state,patch,plan/);
+ assert.match(app,/deferredPlanFrom\(basePlan,currentStateRevision\(state\)\)/);
  assert.match(app,/type:"DEFERRED_TURN_STARTED"/);assert.match(app,/type:"DEFERRED_TURN_FAILED"/);
  assert.match(app,/world\.deferredTurns/);assert.match(app,/resumeDeferredDirectorQueue\(\)/)
 });

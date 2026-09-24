@@ -1,5 +1,6 @@
 PROFILES already present
 actionProfile export already present
-hardened deterministic rest command
-hardened deterministic travel command
+deterministic rest command already hardened
+deterministic travel command already hardened
+updated v0.54.19 regression contracts: test/background-world-evolution.test.js, test/fast-deferred-director.test.js, test/history-lazy-deepen-v047.test.js, test/nonblocking-turn-sync.test.js, test/runtime-grounding-v05418.test.js, test/staged-world-compiler.test.js, test/v05412-regressions.test.js, test/v05414-regressions.test.js, test/version-05418-release.test.js, test/version-ui.test.js, test/visibility-lazy-generation-v044.test.js, test/module-cache.test.js
 src/game-engine.js syntax PASS
