@@ -30,7 +30,7 @@ jobs:
         run: |
           git config user.name 'JackSin'
           git config user.email 'japanjacksin@gmail.com'
-          git add src api test package.json package-lock.json
+          git add src api test package.json
           git commit -m 'wip: apply v0.55.1 world law hardening' || true
           git push origin HEAD:release/v0.55.1-world-law-hardening
       - name: Run full test suite and persist exact failure
