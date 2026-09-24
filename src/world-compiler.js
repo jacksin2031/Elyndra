@@ -83,7 +83,9 @@ function societyHistoryRefs(society){
 }
 function normalizeOpeningSociety(society){
  if(!obj(society))return society;
+ const faction=obj(society.faction)?society.faction:{};
  const refs=societyHistoryRefs(society);if(refs.length&&!uniq(society.historyRefs).length)society.historyRefs=refs;
+ const factionLocation=text(faction.locationName);if(!text(society.locationRef)&&factionLocation)society.locationRef=factionLocation;
  return society
 }
 function normalizeOpeningCast(cast){
