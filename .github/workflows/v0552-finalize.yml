@@ -35,7 +35,6 @@ jobs:
           }
           const pkg=JSON.parse(read('package.json'));pkg.version='0.55.2';write('package.json',JSON.stringify(pkg,null,2)+'\n');
           write('src/version.js','export const APP_VERSION="0.55.2";\n');
-
           let contextual=read('src/contextual-actions.js');
           contextual=replaceOne(contextual,
             'const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\\s*([^，。；、,.;!?！？]{2,36})|(?:展示|出示|拿出)\\s*(?:一(?:個|枚|片|件|瓶|把|本|張|塊|顆|粒))?\\s*([^，。；、,.;!?！？]{2,36})/i;',
@@ -47,15 +46,11 @@ jobs:
             'narrow special power inference');
           contextual=replaceOne(contextual,'const special=x.action.match(SPECIAL_POWER)?.[0];','const special=x.action.match(SPECIAL_POWER)?.[1];','special power capture');
           write('src/contextual-actions.js',contextual);
-
           let auto=read('src/ai-autotest.js');
           auto=replaceOne(auto,'./ai-settings.js?v=55001','./ai-settings.js?v=55002','ai-autotest -> ai-settings cache');
           write('src/ai-autotest.js',auto);
-
           let app=read('app.js');
-          for(const mod of ['version','ai-settings','contextual-actions','lazy-generation','ai-autotest']){
-            app=replaceOne(app,`./src/${mod}.js?v=55001`,`./src/${mod}.js?v=55002`,`app -> ${mod} cache`)
-          }
+          for(const mod of ['version','ai-settings','contextual-actions','lazy-generation','ai-autotest']) app=replaceOne(app,`./src/${mod}.js?v=55001`,`./src/${mod}.js?v=55002`,`app -> ${mod} cache`);
           app=replaceOne(app,
             'const qualitySettled=!backgroundQualityNeed(gameState).required;',
             'const finalQuality=gameState?.world?.quality||{},qualitySettled=!backgroundQualityNeed(gameState).required&&finalQuality.pending!==true&&finalQuality.backgroundPending!==true&&String(finalQuality.status||"").toUpperCase()!=="PENDING";',
@@ -65,7 +60,6 @@ jobs:
             'const finalQualitySettleKey=[gameState?.world?.id||"",developerAutotest.turn,qualitySettled].join(":");if(developerAutotest.finalQualitySettleKey!==finalQualitySettleKey){developerAutotest.finalQualitySettleKey=finalQualitySettleKey;recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled})}',
             'final quality telemetry dedupe');
           write('app.js',app);
-
           let html=read('index.html');
           html=replaceOne(html,'app.js?v=55001','app.js?v=55002','index app cache');
           write('index.html',html);
@@ -78,13 +72,15 @@ jobs:
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            tail -n 500 /tmp/v0552-test.log > /tmp/v0552-tail.log
+            grep -n -B 15 -A 45 '^not ok' /tmp/v0552-test.log > /tmp/v0552-failures.log || true
+            printf '\n===== SUMMARY =====\n' >> /tmp/v0552-failures.log
+            tail -n 20 /tmp/v0552-test.log >> /tmp/v0552-failures.log
             git reset --hard HEAD
-            cp /tmp/v0552-tail.log .v0552-test-failures.log
+            cp /tmp/v0552-failures.log .v0552-test-failures.log
             git config user.name "Elyndra v0.55.2 Finalizer"
             git config user.email "actions@users.noreply.github.com"
             git add .v0552-test-failures.log
-            git commit -m "ci: capture v0.55.2 test failures" || true
+            git commit -m "ci: capture exact v0.55.2 test failures" || true
             git push origin HEAD:fix/v0.55.2-runtime-autotest
             exit "$status"
           fi
