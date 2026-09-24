@@ -1,4 +1,4 @@
-name: Temporary v0.55.1 World Law Hardening
+name: Temporary v0.55.1 Failure Diagnosis
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-test:
+  diagnose-current-branch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -20,20 +20,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '20'
-      - name: Apply v0.55.1 hardening
-        run: |
-          python scripts/tmp-apply-v0551.py
-          python scripts/tmp-fix-v0551-preflight.py
-          npm version 0.55.1 --no-git-tag-version --allow-same-version
-      - name: Persist patched source before validation
-        shell: bash
-        run: |
-          git config user.name 'JackSin'
-          git config user.email 'japanjacksin@gmail.com'
-          git add src api test package.json
-          git commit -m 'wip: apply v0.55.1 world law hardening' || true
-          git push origin HEAD:release/v0.55.1-world-law-hardening
-      - name: Run full test suite and persist exact failure
+      - name: Run current branch full test suite
         shell: bash
         run: |
           set +e
@@ -41,16 +28,38 @@ jobs:
           rc=${PIPESTATUS[0]}
           set -e
           if [ "$rc" -ne 0 ]; then
-            tail -n 300 /tmp/v0551-test.log > tmp-v0551-test-failure.log
-            git add tmp-v0551-test-failure.log
-            git commit -m 'chore: capture v0.55.1 test failure' || true
+            python - <<'PY'
+          from pathlib import Path
+          import re
+
+          lines = Path('/tmp/v0551-test.log').read_text(errors='replace').splitlines()
+          starts = [i for i, line in enumerate(lines) if re.match(r'^not ok \d+ - ', line)]
+          out = []
+          for n, start in enumerate(starts, 1):
+              end = len(lines)
+              for j in range(start + 1, len(lines)):
+                  if re.match(r'^(?:ok|not ok) \d+ - ', lines[j]):
+                      end = j
+                      break
+              out.append(f'===== FAILURE {n} =====')
+              out.extend(lines[start:end])
+              out.append('')
+          out.append('===== TEST SUMMARY =====')
+          for line in lines:
+              if re.match(r'^# (?:tests|suites|pass|fail|cancelled|skipped|todo|duration_ms)\b', line):
+                  out.append(line)
+          if not starts:
+              out.append('No TAP not-ok blocks found; last 200 lines follow.')
+              out.extend(lines[-200:])
+          Path('tmp-v0551-test-failures.txt').write_text('\n'.join(out) + '\n')
+          PY
+            rm -f tmp-v0551-test-failure.log
+            git config user.name 'JackSin'
+            git config user.email 'japanjacksin@gmail.com'
+            git add -A tmp-v0551-test-failures.txt tmp-v0551-test-failure.log
+            git commit -m 'chore: capture exact v0.55.1 test failures' || true
             git push origin HEAD:release/v0.55.1-world-law-hardening
             exit "$rc"
           fi
-      - name: Remove temporary runner artifacts
-        shell: bash
-        run: |
-          rm -f .github/workflows/tmp-v0551-world-law-hardening.yml scripts/tmp-apply-v0551.py scripts/tmp-fix-v0551-preflight.py tmp-v0551-test-failure.log
-          git add -A
-          git commit -m 'chore: remove temporary v0.55.1 patch runner'
-          git push origin HEAD:release/v0.55.1-world-law-hardening
+      - name: Mark diagnosis green
+        run: echo 'Current v0.55.1 branch test suite is green.'
