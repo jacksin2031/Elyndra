@@ -16,136 +16,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply v0.57.7 IAB HTTP handoff patch
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import json
-
-          Path('src/autotest-http-handoff.js').write_text(r'''const encoder=new TextEncoder();
-          const hex=buffer=>Array.from(new Uint8Array(buffer),byte=>byte.toString(16).padStart(2,"0")).join("");
-          async function sha256Text(text,cryptoImpl=globalThis.crypto){if(!cryptoImpl?.subtle?.digest)throw new Error("AUTOTEST_HTTP_SHA256_UNAVAILABLE");return hex(await cryptoImpl.subtle.digest("SHA-256",encoder.encode(String(text))))}
-          export async function autotestHttpArtifactIntegrity(artifact,{cryptoImpl=globalThis.crypto}={}){if(!artifact?.filename)throw new Error("AUTOTEST_HTTP_ARTIFACT_INVALID");const body=String(artifact.body??"");return {filename:String(artifact.filename),mime:String(artifact.mime||"application/json;charset=utf-8"),chars:body.length,bytes:encoder.encode(body).length,sha256:await sha256Text(body,cryptoImpl)}}
-          export function autotestHttpExportUrls(kind,artifact,integrity,{baseHref=globalThis.location?.href||"http://localhost/"}={}){const safeKind=["debug","world","recovery"].includes(kind)?kind:"";if(!safeKind||!artifact?.filename||!integrity?.sha256)throw new Error("AUTOTEST_HTTP_URL_INVALID");const base=new URL("./__elyndra_export__/v1/",baseHref),make=disposition=>{const url=new URL(`${encodeURIComponent(safeKind)}/${encodeURIComponent(String(artifact.filename))}`,base);url.searchParams.set("sha256",String(integrity.sha256));url.searchParams.set("bytes",String(integrity.bytes));url.searchParams.set("disposition",disposition);return url.href};return {probeUrl:make("inline"),downloadUrl:make("attachment"),inlineUrl:make("inline")}}
-          function waitForController(sw,timeoutMs){if(sw.controller)return Promise.resolve(true);return new Promise(resolve=>{let done=false;const finish=value=>{if(done)return;done=true;clearTimeout(timer);sw.removeEventListener?.("controllerchange",onChange);resolve(value)};const onChange=()=>finish(Boolean(sw.controller));const timer=setTimeout(()=>finish(Boolean(sw.controller)),timeoutMs);sw.addEventListener?.("controllerchange",onChange,{once:true})})}
-          export async function ensureAutotestHttpExportWorker({navigatorImpl=globalThis.navigator,scriptUrl="./autotest-export-sw.js?v=57007",scope="./",timeoutMs=10000}={}){const sw=navigatorImpl?.serviceWorker;if(!sw?.register)return {supported:false,controlled:false,error:"SERVICE_WORKER_UNAVAILABLE"};const registration=await sw.register(scriptUrl,{scope,type:"module",updateViaCache:"none"});await sw.ready;const controlled=Boolean(sw.controller)||await waitForController(sw,timeoutMs);return {supported:true,controlled,scope:registration.scope||scope,scriptUrl}}
-          export async function probeAutotestHttpHandoff(kind,artifact,{navigatorImpl=globalThis.navigator,fetchImpl=globalThis.fetch?.bind(globalThis),cryptoImpl=globalThis.crypto,baseHref=globalThis.location?.href||"http://localhost/",workerOptions={}}={}){if(typeof fetchImpl!=="function")throw new Error("AUTOTEST_HTTP_FETCH_UNAVAILABLE");const expected=await autotestHttpArtifactIntegrity(artifact,{cryptoImpl}),worker=await ensureAutotestHttpExportWorker({navigatorImpl,...workerOptions});if(!worker.supported)throw new Error(worker.error||"AUTOTEST_HTTP_SERVICE_WORKER_UNAVAILABLE");if(!worker.controlled)throw new Error("AUTOTEST_HTTP_SERVICE_WORKER_NOT_CONTROLLING");const urls=autotestHttpExportUrls(kind,artifact,expected,{baseHref}),response=await fetchImpl(urls.probeUrl,{cache:"no-store",credentials:"same-origin"});if(!response.ok)throw new Error(`AUTOTEST_HTTP_PROBE_FAILED:${response.status}`);const body=await response.text(),actual=await autotestHttpArtifactIntegrity({...artifact,body},{cryptoImpl}),mode=response.headers.get("x-elyndra-export"),headerSha=response.headers.get("x-elyndra-sha256"),headerBytes=Number(response.headers.get("x-elyndra-bytes"));if(mode!=="service-worker-http-v1")throw new Error("AUTOTEST_HTTP_PROBE_NOT_SERVICE_WORKER");if(body!==String(artifact.body??""))throw new Error("AUTOTEST_HTTP_BODY_MISMATCH");if(actual.sha256!==expected.sha256||actual.bytes!==expected.bytes)throw new Error("AUTOTEST_HTTP_INTEGRITY_MISMATCH");if(headerSha!==expected.sha256||headerBytes!==expected.bytes)throw new Error("AUTOTEST_HTTP_HEADER_MISMATCH");return {verified:true,serviceWorkerControlled:true,kind,filename:expected.filename,mime:expected.mime,chars:expected.chars,bytes:expected.bytes,sha256:expected.sha256,downloadUrl:urls.downloadUrl,inlineUrl:urls.inlineUrl,bridge:mode}}
-          export function triggerAutotestHttpDownload(proof,{documentImpl=globalThis.document}={}){if(!proof?.verified||!proof?.downloadUrl)throw new Error("AUTOTEST_HTTP_PROOF_REQUIRED");if(!documentImpl?.createElement)throw new Error("AUTOTEST_HTTP_DOCUMENT_UNAVAILABLE");const a=documentImpl.createElement("a");a.href=proof.downloadUrl;a.rel="noopener";a.style.display="none";documentImpl.body?.appendChild(a);a.click();setTimeout(()=>a.remove?.(),1000);return {started:true,filename:proof.filename,bytes:proof.bytes,sha256:proof.sha256,method:"service-worker-http-navigation"}}
-          export function triggerAutotestHttpInline(proof,{windowImpl=globalThis.window}={}){if(!proof?.verified||!proof?.inlineUrl)throw new Error("AUTOTEST_HTTP_PROOF_REQUIRED");const opened=windowImpl?.open?.(proof.inlineUrl,"_blank","noopener");if(!opened&&windowImpl?.location?.assign)windowImpl.location.assign(proof.inlineUrl);return {started:true,filename:proof.filename,method:"service-worker-http-inline"}}
-          ''',encoding='utf-8')
-
-          Path('autotest-export-sw.js').write_text(r'''import {buildAutotestExportArtifacts,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57007";
-          const encoder=new TextEncoder();
-          const hex=buffer=>Array.from(new Uint8Array(buffer),byte=>byte.toString(16).padStart(2,"0")).join("");
-          const routeMarker="/__elyndra_export__/v1/";
-          self.addEventListener("install",event=>event.waitUntil(self.skipWaiting()));
-          self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));
-          async function digest(text){return hex(await crypto.subtle.digest("SHA-256",encoder.encode(text)))}
-          function asciiFilename(name){return String(name||"Elyndra-export.json").replace(/[^\x20-\x7E]/g,"_").replace(/["\\]/g,"_")}
-          function errorResponse(code,status,detail=""){return new Response(JSON.stringify({error:code,detail}),{status,headers:{"Content-Type":"application/json;charset=utf-8","Cache-Control":"no-store","X-Elyndra-Export":"service-worker-http-v1"}})}
-          async function handleExport(url){
-            const pos=url.pathname.indexOf(routeMarker);if(pos<0)return errorResponse("ROUTE_NOT_FOUND",404);
-            const rest=url.pathname.slice(pos+routeMarker.length).split("/").filter(Boolean);if(rest.length<2)return errorResponse("ROUTE_INVALID",400);
-            const kind=decodeURIComponent(rest[0]),requestedFilename=decodeURIComponent(rest.slice(1).join("/"));if(!["debug","world","recovery"].includes(kind))return errorResponse("KIND_INVALID",400);
-            const snapshot=await loadLastAutotestExportSnapshot();if(!snapshot)return errorResponse("SNAPSHOT_NOT_FOUND",404);
-            const artifact=buildAutotestExportArtifacts(snapshot)[kind];if(!artifact)return errorResponse("ARTIFACT_NOT_AVAILABLE",404);
-            if(requestedFilename!==artifact.filename)return errorResponse("FILENAME_MISMATCH",409,artifact.filename);
-            const body=String(artifact.body??""),bytes=encoder.encode(body).length,chars=body.length,sha256=await digest(body),expectedSha=url.searchParams.get("sha256"),expectedBytes=Number(url.searchParams.get("bytes")||0);
-            if(expectedSha&&expectedSha!==sha256)return errorResponse("SHA256_MISMATCH",409,sha256);
-            if(expectedBytes&&expectedBytes!==bytes)return errorResponse("BYTE_LENGTH_MISMATCH",409,String(bytes));
-            const disposition=url.searchParams.get("disposition")==="inline"?"inline":"attachment",fallback=asciiFilename(artifact.filename),encoded=encodeURIComponent(artifact.filename);
-            return new Response(body,{status:200,headers:{"Content-Type":artifact.mime||"application/json;charset=utf-8","Content-Disposition":`${disposition}; filename="${fallback}"; filename*=UTF-8''${encoded}`,"Cache-Control":"no-store, no-cache, must-revalidate","Pragma":"no-cache","X-Content-Type-Options":"nosniff","X-Elyndra-Export":"service-worker-http-v1","X-Elyndra-SHA256":sha256,"X-Elyndra-Bytes":String(bytes),"X-Elyndra-Chars":String(chars),"X-Elyndra-Filename-URI":encoded}})
-          }
-          self.addEventListener("fetch",event=>{if(event.request.method!=="GET")return;const url=new URL(event.request.url);if(url.origin!==self.location.origin||!url.pathname.includes(routeMarker))return;event.respondWith(handleExport(url).catch(error=>errorResponse("EXPORT_BRIDGE_FAILED",500,String(error?.message||error))))});
-          ''',encoding='utf-8')
-
-          Path('test/autotest-http-handoff-v0577.test.js').write_text(r'''import test from "node:test";
-          import assert from "node:assert/strict";
-          import {autotestHttpArtifactIntegrity,autotestHttpExportUrls,probeAutotestHttpHandoff,triggerAutotestHttpDownload} from "../src/autotest-http-handoff.js";
-          test("HTTP handoff integrity preserves UTF-8 bytes and hash",async()=>{const artifact={filename:"測試-debug.json",mime:"application/json;charset=utf-8",body:'{"世界":"玄脈九域","ok":true}'};const info=await autotestHttpArtifactIntegrity(artifact);assert.equal(info.bytes,new TextEncoder().encode(artifact.body).length);assert.match(info.sha256,/^[0-9a-f]{64}$/);const urls=autotestHttpExportUrls("debug",artifact,info,{baseHref:"https://a24dc523.github.io/Elyndra/"});assert.match(urls.downloadUrl,/__elyndra_export__\/v1\/debug\//);assert.match(urls.downloadUrl,/disposition=attachment/);assert.match(urls.downloadUrl,new RegExp(info.sha256))});
-          test("HTTP handoff probe requires SW response and exact body",async()=>{const artifact={filename:"Elyndra-autotest-debug-v0.57.6-test.json",mime:"application/json;charset=utf-8",body:'{"world":"九脈斷朝","turns":30}'};const expected=await autotestHttpArtifactIntegrity(artifact);const listeners=new Map(),sw={controller:{},ready:Promise.resolve({scope:"https://example.test/"}),register:async()=>({scope:"https://example.test/"}),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:()=>{}};const fetchImpl=async()=>new Response(artifact.body,{status:200,headers:{"x-elyndra-export":"service-worker-http-v1","x-elyndra-sha256":expected.sha256,"x-elyndra-bytes":String(expected.bytes)}});const proof=await probeAutotestHttpHandoff("debug",artifact,{navigatorImpl:{serviceWorker:sw},fetchImpl,baseHref:"https://example.test/Elyndra/",workerOptions:{scriptUrl:"./autotest-export-sw.js?v=57007"}});assert.equal(proof.verified,true);assert.equal(proof.bytes,expected.bytes);assert.equal(proof.sha256,expected.sha256)});
-          test("download trigger uses real HTTP navigation and no download attribute",()=>{let clicked=false,appended=false;const node={style:{},set href(v){this._href=v},get href(){return this._href},click(){clicked=true},remove(){},rel:""};const doc={createElement(tag){assert.equal(tag,"a");return node},body:{appendChild(){appended=true}}};const proof={verified:true,downloadUrl:"https://example.test/Elyndra/__elyndra_export__/v1/debug/file.json?disposition=attachment",filename:"file.json",bytes:12,sha256:"a".repeat(64)};const out=triggerAutotestHttpDownload(proof,{documentImpl:doc});assert.equal(clicked,true);assert.equal(appended,true);assert.equal("download" in node,false);assert.equal(out.method,"service-worker-http-navigation")});
-          ''',encoding='utf-8')
-
-          Path('scripts/test-autotest-http-download.mjs').write_text(r'''import assert from "node:assert/strict";
-          import {spawn} from "node:child_process";
-          import {readFile} from "node:fs/promises";
-          import {chromium} from "playwright";
-          const port=4173,origin=`http://127.0.0.1:${port}`,server=spawn("python3",["-m","http.server",String(port),"--bind","127.0.0.1"],{stdio:"ignore"});
-          async function waitServer(){for(let i=0;i<50;i++){try{const r=await fetch(origin+"/index.html");if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,100))}throw new Error("HTTP_SERVER_NOT_READY")}
-          try{
-            await waitServer();const browser=await chromium.launch({headless:true});const context=await browser.newContext({acceptDownloads:true});const page=await context.newPage();await page.goto(origin+"/index.html",{waitUntil:"domcontentloaded"});
-            const seeded=await page.evaluate(async()=>{const snapshot={slot:"last",schema:"elyndra-autotest-export-v2",appVersion:"0.57.6",createdAt:"2026-09-24T19:11:04.539Z",stamp:"2026-09-24T19-11-04-539Z",exportMode:"both",debugPayload:{schema:"browser-e2e",worlds:["玄脈九域","九脈斷朝"],turns:60,text:"驗證 IAB HTTP download"},worlds:[{index:1,status:"COMPLETED",stopReason:"TURN_LIMIT",summary:{name:"玄脈九域"},world:{name:"玄脈九域",turns:30}},{index:2,status:"COMPLETED",stopReason:"TURN_LIMIT",summary:{name:"九脈斷朝"},world:{name:"九脈斷朝",turns:30}}]};await new Promise((resolve,reject)=>{const req=indexedDB.open("elyndra-autotest-exports-v1",1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains("snapshots"))db.createObjectStore("snapshots",{keyPath:"slot"})};req.onsuccess=()=>{const db=req.result,tx=db.transaction("snapshots","readwrite");tx.objectStore("snapshots").put(snapshot);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>reject(tx.error)};req.onerror=()=>reject(req.error)});const exports=await import("/src/autotest-export.js?v=57007"),bridge=await import("/src/autotest-http-handoff.js?v=57007"),artifact=exports.buildAutotestExportArtifacts(snapshot).debug,proof=await bridge.probeAutotestHttpHandoff("debug",artifact,{baseHref:location.href});return {proof,body:artifact.body}});
-            assert.equal(seeded.proof.verified,true);assert.equal(seeded.proof.serviceWorkerControlled,true);
-            const downloadPromise=page.waitForEvent("download",{timeout:10000});await page.evaluate(url=>{const a=document.createElement("a");a.href=url;a.id="e2e-http-download";document.body.appendChild(a);a.click()},seeded.proof.downloadUrl);const download=await downloadPromise;assert.equal(download.suggestedFilename(),seeded.proof.filename);const path=await download.path();assert.ok(path);const body=(await readFile(path)).toString("utf8");assert.equal(body,seeded.body);assert.equal(new TextEncoder().encode(body).length,seeded.proof.bytes);console.log(`IAB_HTTP_DOWNLOAD_E2E PASS filename=${seeded.proof.filename} bytes=${seeded.proof.bytes} sha256=${seeded.proof.sha256}`);await browser.close()
-          }finally{server.kill("SIGTERM")}
-          ''',encoding='utf-8')
-
-          app=Path('app.js').read_text(encoding='utf-8')
-          old_import='import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57006";'
-          new_import=old_import+'\nimport {probeAutotestHttpHandoff,triggerAutotestHttpDownload,triggerAutotestHttpInline} from "./src/autotest-http-handoff.js?v=57007";'
-          assert old_import in app
-          app=app.replace(old_import,new_import,1)
-          app=app.replace('?v=57006','?v=57007')
-          state='const developerAutotestTransfer={kind:"",transfer:null,index:0,full:false};'
-          assert state in app
-          app=app.replace(state,state+'\nconst developerAutotestHttpHandoff={ready:{},preparing:false,error:""};',1)
-          old_phrase='<p><strong>主要交付路徑：</strong>直接在頁面顯示完整 JSON 或固定大小分段，附檔名與 SHA-256；不依賴 File Picker、browser clipboard 或下載管理器。</p><div class="settings-actions">'
-          new_phrase='<p><strong>主要交付路徑：</strong>Service Worker 同源 HTTP bridge。Elyndra 先從 IndexedDB 重建檔案並以 SHA-256/bytes 驗證，再以正常 HTTPS 導航回應 <code>Content-Disposition: attachment</code>；不使用 blob URL、download attribute、Picker 或 Clipboard。</p><p id="autotestHttpHandoffStatus" class="muted">正在準備 HTTP bridge…</p><pre id="autotestHttpHandoffProof" class="debug-log"></pre><div class="settings-actions">${exportArtifacts.debug?\'<button id="autotestHttpDownloadDebug" class="primary" disabled>IAB HTTP 下載 Debug</button><button id="autotestHttpOpenDebug" class="secondary" disabled>HTTP 開啟 Debug</button>\':""}${exportArtifacts.world?\'<button id="autotestHttpDownloadWorld" class="primary" disabled>IAB HTTP 下載世界</button><button id="autotestHttpOpenWorld" class="secondary" disabled>HTTP 開啟世界</button>\':""}${exportArtifacts.recovery?\'<button id="autotestHttpDownloadRecovery" class="secondary" disabled>IAB HTTP 下載 Recovery</button>\':""}</div><p class="muted">頁面分段文字只保留為人工救援路徑；HTTP bridge 驗證成功後，上方按鈕才會解鎖。</p><div class="settings-actions">'
-          assert old_phrase in app
-          app=app.replace(old_phrase,new_phrase,1)
-          bind_line=' $("#autotestTransferDebug")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("debug"));$("#autotestTransferWorld")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("world"));$("#autotestTransferRecovery")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("recovery"));'
-          assert bind_line in app
-          app=app.replace(bind_line,bind_line+'\n $("#autotestHttpDownloadDebug")?.addEventListener("click",()=>startDeveloperAutotestHttpDownload("debug"));$("#autotestHttpDownloadWorld")?.addEventListener("click",()=>startDeveloperAutotestHttpDownload("world"));$("#autotestHttpDownloadRecovery")?.addEventListener("click",()=>startDeveloperAutotestHttpDownload("recovery"));$("#autotestHttpOpenDebug")?.addEventListener("click",()=>openDeveloperAutotestHttpDocument("debug"));$("#autotestHttpOpenWorld")?.addEventListener("click",()=>openDeveloperAutotestHttpDocument("world"));',1)
-          tail=' $("#autotestFallbackDebug")?.addEventListener("click",()=>downloadDeveloperAutotestArtifact("debug"));$("#autotestFallbackWorld")?.addEventListener("click",()=>downloadDeveloperAutotestArtifact("world"));$("#autotestFallbackRecovery")?.addEventListener("click",()=>downloadDeveloperAutotestArtifact("recovery"));$("#autotestReloadExport")?.addEventListener("click",()=>void reloadDeveloperAutotestExport())\n}'
-          assert tail in app
-          app=app.replace(tail,tail[:-2]+';\n void prepareDeveloperAutotestHttpExports()\n}',1)
-          marker='function downloadDeveloperAutotestArtifact(kind){'
-          assert marker in app
-          helpers=r'''function updateDeveloperAutotestHttpHandoffUI(){
- const status=$("#autotestHttpHandoffStatus"),proofEl=$("#autotestHttpHandoffProof"),ready=developerAutotestHttpHandoff.ready||{},labels={debug:"Debug",world:"World",recovery:"Recovery"},rows=[];
- for(const kind of ["debug","world","recovery"]){const proof=ready[kind],download=$("#autotestHttpDownload"+(kind==="debug"?"Debug":kind==="world"?"World":"Recovery")),open=kind!=="recovery"?$("#autotestHttpOpen"+(kind==="debug"?"Debug":"World")):null;if(download)download.disabled=!proof?.verified;if(open)open.disabled=!proof?.verified;if(proof?.verified)rows.push(`${labels[kind]} · SW CONTROLLED · EXACT BODY · ${Number(proof.bytes).toLocaleString()} bytes\n${proof.filename}\nSHA-256 ${proof.sha256}`)}
- if(status)status.textContent=developerAutotestHttpHandoff.preparing?"正在從 IndexedDB 經 Service Worker 驗證 HTTP response…":developerAutotestHttpHandoff.error?`HTTP bridge 驗證失敗：${developerAutotestHttpHandoff.error}`:rows.length?`HTTP bridge 已驗證 ${rows.length} 個 artifact。下載按鈕已解鎖；頁面只確認 response 完整，不會虛報 Windows 已落地。`:"尚未有可驗證 artifact。";
- if(proofEl)proofEl.textContent=rows.join("\n\n")
-}
-async function prepareDeveloperAutotestHttpExports(){
- if(developerAutotestHttpHandoff.preparing)return;const snapshot=developerAutotest.exportSnapshot;if(!snapshot){updateDeveloperAutotestHttpHandoffUI();return}developerAutotestHttpHandoff.preparing=true;developerAutotestHttpHandoff.error="";updateDeveloperAutotestHttpHandoffUI();
- const artifacts=buildAutotestExportArtifacts(snapshot);try{for(const kind of ["debug","world","recovery"]){const artifact=artifacts[kind];if(!artifact)continue;const cached=developerAutotestHttpHandoff.ready[kind];if(cached?.verified&&cached.filename===artifact.filename)continue;const proof=await probeAutotestHttpHandoff(kind,artifact,{baseHref:location.href,workerOptions:{scriptUrl:"./autotest-export-sw.js?v=57007",scope:"./"}});developerAutotestHttpHandoff.ready[kind]=proof;recordDebug("AUTOTEST_HTTP_EXPORT_VERIFIED",{kind,filename:proof.filename,bytes:proof.bytes,chars:proof.chars,sha256:proof.sha256,bridge:proof.bridge,serviceWorkerControlled:proof.serviceWorkerControlled})}}
- catch(error){developerAutotestHttpHandoff.error=error?.message||String(error);recordDebug("AUTOTEST_HTTP_EXPORT_VERIFY_FAILED",{error:developerAutotestHttpHandoff.error})}finally{developerAutotestHttpHandoff.preparing=false;updateDeveloperAutotestHttpHandoffUI()}
-}
-function startDeveloperAutotestHttpDownload(kind){
- const proof=developerAutotestHttpHandoff.ready?.[kind];if(!proof?.verified){appendDeveloperAutotestLog("IAB HTTP bridge 尚未完成完整性驗證；正在重新準備，未觸發下載。");void prepareDeveloperAutotestHttpExports();return}
- try{const started=triggerAutotestHttpDownload(proof);appendDeveloperAutotestLog(`已啟動 IAB HTTP 導航交付：${proof.filename} · ${Number(proof.bytes).toLocaleString()} bytes · SHA-256 ${proof.sha256}。HTTP response 已由頁面驗證；是否已寫入 Windows 檔案仍以 IAB 主機/download event 為準。`);recordDebug("AUTOTEST_HTTP_EXPORT_NAVIGATION_STARTED",{kind,...started,verified:true,serviceWorkerControlled:true})}catch(error){appendDeveloperAutotestLog(`IAB HTTP 導航交付啟動失敗：${error?.message||error}`);recordDebug("AUTOTEST_HTTP_EXPORT_NAVIGATION_FAILED",{kind,error:error?.message||String(error)})}
-}
-function openDeveloperAutotestHttpDocument(kind){
- const proof=developerAutotestHttpHandoff.ready?.[kind];if(!proof?.verified){appendDeveloperAutotestLog("HTTP 文件尚未完成完整性驗證；未開啟。");void prepareDeveloperAutotestHttpExports();return}
- try{triggerAutotestHttpInline(proof);recordDebug("AUTOTEST_HTTP_EXPORT_INLINE_STARTED",{kind,filename:proof.filename,bytes:proof.bytes,sha256:proof.sha256})}catch(error){appendDeveloperAutotestLog(`HTTP 文件開啟失敗：${error?.message||error}`)}
-}
-'''
-          app=app.replace(marker,helpers+'\n'+marker,1)
-          Path('app.js').write_text(app,encoding='utf-8')
-
-          Path('src/version.js').write_text('export const APP_VERSION="0.57.7";\n',encoding='utf-8')
-          pkg=json.loads(Path('package.json').read_text(encoding='utf-8'));pkg['version']='0.57.7';Path('package.json').write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          index=Path('index.html').read_text(encoding='utf-8');assert 'app.js?v=57006' in index;index=index.replace('app.js?v=57006','app.js?v=57007');Path('index.html').write_text(index,encoding='utf-8')
-          Path('docs/releases/v0.57.7.md').write_text('''# Elyndra v0.57.7\n\nIAB HTTP export bridge.\n\n- Reads the existing persisted AutoTest snapshot from IndexedDB; no rerun is required.\n- Adds a module Service Worker that exposes Debug, World, and Recovery artifacts through same-origin HTTPS navigation responses.\n- Download responses use `Content-Disposition: attachment` and do not depend on blob URLs, the `download` attribute, File/Directory Picker, or clipboard APIs.\n- Every handoff is preflighted against exact body content, UTF-8 byte length, and SHA-256. The download URL also pins expected bytes and SHA-256 so a stale snapshot returns HTTP 409 instead of a wrong file.\n- Adds an inline HTTP document route for IAB/browser inspection.\n- The page reports only verified HTTP-response delivery readiness; it does not claim the OS saved a file unless the browser host actually does so.\n''',encoding='utf-8')
-          PY
-      - name: Run targeted HTTP handoff tests
+      - name: Apply patch
+        run: python3 scripts/land_iab_http_export_v0577.py
+      - name: Run targeted tests
         run: node --test test/autotest-http-handoff-v0577.test.js
       - name: Run full test suite
         run: npm test
-      - name: Install transient browser test runtime
+      - name: Install transient Chromium test runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install chromium
       - name: Prove real Chromium download event
         run: node scripts/test-autotest-http-download.mjs
       - name: Commit tested v0.57.7
-        shell: bash
         run: |
           rm -rf node_modules
-          git rm .github/workflows/iab-http-export-v0577.yml
+          git rm .github/workflows/iab-http-export-v0577.yml scripts/land_iab_http_export_v0577.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app.js index.html package.json src/version.js src/autotest-http-handoff.js autotest-export-sw.js test/autotest-http-handoff-v0577.test.js scripts/test-autotest-http-download.mjs docs/releases/v0.57.7.md
