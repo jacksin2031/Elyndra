@@ -1,4 +1,4 @@
-import {currentWeather} from "./weather-engine.js?v=54018";
+import {currentWeather} from "./weather-engine.js?v=55000";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const runtimeStateReady=state=>Boolean(state&&typeof state==="object"&&state.player&&state.world);
 const neutralSurvival=()=>({satiety:100,fatigue:0,exposure:0,injury:0,conditions:[]});

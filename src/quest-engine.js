@@ -1,10 +1,11 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=54018";
-import {recordCausalEvent} from "./knowledge-graph.js?v=54018";
-import {localCurrencyReward} from "./world-locality.js?v=54018";
+import {ensureWorldRegistry} from "./world-registry.js?v=55000";
+import {recordCausalEvent} from "./knowledge-graph.js?v=55000";
+import {localCurrencyReward} from "./world-locality.js?v=55000";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const CONDITION_TYPES=new Set(["FACT_KNOWN","ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","ENTITY_KNOWN","EVENT_OCCURRED","LOCATION_STATE","NPC_STATE","FACTION_STATE","PLAYER_STATE"]);
 const TRUSTED_EVIDENCE=new Set(["CANON_EVIDENCE","ITEM","NPC_TESTIMONY","ENGINE_EVENT","WORLD_STATE"]);
+function testimonyNegatesKeyword(raw,keyword){const source=String(raw||"").normalize("NFKC").toLowerCase(),needle=String(keyword||"").normalize("NFKC").toLowerCase(),i=source.indexOf(needle);if(i<0)return false;const window=source.slice(Math.max(0,i-24),Math.min(source.length,i+needle.length+24));return /不知道|不知|沒聽過|未聽過|沒有聽過|從未聽|從沒聽|未曾聽|沒見過|未見過|不曾見|不存在|never heard|do not know|don't know|not heard/i.test(window)}
 const MAIN=[
  {key:"SURVIVE",title:"在陌生世界活下來",objective:"理解自己身處何地，先確保能夠行動。"},
  {key:"ORIENT",title:"確認你的立足點",objective:"掌握目前地點、道路與最基本的當地規則。"},
@@ -72,7 +73,7 @@ export function evaluateQuestEvidence(state,evidence,context={}){
  if(source==="NPC_TESTIMONY"){const npc=ensureWorldRegistry(state).npcs.find(n=>n.id===context.npcId);if(!npc||npc.known!==true||npc.encountered!==true)return progressed}
  for(const q of ensureQuestProgress(state)){
   if(q.status!=="ACTIVE"||q.known!==true||!Array.isArray(q.evidenceKeywords)||!q.evidenceKeywords.length)continue;
-  for(const keyword of q.evidenceKeywords){const k=String(keyword).trim();if(!k||q.matchedKeywords.includes(k)||!hay.includes(k.toLowerCase()))continue;q.matchedKeywords.push(k);if(progressSideQuest(state,q.id,k+"："+raw.slice(0,120)))progressed.push({questId:q.id,keyword:k});if(q.status==="COMPLETED")break}
+  for(const keyword of q.evidenceKeywords){const k=String(keyword).trim();if(!k||q.matchedKeywords.includes(k)||!hay.includes(k.toLowerCase())||(source==="NPC_TESTIMONY"&&testimonyNegatesKeyword(raw,k)))continue;q.matchedKeywords.push(k);if(progressSideQuest(state,q.id,k+"："+raw.slice(0,120)))progressed.push({questId:q.id,keyword:k});if(q.status==="COMPLETED")break}
  }
  return progressed
 }

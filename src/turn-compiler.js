@@ -1,5 +1,6 @@
-import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=54018";
+import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=55000";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
+const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>text(x,maxLen)).filter(Boolean))].slice(0,max):[];
 const SUGGESTION_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
 const SUGGESTION_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 export function normalizeSuggestionIntent(raw){
@@ -9,7 +10,7 @@ export function normalizeSuggestionIntent(raw){
  if(!label||!action)return null;
  const kind=SUGGESTION_KINDS.has(String(raw.kind||"").toUpperCase())?String(raw.kind).toUpperCase():"GENERAL";
  const risk=SUGGESTION_RISKS.has(String(raw.risk||"").toUpperCase())?String(raw.risk).toUpperCase():"UNKNOWN";
- return {label,action,kind,risk,targetId:text(raw.targetId,100)||null,skillHint:sanitizePlayerText(raw.skillHint,70,"")||null,consequenceHint:sanitizePlayerText(raw.consequenceHint,90,"")||null,causalBasis:sanitizePlayerText(raw.causalBasis,180,"")||null,approach:["STEADY","SOCIAL","BOLD","CREATIVE"].includes(String(raw.approach||"").toUpperCase())?String(raw.approach).toUpperCase():"STEADY",progression:raw.progression===true,requirementsSatisfied:raw.requirementsSatisfied!==false}
+ return {label,action,kind,risk,targetId:text(raw.targetId,100)||null,skillHint:sanitizePlayerText(raw.skillHint,70,"")||null,consequenceHint:sanitizePlayerText(raw.consequenceHint,90,"")||null,causalBasis:sanitizePlayerText(raw.causalBasis,180,"")||null,approach:["STEADY","SOCIAL","BOLD","CREATIVE"].includes(String(raw.approach||"").toUpperCase())?String(raw.approach).toUpperCase():"STEADY",progression:raw.progression===true,requirementsSatisfied:raw.requirementsSatisfied===true,requiredItemIds:list(raw.requiredItemIds),requiredCapabilities:list(raw.requiredCapabilities,8,70)}
 }
 export function normalizeSuggestionIntents(input,previous=[]){
  const out=[];for(const raw of Array.isArray(input)?input:[]){const x=normalizeSuggestionIntent(raw);if(x&&!out.some(y=>y.action===x.action)){out.push(x);if(out.length>=5)break}}
@@ -51,11 +52,17 @@ export function sceneTurnSnapshot(snapshot={}){
  }
 }
 
+function guardedSceneNarrative(scene,roll={},action=""){
+ const fallback=fallbackNarrative(action,roll),candidate=sanitizePlayerText(scene?.narrative,1200,"");
+ if(roll?.success===false)return {narrative:fallback,outcome:"FAILURE",narrativeRejected:Boolean(candidate)};
+ if(roll?.success===true&&String(scene?.outcome||"SUCCESS").toUpperCase()!=="SUCCESS")return {narrative:fallback,outcome:"SUCCESS",narrativeRejected:Boolean(candidate)};
+ return {narrative:candidate||fallback,outcome:roll?.success===true?"SUCCESS":null,narrativeRejected:false}
+}
 export function sceneTurnPreview(scene,roll={},context={}){
- const fallback=fallbackNarrative(context.action,roll),narrative=sanitizePlayerText(scene?.narrative,1200,fallback),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
+ const guarded=guardedSceneNarrative(scene,roll,context.action),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
  const suggestionIntents=normalizeSuggestionIntents(scene?.suggestions,context.priorSuggestionIntents||context.priorSuggestions||[]);
  const suggestions=suggestionIntents.length?suggestionIntents.map(x=>x.label):sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]);
- return {narrative:narrative||fallback,sceneTitle,suggestions,suggestionIntents}
+ return {...guarded,sceneTitle,suggestions,suggestionIntents}
 }
 
 export function fastTurnStateSnapshot(snapshot={},plan={}){
@@ -83,11 +90,14 @@ export function fastTurnStateSnapshot(snapshot={},plan={}){
 export function mergeTurnCandidates(scene,state,roll={},context={}){
  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("TURN_STATE_REQUIRED");
  const fallback=fallbackNarrative(context.action,roll),sceneText=sanitizePlayerText(scene?.narrative,1200,""),stateText=sanitizePlayerText(state.outcomeSummary,1200,"");
- const narrative=state?.encounter?.type==="combat"?(stateText||sceneText||fallback):(sceneText||stateText||fallback);
+ const guarded=guardedSceneNarrative(scene,roll,context.action);
+ const narrative=roll?.success===false?fallback:(state?.encounter?.type==="combat"?(stateText||guarded.narrative||fallback):(guarded.narrative||stateText||fallback));
  const suggestionIntents=normalizeSuggestionIntents(scene?.suggestions,context.priorSuggestionIntents||context.priorSuggestions||[]);
  const suggestions=suggestionIntents.length?suggestionIntents.map(x=>x.label):sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
  return {
   narrative,
+  outcome:roll?.success===false?"FAILURE":roll?.success===true?"SUCCESS":null,
+  narrativeRejected:roll?.success===false?Boolean(sceneText):guarded.narrativeRejected,
   sceneTitle,
   location:state.location??null,
   worldNameKnown:state.worldNameKnown===true,

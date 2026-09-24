@@ -1,6 +1,7 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=54019";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=55000";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
+const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
 const RISK_LABEL=Object.freeze({LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""});
 const APPROACH_LABEL=Object.freeze({STEADY:"穩健",SOCIAL:"社交",BOLD:"冒險",CREATIVE:"創意"});
 const VALID_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
@@ -59,7 +60,8 @@ export function normalizeContextualSuggestion(row={}){
   skillHint:clean(row.skillHint,70)||null,
   consequenceHint:clean(row.consequenceHint,90)||null,
   causalBasis:clean(row.causalBasis,180)||null,
-  requirementsSatisfied:row.requirementsSatisfied!==false,
+  requirementsSatisfied:row.requirementsSatisfied===true,
+  requiredItemIds:list(row.requiredItemIds),requiredCapabilities:list(row.requiredCapabilities,8,70),
   affordance:row.affordance&&typeof row.affordance==="object"?{
    sourceKind:clean(row.affordance.sourceKind,20).toUpperCase(),sourceId:clean(row.affordance.sourceId,120),
    evidenceType:clean(row.affordance.evidenceType,20).toUpperCase(),title:clean(row.affordance.title,100),text:clean(row.affordance.text,500)
@@ -71,7 +73,8 @@ export function normalizeContextualSuggestion(row={}){
    location:String(row.validatedContext.location||""),
    day:Number(row.validatedContext.day)||1,
    eventCount:Math.max(0,Number(row.validatedContext.eventCount)||0),
-   targetId:clean(row.validatedContext.targetId,100)||null
+   targetId:clean(row.validatedContext.targetId,100)||null,
+   inventorySeal:clean(row.validatedContext.inventorySeal,900)
   }:null
  }
 }
@@ -101,18 +104,21 @@ function fallbackByApproach(state,approach){
  return normalizeContextualSuggestion({label:`先觀察${loc}的出入口與新痕跡`,action:`保持可撤退距離，觀察${loc}的出入口、人流與最新痕跡，先確認哪個方向最值得行動`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前位置可直接觀察",requirementsSatisfied:true,source:"ENGINE"})
 }
 function sceneEventCount(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL").length}
+function inventorySeal(state){return (state.inventory||[]).filter(x=>(Number(x?.quantity)||1)>0).map(x=>`${String(x?.id||x?.name||"")}:${Number(x?.quantity)||1}`).sort().join("|").slice(0,900)}
+function requiredItemsAvailable(state,row){const required=Array.isArray(row?.requiredItemIds)?row.requiredItemIds:[];if(!required.length)return true;const have=new Set((state.inventory||[]).filter(x=>(Number(x?.quantity)||1)>0).flatMap(x=>[String(x?.id||""),String(x?.name||"")]).filter(Boolean));return required.every(x=>have.has(String(x)))}
 function contextSealCurrent(state,v){
  if(!v)return false;
  return String(v.worldId||"")===String(state.world?.id||"")
   &&String(v.location||"")===String(state.player?.location||"")
   &&Number(v.day)===(Number(state.world?.state?.day)||1)
   &&Number(v.eventCount)===sceneEventCount(state)
+  &&(!v.inventorySeal||String(v.inventorySeal)===inventorySeal(state))
 }
 function seal(state,row){
- const x=normalizeContextualSuggestion(row);if(!x||x.requirementsSatisfied===false||(x.source==="AI"&&!x.causalBasis))return null;
+ const x=normalizeContextualSuggestion(row);if(!x||x.requirementsSatisfied!==true||!requiredItemsAvailable(state,x)||(x.source==="AI"&&!x.causalBasis))return null;
  if(x.prevalidated&&x.validatedContext)return contextSealCurrent(state,x.validatedContext)?x:null;
  const affordance=observableAffordance(state,x);
- return {...x,affordance,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null}}
+ return {...x,affordance,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null,inventorySeal:inventorySeal(state)}}
 }
 export function buildContextualActionSet(state,input=[]){
  const recent=recentPlayerActions(state),isFresh=x=>freshSuggestion(recent,x);
@@ -151,7 +157,7 @@ function trustedSuggestionObservationDominant(action){return /觀察|查看|檢�
 export function trustedSuggestionAssessment(state,row){
  const x=normalizeContextualSuggestion(row),v=row?.validatedContext;
  if(!x||row?.prevalidated!==true||!v)return null;
- if(!contextSealCurrent(state,v))return null;
+ if(!contextSealCurrent(state,v)||!requiredItemsAvailable(state,x))return null;
  if(state.combat?.active||state.player?.status==="DOWNED")return null;
  if(v.targetId){
   const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===v.targetId);

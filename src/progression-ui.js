@@ -1,11 +1,11 @@
-import {questSnapshot} from "./quest-engine.js?v=54019";
-import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=54019";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=54019";
-import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=54019";
-import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=54019";
-import {historyClueSnapshot} from "./history-future.js?v=54019";
-import {playerFutureSignals} from "./future-runtime.js?v=54019";
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=54019";
+import {questSnapshot} from "./quest-engine.js?v=55000";
+import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=55000";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=55000";
+import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=55000";
+import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=55000";
+import {historyClueSnapshot} from "./history-future.js?v=55000";
+import {playerFutureSignals} from "./future-runtime.js?v=55000";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=55000";
 
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const $=s=>document.querySelector(s);

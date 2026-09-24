@@ -169,7 +169,10 @@ function currentLocationRecord(state){
 }
 function registryEntity(state,kind,value){
  const key=kind==="npc"?"npcs":kind==="location"?"locations":kind==="faction"?"factions":kind==="sideQuest"?"sideQuests":"",rows=key?state?.world?.registry?.[key]||[]:[];
- return rows.find(x=>x?.id===value||x?.name===value||x?.title===value)||null
+ const exact=rows.find(x=>x?.id===value||x?.name===value||x?.title===value);if(exact)return exact;
+ const normalized=String(value||"").normalize("NFKC").replace(/\s+/g,"").toLowerCase();if(!normalized)return null;
+ const matches=rows.filter(x=>[x?.name,x?.title].some(label=>String(label||"").normalize("NFKC").replace(/\s+/g,"").toLowerCase()===normalized));
+ return matches.length===1?matches[0]:null
 }
 function canonicalizeDiscoverySource(state,raw){
  const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120);if(!sourceId)return raw;
