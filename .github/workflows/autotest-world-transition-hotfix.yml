@@ -1,0 +1,161 @@
+name: AutoTest multi-world transition hotfix
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/autotest-world-transition-hotfix.yml
+permissions:
+  contents: write
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Patch AutoTest world transition
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          app_path=Path('app.js')
+          app=app_path.read_text(encoding='utf-8')
+
+          start=app.index('async function finalizeDeveloperAutotestWorld(config={}){')
+          end=app.index('async function waitForAutotestActionReady',start)
+          new_finalize='''async function finalizeDeveloperAutotestWorld(config={},options={}){
+           if(!gameState||developerAutotest.stopRequested||developerAutotest.batchController?.signal?.aborted)return false;
+           const fastTransition=options?.fastTransition===true,transitionFrom=developerAutotest.worldIndex,transitionTo=transitionFrom+1;
+           if(fastTransition){
+            recordDebug("AUTOTEST_WORLD_TRANSITION_STARTED",{fromIndex:transitionFrom,toIndex:transitionTo,turn:developerAutotest.turn});
+            cancelAutotestBackgroundWork({transition:true})
+           }
+           const timeoutMs=fastTransition?2500:(config.disableTimeout===true?180000:90000),started=Date.now();
+           while(Date.now()-started<timeoutMs){
+            const settled=(fastTransition||!document.hidden)&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running&&!worldQualityBackground.running;
+            if(settled)break;
+            if(document.hidden&&!fastTransition)await waitForAutotestVisible();else await new Promise(r=>setTimeout(r,120))
+           }
+           const runtimeSettled=(fastTransition||!document.hidden)&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running&&!worldQualityBackground.running;
+           if(!runtimeSettled){
+            recordDebug("AUTOTEST_FINAL_SETTLE_TIMEOUT",{timeoutMs,fastTransition,foregroundIdle:autotestForegroundIdle(),runtimeExpansion:autotestRuntimeExpansion.running,worldBackground:worldBackground.running,historyBackground:historyBackground.running,worldQualityBackground:worldQualityBackground.running});
+            if(!fastTransition)return false
+           }
+           if(fastTransition){
+            const finalQuality=gameState?.world?.quality||{},qualityPending=backgroundQualityNeed(gameState).required||finalQuality.pending===true||finalQuality.backgroundPending===true||String(finalQuality.status||"").toUpperCase()==="PENDING";
+            if(qualityPending)recordDebug("AUTOTEST_FINAL_QUALITY_DEFERRED",{worldIndex:transitionFrom,turn:developerAutotest.turn,reason:"WORLD_TRANSITION"});
+            recordDebug("AUTOTEST_WORLD_TRANSITION_READY",{fromIndex:transitionFrom,toIndex:transitionTo,turn:developerAutotest.turn,runtimeSettled,qualityPending,elapsedMs:Date.now()-started});
+            return runtimeSettled&&!qualityPending
+           }
+           if(backgroundQualityNeed(gameState).required){
+            recordDebug("AUTOTEST_FINAL_QUALITY_STARTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});
+            await runBackgroundWorldQualityCritic({allowAutotest:true})
+           }
+           const finalQuality=gameState?.world?.quality||{},qualitySettled=!backgroundQualityNeed(gameState).required&&finalQuality.pending!==true&&finalQuality.backgroundPending!==true&&String(finalQuality.status||"").toUpperCase()!=="PENDING";
+           const finalQualitySettleKey=[gameState?.world?.id||"",developerAutotest.turn,qualitySettled].join(":");if(developerAutotest.finalQualitySettleKey!==finalQualitySettleKey){developerAutotest.finalQualitySettleKey=finalQualitySettleKey;recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled})}
+           return qualitySettled
+          }
+          '''
+          app=app[:start]+new_finalize+app[end:]
+
+          cancel_start=app.index('function cancelAutotestBackgroundWork(){')
+          cancel_end=app.index('async function createDeveloperAutotestWorld',cancel_start)
+          new_cancel='''function cancelAutotestBackgroundWork(options={}){
+           const transition=options?.transition===true;
+           if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}
+           if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}
+           if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}
+           if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}
+           const expansionCtrl=autotestRuntimeExpansion.controller;
+           if(expansionCtrl&&!expansionCtrl.signal.aborted)expansionCtrl.abort(new DOMException(transition?"AutoTest world transition":"AutoTest stopping","AbortError"));
+           if(transition&&autotestRuntimeExpansion.controller===expansionCtrl){
+            autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0
+           }
+           preemptBackgroundAI();
+           if(transition)recordDebug("AUTOTEST_WORLD_BACKGROUND_CANCELLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,runtimeExpansion:Boolean(expansionCtrl),foregroundIdle:autotestForegroundIdle()})
+          }
+          '''
+          app=app[:cancel_start]+new_cancel+app[cancel_end:]
+
+          old_finally='if(autotestRuntimeExpansion.controller===ctrl)autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0'
+          assert app.count(old_finally)==1, app.count(old_finally)
+          app=app.replace(old_finally,'if(autotestRuntimeExpansion.controller===ctrl){autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0}',1)
+
+          old_call='await finalizeDeveloperAutotestWorld(config);'
+          assert app.count(old_call)==2, app.count(old_call)
+          app=app.replace(old_call,'await finalizeDeveloperAutotestWorld(config,{fastTransition:i<config.worldCount});')
+
+          old_loop='''   if(developerAutotest.stopRequested)break;\n   developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");'''
+          new_loop='''   if(developerAutotest.stopRequested)break;\n   if(i>1)recordDebug("AUTOTEST_NEXT_WORLD_STARTED",{index:i,worldsRequested:config.worldCount});\n   developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");'''
+          assert old_loop in app
+          app=app.replace(old_loop,new_loop,1)
+
+          assert './src/version.js?v=57002' in app
+          app=app.replace('./src/version.js?v=57002','./src/version.js?v=57003',1)
+          app_path.write_text(app,encoding='utf-8')
+
+          pkg_path=Path('package.json')
+          pkg=json.loads(pkg_path.read_text(encoding='utf-8'))
+          assert pkg['version']=='0.57.2',pkg['version']
+          pkg['version']='0.57.3'
+          pkg_path.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          version_path=Path('src/version.js')
+          version=version_path.read_text(encoding='utf-8')
+          assert 'APP_VERSION="0.57.2"' in version
+          version_path.write_text(version.replace('APP_VERSION="0.57.2"','APP_VERSION="0.57.3"',1),encoding='utf-8')
+
+          index_path=Path('index.html')
+          index=index_path.read_text(encoding='utf-8')
+          assert 'app.js?v=57002' in index
+          index_path.write_text(index.replace('app.js?v=57002','app.js?v=57003',1),encoding='utf-8')
+
+          test_path=Path('test/ai-autotest-world-transition-v0573.test.js')
+          test_path.write_text(r'''import test from "node:test";
+          import assert from "node:assert/strict";
+          import {readFile} from "node:fs/promises";
+
+          test("v0.57.3 multi-world AutoTest transitions to every requested world",async()=>{
+           const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+           const finalizeStart=app.indexOf("async function finalizeDeveloperAutotestWorld"),finalizeEnd=app.indexOf("async function waitForAutotestActionReady",finalizeStart),finalize=app.slice(finalizeStart,finalizeEnd);
+           assert.match(finalize,/fastTransition=options\?\.fastTransition===true/);
+           assert.match(finalize,/cancelAutotestBackgroundWork\(\{transition:true\}\)/);
+           assert.match(finalize,/timeoutMs=fastTransition\?2500:/);
+           assert.match(finalize,/AUTOTEST_FINAL_QUALITY_DEFERRED/);
+           assert.match(finalize,/AUTOTEST_WORLD_TRANSITION_READY/);
+
+           const cancelStart=app.indexOf("function cancelAutotestBackgroundWork"),cancelEnd=app.indexOf("async function createDeveloperAutotestWorld",cancelStart),cancel=app.slice(cancelStart,cancelEnd);
+           assert.match(cancel,/transition&&autotestRuntimeExpansion\.controller===expansionCtrl/);
+           assert.match(cancel,/AUTOTEST_WORLD_BACKGROUND_CANCELLED/);
+
+           const runnerStart=app.indexOf("async function startDeveloperAutotest"),runnerEnd=app.indexOf("$(\"#aiSettingsBtn\")",runnerStart),runner=app.slice(runnerStart,runnerEnd);
+           assert.equal((runner.match(/finalizeDeveloperAutotestWorld\(config,\{fastTransition:i<config\.worldCount\}\)/g)||[]).length,2);
+           assert.match(runner,/AUTOTEST_NEXT_WORLD_STARTED/);
+           assert.doesNotMatch(runner,/developerAutotest\.stopRequested\s*=\s*true/);
+          });
+
+          test("stale world expansion completion cannot unlock a newer world's expansion",async()=>{
+           const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+           const start=app.indexOf("function scheduleDeveloperAutotestExpansion"),end=app.indexOf("async function executeDeveloperAutotestDecision",start),block=app.slice(start,end);
+           assert.match(block,/if\(autotestRuntimeExpansion\.controller===ctrl\)\{autotestRuntimeExpansion\.controller=null;autotestRuntimeExpansion\.running=false;autotestRuntimeExpansion\.reason="";autotestRuntimeExpansion\.turn=0\}/);
+          });
+          ''',encoding='utf-8')
+
+          workflow=Path('.github/workflows/autotest-world-transition-hotfix.yml')
+          workflow.unlink()
+          PY
+      - name: Verify regression suite
+        run: npm test
+      - name: Commit v0.57.3 hotfix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v0.57.3: fix AutoTest multi-world transition"
+          git push origin HEAD:main
