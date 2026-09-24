@@ -69,8 +69,8 @@ jobs:
           }
           let test=fs.readFileSync('test/module-cache.test.js','utf8');
           for(const [from,to] of [
-            ['./ai-settings\\.js\\?v=55001','./ai-settings\\.js\\?v=55002'],
-            ['./lazy-generation\\.js\\?v=55001','./lazy-generation\\.js\\?v=55002']
+            ['ai-settings\\.js\\?v=55001','ai-settings\\.js\\?v=55002'],
+            ['lazy-generation\\.js\\?v=55001','lazy-generation\\.js\\?v=55002']
           ]){
             const n=test.split(from).length-1;
             if(n!==1)throw new Error(`module-cache contract: expected one ${from}, found ${n}`);
