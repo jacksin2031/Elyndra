@@ -1,4 +1,4 @@
-import {endgameWindowOpen} from "./world-pacing.js?v=57001";
+import {endgameWindowOpen} from "./world-pacing.js?v=57002";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const STAGES=["DORMANT","RUMORS","ESCALATING","CRISIS","ENDGAME"];
 export function ensureCrisis(state){state.world.state.crisis??={stage:"DORMANT",pressure:0,lastStageDay:state.world.state.day,history:[]};return state.world.state.crisis}

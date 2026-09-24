@@ -2,10 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-test("Pages CI tests supported Node versions and pins every external action by commit SHA",async()=>{
+test("Pages CI tests supported Node versions, least privilege, and pinned external actions",async()=>{
  const yml=await readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8");
  assert.match(yml,/node-version:\s*\[20, 24\]/);
- assert.match(yml,/actions:\s*read/);
+ const workflowPermissions=(yml.match(/permissions:\n((?:  [^\n]+\n)+)concurrency:/)||[])[1]||"";
+ assert.match(workflowPermissions,/contents:\s*read/);
+ assert.doesNotMatch(workflowPermissions,/pages:\s*write/);
+ assert.doesNotMatch(workflowPermissions,/id-token:\s*write/);
+ const deployBlock=(yml.split(/\n  deploy:\n/)[1]||"");
+ assert.match(deployBlock,/permissions:\n\s+contents:\s*read\n\s+pages:\s*write\n\s+id-token:\s*write/);
  const uses=[...yml.matchAll(/uses:\s*([^\s#]+)(?:\s*#.*)?$/gm)].map(x=>x[1]);
  assert.ok(uses.length>=5);
  for(const ref of uses)assert.match(ref,/^[^@\s]+@[0-9a-f]{40}$/,"unpinned action: "+ref);
