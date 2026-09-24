@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/autotest-iab-transfer-v0576-land.yml'
       - '.github/autotest-iab-transfer-v0576-patch.py'
+      - '.github/autotest-iab-transfer-v0576-fix.py'
 
 permissions:
   contents: write
@@ -21,7 +22,9 @@ jobs:
         with:
           node-version: 20
       - name: Apply v0.57.6 IAB transfer patch
-        run: python3 .github/autotest-iab-transfer-v0576-patch.py
+        run: |
+          python3 .github/autotest-iab-transfer-v0576-patch.py
+          python3 .github/autotest-iab-transfer-v0576-fix.py
       - name: Run targeted regressions
         run: |
           set +e
@@ -56,7 +59,7 @@ jobs:
           cat /tmp/v0576-full.log
       - name: Commit tested v0.57.6
         run: |
-          rm -f .github/workflows/autotest-iab-transfer-v0576-land.yml .github/autotest-iab-transfer-v0576-patch.py .github/v0576-targeted-failures.txt .github/v0576-full-failures.txt
+          rm -f .github/workflows/autotest-iab-transfer-v0576-land.yml .github/autotest-iab-transfer-v0576-patch.py .github/autotest-iab-transfer-v0576-fix.py .github/v0576-targeted-failures.txt .github/v0576-full-failures.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
