@@ -104,8 +104,9 @@ function fallbackByApproach(state,approach){
  return normalizeContextualSuggestion({label:`先觀察${loc}的出入口與新痕跡`,action:`保持可撤退距離，觀察${loc}的出入口、人流與最新痕跡，先確認哪個方向最值得行動`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前位置可直接觀察",requirementsSatisfied:true,source:"ENGINE"})
 }
 function sceneEventCount(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL").length}
-function inventorySeal(state){return (state.inventory||[]).filter(x=>(Number(x?.quantity)||1)>0).map(x=>`${String(x?.id||x?.name||"")}:${Number(x?.quantity)||1}`).sort().join("|").slice(0,900)}
-function requiredItemsAvailable(state,row){const required=Array.isArray(row?.requiredItemIds)?row.requiredItemIds:[];if(!required.length)return true;const have=new Set((state.inventory||[]).filter(x=>(Number(x?.quantity)||1)>0).flatMap(x=>[String(x?.id||""),String(x?.name||"")]).filter(Boolean));return required.every(x=>have.has(String(x)))}
+function inventoryQuantity(row){if(row?.quantity===undefined||row?.quantity===null)return 1;const n=Number(row.quantity);return Number.isFinite(n)?n:0}
+function inventorySeal(state){return (state.inventory||[]).filter(x=>inventoryQuantity(x)>0).map(x=>`${String(x?.id||x?.name||"")}:${inventoryQuantity(x)}`).sort().join("|").slice(0,900)}
+function requiredItemsAvailable(state,row){const required=Array.isArray(row?.requiredItemIds)?row.requiredItemIds:[];if(!required.length)return true;const have=new Set((state.inventory||[]).filter(x=>inventoryQuantity(x)>0).flatMap(x=>[String(x?.id||""),String(x?.name||"")]).filter(Boolean));return required.every(x=>have.has(String(x)))}
 function contextSealCurrent(state,v){
  if(!v)return false;
  return String(v.worldId||"")===String(state.world?.id||"")
