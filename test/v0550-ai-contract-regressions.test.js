@@ -37,9 +37,9 @@ test("v0.55.0 uniquely normalizes NPC display-name whitespace to canonical evide
  const grounded=groundStatePatch(state,patch,{observableText:"維安協員瑟倫指出北門鐘聲突然停止，值得繼續追查。"});assert.equal(grounded.rejected.length,0);assert.equal(grounded.patch.operations[0].sourceId,"NPC-1")
 });
 
-
-test("v0.55.0 quantity zero does not satisfy required-item suggestions",()=>{
+test("v0.55.0 non-positive quantities do not satisfy required-item suggestions",()=>{
+ const suggestion={label:"拿出紙筆",action:"拿出紙筆記下牆上的符號",kind:"GENERAL",risk:"LOW",requirementsSatisfied:true,requiredItemIds:["ITEM-paper"],causalBasis:"想記錄符號"};
  const state={world:{id:"W1",state:{day:1},registry:{locations:[],npcs:[]}},player:{location:"石室"},inventory:[{id:"ITEM-paper",name:"紙筆",quantity:0}],events:[],quests:{main:{objectives:["觀察石室"]}}};
- const set=buildContextualActionSet(state,[{label:"拿出紙筆",action:"拿出紙筆記下牆上的符號",kind:"GENERAL",risk:"LOW",requirementsSatisfied:true,requiredItemIds:["ITEM-paper"],causalBasis:"想記錄符號"}]);
- assert.equal(set.all.some(x=>x.label==="拿出紙筆"),false)
+ let set=buildContextualActionSet(state,[suggestion]);assert.equal(set.all.some(x=>x.label==="拿出紙筆"),false);
+ state.inventory[0].quantity=-1;set=buildContextualActionSet(state,[suggestion]);assert.equal(set.all.some(x=>x.label==="拿出紙筆"),false)
 });
