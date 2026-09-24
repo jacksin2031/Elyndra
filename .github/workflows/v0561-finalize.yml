@@ -1,0 +1,193 @@
+name: v0.56.1 Runtime Grounding Finalizer
+
+on:
+  push:
+    branches:
+      - fix/v0.56.1-runtime-grounding
+    paths:
+      - .github/workflows/v0561-finalize.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch v0.56.1 runtime regressions
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"missing patch anchor in {path}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          # 1) State/Scene evidence becomes a real two-phase transaction.
+          replace_once(
+              "src/state-sync.js",
+              '   if(!discoveryNameGrounded(state,raw,context)){rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}\n',
+              '   if(!discoveryNameGrounded(state,raw,context)){deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue}\n'
+          )
+          replace_once(
+              "src/state-sync.js",
+              ' next.operations=accepted;return {patch:next,rejected,deferredEvidence}\n}\nfunction semanticWorldImpact(raw){',
+              ''' next.operations=accepted;return {patch:next,rejected,deferredEvidence}\n}\nexport function projectDeferredSceneEvidence(operations=[],observableText=""){\n const evidence=clean(observableText,500);if(!evidence)return [];\n const out=[],seen=new Set();\n for(const raw of Array.isArray(operations)?operations:[]){\n  const type=String(raw?.op||"").toUpperCase();if(!["DISCOVER_FACT","ACQUIRE_ITEM"].includes(type))continue;\n  if(type==="DISCOVER_FACT"){\n   const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),key=`${sourceKind}:${sourceId}:${evidence}`;if(!sourceKind||!sourceId||seen.has(key))continue;seen.add(key);\n   out.push({...structuredClone(raw),title:evidenceMentions(evidence,raw?.title)?clean(raw?.title,100):"本回合確認到的可觀察線索",text:evidence});continue\n  }\n  const itemName=clean(raw?.item?.name,100),key=`ITEM:${itemName}`;if(!itemName||seen.has(key))continue;seen.add(key);out.push(structuredClone(raw))\n }\n return out\n}\nfunction semanticWorldImpact(raw){'''
+          )
+
+          # 2) Canonical travel gating + generic magic-use semantic validation.
+          replace_once(
+              "src/contextual-actions.js",
+              'const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;\n',
+              'const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;\nconst GENERIC_MAGIC_USE=/(?:運用|使用|施展|釋放|凝聚|抽取|引導|操控|催動|調動|注入|集中|感知).{0,14}(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic)|(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic).{0,14}(?:施展|釋放|凝聚|抽取|操控|催動|調動|注入)/i;\n'
+          )
+          replace_once(
+              "src/contextual-actions.js",
+              '''function capabilityAvailable(state,required){\n const q=clean(required,80).toLowerCase();if(!q)return true;\n return playerCapabilityLabels(state).some(x=>{const v=x.toLowerCase();return v===q||v.includes(q)||q.includes(v)})\n}\nexport function evaluateSuggestionRequirements(state,row={}){''',
+              '''function capabilityAvailable(state,required){\n const q=clean(required,80).toLowerCase();if(!q)return true;\n return playerCapabilityLabels(state).some(x=>{const v=x.toLowerCase();return v===q||v.includes(q)||q.includes(v)})\n}\nfunction genericMagicAvailable(state){\n const p=state.player||{},magic=p.magic||{};\n if((magic.knownSpells||[]).length||(magic.attunements||[]).length)return true;\n return [...(p.capabilities||[]),...(p.talents||[])].some(row=>/magic|mana|spell|cast|靈息|靈能|魔力|魔法|法術|施法/i.test(String(typeof row==="string"?row:row?.id||row?.name||"")))\n}\nexport function evaluateSuggestionRequirements(state,row={}){'''
+          )
+          replace_once(
+              "src/contextual-actions.js",
+              ' const special=x.action.match(SPECIAL_POWER)?.[1];if(special&&!capabilityAvailable(state,special))reasons.push("IMPLIED_CAPABILITY_MISSING:"+special);\n',
+              ' const special=x.action.match(SPECIAL_POWER)?.[1];if(special&&!capabilityAvailable(state,special))reasons.push("IMPLIED_CAPABILITY_MISSING:"+special);\n const genericMagic=GENERIC_MAGIC_USE.test(x.action);if(genericMagic&&!genericMagicAvailable(state))reasons.push("IMPLIED_CAPABILITY_MISSING:MAGIC_USE");\n'
+          )
+          replace_once(
+              "src/contextual-actions.js",
+              '''function canonicalSuggestion(state,row){\n const x=normalizeContextualSuggestion(row);if(!x)return null;\n const targetId=inferSuggestionTarget(state,x);return targetId&&!x.targetId?{...x,targetId}:x\n}\nfunction seal(state,row){''',
+              '''function canonicalTravelTarget(state,row={}){\n const current=String(state.player?.location||""),locations=(state.world?.registry?.locations||[]).filter(loc=>loc?.known===true&&String(loc?.name||"")!==current&&String(loc?.id||"")!==current);\n const target=clean(row?.targetId,100);if(target){const byId=locations.find(loc=>String(loc?.id||"")===target||String(loc?.name||"")===target);if(byId)return byId}\n const action=String(row?.action||row?.label||"");return locations.find(loc=>loc?.name&&action.includes(String(loc.name)))||null\n}\nfunction canonicalSuggestion(state,row){\n const x=normalizeContextualSuggestion(row);if(!x)return null;\n const targetId=inferSuggestionTarget(state,x);let y=targetId&&!x.targetId?{...x,targetId}:x;\n if(y.kind==="TRAVEL"&&!canonicalTravelTarget(state,y)){const observe=trustedSuggestionObservationDominant(y.action);y={...y,kind:observe?"OBSERVE":"GENERAL",targetId:null}}\n return y\n}\nfunction seal(state,row){'''
+          )
+          replace_once(
+              "src/contextual-actions.js",
+              'function trustedSuggestionObservationDominant(action){return /觀察|查看|檢查|搜尋|尋找|調查|辨識|比對|描摹|記錄|線索|證據|痕跡|observe|inspect|search|investigate|compare|trace/i.test(String(action||""))}\n',
+              'function trustedSuggestionObservationDominant(action){return /觀察|查看|檢查|搜尋|尋找|調查|辨識|比對|比較|確認|探索|描摹|記錄|線索|證據|痕跡|observe|inspect|search|investigate|compare|trace|explore|confirm/i.test(String(action||""))}\n'
+          )
+          replace_once(
+              "src/contextual-actions.js",
+              ''' const engineKind=inferActionKind(x.action),localObserve=x.kind==="OBSERVE"&&engineKind==="TRAVEL"&&trustedSuggestionObservationDominant(x.action)&&!trustedSuggestionHasKnownDestination(state,x.action),kind=localObserve?"OBSERVE":engineKind==="GENERAL"?x.kind:engineKind;\n const actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});\n const corrected=kind!==x.kind;''',
+              ''' const engineKind=inferActionKind(x.action),destination=canonicalTravelTarget(state,x),travelLike=x.kind==="TRAVEL"||engineKind==="TRAVEL",localTravel=travelLike&&!destination,localObserve=localTravel&&trustedSuggestionObservationDominant(x.action),kind=localTravel?(localObserve?"OBSERVE":"GENERAL"):(engineKind==="GENERAL"?x.kind:engineKind);\n let actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});\n if(localTravel)actionIntent={...actionIntent,kind,intent:kind==="OBSERVE"?"OBSERVE":"GENERAL",targetId:null};\n const corrected=kind!==x.kind||localTravel;'''
+          )
+
+          # 3) Wire scene projection into runtime and avoid duplicate final quality pass.
+          replace_once(
+              "app.js",
+              'groundStatePatch,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=56000";',
+              'groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=56000";'
+          )
+          replace_once(
+              "app.js",
+              '''function commitSceneGroundedEvidence(state,operations,plan,context={}){\n const rows=[],seen=new Set();for(const raw of Array.isArray(operations)?operations:[]){const type=String(raw?.op||"").toUpperCase(),key=type+":"+String(raw?.item?.name||raw?.title||raw?.location||raw?.sourceId||"");if(!type||seen.has(key))continue;seen.add(key);rows.push(structuredClone(raw))}\n if(!rows.length)return {applied:false,empty:true};const capabilities=[...new Set([...(plan?.capabilities||[]),...rows.map(x=>String(x?.op||"").toUpperCase())])],evidencePlan={...plan,mode:"FAST",baseRevision:currentStateRevision(state),capabilities},patch={baseRevision:currentStateRevision(state),operations:rows};return commitStatePatch(state,patch,evidencePlan,context)\n}''',
+              '''function commitSceneGroundedEvidence(state,operations,plan,context={}){\n const rows=[],seen=new Set();for(const raw of Array.isArray(operations)?operations:[]){const type=String(raw?.op||"").toUpperCase(),key=type+":"+String(raw?.item?.name||raw?.title||raw?.location||raw?.sourceId||"");if(!type||seen.has(key))continue;seen.add(key);rows.push(structuredClone(raw))}\n const projected=projectDeferredSceneEvidence(rows,context?.observableText);\n if(!projected.length)return {applied:false,empty:true};const capabilities=[...new Set([...(plan?.capabilities||[]),...projected.map(x=>String(x?.op||"").toUpperCase())])],evidencePlan={...plan,mode:"FAST",baseRevision:currentStateRevision(state),capabilities},patch={baseRevision:currentStateRevision(state),operations:projected};return commitStatePatch(state,patch,evidencePlan,context)\n}'''
+          )
+          replace_once(
+              "app.js",
+              'const committed=commitStatePatch(actionState,stateResult.value,syncPlan,{action:effective,roll});pendingEvidenceOperations=',
+              'const committed=commitStatePatch(actionState,stateResult.value,syncPlan,{action:effective,roll,evidencePhase:"STATE_PENDING"});pendingEvidenceOperations='
+          )
+          replace_once(
+              "app.js",
+              '    await finalizeDeveloperAutotestWorld(config);\n    await finalizeDeveloperAutotestWorld(config);\n',
+              '    await finalizeDeveloperAutotestWorld(config);\n'
+          )
+
+          # 4) Parse the first balanced JSON value when a model appends extra text/JSON.
+          replace_once(
+              "src/model-json.js",
+              '''export function parseModelJSON(raw){\n const source=String(raw??"").trim().replace(/^```(?:json)?\\s*/i,"").replace(/```$/,"").trim();''',
+              '''function firstBalancedModelJSON(value){\n let start=-1,inString=false,escaped=false,stack=[];\n for(let i=0;i<value.length;i++){\n  const ch=value[i];\n  if(start<0){if(ch==="{"||ch==="["){start=i;stack=[ch==="{"?"}":"]"]}continue}\n  if(inString){if(escaped)escaped=false;else if(ch==="\\\\")escaped=true;else if(ch==='"')inString=false;continue}\n  if(ch==='"'){inString=true;continue}\n  if(ch==="{"||ch==="[")stack.push(ch==="{"?"}":"]");\n  else if(ch==="}"||ch==="]"){if(stack.at(-1)!==ch)return "";stack.pop();if(!stack.length)return value.slice(start,i+1)}\n }\n return ""\n}\n\nexport function parseModelJSON(raw){\n const source=String(raw??"").trim().replace(/^```(?:json)?\\s*/i,"").replace(/```$/,"").trim();'''
+          )
+          replace_once(
+              "src/model-json.js",
+              ' const candidates=[source],a=source.indexOf("{"),b=source.lastIndexOf("}");\n if(a>=0&&b>a&&(a!==0||b!==source.length-1))candidates.push(source.slice(a,b+1));\n',
+              ' const balanced=firstBalancedModelJSON(source),candidates=[source];if(balanced&&balanced!==source)candidates.push(balanced);const a=source.indexOf("{"),b=source.lastIndexOf("}");\n if(a>=0&&b>a&&(a!==0||b!==source.length-1))candidates.push(source.slice(a,b+1));\n'
+          )
+
+          # Regression tests for the exact v0.56.0 failures.
+          Path("test/v0561-runtime-grounding.test.js").write_text(r'''import test from "node:test";
+          import assert from "node:assert/strict";
+          import {readFile} from "node:fs/promises";
+          import {buildContextualActionSet,evaluateSuggestionRequirements,trustedSuggestionAssessment} from "../src/contextual-actions.js";
+          import {groundStatePatch,projectDeferredSceneEvidence} from "../src/state-sync.js";
+          import {parseModelJSON} from "../src/model-json.js";
+
+          function state(){return {
+           world:{id:"W1",state:{day:1,location:"裂縫"},registry:{locations:[{id:"L1",name:"裂縫",known:true},{id:"L2",name:"枯脈祭壇",known:true}],npcs:[]},travel:{routes:[{id:"R1",fromId:"L1",toId:"L2",open:true}},canon:{facts:[]}},
+           player:{location:"裂縫",magic:{capacity:100,strain:0,knownSpells:[],attunements:[]},skills:{},talents:[],capabilities:[]},inventory:[],events:[],knowledge:[]
+          }}
+
+          test("v0.56.1 rejects generic magic manipulation when player has no learned magic capability",()=>{
+           const r=evaluateSuggestionRequirements(state(),{label:"以靈息探查",action:"運用少量靈息感知周圍，試圖穿透介質或引發反應。",kind:"GENERAL",risk:"MEDIUM",approach:"CREATIVE",causalBasis:"測試",requirementsSatisfied:true,requiredItemIds:[],requiredCapabilities:[]});
+           assert.equal(r.ok,false);assert.ok(r.reasons.includes("IMPLIED_CAPABILITY_MISSING:MAGIC_USE"))
+          });
+
+          test("v0.56.1 local exploration is not trusted as canonical TRAVEL",()=>{
+           const s=state(),action="沿著石壁夾縫向前探索，確認狹窄通道是否有進一步的開口。",set=buildContextualActionSet(s,[{label:"沿夾縫前進",action,kind:"TRAVEL",risk:"LOW",approach:"STEADY",progression:true,causalBasis:"眼前有夾縫",requirementsSatisfied:true,requiredItemIds:[],requiredCapabilities:[]}]);
+           const row=set.all.find(x=>x.action===action);assert.ok(row);assert.notEqual(row.kind,"TRAVEL");
+           const assessment=trustedSuggestionAssessment(s,row);assert.ok(assessment);assert.notEqual(assessment.actionIntent.intent,"TRAVEL")
+          });
+
+          test("v0.56.1 explicit known destination remains canonical TRAVEL",()=>{
+           const s=state(),action="前往枯脈祭壇，離開目前位置。",set=buildContextualActionSet(s,[{label:"前往祭壇",action,kind:"TRAVEL",risk:"LOW",approach:"STEADY",progression:true,targetId:"L2",causalBasis:"已知路線",requirementsSatisfied:true,requiredItemIds:[],requiredCapabilities:[]}]);
+           const row=set.all.find(x=>x.action===action);assert.ok(row);assert.equal(row.kind,"TRAVEL");const assessment=trustedSuggestionAssessment(s,row);assert.equal(assessment.actionIntent.intent,"TRAVEL")
+          });
+
+          test("v0.56.1 pending state discovery is projected from actual scene evidence",()=>{
+           const s=state(),raw={op:"DISCOVER_FACT",title:"低頻嗡鳴的節律指向北偏東",text:"低頻嗡鳴整體指向北偏東。",factId:"obs-1",evidenceType:"OBSERVED",sourceKind:"LOCATION",sourceId:"L1"},scene="你閉上雙眼細聽低頻嗡鳴；聲源在左前方較強，右後方較弱。";
+           const pending=groundStatePatch(s,{baseRevision:0,operations:[raw]},{observableText:"",evidencePhase:"STATE_PENDING"});assert.equal(pending.rejected.length,0);assert.equal(pending.deferredEvidence.length,1);
+           const projected=projectDeferredSceneEvidence(pending.deferredEvidence,scene);assert.equal(projected.length,1);assert.equal(projected[0].title,"本回合確認到的可觀察線索");assert.equal(projected[0].text,scene);
+           const grounded=groundStatePatch(s,{baseRevision:0,operations:projected},{observableText:scene,evidencePhase:"SCENE"});assert.equal(grounded.rejected.length,0);assert.equal(grounded.patch.operations.length,1)
+          });
+
+          test("v0.56.1 parser accepts first balanced JSON when provider appends another value",()=>{
+           assert.deepEqual(parseModelJSON('{"ok":true}\n{"extra":1}'),{ok:true});assert.deepEqual(parseModelJSON('prefix {"a":[1,2]} trailing prose'),{a:[1,2]})
+          });
+
+          test("v0.56.1 autotest finalizer is called once per generated world path",async()=>{
+           const app=await readFile(new URL("../app.js",import.meta.url),"utf8"),matches=app.match(/await finalizeDeveloperAutotestWorld\(config\);/g)||[];assert.equal(matches.length,2);assert.match(app,/projectDeferredSceneEvidence\(rows,context\?\.observableText\)/)
+          });
+          ''', encoding="utf-8")
+
+          # Version/cache contract: v0.56.1 => cache generation 56001.
+          package = json.loads(Path("package.json").read_text(encoding="utf-8"));package["version"]="0.56.1";Path("package.json").write_text(json.dumps(package,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          lock=Path("package-lock.json")
+          if lock.exists():
+              data=json.loads(lock.read_text(encoding="utf-8"));data["version"]="0.56.1";
+              if isinstance(data.get("packages"),dict) and "" in data["packages"]: data["packages"][""]["version"]="0.56.1"
+              lock.write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          replace_once("src/version.js",'export const APP_VERSION="0.56.0";','export const APP_VERSION="0.56.1";')
+          for p in Path(".").rglob("*"):
+              if not p.is_file() or ".git" in p.parts or "node_modules" in p.parts: continue
+              if p.suffix.lower() not in {".js",".html"}: continue
+              text=p.read_text(encoding="utf-8")
+              if "?v=56000" in text:p.write_text(text.replace("?v=56000","?v=56001"),encoding="utf-8")
+      - name: Install
+        run: npm ci
+      - name: Syntax
+        run: |
+          node --check src/state-sync.js
+          node --check src/contextual-actions.js
+          node --check src/model-json.js
+          node --check app.js
+          node --check test/v0561-runtime-grounding.test.js
+      - name: Full test suite
+        env:
+          CACHE_BASE_REF: main
+        run: npm test
+      - name: Commit passing v0.56.1
+        run: |
+          git config user.name "A24DC523"
+          git config user.email "a24dc523@dhw.ac.jp"
+          git rm .github/workflows/v0561-finalize.yml
+          git add -A
+          git commit -m "v0.56.1: harden scene grounding and semantic gating"
+          git push origin HEAD:fix/v0.56.1-runtime-grounding
