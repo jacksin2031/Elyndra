@@ -24,16 +24,33 @@ jobs:
         run: |
           python scripts/tmp-apply-v0551.py
           python scripts/tmp-fix-v0551-preflight.py
-      - name: Bump package version
-        run: npm version 0.55.1 --no-git-tag-version --allow-same-version
-      - name: Run full test suite
-        run: npm test
-      - name: Commit verified release branch
+          npm version 0.55.1 --no-git-tag-version --allow-same-version
+      - name: Persist patched source before validation
         shell: bash
         run: |
-          rm .github/workflows/tmp-v0551-world-law-hardening.yml scripts/tmp-apply-v0551.py scripts/tmp-fix-v0551-preflight.py
           git config user.name 'JackSin'
           git config user.email 'japanjacksin@gmail.com'
+          git add src api test package.json package-lock.json
+          git commit -m 'wip: apply v0.55.1 world law hardening' || true
+          git push origin HEAD:release/v0.55.1-world-law-hardening
+      - name: Run full test suite and persist exact failure
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee /tmp/v0551-test.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            tail -n 300 /tmp/v0551-test.log > tmp-v0551-test-failure.log
+            git add tmp-v0551-test-failure.log
+            git commit -m 'chore: capture v0.55.1 test failure' || true
+            git push origin HEAD:release/v0.55.1-world-law-hardening
+            exit "$rc"
+          fi
+      - name: Remove temporary runner artifacts
+        shell: bash
+        run: |
+          rm -f .github/workflows/tmp-v0551-world-law-hardening.yml scripts/tmp-apply-v0551.py scripts/tmp-fix-v0551-preflight.py tmp-v0551-test-failure.log
           git add -A
-          git commit -m 'feat: enforce world constraints and magic laws for v0.55.1'
+          git commit -m 'chore: remove temporary v0.55.1 patch runner'
           git push origin HEAD:release/v0.55.1-world-law-hardening
