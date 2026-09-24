@@ -11,55 +11,48 @@ permissions:
   contents: write
 
 jobs:
-  diagnose-current-branch:
+  extract-failures:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '20'
-      - name: Run current branch full test suite
+      - name: Extract concise TAP failure blocks from committed diagnosis
         shell: bash
         run: |
-          set +e
-          npm test 2>&1 | tee /tmp/v0551-test.log
-          rc=${PIPESTATUS[0]}
-          set -e
-          if [ "$rc" -ne 0 ]; then
-            python - <<'PY'
+          python - <<'PY'
           from pathlib import Path
           import re
 
-          lines = Path('/tmp/v0551-test.log').read_text(errors='replace').splitlines()
-          starts = [i for i, line in enumerate(lines) if re.match(r'^not ok \d+ - ', line)]
+          source = Path('tmp-v0551-test-failures.txt')
+          lines = source.read_text(errors='replace').splitlines()
+          starts = [i for i, line in enumerate(lines) if re.match(r'^\s*not ok \d+ - ', line)]
           out = []
-          for n, start in enumerate(starts, 1):
-              end = len(lines)
-              for j in range(start + 1, len(lines)):
-                  if re.match(r'^(?:ok|not ok) \d+ - ', lines[j]):
-                      end = j
+          seen = set()
+          for start in starts:
+              title = lines[start].strip()
+              if title in seen:
+                  continue
+              seen.add(title)
+              out.append(f'===== {title} =====')
+              # Node TAP diagnostics, assertion details and stack are normally adjacent.
+              for line in lines[start:min(len(lines), start + 55)]:
+                  if line.strip().startswith(('ok ', 'not ok ')) and line is not lines[start] and len(out) > 1:
                       break
-              out.append(f'===== FAILURE {n} =====')
-              out.extend(lines[start:end])
-              out.append('')
-          out.append('===== TEST SUMMARY =====')
-          for line in lines:
-              if re.match(r'^# (?:tests|suites|pass|fail|cancelled|skipped|todo|duration_ms)\b', line):
                   out.append(line)
-          if not starts:
-              out.append('No TAP not-ok blocks found; last 200 lines follow.')
-              out.extend(lines[-200:])
-          Path('tmp-v0551-test-failures.txt').write_text('\n'.join(out) + '\n')
+              out.append('')
+          out.append('===== SUMMARY =====')
+          for line in lines:
+              if re.match(r'^\s*# (?:tests|suites|pass|fail|cancelled|skipped|todo|duration_ms)\b', line):
+                  text = line.strip()
+                  if text not in out:
+                      out.append(text)
+          if not seen:
+              out.append('No TAP failure headings found.')
+          Path('tmp-v0551-failure-summary.txt').write_text('\n'.join(out) + '\n')
           PY
-            rm -f tmp-v0551-test-failure.log
-            git config user.name 'JackSin'
-            git config user.email 'japanjacksin@gmail.com'
-            git add -A tmp-v0551-test-failures.txt tmp-v0551-test-failure.log
-            git commit -m 'chore: capture exact v0.55.1 test failures' || true
-            git push origin HEAD:release/v0.55.1-world-law-hardening
-            exit "$rc"
-          fi
-      - name: Mark diagnosis green
-        run: echo 'Current v0.55.1 branch test suite is green.'
+          git config user.name 'JackSin'
+          git config user.email 'japanjacksin@gmail.com'
+          git add tmp-v0551-failure-summary.txt
+          git commit -m 'chore: extract concise v0.55.1 failures' || true
+          git push origin HEAD:release/v0.55.1-world-law-hardening
