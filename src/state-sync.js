@@ -237,7 +237,10 @@ export function groundStatePatch(state,patch={},context={}){
    const entity=registryEntity(state,String(raw?.kind||""),clean(raw?.id,120));
    if(entity?.id)raw={...raw,id:entity.id};else{rejected.push({index,op:type,kind:String(raw?.kind||""),id:clean(raw?.id,120),reason:"ENTITY_REVEAL_NOT_CANONICAL"});continue}
   }
+  const explicitOutcomeFailure=context?.roll?.success===false;
+  if(type==="ACQUIRE_ITEM"&&explicitOutcomeFailure){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ENGINE_OUTCOME_FAILURE"});continue}
   if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(state,raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
+  if(type==="MOVE_PLAYER"&&explicitOutcomeFailure){rejected.push({index,op:type,location:clean(raw?.location,120),reason:"ENGINE_OUTCOME_FAILURE"});continue}
   if(type==="MOVE_PLAYER"){
    const target=clean(raw?.location,120),current=clean(state?.player?.location||state?.world?.state?.location,120),locations=state?.world?.registry?.locations||[],entity=locations.find(x=>x?.id===target||x?.name===target);
    if(!target){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}
