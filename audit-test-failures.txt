@@ -1,0 +1,96 @@
+not ok 1 - Engine fast path runs before AI requirement and before action execution
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected: true
+  operator: '=='
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/action-feasibility.test.js:12:9)
+
+not ok 2 - prevalidated AI suggestion bypasses feasibility AI and goes directly to Engine
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected: true
+  operator: '=='
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/action-feasibility.test.js:25:9)
+
+not ok 54 - AI settings UI exposes Agnes as a selectable mode
+  error: |-
+
+not ok 73 - F02 negated rest/travel never trigger deterministic mutation
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected: true
+  operator: '=='
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/audit-fixes-v05419.test.js:16:486)
+
+not ok 84 - background Critic is post-entry, preemptible and stale-version gated
+  error: |-
+
+not ok 85 - runtime world evolution is automatic background work and never awaited by runAction
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected: true
+  operator: '=='
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/background-world-evolution.test.js:13:9)
+
+not ok 217 - Deferred Director uses revision-aware StatePatch and persisted retry queue
+  error: |-
+
+not ok 246 - app runs History Deepening only as preemptible background work
+  error: |-
+
+not ok 280 - v0.54.18 keeps structured AI and Developer Autotest cache graphs coherent
+  error: |-
+
+not ok 302 - ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked
+  error: |-
+
+not ok 304 - foreground gameplay preempts nonblocking narration Deferred and world background work
+  error: |-
+
+not ok 387 - hardened acquisition runtime modules use fresh browser cache identities
+  error: |-
+
+not ok 429 - staged compiler loads timeout settings through current cache generation
+  error: |-
+
+not ok 455 - v0.54.12 ai-client release edges and runtime prompt remain parse-safe
+  error: |-
+
+not ok 466 - v0.54.14 Runtime Quest prompt makes target numeric and normalizes before validation
+  error: |-
+
+not ok 475 - v0.54.18 is the canonical app and browser cache release
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected: '0.54.18'
+  operator: 'strictEqual'
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/version-05418-release.test.js:14:9)
+
+not ok 476 - main UI exposes APP_VERSION and package version consistently
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected: '0.54.18'
+  operator: 'strictEqual'
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/version-ui.test.js:12:53)
+
+not ok 477 - History/Future/character systems remain available after v0.53
+  error: |-
+
+not ok 478 - v0.50-v0.52 causal protections remain intact after v0.53
+  error: |-
+
+not ok 479 - v0.53.0 hardens Knowledge, background races, Claims and Ledger causality
+  error: |-
+
+not ok 480 - v0.54 Developer AI autotest remains available after v0.54.18 runtime checkpoint hardening
+  error: |-
+
+not ok 491 - background world evolution uses resumable checkpoint canon pipeline
+  error: |-
+
+# tests 586
+# pass 564
+# fail 22
+# cancelled 0
+# skipped 0
+# todo 0

@@ -1,4 +1,4 @@
->同行者</small><p>${active.length?active.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · ${esc(companionLabel(x)||"同行中")}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
+all>同行者</small><p>${active.length?active.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · ${esc(companionLabel(x)||"同行中")}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
      </div>`)
     });
     $("#runtimeBtn")?.addEventListener("click",()=>{
@@ -257,477 +257,477 @@
 # Subtest: Visibility Lock infers current/known state and never downgrades
 ok 492 - Visibility Lock infers current/known state and never downgrades
   ---
-  duration_ms: 14.760988
+  duration_ms: 14.73709
   ...
 # Subtest: HINTED content protects hinted fields but can fill unhinted descriptive fields
 ok 493 - HINTED content protects hinted fields but can fill unhinted descriptive fields
   ---
-  duration_ms: 2.019871
+  duration_ms: 2.149959
   ...
 # Subtest: OBSERVED KNOWN and CANON_LOCKED entities reject background repair
 ok 494 - OBSERVED KNOWN and CANON_LOCKED entities reject background repair
   ---
-  duration_ms: 0.828585
+  duration_ms: 0.944306
   ...
 # Subtest: authorized reveal promotes entity to KNOWN monotonically
 ok 495 - authorized reveal promotes entity to KNOWN monotonically
   ---
-  duration_ms: 1.593732
+  duration_ms: 1.755832
   ...
 # Subtest: Lazy plan carries deterministic replay metadata
 ok 496 - Lazy plan carries deterministic replay metadata
   ---
-  duration_ms: 1.770253
+  duration_ms: 1.975911
   ...
 # Subtest: abort retry reuses deterministic revision; successful commit advances it
 ok 497 - abort retry reuses deterministic revision; successful commit advances it
   ---
-  duration_ms: 1.234387
+  duration_ms: 1.34918
   ...
 # Subtest: Causal Core exposes Director Visibility Lock snapshot
 ok 498 - Causal Core exposes Director Visibility Lock snapshot
   ---
-  duration_ms: 2.35469
+  duration_ms: 2.481785
   ...
 # Subtest: runtime expansion receives replay metadata and commit receives trusted model identity
 ok 499 - runtime expansion receives replay metadata and commit receives trusted model identity
   ---
-  duration_ms: 12.224167
+  duration_ms: 13.206825
   ...
 # Subtest: weather canon preserves genuinely otherworldly phenomena and bounded mechanics
 ok 500 - weather canon preserves genuinely otherworldly phenomena and bounded mechanics
   ---
-  duration_ms: 1.604261
+  duration_ms: 1.823245
   ...
 # Subtest: pre-canon and legacy worlds begin with neutral fallback weather
 ok 501 - pre-canon and legacy worlds begin with neutral fallback weather
   ---
-  duration_ms: 4.674465
+  duration_ms: 5.039302
   ...
 # Subtest: weather advances from world time and emits an observable event without reselecting the same phenomenon
 ok 502 - weather advances from world time and emits an observable event without reselecting the same phenomenon
   ---
-  duration_ms: 4.547727
+  duration_ms: 4.658831
   ...
 # Subtest: moving into a weather zone respects local suppressions and affinities
 ok 503 - moving into a weather zone respects local suppressions and affinities
   ---
-  duration_ms: 9.005004
+  duration_ms: 9.04334
   ...
 # Subtest: weather contributes its own bounded D20 modifier
 ok 504 - weather contributes its own bounded D20 modifier
   ---
-  duration_ms: 2.688186
+  duration_ms: 2.815448
   ...
 # Subtest: player and helper weather views expose sensations but not hidden canon mechanics
 ok 505 - player and helper weather views expose sensations but not hidden canon mechanics
   ---
-  duration_ms: 4.108012
+  duration_ms: 4.20875
   ...
 # Subtest: Scene Narrator sees current observable weather but not Director weather canon
 ok 506 - Scene Narrator sees current observable weather but not Director weather canon
   ---
-  duration_ms: 2.3013
+  duration_ms: 2.61823
   ...
 # Subtest: save migration initializes weather runtime and location profiles
 ok 507 - save migration initializes weather runtime and location profiles
   ---
-  duration_ms: 2.192766
+  duration_ms: 2.301078
   ...
 # Subtest: weather UI and AI generation contracts are wired into the current release
 ok 508 - weather UI and AI generation contracts are wired into the current release
   ---
-  duration_ms: 12.995552
+  duration_ms: 12.197671
   ...
 # Subtest: v0.54.3 core fallback follows resolved civilization, technology and magic blueprint values
 ok 509 - v0.54.3 core fallback follows resolved civilization, technology and magic blueprint values
   ---
-  duration_ms: 1.511818
+  duration_ms: 1.578388
   ...
 # Subtest: v0.54.3 fallback does not grant world-range near-instant communication to low-organization worlds merely because magic is high
 ok 510 - v0.54.3 fallback does not grant world-range near-instant communication to low-organization worlds merely because magic is high
   ---
-  duration_ms: 0.204193
+  duration_ms: 0.213258
   ...
 # Subtest: v0.54.3 anchor fallback preserves every must-exist Blueprint element in hidden Canon
 ok 511 - v0.54.3 anchor fallback preserves every must-exist Blueprint element in hidden Canon
   ---
-  duration_ms: 0.427422
+  duration_ms: 0.440613
   ...
 # Subtest: AI-selected worldTheme becomes the single canonical seed-compliance theme
 ok 512 - AI-selected worldTheme becomes the single canonical seed-compliance theme
   ---
-  duration_ms: 1.305951
+  duration_ms: 1.358968
   ...
 # Subtest: theme canonicalization does not invent missing compliance rows
 ok 513 - theme canonicalization does not invent missing compliance rows
   ---
-  duration_ms: 0.151384
+  duration_ms: 0.16065
   ...
 # Subtest: both direct and server world paths canonicalize theme before Engine validation
 ok 514 - both direct and server world paths canonicalize theme before Engine validation
   ---
-  duration_ms: 9.378715
+  duration_ms: 9.665462
   ...
 # Subtest: core normalization tolerates common model shape drift without inventing lore
 ok 515 - core normalization tolerates common model shape drift without inventing lore
   ---
-  duration_ms: 0.927952
+  duration_ms: 0.986512
   ...
 # Subtest: semantic core repair merges only supplied corrections and reports unresolved requirements
 ok 516 - semantic core repair merges only supplied corrections and reports unresolved requirements
   ---
-  duration_ms: 0.467899
+  duration_ms: 0.491277
   ...
 # Subtest: two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states
 ok 517 - two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states
   ---
-  duration_ms: 0.565561
+  duration_ms: 0.58378
   ...
 # Subtest: two-agent waves share one anchor and Engine validates cross-stage references
 ok 518 - two-agent waves share one anchor and Engine validates cross-stage references
   ---
-  duration_ms: 1.324337
+  duration_ms: 1.394654
   ...
 # Subtest: link validation rejects disconnected future events and cast content
 ok 519 - link validation rejects disconnected future events and cast content
   ---
-  duration_ms: 0.294572
+  duration_ms: 0.298608
   ...
 # Subtest: linked core agents cannot drift from the Engine-owned world identity
 ok 520 - linked core agents cannot drift from the Engine-owned world identity
   ---
-  duration_ms: 1.071942
+  duration_ms: 1.044652
   ...
 # Subtest: identity fallback never turns World Constitution labels into worldName or worldTheme
 ok 521 - identity fallback never turns World Constitution labels into worldName or worldTheme
   ---
-  duration_ms: 0.642426
+  duration_ms: 0.590774
   ...
 # Subtest: identity fallback construction always produces complete seed compliance rows
 ok 522 - identity fallback construction always produces complete seed compliance rows
   ---
-  duration_ms: 0.223419
+  duration_ms: 0.230701
   ...
 # Subtest: future links salvage known anchor aliases and drop invented locations without discarding valid history links
 ok 523 - future links salvage known anchor aliases and drop invented locations without discarding valid history links
   ---
-  duration_ms: 0.544793
+  duration_ms: 0.535801
   ...
 # Subtest: future link validator accepts starting settlement as a canonical anchor target
 ok 524 - future link validator accepts starting settlement as a canonical anchor target
   ---
-  duration_ms: 0.234991
+  duration_ms: 0.24063
   ...
 # Subtest: World Creation 2.0 resolves deterministic random values before AI
 ok 525 - World Creation 2.0 resolves deterministic random values before AI
   ---
-  duration_ms: 3.163989
+  duration_ms: 3.140265
   ...
 # Subtest: locked fields remain USER-owned even when their mode says random or style
 ok 526 - locked fields remain USER-owned even when their mode says random or style
   ---
-  duration_ms: 0.327775
+  duration_ms: 0.291234
   ...
 # Subtest: degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values
 ok 527 - degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values
   ---
-  duration_ms: 1.782125
+  duration_ms: 1.912072
   ...
 # Subtest: custom world style stays first-class and becomes Seed style foundation
 ok 528 - custom world style stays first-class and becomes Seed style foundation
   ---
-  duration_ms: 0.727936
+  duration_ms: 0.789985
   ...
 # Subtest: hard Constitution tags compile ahead of long freeform text
 ok 529 - hard Constitution tags compile ahead of long freeform text
   ---
-  duration_ms: 0.500018
+  duration_ms: 0.464788
   ...
 # Subtest: Blueprint Compliance rejects missing required, positive forbidden and profile drift
 ok 530 - Blueprint Compliance rejects missing required, positive forbidden and profile drift
   ---
-  duration_ms: 1.26839
+  duration_ms: 1.364689
   ...
 # Subtest: Blueprint Compliance accepts equivalent wording for built-in technology requirements
 ok 531 - Blueprint Compliance accepts equivalent wording for built-in technology requirements
   ---
-  duration_ms: 0.696728
+  duration_ms: 0.668839
   ...
 # Subtest: Blueprint Compliance accepts explicit prohibitions and reports named compliance rows
 ok 532 - Blueprint Compliance accepts explicit prohibitions and reports named compliance rows
   ---
-  duration_ms: 0.753835
+  duration_ms: 0.734271
   ...
 # Subtest: creation state persists origin role difficulty and dynamic constitution
 ok 533 - creation state persists origin role difficulty and dynamic constitution
   ---
-  duration_ms: 1.291534
+  duration_ms: 1.318011
   ...
 # Subtest: World Contract is public projection and keeps hidden truth out
 ok 534 - World Contract is public projection and keeps hidden truth out
   ---
-  duration_ms: 0.888828
+  duration_ms: 0.907495
   ...
 # Subtest: Blueprint Compliance rejects weather contradictions and prompt-template leakage
 ok 535 - Blueprint Compliance rejects weather contradictions and prompt-template leakage
   ---
-  duration_ms: 0.743165
+  duration_ms: 0.696702
   ...
 # Subtest: world compiler produces valid seed-derived canon
 ok 536 - world compiler produces valid seed-derived canon
   ---
-  duration_ms: 4.245739
+  duration_ms: 4.334686
   ...
 # Subtest: new game has persistent runtime domains without preset action buttons
 ok 537 - new game has persistent runtime domains without preset action buttons
   ---
-  duration_ms: 2.118086
+  duration_ms: 2.322608
   ...
 # Subtest: validator rejects broken world
 ok 538 - validator rejects broken world
   ---
-  duration_ms: 0.188614
+  duration_ms: 0.195355
   ...
 # Subtest: d20 stays inside rules
 ok 539 - d20 stays inside rules
   ---
-  duration_ms: 0.328456
+  duration_ms: 0.306432
   ...
 # Subtest: arbitrary action appends a generic player event without fixed companion logic
 ok 540 - arbitrary action appends a generic player event without fixed companion logic
   ---
-  duration_ms: 9.387662
+  duration_ms: 9.58969
   ...
 # Subtest: AI candidate assigns hidden world truth without giving it to the player
 ok 541 - AI candidate assigns hidden world truth without giving it to the player
   ---
-  duration_ms: 10.146908
+  duration_ms: 10.474453
   ...
 # Subtest: invalid AI candidate is rejected
 ok 542 - invalid AI candidate is rejected
   ---
-  duration_ms: 0.638127
+  duration_ms: 0.640236
   ...
 # Subtest: AI world is rejected when seed compliance mismatches user settings
 ok 543 - AI world is rejected when seed compliance mismatches user settings
   ---
-  duration_ms: 0.838314
+  duration_ms: 0.91539
   ...
 # Subtest: custom world prompt is a hard seed requirement
 ok 544 - custom world prompt is a hard seed requirement
   ---
-  duration_ms: 0.664066
+  duration_ms: 0.694367
   ...
 # Subtest: high political complexity requires an opening faction structure
 ok 545 - high political complexity requires an opening faction structure
   ---
-  duration_ms: 0.719601
+  duration_ms: 0.717811
   ...
 # Subtest: free action is recorded and advances profile-specific minutes
 ok 546 - free action is recorded and advances profile-specific minutes
   ---
-  duration_ms: 1.847187
+  duration_ms: 1.933461
   ...
 # Subtest: user supplied player name overrides AI naming
 ok 547 - user supplied player name overrides AI naming
   ---
-  duration_ms: 2.601023
+  duration_ms: 2.681949
   ...
 # Subtest: new game contains main quest
 ok 548 - new game contains main quest
   ---
-  duration_ms: 0.392267
+  duration_ms: 0.413401
   ...
 # Subtest: world-ready notification fires when World Contract is ready before crossing
 ok 549 - world-ready notification fires when World Contract is ready before crossing
   ---
-  duration_ms: 6.062521
+  duration_ms: 6.514346
   ...
 # Subtest: notification copy tells player to review contract before crossing
 ok 550 - notification copy tells player to review contract before crossing
   ---
-  duration_ms: 2.448026
+  duration_ms: 2.509738
   ...
 # Subtest: world-ready notification never leaks the hidden generated world name
 ok 551 - world-ready notification never leaks the hidden generated world name
   ---
-  duration_ms: 2.183129
+  duration_ms: 2.246616
   ...
 # Subtest: LOCAL delayed consequence cannot mutate WORLD authority
 ok 552 - LOCAL delayed consequence cannot mutate WORLD authority
   ---
-  duration_ms: 10.728161
+  duration_ms: 11.047273
   ...
 # Subtest: invalid delayed mutation cannot create phantom influence
 ok 553 - invalid delayed mutation cannot create phantom influence
   ---
-  duration_ms: 1.176469
+  duration_ms: 1.203618
   ...
 # Subtest: failed roll cannot create positive durable local result
 ok 554 - failed roll cannot create positive durable local result
   ---
-  duration_ms: 0.918805
+  duration_ms: 0.973338
   ...
 # Subtest: failed roll may record a real cost without granting success
 ok 555 - failed roll may record a real cost without granting success
   ---
-  duration_ms: 1.291825
+  duration_ms: 1.260945
   ...
 # Subtest: pending consequences are never silently evicted after forty
 ok 556 - pending consequences are never silently evicted after forty
   ---
-  duration_ms: 6.284597
+  duration_ms: 6.110181
   ...
 # Subtest: remote consequence changes state but does not leak until observed locally
 ok 557 - remote consequence changes state but does not leak until observed locally
   ---
-  duration_ms: 1.320188
+  duration_ms: 1.306821
   ...
 # Subtest: timeline impacts stay inside event window and due events trigger by effective day
 ok 558 - timeline impacts stay inside event window and due events trigger by effective day
   ---
-  duration_ms: 1.326871
+  duration_ms: 1.404073
   ...
 # Subtest: future or malformed save versions are rejected and malformed impact state fails validation
 ok 559 - future or malformed save versions are rejected and malformed impact state fails validation
   ---
-  duration_ms: 3.721145
+  duration_ms: 3.826316
   ...
 # Subtest: unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes
 ok 560 - unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes
   ---
-  duration_ms: 1.11354
+  duration_ms: 1.117418
   ...
 # Subtest: FACTION consequence cannot jump from its parent faction to another faction
 ok 561 - FACTION consequence cannot jump from its parent faction to another faction
   ---
-  duration_ms: 8.578343
+  duration_ms: 8.937001
   ...
 # Subtest: local player impact mutates current state and appends immutable impact history
 ok 562 - local player impact mutates current state and appends immutable impact history
   ---
-  duration_ms: 9.441914
+  duration_ms: 10.209338
   ...
 # Subtest: semantic impact effects are converted into scope-bounded Engine numbers
 ok 563 - semantic impact effects are converted into scope-bounded Engine numbers
   ---
-  duration_ms: 1.05478
+  duration_ms: 1.363727
   ...
 # Subtest: impact engine refuses unknown targets and excessive early-game scope
 ok 564 - impact engine refuses unknown targets and excessive early-game scope
   ---
-  duration_ms: 1.093813
+  duration_ms: 1.122236
   ...
 # Subtest: regional influence unlocks through accumulated knowledge and prior impact
 ok 565 - regional influence unlocks through accumulated knowledge and prior impact
   ---
-  duration_ms: 1.326399
+  duration_ms: 1.398973
   ...
 # Subtest: delayed consequences fire from world time instead of the original turn
 ok 566 - delayed consequences fire from world time instead of the original turn
   ---
-  duration_ms: 1.764883
+  duration_ms: 1.838995
   ...
 # Subtest: player can alter future timeline timing without rewriting the base event
 ok 567 - player can alter future timeline timing without rewriting the base event
   ---
-  duration_ms: 1.448139
+  duration_ms: 1.506484
   ...
 # Subtest: failed roll cannot escalate a proposed impact above local scope
 ok 568 - failed roll cannot escalate a proposed impact above local scope
   ---
-  duration_ms: 0.85214
+  duration_ms: 0.842133
   ...
 # Subtest: impact snapshot gives Director current mutable state and recent player consequences
 ok 569 - impact snapshot gives Director current mutable state and recent player consequences
   ---
-  duration_ms: 1.175449
+  duration_ms: 1.050091
   ...
 # Subtest: save format v11 preserves impact runtime and initializes recognition
 ok 570 - save format v11 preserves impact runtime and initializes recognition
   ---
-  duration_ms: 4.401092
+  duration_ms: 4.805245
   ...
 # Subtest: invalid impact candidate is rejected before mutation
 ok 571 - invalid impact candidate is rejected before mutation
   ---
-  duration_ms: 0.329999
+  duration_ms: 0.343362
   ...
 # Subtest: generation diagnostics separates structural success from fallback degradation
 ok 572 - generation diagnostics separates structural success from fallback degradation
   ---
-  duration_ms: 1.495988
+  duration_ms: 1.519227
   ...
 # Subtest: critic normalization keeps structured repair targets
 ok 573 - critic normalization keeps structured repair targets
   ---
-  duration_ms: 0.511981
+  duration_ms: 0.458356
   ...
 # Subtest: repair patch cannot retcon identity history timeline windows or provenance
 ok 574 - repair patch cannot retcon identity history timeline windows or provenance
   ---
-  duration_ms: 0.973247
+  duration_ms: 0.997794
   ...
 # Subtest: fallback critic detects knowledge leak and generic future events
 ok 575 - fallback critic detects knowledge leak and generic future events
   ---
-  duration_ms: 0.988716
+  duration_ms: 1.026227
   ...
 # Subtest: runtime expansion requires valid history provenance and schedules maintenance
 ok 576 - runtime expansion requires valid history provenance and schedules maintenance
   ---
-  duration_ms: 0.618151
+  duration_ms: 0.671745
   ...
 # Subtest: canonization persists valid historyRefs on locations npcs factions and quests
 ok 577 - canonization persists valid historyRefs on locations npcs factions and quests
   ---
-  duration_ms: 6.769778
+  duration_ms: 6.956192
   ...
 # Subtest: fallback critic always creates actionable findings for unresolved fallback stages
 ok 578 - fallback critic always creates actionable findings for unresolved fallback stages
   ---
-  duration_ms: 0.728698
+  duration_ms: 0.784365
   ...
 # Subtest: successful recovery suppresses stage fallback findings but preserves diagnostics history
 ok 579 - successful recovery suppresses stage fallback findings but preserves diagnostics history
   ---
-  duration_ms: 0.357641
+  duration_ms: 0.344173
   ...
 # Subtest: fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references
 ok 580 - fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references
   ---
-  duration_ms: 1.017029
+  duration_ms: 1.057074
   ...
 # Subtest: quality normalization fills omitted dimensions from the supplied overall score
 ok 581 - quality normalization fills omitted dimensions from the supplied overall score
   ---
-  duration_ms: 0.267262
+  duration_ms: 0.308196
   ...
 # Subtest: random world settings fills legacy quick-random fields
 ok 582 - random world settings fills legacy quick-random fields
   ---
-  duration_ms: 1.330758
+  duration_ms: 1.39777
   ...
 # Subtest: random world settings rejects missing option sets
 ok 583 - random world settings rejects missing option sets
   ---
-  duration_ms: 0.38893
+  duration_ms: 0.406229
   ...
 # Subtest: World Creation UI provides Custom World and 1-10 degree sliders
 ok 584 - World Creation UI provides Custom World and 1-10 degree sliders
   ---
-  duration_ms: 6.929298
+  duration_ms: 7.368832
   ...
 # Subtest: World Constitution Tag Builder has preset library and custom tags for all three rule buckets
 ok 585 - World Constitution Tag Builder has preset library and custom tags for all three rule buckets
   ---
-  duration_ms: 3.133963
+  duration_ms: 3.311294
   ...
 # Subtest: reroll only changes creator settings and never generates a world
 ok 586 - reroll only changes creator settings and never generates a world
   ---
-  duration_ms: 1.908031
+  duration_ms: 2.016326
   ...
 1..586
 # tests 586
@@ -737,4 +737,4 @@ ok 586 - reroll only changes creator settings and never generates a world
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 8283.182352
+# duration_ms 8698.39738
