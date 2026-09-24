@@ -17,6 +17,27 @@ const WORLD_FIELDS=new Set(["tension","crisisPressure"]);
 const STRUCTURE_STATES=new Set(["ACTIVE","OPEN","RESTORED","STABILIZED","DAMAGED","DESTROYED","CLOSED","FLOODED","ABANDONED","CORRUPTED","TRANSFORMED"]);
 const ITEM_CATEGORIES=new Set(["MATERIAL","CONSUMABLE","TOOL","EQUIPMENT","KEY","QUEST","ARTIFACT"]);
 const ITEM_EFFECTS=new Set(["RESTORE_HP","RESTORE_SATIETY","REDUCE_FATIGUE","REDUCE_EXPOSURE","REDUCE_INJURY","REDUCE_MAGIC_STRAIN"]);
+const QUEST_LIFECYCLE_STATUSES=new Set(["HIDDEN","DISCOVERABLE","OFFERED","ACTIVE","DECLINED","EXPIRED","FAILED","ABANDONED","COMPLETED"]);
+const COMMITMENT_STATUSES=new Set(["OPEN","KEPT","BROKEN","EXPIRED"]);
+function validCommitment(x){return obj(x)&&typeof x.id==="string"&&Boolean(x.id)&&COMMITMENT_STATUSES.has(String(x.status||"").toUpperCase())&&(x.questId==null||typeof x.questId==="string")&&(x.targetId==null||typeof x.targetId==="string")}
+function validNpcCognition(x){if(!obj(x))return false;if(x.memory!=null&&(!obj(x.memory)||!arr(x.memory.recent||[])||!arr(x.memory.longTerm||[])))return false;if(x.beliefs!=null&&!arr(x.beliefs))return false;if(x.relationships!=null&&!obj(x.relationships))return false;if(x.commitments!=null&&(!arr(x.commitments)||x.commitments.some(c=>!validCommitment(c))))return false;if(x.planner!=null&&!obj(x.planner))return false;return true}
+function validateQuestCommitmentLinks(registry,errors){
+ const npcById=new Map(registry.npcs.map(n=>[n.id,n])),questById=new Map(registry.sideQuests.map(q=>[q.id,q]));
+ for(const npc of registry.npcs)if(npc.cognition!=null&&!validNpcCognition(npc.cognition))errors.push("NPC_COGNITION_INVALID");
+ for(const q of registry.sideQuests){
+  const status=String(q.status||"").toUpperCase();if(q.status!=null&&!QUEST_LIFECYCLE_STATUSES.has(status))errors.push("QUEST_LIFECYCLE_INVALID");if(q.issuerNpcId&&!npcById.has(q.issuerNpcId))errors.push("QUEST_ISSUER_INVALID");if(!q.commitmentId)continue;
+  const issuer=npcById.get(q.issuerNpcId),commitments=issuer?.cognition?.commitments,commitment=Array.isArray(commitments)?commitments.find(c=>c.id===q.commitmentId):null;
+  if(!issuer||!commitment||commitment.questId!==q.id||commitment.targetId!==issuer.id){errors.push("QUEST_COMMITMENT_LINK_INVALID");continue}
+  const cStatus=String(commitment.status||"").toUpperCase();
+  if(status==="ACTIVE"&&cStatus!=="OPEN")errors.push("QUEST_COMMITMENT_STATE_INVALID");
+  if(status==="COMPLETED"&&cStatus!=="KEPT")errors.push("QUEST_COMMITMENT_STATE_INVALID");
+  if(status==="ABANDONED"&&cStatus!=="BROKEN")errors.push("QUEST_COMMITMENT_STATE_INVALID");
+  if(status==="FAILED"&&!["BROKEN","EXPIRED"].includes(cStatus))errors.push("QUEST_COMMITMENT_STATE_INVALID");
+  if(status==="EXPIRED"&&cStatus!=="EXPIRED")errors.push("QUEST_COMMITMENT_STATE_INVALID");
+  if(["HIDDEN","DISCOVERABLE","OFFERED","DECLINED"].includes(status))errors.push("QUEST_COMMITMENT_STATE_INVALID")
+ }
+ for(const npc of registry.npcs)for(const commitment of Array.isArray(npc.cognition?.commitments)?npc.cognition.commitments:[]){if(!commitment.questId)continue;const quest=questById.get(commitment.questId);if(!quest||quest.issuerNpcId!==npc.id||quest.commitmentId!==commitment.id)errors.push("QUEST_COMMITMENT_LINK_INVALID")}
+}
 function validItem(x){return obj(x)&&typeof x.id==="string"&&Boolean(x.id)&&typeof x.name==="string"&&Boolean(x.name.trim())&&ITEM_CATEGORIES.has(String(x.category||""))&&Number.isInteger(Number(x.quantity))&&Number(x.quantity)>=1&&Number(x.quantity)<=999&&arr(x.useEffects||[])&&(x.useEffects||[]).every(e=>obj(e)&&ITEM_EFFECTS.has(String(e.type||""))&&finite(Number(e.amount))&&Number(e.amount)>0)}
 function validRecipe(x){return obj(x)&&typeof x.id==="string"&&typeof x.name==="string"&&Boolean(x.name.trim())&&arr(x.inputs)&&x.inputs.length>0&&x.inputs.every(i=>obj(i)&&typeof i.name==="string"&&Number.isInteger(Number(i.quantity))&&Number(i.quantity)>=1)&&validItem(x.output)}
 
@@ -76,6 +97,7 @@ export function validateSaveState(s){
   if(registry.factions.some(x=>x.worldState!=null&&!validWorldState(x.worldState,"faction")))errors.push("FACTION_WORLD_STATE_INVALID");
   if(registry.factions.some(x=>x.resources!=null&&!bounded(Number(x.resources))||x.influence!=null&&!bounded(Number(x.influence))))errors.push("FACTION_STATE_INVALID");
   if(registry.sideQuests.some(x=>!validEntity(x,"title")))errors.push("QUEST_REGISTRY_INVALID")
+  validateQuestCommitmentLinks(registry,errors)
  }}
  const graph=s.world?.graph;if(graph!=null&&(!obj(graph)||!arr(graph.nodes)||!arr(graph.edges)||!arr(graph.expansions)))errors.push("GRAPH_INVALID");
  if(!obj(s.player)||typeof s.player.name!=="string"||!s.player.name.trim()||typeof s.player.worldNameKnown!=="boolean"||typeof s.player.calendarKnown!=="boolean"||!finite(s.player.hp)||!finite(s.player.maxHp)||!finite(s.player.gold)||!finite(s.player.knowledgeScore)||typeof s.player.location!=="string"||!obj(s.player.wallet||{}))errors.push("PLAYER_INVALID");

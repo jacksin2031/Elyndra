@@ -1,6 +1,6 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=57001";
-import {ensureQuestProgress} from "./quest-engine.js?v=57001";
-import {createNpcCommitment,ensureNpcCognition,npcRelationshipSnapshot,recordNpcMemory,resolveNpcCommitment} from "./npc-cognition.js?v=57001";
+import {ensureWorldRegistry} from "./world-registry.js?v=57002";
+import {ensureQuestProgress} from "./quest-engine.js?v=57002";
+import {createNpcCommitment,ensureNpcCognition,npcRelationshipSnapshot,recordNpcMemory,resolveNpcCommitment} from "./npc-cognition.js?v=57002";
 
 const uid=p=>p+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=260)=>typeof v==="string"?v.normalize("NFC").trim().slice(0,max):"";

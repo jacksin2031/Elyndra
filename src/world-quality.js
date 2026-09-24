@@ -1,4 +1,4 @@
-import {ensureVisibilityLocks,backgroundMutableFields,canBackgroundMutateEntity} from "./visibility-lock.js?v=57001";
+import {ensureVisibilityLocks,backgroundMutableFields,canBackgroundMutateEntity} from "./visibility-lock.js?v=57002";
 const obj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
