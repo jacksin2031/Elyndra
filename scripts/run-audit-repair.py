@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import subprocess
 
 status = []
@@ -58,17 +59,39 @@ if changed:
     subprocess.run(['git', 'commit', '-m', 'fix: restore v0.54.19 action profiles after parser repair'], check=True)
     subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
 
-# Keep an inspectable copy of the full test output while the temporary repair
-# workflow is active. GitHub's connector does not expose raw step logs, so this
-# file makes the exact failing assertion available on the repair branch.
+# Capture the suite once inside the repair step. Besides the tail, emit a compact
+# failure index so connector clients can inspect every failed test without the
+# enormous `actual:` payload produced by source-regex assertions.
 test_run = subprocess.run(['npm', 'test'], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 output = test_run.stdout or ''
 Path('audit-test-output.txt').write_text(output[-60000:], encoding='utf-8')
-subprocess.run(['git', 'add', 'audit-test-output.txt'], check=True)
+lines = output.splitlines()
+failures = []
+for i, line in enumerate(lines):
+    if not re.match(r'^not ok\s+\d+\s+-\s+', line):
+        continue
+    item = [line]
+    window = lines[i + 1:i + 80]
+    wanted_prefixes = ('  error:', '  code:', '  operator:', '  expected:')
+    for row in window:
+        if re.match(r'^(ok|not ok)\s+\d+\s+-\s+', row) or row.startswith('# Subtest:'):
+            break
+        if row.startswith(wanted_prefixes):
+            item.append(row[:1000])
+        elif 'TestContext.<anonymous>' in row:
+            item.append(row.strip())
+    failures.append('\n'.join(item))
+summary_rows = [row for row in lines if re.match(r'^# (tests|pass|fail|cancelled|skipped|todo)\s', row)]
+compact = '\n\n'.join(failures)
+if summary_rows:
+    compact += '\n\n' + '\n'.join(summary_rows)
+Path('audit-test-failures.txt').write_text(compact + '\n', encoding='utf-8')
+subprocess.run(['git', 'add', 'audit-test-output.txt', 'audit-test-failures.txt'], check=True)
 diagnostic_changed = subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode != 0
 if diagnostic_changed:
-    subprocess.run(['git', 'commit', '-m', 'chore: capture v0.54.19 failing test output'], check=True)
+    subprocess.run(['git', 'commit', '-m', 'chore: capture compact v0.54.19 test failures'], check=True)
     subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
 
 status.append(f'full suite diagnostic exit={test_run.returncode}')
+status.append(f'failed tests captured={len(failures)}')
 print('\n'.join(status))
