@@ -1,4 +1,4 @@
-import {applyOriginRuntime} from "./origin-runtime.js?v=55000";
+import {applyOriginRuntime} from "./origin-runtime.js?v=55001";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=v=>Array.isArray(v)?v.map(x=>clean(x,120)).filter(Boolean):clean(v,1200).split(/[\n,，;；]+/).map(x=>clean(x,120)).filter(Boolean);
@@ -248,14 +248,20 @@ function requiredElementMentioned(source,term){
  return false
 }
 function positiveMention(source,term){
- const s=String(source||"").toLocaleLowerCase(),t=String(term||"").toLocaleLowerCase();if(!t)return false;
+ const s=String(source||"").normalize("NFKC").toLocaleLowerCase(),t=String(term||"").normalize("NFKC").toLocaleLowerCase();if(!t)return false;
  let at=s.indexOf(t);
  while(at>=0){
-  const before=s.slice(Math.max(0,at-24),at);
-  if(!/(沒有|不存在|禁止|不得|不可|不會|未發展|排除|無法使用|不使用|without|forbid|prohibit|no\s*$)/i.test(before))return true;
+  const before=s.slice(Math.max(0,at-28),at),after=s.slice(at+t.length,Math.min(s.length,at+t.length+24)),around=before+"<TERM>"+after;
+  const negated=/(?:沒有|不存在|並不存在|從未存在|禁止|不得|不可|不會|未發展|排除|無法使用|不使用|無此|並無|without|forbid|prohibit|does not exist|do not exist|doesn't exist|never existed|no\s*$)/i.test(before)||/^(?:並)?(?:不存在|沒有|並無|不會存在|被禁止|is absent|does not exist|is forbidden)/i.test(after.trim())||/(?:不存在|沒有|並無).{0,8}<TERM>/i.test(around);
+  if(!negated)return true;
   at=s.indexOf(t,at+t.length)
  }
  return false
+}
+function positiveRequiredMention(source,term){
+ const variants=[String(term||"").trim(),...(REQUIRED_TERM_ALIASES[String(term||"").trim()]||[])].filter(Boolean);
+ if(variants.some(v=>positiveMention(source,v)))return true;
+ return normalizeRequirementText(term)==="人工智慧"&&/(?:^|[^a-z0-9])a\.?i\.?(?:[^a-z0-9]|$)/i.test(String(source||""))&&!/(?:沒有|不存在|禁止|不得|without|no)\s*.{0,12}a\.?i\.?/i.test(String(source||""))
 }
 const WORLD_TEMPLATE_PLACEHOLDER=/^\s*(?:\d+\s*-\s*\d+\s*字|地點類型|簡短|可空或穩定ID)(?:\s*[:：]|$)|\bnearby\b/i;
 function semanticCandidateErrors(candidate){
@@ -271,12 +277,12 @@ export function validateWorldCreationCandidate(seed,candidate){
  const searchable=JSON.stringify({
   worldTheme:candidate?.worldTheme||"",summary:candidate?.summary||"",worldBible:bible,
   publicFacts:candidate?.publicFacts||[],hiddenFacts:candidate?.hiddenFacts||[],worldHistory:candidate?.worldHistory||[],
-  generation:candidate?.generation||{}
- }).toLocaleLowerCase();
- for(const term of rules.required||[])if(term&&!requiredElementMentioned(searchable,term))errors.push("WC2_REQUIRED_MISSING:"+term);
+  worldTimeline:candidate?.worldTimeline||[],generation:candidate?.generation||{}
+ });
+ for(const term of rules.required||[])if(term&&!positiveRequiredMention(searchable,term))errors.push("WC2_REQUIRED_MISSING:"+term);
  const generated=JSON.stringify({
-  theme:candidate?.worldTheme||"",summary:candidate?.summary||"",facts:[...(candidate?.publicFacts||[]),...(candidate?.hiddenFacts||[])],
-  history:candidate?.worldHistory||[],generation:candidate?.generation||{}
+  theme:candidate?.worldTheme||"",summary:candidate?.summary||"",worldBible:bible,openingHook:candidate?.openingHook||"",
+  facts:[...(candidate?.publicFacts||[]),...(candidate?.hiddenFacts||[])],history:candidate?.worldHistory||[],timeline:candidate?.worldTimeline||[],generation:candidate?.generation||{}
  });
  for(const term of rules.forbidden||[])if(term&&positiveMention(generated,term))errors.push("WC2_FORBIDDEN_PRESENT:"+term);
  errors.push(...semanticCandidateErrors(candidate));

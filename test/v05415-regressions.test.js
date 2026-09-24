@@ -32,7 +32,7 @@ test("v0.54.15 keeps intra-location search OBSERVE but preserves genuine named T
 
 test("v0.54.15 gives Runtime Society enough output headroom and escalates retry budget",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/RUNTIME_SOCIETY[\s\S]*?timeoutMs:55000,maxOutputTokens:2400/);
+ assert.match(client,/RUNTIME_SOCIETY[\s\S]*?timeoutMs:55001,maxOutputTokens:2400/);
  assert.match(client,/attemptTokens=attempt>1\?Math\.min\(3600/);
  assert.match(client,/被截斷，縮短自由文字但必須完整閉合 JSON/);
  assert.match(client,/runtimeRows\(value,"npcs",slots\.npcs\)\.map\(normalizeRuntimeNpc\)/);

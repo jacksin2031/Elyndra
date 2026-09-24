@@ -1,5 +1,5 @@
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=55000";
-import {ensureFutureEngine} from "./future-engine.js?v=55000";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=55001";
+import {ensureFutureEngine} from "./future-engine.js?v=55001";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(rows,max=12)=>[...new Set((Array.isArray(rows)?rows:[]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);

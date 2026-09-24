@@ -1,9 +1,9 @@
-import {ensureCrisis} from "./crisis-engine.js?v=55000";
-import {recordCausalEvent} from "./knowledge-graph.js?v=55000";
-import {ensureWorldRegistry} from "./world-registry.js?v=55000";
-import {ensureClock} from "./world-clock.js?v=55000";
-import {ensureTravelNetwork} from "./travel-engine.js?v=55000";
-import {ensureNpcBehaviorProfile} from "./player-experience.js?v=55000";
+import {ensureCrisis} from "./crisis-engine.js?v=55001";
+import {recordCausalEvent} from "./knowledge-graph.js?v=55001";
+import {ensureWorldRegistry} from "./world-registry.js?v=55001";
+import {ensureClock} from "./world-clock.js?v=55001";
+import {ensureTravelNetwork} from "./travel-engine.js?v=55001";
+import {ensureNpcBehaviorProfile} from "./player-experience.js?v=55001";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function simulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:ensureClock(state).totalMinutes,flags:{}};state.world.state.simulation.npcCursor??=0;return state.world.state.simulation}
 function roundRobin(state,list,key,limit=4){if(!list.length)return [];const sim=simulation(state),count=Math.min(limit,list.length),start=Math.max(0,Number(sim[key])||0)%list.length,out=Array.from({length:count},(_,i)=>list[(start+i)%list.length]);sim[key]=(start+count)%list.length;return out}
