@@ -323,8 +323,9 @@ function scheduleWorldQualityCritic(reason="background_quality",delay=1400){
  if(worldQualityBackground.timer)clearTimeout(worldQualityBackground.timer);
  worldQualityBackground.timer=setTimeout(()=>{worldQualityBackground.timer=0;void runBackgroundWorldQualityCritic()},Math.max(350,Number(delay)||1400))
 }
-async function runBackgroundWorldQualityCritic(){
- if(developerAutotestActive||!gameState||!aiStatus.aiConfigured||worldQualityBackground.running)return;
+async function runBackgroundWorldQualityCritic(options={}){
+ const allowAutotest=options?.allowAutotest===true;
+ if((developerAutotestActive&&!allowAutotest)||!gameState||!aiStatus.aiConfigured||worldQualityBackground.running)return;
  const need=backgroundQualityNeed(gameState);if(!need.required)return;
  if(aiBusy||turnSyncBusy||nonblockingScene.controller||deferredDirector.running||deferredDirector.queue.length||worldBackground.running||historyBackground.running||gameState.combat?.active||document.hidden){scheduleWorldQualityCritic(need.reason,2600);return}
  const state=gameState,sessionToken=captureStateSession(),worldId=gameState.world?.id,baseVersion=Number(gameState.world?.version)||1,ctrl=new AbortController(),startedAt=Date.now();
@@ -951,6 +952,24 @@ async function waitForAutotestIdle(timeoutMs=12000){
  recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});
  return false
 }
+async function finalizeDeveloperAutotestWorld(config={}){
+ if(!gameState||developerAutotest.stopRequested||developerAutotest.batchController?.signal?.aborted)return false;
+ const timeoutMs=config.disableTimeout===true?180000:90000,started=Date.now();
+ while(Date.now()-started<timeoutMs){
+  const settled=!document.hidden&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running;
+  if(settled)break;
+  if(document.hidden)await waitForAutotestVisible();else await new Promise(r=>setTimeout(r,120))
+ }
+ const runtimeSettled=!document.hidden&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running;
+ if(!runtimeSettled){recordDebug("AUTOTEST_FINAL_SETTLE_TIMEOUT",{timeoutMs,foregroundIdle:autotestForegroundIdle(),runtimeExpansion:autotestRuntimeExpansion.running,worldBackground:worldBackground.running,historyBackground:historyBackground.running});return false}
+ if(backgroundQualityNeed(gameState).required){
+  recordDebug("AUTOTEST_FINAL_QUALITY_STARTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});
+  await runBackgroundWorldQualityCritic({allowAutotest:true})
+ }
+ const qualitySettled=!backgroundQualityNeed(gameState).required;
+ recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled});
+ return qualitySettled
+}
 async function waitForAutotestActionReady(timeoutMs=38000){
  const started=Date.now();
  while(Date.now()-started<timeoutMs){
@@ -1034,6 +1053,7 @@ async function startDeveloperAutotest(config){
     result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
     replaceGameState(generated.state,"AUTOTEST_WORLD_READY");const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);
     if(config.mode==="worlds"){
+     await finalizeDeveloperAutotestWorld(config);
      result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
      appendDeveloperAutotestLog(`世界 ${i} 生成驗證完成。`);continue
     }
@@ -1067,6 +1087,7 @@ async function startDeveloperAutotest(config){
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:false},config,{});if(stop){result.stopReason=stop;break}
      }
     }
+    await finalizeDeveloperAutotestWorld(config);
     result.stopReason=result.stopReason||"TURN_LIMIT";result.status="COMPLETED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
     recordDebug("AUTOTEST_WORLD_PLAY_COMPLETED",{index:i,turns:result.turns,stopReason:result.stopReason,summary:result.summary});appendDeveloperAutotestLog(`世界 ${i} 遊玩測試完成：${result.turns} 回合 · ${result.stopReason}`)
    }catch(e){
