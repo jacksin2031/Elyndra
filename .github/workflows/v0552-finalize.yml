@@ -1,0 +1,83 @@
+name: v0552-finalize
+
+on:
+  push:
+    branches:
+      - fix/v0.55.2-runtime-autotest
+    paths:
+      - .github/workflows/v0552-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.55.2-runtime-autotest
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply v0.55.2 finalization patches
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          function read(p){return fs.readFileSync(p,'utf8')}
+          function write(p,s){fs.writeFileSync(p,s)}
+          function replaceOne(source,from,to,label){
+            const parts=source.split(from);
+            if(parts.length!==2)throw new Error(`${label}: expected exactly one match, got ${parts.length-1}`);
+            return parts[0]+to+parts[1]
+          }
+          const pkg=JSON.parse(read('package.json'));pkg.version='0.55.2';write('package.json',JSON.stringify(pkg,null,2)+'\n');
+          write('src/version.js','export const APP_VERSION="0.55.2";\n');
+
+          let contextual=read('src/contextual-actions.js');
+          contextual=replaceOne(contextual,
+            'const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\\s*([^，。；、,.;!?！？]{2,36})|(?:展示|出示|拿出)\\s*(?:一(?:個|枚|片|件|瓶|把|本|張|塊|顆|粒))?\\s*([^，。；、,.;!?！？]{2,36})/i;',
+            'const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\\s*([^，。；、,.;!?！？]{2,36})/i;',
+            'narrow possession inference');
+          contextual=replaceOne(contextual,
+            'const SPECIAL_POWER=/靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense/i;',
+            'const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;',
+            'narrow special power inference');
+          contextual=replaceOne(contextual,'const special=x.action.match(SPECIAL_POWER)?.[0];','const special=x.action.match(SPECIAL_POWER)?.[1];','special power capture');
+          write('src/contextual-actions.js',contextual);
+
+          let auto=read('src/ai-autotest.js');
+          auto=replaceOne(auto,'./ai-settings.js?v=55001','./ai-settings.js?v=55002','ai-autotest -> ai-settings cache');
+          write('src/ai-autotest.js',auto);
+
+          let app=read('app.js');
+          for(const mod of ['version','ai-settings','contextual-actions','lazy-generation','ai-autotest']){
+            app=replaceOne(app,`./src/${mod}.js?v=55001`,`./src/${mod}.js?v=55002`,`app -> ${mod} cache`)
+          }
+          app=replaceOne(app,
+            'const qualitySettled=!backgroundQualityNeed(gameState).required;',
+            'const finalQuality=gameState?.world?.quality||{},qualitySettled=!backgroundQualityNeed(gameState).required&&finalQuality.pending!==true&&finalQuality.backgroundPending!==true&&String(finalQuality.status||"").toUpperCase()!=="PENDING";',
+            'final quality settlement predicate');
+          app=replaceOne(app,
+            'recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled});',
+            'const finalQualitySettleKey=[gameState?.world?.id||"",developerAutotest.turn,qualitySettled].join(":");if(developerAutotest.finalQualitySettleKey!==finalQualitySettleKey){developerAutotest.finalQualitySettleKey=finalQualitySettleKey;recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled})}',
+            'final quality telemetry dedupe');
+          write('app.js',app);
+
+          let html=read('index.html');
+          html=replaceOne(html,'app.js?v=55001','app.js?v=55002','index app cache');
+          write('index.html',html);
+          NODE
+      - name: Verify full test suite
+        run: npm test
+      - name: Commit verified v0.55.2 and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "Elyndra v0.55.2 Finalizer"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/v0552-finalize.yml
+          git add package.json src/version.js src/contextual-actions.js src/ai-autotest.js app.js index.html
+          git commit -m "v0.55.2: harden runtime recovery and autotest resilience"
+          git push origin HEAD:fix/v0.55.2-runtime-autotest
