@@ -1,20 +1,24 @@
-import {d20} from "./world-engine.js?v=54018";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=54018";
-import {advanceTime,ensureClock} from "./world-clock.js?v=54018";
-import {tickWorld} from "./world-simulation.js?v=540181";
-import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=54018";
-import {applyCultureAction} from "./culture-engine.js?v=54018";
-import {resolveEconomyAction} from "./economy-engine.js?v=54018";
-import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=54018";
-import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=54018";
-import {exploreDungeon} from "./dungeon-engine.js?v=54018";
-import {resolveTalentAction} from "./talent-engine.js?v=54018";
-import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=54018";
-import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=54018";
-import {isNpcPresent} from "./world-registry.js?v=54018";
-import {markEntityObserved} from "./visibility-lock.js?v=54018";
+import {d20} from "./world-engine.js?v=54019";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=54019";
+import {advanceTime,ensureClock} from "./world-clock.js?v=54019";
+import {tickWorld} from "./world-simulation.js?v=54019";
+import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=54019";
+import {applyCultureAction} from "./culture-engine.js?v=54019";
+import {resolveEconomyAction} from "./economy-engine.js?v=54019";
+import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=54019";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=54019";
+import {exploreDungeon} from "./dungeon-engine.js?v=54019";
+import {resolveTalentAction} from "./talent-engine.js?v=54019";
+import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=54019";
+import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=54019";
+import {isNpcPresent} from "./world-registry.js?v=54019";
+import {markEntityObserved} from "./visibility-lock.js?v=54019";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
+const AMBIGUOUS_MUTATION=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意|如果|假如|若果|若|除非|是否|能否|可否|要不要|[?？]|[「」『』])/i;
+function explicitMutationCommand(value){const q=clean(value,180);return Boolean(q)&&!AMBIGUOUS_MUTATION.test(q)}
+function explicitRestCommand(value){const q=clean(value,180);return explicitMutationCommand(q)&&/^(?:請)?(?:休息|睡眠|睡覺|紮營|露營|rest|sleep|camp)(?:一下|一會兒|一陣|吧)?[。.!！]?$/i.test(q)}
+function explicitTravelCommand(value,name){const q=clean(value,180),target=clean(name,120);if(!target||!explicitMutationCommand(q))return false;const normalized=q.replace(/[「」『』"']/g,"").replace(/[。.!！]+$/g,"").trim(),lower=normalized.toLowerCase(),t=target.toLowerCase();return normalized===`前往${target}`||normalized===`移動到${target}`||normalized===`走到${target}`||normalized===`去${target}`||normalized===`請前往${target}`||lower===`travel to ${t}`||lower===`go to ${t}`||lower===`walk to ${t}`}
 const PROFILES={
  OBSERVE:{dc:10,minutes:15},
  SOCIAL:{dc:11,minutes:20},
@@ -24,7 +28,7 @@ const PROFILES={
 };
 export function actionProfile(input=""){
  const q=clean(input).toLowerCase();
- if(/休息|睡眠|紮營|露營|住宿|旅店|投宿|rest|sleep|camp|lodging|inn/.test(q))return {kind:"GENERAL",dc:7,minutes:240,rest:true};
+ if(explicitRestCommand(q)||(/住宿|旅店|投宿|lodging|inn/.test(q)&&explicitMutationCommand(q)))return {kind:"GENERAL",dc:7,minutes:240,rest:true};
  if(/施法|魔法|術式|咒|spell|cast|magic/.test(q))return {kind:"RISKY",dc:13,minutes:20,magic:true};
  if(/購買|買下|出售|賣掉|賣出|buy|sell/.test(q))return {kind:"SOCIAL",dc:9,minutes:20,economy:true};
  if(/觀察|查看|檢查|搜尋|調查|聆聽|閱讀|inspect|search|observe|listen/.test(q))return {kind:"OBSERVE",...PROFILES.OBSERVE};
@@ -96,12 +100,12 @@ function deterministicInfoAction(state,label){
  return null
 }
 function deterministicRestAction(state,label){
- const q=clean(label,180);if(!/休息|睡眠|睡覺|紮營|露營|rest|sleep|camp/i.test(q))return null;
+ const q=clean(label,180);if(!explicitRestCommand(q))return null;
  const minutes=/睡眠|睡覺|sleep/i.test(q)?480:/紮營|露營|camp/i.test(q)?60:120;advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL",rest:true});recoverMagic(state,Math.max(8,Math.round(minutes/20)));const worldEvent=tickWorld(state);tickMainQuest(state);
  return {handled:true,minutes,survival,worldEvent,text:`你休息了 ${minutes} 分鐘。身體狀態按時間與環境條件恢復。`}
 }
 function deterministicKnownTravel(state,label){
- const q=clean(label,180),target=(state.world?.registry?.locations||[]).find(x=>x.known===true&&x.name&&q.includes(x.name));if(!target||!/前往|移動|走到|旅行|去|travel|go to|walk/i.test(q))return null;
+ const q=clean(label,180),target=(state.world?.registry?.locations||[]).find(x=>x.known===true&&x.name&&q.includes(x.name));if(!target||!explicitTravelCommand(q,target.name))return null;
  const gate=survivalActionGate(state,"TRAVEL");if(!gate.ok)return {handled:true,blocked:true,text:gate.message,reason:gate.reason};
  const access=locationAccessStatus(state,target);if(!access.allowed)return {handled:true,blocked:true,text:access.missing.map(x=>x.hint||"尚未滿足進入條件").join(" · "),reason:"ACCESS_REQUIREMENT_MISSING"};
  const plan=findTravelPlan(state,target.id);if(!plan)return {handled:true,blocked:true,text:"目前沒有可用的 Canon 路線前往 "+target.name+"。",reason:"NO_CANON_ROUTE"};
@@ -120,14 +124,14 @@ export function performAction(state,action="free",customText="",assessment=null)
  const label=assessment?.verdict==="ADJUST"&&proposedLabel?proposedLabel:originalLabel,npcInteraction=markLocalNpcInteraction(state,label,assessment);
  const info=deterministicInfoAction(state,label);if(info){state.narrative=info.text;state.events.push({id:id(),type:"PLAYER_UTILITY_ACTION",visibility:"PLAYER_KNOWN",utilityKind:info.kind,customText:label,day:state.world.state.day,at:Date.now()});return {deterministic:true,roll:null,text:info.text,minutes:0,actionKind:"GENERAL",check:null,training:null,ruleEffects:{utility:info,npcInteraction,engineFeasibility}}}
  const baseProfile=actionProfile(label),assessedKind=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"].includes(String(assessment?.kind||"").toUpperCase())?String(assessment.kind).toUpperCase():baseProfile.kind;
- const profile={...baseProfile,kind:baseProfile.kind==="RISKY"?"RISKY":assessedKind},directItem=resolveItemAction(state,label,{success:true});
+ const profile={...baseProfile,kind:baseProfile.kind==="RISKY"?"RISKY":assessedKind},mutationFastPath=explicitMutationCommand(label),directItem=mutationFastPath?resolveItemAction(state,label,{success:true}):null;
  if(directItem?.handled){
   const minutes=Math.max(1,Math.round(Number(directItem.minutes)||2));advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL"}),questProgress=evaluateQuestState(state);
   const text=directItem.ok?(directItem.summary||directItem.output?`${directItem.summary||`你完成了「${directItem.recipe?.name||label}」，取得「${directItem.output?.name||""}」。`}`:directItem.effects?`你使用了「${directItem.itemName}」。`:`你完成了「${label}」。`):directItem.reason==="MATERIALS_MISSING"?"材料不足，無法完成這項合成。":directItem.reason==="ITEM_NOT_USABLE"?"這件物品目前沒有可以直接使用的效果。":directItem.reason==="ITEM_NOT_OWNED"?"你目前沒有指定的物品。":directItem.reason==="NPC_NOT_PRESENT"?"對方目前不在你身邊，無法展示或交付物品。":directItem.reason==="ITEM_EQUIPPED"?"這件物品目前正在裝備，先卸下才可以交出去。":"目前無法完成這個物品操作。";
   state.narrative=text;state.events.push({id:id(),type:"PLAYER_ITEM_ACTION",visibility:"PLAYER_KNOWN",action:"item",customText:label,reason:directItem.reason||"",day:state.world.state.day,minutes,at:Date.now()});
   const worldEvent=tickWorld(state);tickMainQuest(state);return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{item:directItem,npcInteraction,survival,questProgress,engineFeasibility}}
  }
- const directEconomy=resolveEconomyAction(state,label,{success:true});if(directEconomy?.handled){
+ const directEconomy=mutationFastPath?resolveEconomyAction(state,label,{success:true}):null;if(directEconomy?.handled){
   const lodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),minutes=lodging&&directEconomy.ok?240:20;advanceTime(state,minutes);const survival=tickSurvival(state,minutes,{kind:"GENERAL",rest:lodging&&directEconomy.ok===true});if(lodging&&directEconomy.ok)recoverMagic(state,Math.max(8,Math.round(minutes/20)));const worldEvent=tickWorld(state);tickMainQuest(state);
   const text=directEconomy.ok?(lodging?"你完成住宿付款並休息。":"交易完成。"):"交易無法完成："+String(directEconomy.reason||"條件不足");state.narrative=text;state.events.push({id:id(),type:"PLAYER_ECONOMY_ACTION",visibility:"PLAYER_KNOWN",customText:label,ok:directEconomy.ok===true,reason:directEconomy.reason||"",day:state.world.state.day,minutes,at:Date.now()});
   return {deterministic:true,roll:null,text,minutes,worldEvent,actionKind:"GENERAL",check:null,training:null,ruleEffects:{economy:directEconomy,npcInteraction,survival,engineFeasibility}}

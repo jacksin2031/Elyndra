@@ -5,10 +5,10 @@ import {readFile} from "node:fs/promises";
 test("Engine fast path runs before AI requirement and before action execution",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  const run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
- const fast=run.indexOf("fastLocalActionAssessment(gameState,requested)");
+ const fast=run.search(/fastLocalActionAssessment\((?:gameState|actionState),requested\)/);
  const provider=run.indexOf("if(!aiStatus.aiConfigured)",fast);
  const assess=run.indexOf("await assessPlayerAction",fast);
- const perform=run.indexOf("performAction(gameState");
+ const perform=run.search(/performAction\((?:gameState|actionState),/);
  assert.ok(fast>=0);assert.ok(provider>fast);assert.ok(assess>provider);assert.ok(perform>assess);
  assert.match(run,/這個行動需要語義判斷/);
  assert.match(run,/ACTION_ASSESSMENT_FAILED/)
@@ -18,10 +18,10 @@ test("Engine fast path runs before AI requirement and before action execution",a
 test("prevalidated AI suggestion bypasses feasibility AI and goes directly to Engine",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  const run=app.slice(app.indexOf("async function runAction"),app.indexOf('$("#newWorldBtn")'));
- const trusted=run.indexOf("trustedSuggestionAssessment(gameState,options.suggestion)");
- const fast=run.indexOf("fastLocalActionAssessment(gameState,requested)");
- const assess=run.indexOf("await assessPlayerAction(gameState,requested)");
- const perform=run.indexOf("performAction(gameState");
+ const trusted=run.search(/trustedSuggestionAssessment\((?:gameState|actionState),options\.suggestion\)/);
+ const fast=run.search(/fastLocalActionAssessment\((?:gameState|actionState),requested\)/);
+ const assess=run.search(/await assessPlayerAction\((?:gameState|actionState),requested\)/);
+ const perform=run.search(/performAction\((?:gameState|actionState),/);
  assert.ok(trusted>=0&&trusted<fast);
  assert.ok(fast<assess&&assess<perform);
  assert.match(run,/if\(!assessment\)assessment=fastLocalActionAssessment/);

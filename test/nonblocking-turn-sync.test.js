@@ -21,7 +21,7 @@ test("blocking State Sync rejects repeated actions without an action queue",asyn
 
 test("ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/function startNonblockingPlayerNarration/);assert.match(app,/currentStateRevision\(gameState\)!==revision/);
+ assert.match(app,/function startNonblockingPlayerNarration/);assert.match(app,/isCurrentStateSession\(sessionToken\)/);assert.match(app,/applyPlayerActionScene\(scene,\{worldId,baseRevision,roll,action,previousSuggestions,previousSuggestionIntents,state,sessionToken\}\)/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/);
  assert.match(app,/STATE_SYNC_ENGINE_ONLY/);assert.match(app,/STATE_SYNC_DEFERRED/);
  assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/)
@@ -37,7 +37,7 @@ test("FAST and DEEP commit StatePatch without waiting for Player Action narratio
 test("foreground gameplay preempts nonblocking narration Deferred and world background work",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/function preemptBackgroundAI\(\)\{preemptNonblockingScene\(\);preemptBackgroundWorldEvolution\(\);preemptBackgroundWorldQuality\(\);preemptBackgroundHistory\(\);preemptDeferredDirector\(\)\}/);
- assert.match(app,/async function runAction\(action,customText="",options=\{\}\)\{\s*if\(!gameState\)return;markForegroundActivity\(\);preemptBackgroundAI\(\)/);
+ assert.match(app,/async function runAction\(action,customText="",options=\{\}\)\{\s*if\(!gameState\)return;const actionState=gameState,actionSession=captureStateSession\(\);markForegroundActivity\(\);preemptBackgroundAI\(\)/);
  assert.match(app,/async function submitNpcConversation\(npcId,q\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/);assert.match(app,/async function runCombatAction\(action\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/)
 });
 

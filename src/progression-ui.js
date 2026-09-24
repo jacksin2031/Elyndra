@@ -1,11 +1,11 @@
-import {questSnapshot} from "./quest-engine.js?v=54018";
-import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=54018";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=54018";
-import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=54018";
-import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=54018";
-import {historyClueSnapshot} from "./history-future.js?v=54018";
-import {playerFutureSignals} from "./future-runtime.js?v=540181";
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=54018";
+import {questSnapshot} from "./quest-engine.js?v=54019";
+import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=54019";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=54019";
+import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=54019";
+import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=54019";
+import {historyClueSnapshot} from "./history-future.js?v=54019";
+import {playerFutureSignals} from "./future-runtime.js?v=54019";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=54019";
 
 const esc=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const $=s=>document.querySelector(s);
@@ -90,7 +90,9 @@ export function openInventoryUI(state,openModal,persist,runAction,{category="ALL
  qsa("#modalContent [data-item-give]").forEach(b=>b.onclick=async()=>{const item=state.inventory.find(x=>x.id===b.dataset.itemGive),npc=ensureWorldRegistry(state).npcs.find(x=>x.id===b.dataset.npcId);if(item&&npc&&confirm("確定把「"+item.name+"」交給「"+npc.name+"」？交付後會從背包扣除 1 件。")){document.querySelector("#modal")?.classList.add("hidden");await runAction("free","把「"+item.name+"」交給「"+npc.name+"」")}})
 }
 
-export async function openSaveManagerUI(state,openModal,{onLoad,onImport}={}){
+export function saveManagerCapabilities(state){const loaded=Boolean(state&&typeof state==="object"&&state.world&&state.player);return {canSave:loaded,canExport:loaded}}
+export async function openSaveManagerUI(state,openModal,{onLoad,onImport,errorMessage=""}={}){
+ const capabilities=saveManagerCapabilities(state);
  const saves=await listWorldSaves().catch(()=>[]);
  const byId=new Map(saves.map(x=>[x.id,x]));
  let rows="";
@@ -99,8 +101,8 @@ export async function openSaveManagerUI(state,openModal,{onLoad,onImport}={}){
   rows+='<div class="lore-item"><small>SLOT '+n+'</small><h3>'+(s?esc(s.saveLabel||("手動存檔 "+n)):"空存檔槽")+'</h3><p>'+(s?(esc(s.worldName)+" · Day "+s.day+" · "+esc(s.location)+"<br><small>"+esc(s.savedAt)+"</small>"):"尚未保存")+'</p><div class="settings-actions"><button class="primary" data-save-slot="'+n+'">保存</button>'+(s?'<button class="secondary" data-load-slot="'+n+'">讀取</button><button class="ghost danger-ghost" data-delete-slot="'+n+'">刪除</button>':"")+'</div></div>';
  }
  const auto=byId.get("autosave");
- openModal('<div class="eyebrow">SAVE SYSTEM · LOCAL FIRST</div><h2>存檔管理</h2><p class="muted">遊戲仍會自動存檔；另外提供 3 個手動存檔槽。每個存檔包含角色狀態、任務、筆記、背包、配方、世界地圖與 Canon。</p><div class="lore-list"><div class="lore-item"><small>AUTOSAVE</small><h3>'+(auto?esc(auto.worldName):"尚無自動存檔")+'</h3><p>'+(auto?("Day "+auto.day+" · "+esc(auto.location)+"<br><small>"+esc(auto.savedAt)+"</small>"):"—")+'</p></div>'+rows+'<div class="lore-item"><div class="settings-actions"><button id="exportBtn" class="secondary">匯出 .elyndra</button><button id="importBtn" class="secondary">匯入 .elyndra</button></div></div></div>');
- qsa("#modalContent [data-save-slot]").forEach(b=>b.onclick=async()=>{const n=Number(b.dataset.saveSlot),label=prompt("存檔名稱","手動存檔 "+n);if(label==null)return;await saveWorldSlot(state,n,label);await openSaveManagerUI(state,openModal,{onLoad,onImport})});
+ openModal('<div class="eyebrow">SAVE SYSTEM · LOCAL FIRST</div><h2>存檔管理</h2><p class="muted">遊戲仍會自動存檔；另外提供 3 個手動存檔槽。每個存檔包含角色狀態、任務、筆記、背包、配方、世界地圖與 Canon。</p>${capabilities.canSave?"":"<p class=\"muted\">目前未載入世界；仍可讀取或匯入存檔，但不能保存或匯出。</p>"}${errorMessage?`<p role="alert">${esc(errorMessage)}</p>`:""}<div class="lore-list"><div class="lore-item"><small>AUTOSAVE</small><h3>'+(auto?esc(auto.worldName):"尚無自動存檔")+'</h3><p>'+(auto?("Day "+auto.day+" · "+esc(auto.location)+"<br><small>"+esc(auto.savedAt)+"</small>"):"—")+'</p></div>'+rows+'<div class="lore-item"><div class="settings-actions"><button id="exportBtn" class="secondary" ${capabilities.canExport?"":"disabled aria-disabled=\"true\""}>匯出 .elyndra</button><button id="importBtn" class="secondary">匯入 .elyndra</button></div></div></div>');
+ qsa("#modalContent [data-save-slot]").forEach(b=>b.onclick=async()=>{if(!capabilities.canSave)return;const n=Number(b.dataset.saveSlot),label=prompt("存檔名稱","手動存檔 "+n);if(label==null)return;try{await saveWorldSlot(state,n,label);await openSaveManagerUI(state,openModal,{onLoad,onImport})}catch(e){await openSaveManagerUI(state,openModal,{onLoad,onImport,errorMessage:"保存失敗："+(e?.message||String(e))})}});
  qsa("#modalContent [data-load-slot]").forEach(b=>b.onclick=async()=>{const loaded=await loadWorldSlot(Number(b.dataset.loadSlot));if(loaded&&onLoad)await onLoad(loaded)});
  qsa("#modalContent [data-delete-slot]").forEach(b=>b.onclick=async()=>{if(!confirm("確定刪除這個手動存檔？"))return;await deleteWorldSlot(Number(b.dataset.deleteSlot));await openSaveManagerUI(state,openModal,{onLoad,onImport})});
  $("#exportBtn")?.addEventListener("click",()=>state&&exportWorld(state));

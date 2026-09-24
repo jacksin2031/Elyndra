@@ -1,12 +1,12 @@
-import {assertSaveState} from "./state-validator.js?v=54018";
-import {ensureItemRuntime} from "./item-engine.js?v=54018";
-import {ensureNotes} from "./notes-engine.js?v=54018";
-import {ensurePlayerOrigin} from "./player-origin.js?v=54018";
-import {ensureCausalWorldCore} from "./causal-world-core.js?v=54018";
+import {assertSaveState} from "./state-validator.js?v=54019";
+import {ensureItemRuntime} from "./item-engine.js?v=54019";
+import {ensureNotes} from "./notes-engine.js?v=54019";
+import {ensurePlayerOrigin} from "./player-origin.js?v=54019";
+import {ensureCausalWorldCore} from "./causal-world-core.js?v=54019";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=12;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);const MIGRATION_RENOWN={PERSONAL:1,LOCAL:4,REGIONAL:10,FACTION:15,WORLD:25};const LEGACY_SUGGESTIONS=["觀察目前環境","確認自己的狀態","尋找可以安全前進的方向"];
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}
-function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+let dbPromise=null;function openDB(){if(dbPromise)return dbPromise;dbPromise=new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"id"})};req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>{db.close();dbPromise=null};resolve(db)};req.onerror=()=>{dbPromise=null;reject(req.error)}});return dbPromise}
 async function tx(mode,fn){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,mode),s=t.objectStore(STORE);let value;try{value=fn(s)}catch(e){reject(e);return}t.oncomplete=()=>resolve(value);t.onerror=()=>reject(t.error)})}
 export function migrateSave(input){
  if(!input||typeof input!=="object")throw new Error("SAVE_STATE_INVALID");
@@ -69,7 +69,7 @@ export async function saveWorldSlot(state,slot=1,label=""){const n=Math.max(1,Ma
 export async function loadWorldSlot(slot=1){const n=Math.max(1,Math.min(3,Math.round(Number(slot)||1)));return getSave("slot-"+n)}
 export async function listWorldSaves(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).getAll();r.onsuccess=()=>resolve((r.result||[]).map(x=>({id:x.id,savedAt:x.savedAt||"",saveLabel:x.saveLabel||"",worldName:x.world?.name||"未知世界",playerName:x.player?.name||"無名者",day:x.world?.state?.day||1,location:x.player?.location||"未知地點"})).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))));r.onerror=()=>reject(r.error)})}
 export async function deleteWorldSlot(slot){const id=slot==="autosave"?"autosave":"slot-"+Math.max(1,Math.min(3,Math.round(Number(slot)||1)));await tx("readwrite",s=>s.delete(id))}
-export async function hasWorld(){return !!(await loadWorld())}
+export async function hasWorld(){const db=await openDB();return new Promise((resolve,reject)=>{const t=db.transaction(STORE,"readonly"),r=t.objectStore(STORE).getKey("autosave");r.onsuccess=()=>resolve(r.result!==undefined);r.onerror=()=>reject(r.error)})}
 export async function deleteWorld(){await tx("readwrite",s=>{s.delete("autosave");s.delete("slot-1");s.delete("slot-2");s.delete("slot-3")})}
 export function exportWorld(state){const payload={format:"elyndra-save",formatVersion:FORMAT_VERSION,exportedAt:new Date().toISOString(),state:migrateSave(state)};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`${state.world?.name||"world"}.elyndra`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 export async function importWorld(file){const payload=JSON.parse(await file.text()),version=Number(payload.formatVersion);if(payload.format!=="elyndra-save"||!Number.isInteger(version)||version<1||version>FORMAT_VERSION||!payload.state?.world)throw new Error(version>FORMAT_VERSION?"SAVE_VERSION_TOO_NEW":"不是有效的 Elyndra 存檔");if(Number(payload.state.formatVersion||version)>FORMAT_VERSION)throw new Error("SAVE_VERSION_TOO_NEW");const state=migrateSave(payload.state);assertSaveState(state);await saveWorld(state);return state}

@@ -1,28 +1,28 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54018";
-import {seedDirective} from "./seed-contract.js?v=54018";
-import {recognitionForNpc} from "./recognition-engine.js?v=54018";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54018";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54018";
-import {sanitizePlayerText} from "./runtime-guard.js?v=54018";
-import {helperSnapshot} from "./helper-context.js?v=54018";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=54018";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=540181";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=54018";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=540181";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=54018";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=540181";
-import {normalizeActionIntent} from "./action-intent.js?v=54018";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54018";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=540181";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=54018";
-import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54018";
-import {historyDepthSnapshot} from "./history-depth.js?v=54018";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54018";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54018";
-import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=54018";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=54019";
+import {seedDirective} from "./seed-contract.js?v=54019";
+import {recognitionForNpc} from "./recognition-engine.js?v=54019";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues} from "./world-compiler.js?v=54019";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=54019";
+import {sanitizePlayerText} from "./runtime-guard.js?v=54019";
+import {helperSnapshot} from "./helper-context.js?v=54019";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=54019";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=54019";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=54019";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=54019";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=54019";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=54019";
+import {normalizeActionIntent} from "./action-intent.js?v=54019";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=54019";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=54019";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=54019";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=54019";
+import {historyDepthSnapshot} from "./history-depth.js?v=54019";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=54019";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=54019";
+import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=54019";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
-async function post(path,body,options={}){const r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
+async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
 
 export async function aiHealth(){if(hasDirectAI())return {ok:true,aiConfigured:true,mode:"direct"};try{const r=await fetch(apiPath("/api/health"));return r.ok?await r.json():{ok:false,aiConfigured:false}}catch{return {ok:false,aiConfigured:false}}}
 export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id&&knowledgeCanRevealCanon(state,k))).map(f=>f.text)}

@@ -7,8 +7,10 @@ const TRAVEL_ACTION=/前往|走到|走出|離開|移動|旅行|穿越|跟隨|跟
 const ABANDONED_SOCIAL=/(?:不再|停止|放棄|結束)(?:繼續)?(?:追問|詢問|提問|交談|對話|問)|(?:不再|停止|放棄).{0,24}(?:問|詢問).{0,36}(?:轉身|離開|跟上|前進|移動|踏出)/;
 const OBSERVE_ACTION=/觀察|查看|檢查|搜尋|尋找|調查|聆聽|閱讀|比對|痕跡|目擊|誰會.*反應|測試.*反應|找出.*(?:線索|證據|異常|人物)|observe|inspect|search|listen|read|trace|witness|reaction/;
 const GENERIC_NPC_REFERENCE=/護衛|守衛|士兵|陌生人|傷者|男人|女人|居民|店員|商人|引路人|那個人|那人|對方|那名人物|那名人|guard|stranger|soldier|merchant|resident/i;
+const NEGATED_CLAUSE=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意)[^，,。；;!?！？]{0,80}/gi;
+function positiveIntentText(action=""){return clean(action).replace(NEGATED_CLAUSE," ").trim()}
 export function inferActionKind(action=""){
- const q=clean(action).toLowerCase();
+ const q=positiveIntentText(action).toLowerCase();
  if(RISKY_ACTION.test(q))return "RISKY";
  const travel=TRAVEL_ACTION.test(q),social=SOCIAL_ACTION.test(q);
  if(travel&&(!social||ABANDONED_SOCIAL.test(q)))return "TRAVEL";
@@ -18,7 +20,7 @@ export function inferActionKind(action=""){
  return "GENERAL"
 }
 export function inferActionIntent(action="",kind=""){
- const q=clean(action),k=KINDS.has(String(kind).toUpperCase())?String(kind).toUpperCase():inferActionKind(q);
+ const rawQ=clean(action),q=positiveIntentText(rawQ),k=KINDS.has(String(kind).toUpperCase())?String(kind).toUpperCase():inferActionKind(q);
  let intent="GENERAL";
  if(/偷|竊|steal/.test(q))intent="STEAL";
  else if(/攻擊|打|斬|attack/.test(q))intent="ATTACK";

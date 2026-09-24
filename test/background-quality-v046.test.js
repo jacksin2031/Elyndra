@@ -96,9 +96,11 @@ test("background Critic is post-entry, preemptible and stale-version gated",asyn
  assert.match(app,/preemptBackgroundAI\(\).*preemptBackgroundWorldQuality\(\)/);
  assert.match(app,/scheduleWorldQualityCritic\("post_creation",1000\)/);
  assert.match(app,/scheduleWorldQualityCritic\("continue_world",1200\)/);
- assert.match(app,/runWorldQualityCritic\(gameState,\{signal:ctrl\.signal\}\)/);
+ assert.match(app,/const state=gameState,sessionToken=captureStateSession\(\)/);
+ assert.match(app,/runWorldQualityCritic\(state,\{signal:ctrl\.signal\}\)/);
+ assert.match(app,/ctrl\.signal\.aborted\|\|!isCurrentStateSession\(sessionToken\)\|\|state\.world\?\.id!==worldId/);
  assert.match(app,/BACKGROUND_QUALITY_CRITIC_STALE_DISCARDED/);
- assert.match(app,/applyUnseenWorldRepair\(gameState,result\.repairPatch\)/);
+ assert.match(app,/applyUnseenWorldRepair\(state,result\.repairPatch\)/);
  assert.match(client,/export async function runWorldQualityCritic/);
  assert.match(client,/unseenRepairTargets/);assert.match(client,/signal,timeoutMs:45000,retryOnTimeout:false/)
 });

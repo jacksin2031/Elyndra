@@ -96,8 +96,8 @@ test("app runs History Deepening only as preemptible background work",async()=>{
  assert.match(app,/scheduleHistoryDeepening\("post_player_action",11000\)/);
  assert.match(app,/scheduleHistoryDeepening\("continue_world",1500\)/);
  assert.match(app,/scheduleHistoryDeepening\("post_creation",1500\)/);
- assert.match(app,/generateHistoryDeepening\(gameState,plan,\{signal:ctrl\.signal\}\)/);
- assert.match(app,/validateHistoryDeepeningCandidate\(gameState,plan,candidate\)/);assert.match(app,/commitHistoryDeepening\(gameState,plan,candidate\)/);
+ assert.match(app,/generateHistoryDeepening\(state,plan,\{signal:ctrl\.signal\}\)/);
+ assert.match(app,/validateHistoryDeepeningCandidate\(state,plan,candidate\)/);assert.match(app,/commitHistoryDeepening\(state,plan,candidate\)/);
  assert.match(app,/registerHistoryDeepeningDocuments/);assert.match(app,/registerHistoryRelicSeeds/);
  assert.match(client,/export async function generateHistoryDeepening/);assert.match(client,/HISTORY_DEEPENING:"history_deepening"/);
  assert.match(client,/post\("\/api\/history-deepen",payload,\{signal\}\)/);
