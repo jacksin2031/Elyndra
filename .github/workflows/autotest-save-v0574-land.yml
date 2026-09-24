@@ -1,0 +1,36 @@
+name: Elyndra AutoTest save v0.57.4 land
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/autotest-save-v0574-land.yml'
+      - '.github/autotest-save-v0574-patch.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-land:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply v0.57.4 direct-save patch
+        run: python3 .github/autotest-save-v0574-patch.py
+      - name: Run targeted regressions
+        run: node --test test/autotest-save-v0574.test.js test/ai-autotest-first-button-hotfix.test.js test/autotest-export-v0573.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Commit tested v0.57.4 fix
+        run: |
+          rm -f .github/workflows/autotest-save-v0574-land.yml .github/autotest-save-v0574-patch.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: save AutoTest artifacts through file picker"
+          git push origin main
