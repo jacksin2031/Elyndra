@@ -1,25 +1,25 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57000";
-import {seedDirective} from "./seed-contract.js?v=57000";
-import {recognitionForNpc} from "./recognition-engine.js?v=57000";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57000";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57000";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57000";
-import {helperSnapshot} from "./helper-context.js?v=57000";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57000";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57000";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=57000";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57000";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=57000";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=57000";
-import {normalizeActionIntent} from "./action-intent.js?v=57000";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57000";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57000";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=57000";
-import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57000";
-import {historyDepthSnapshot} from "./history-depth.js?v=57000";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57000";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57000";
-import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57000";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57001";
+import {seedDirective} from "./seed-contract.js?v=57001";
+import {recognitionForNpc} from "./recognition-engine.js?v=57001";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57001";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57001";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57001";
+import {helperSnapshot} from "./helper-context.js?v=57001";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57001";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57001";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=57001";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57001";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=57001";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=57001";
+import {normalizeActionIntent} from "./action-intent.js?v=57001";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57001";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57001";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=57001";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57001";
+import {historyDepthSnapshot} from "./history-depth.js?v=57001";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57001";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57001";
+import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57001";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -591,7 +591,7 @@ function applyRuntimeLocationDetails(current,value){
 export async function generateRegionExpansion(state,reason="player_exploration",options={}){
  const plan=options?.plan||null,payload=regionExpansionPayload(state,reason,plan);if(!hasDirectAI())return null;
  if(!plan)throw new Error("RUNTIME_EXPANSION_PLAN_REQUIRED");
- const signal=options?.signal,slots=plan.slots||{},allowedHistoryRefs=(state.world?.history||[]).map(x=>String(x?.id||"")).filter(Boolean),existingLocationNames=(state.world?.registry?.locations||[]).map(x=>String(x?.name||"")).filter(Boolean),completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只能引用 payload.allowedHistoryRefs 中已存在的 Canon HIST id。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions，而且 definition.kind 必須與 claim.definitionKind 相同；Location 不得綁 BLUEPRINT_DEFINITION。REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
+ const signal=options?.signal,slots=plan.slots||{},allowedHistoryRefs=(state.world?.history||[]).map(x=>String(x?.id||"")).filter(Boolean),existingLocationNames=(state.world?.registry?.locations||[]).map(x=>String(x?.name||"")).filter(Boolean),completedStages=new Set(plan.checkpoint?.completedStages||[]),checkpointStage=async stage=>{completedStages.add(stage);if(typeof options?.onStage==="function")await options.onStage({stage,generation:structuredClone(generation),region,reason:stageReason})},baseRules=`Engine 已鎖定 lazyPlan；不得擴大 slots、改 plan、創造 claim/echo/history id、重建 existing、使用 forbiddenTerms，亦不得把 hidden detail 直接變成玩家已知。所有 historyRefs 只能引用 payload.allowedHistoryRefs 中已存在的 Canon HIST id。Definition 去重硬規則：payload.existing.definitions 內已存在的 kind+name 組合禁止再次生成；即使另一個 BLUEPRINT_DEFINITION claim 使用相同 kind，也必須產生不同的新名稱，不得重用 existing definition。Claim 硬規則：BLUEPRINT_DEFINITION 只能綁定 generation.definitions，而且 definition.kind 必須與 claim.definitionKind 相同；Location 不得綁 BLUEPRINT_DEFINITION。REQUIRED_ELEMENT 必須由實際包含指定要素的實體綁定。Legacy Echo 硬規則：MEMORIAL echo 必須由 Location 綁定；ORAL_TRADITION echo 必須由 NPC 綁定。definitions 結構使用 "definitions":[{"kind":"CIVILIZATION|SPECIES|LANGUAGE","name":"..."}]。只輸出 JSON。`;
  let generation=plan.checkpoint?.generation?structuredClone(plan.checkpoint.generation):emptyRuntimeGeneration(),region=String(plan.region||payload.world?.region||"UNKNOWN"),stageReason=String(reason||plan.reason||"player_exploration");
 
  if(!completedStages.has("RUNTIME_GEOGRAPHY")){generation=await runtimeExpansionStage("RUNTIME_GEOGRAPHY",{
