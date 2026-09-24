@@ -18,40 +18,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply patch
-        run: python scripts/land-v0577.py
+      - name: Apply patch and verified payload correction
+        run: |
+          python scripts/land-v0577.py
+          python scripts/fix-v0577-drag.py
       - name: Targeted tests
         run: node --test test/autotest-iab-drag-v0577.test.js test/autotest-iab-transfer-v0576.test.js
-      - name: Full tests with diagnostic capture
-        shell: bash
-        run: |
-          set +e
-          npm test > /tmp/v0577-full.log 2>&1
-          code=$?
-          cat /tmp/v0577-full.log
-          if [ "$code" -ne 0 ]; then
-            mkdir -p docs/diagnostics
-            {
-              echo "v0.57.7 full-suite failure"
-              echo "exit=$code"
-              echo
-              grep -nE "not ok|AssertionError|ERR_ASSERTION|Expected|actual:|expected:|fail [0-9]+" /tmp/v0577-full.log || true
-              echo
-              echo "--- tail ---"
-              tail -n 260 /tmp/v0577-full.log
-            } > docs/diagnostics/v0577-drag-full-suite.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/diagnostics/v0577-drag-full-suite.txt
-            git commit -m "ci: capture v0.57.7 full-suite failure" || true
-            git push origin HEAD:main || true
-            exit "$code"
-          fi
+      - name: Full tests
+        run: npm test
       - name: Commit tested release
         shell: bash
         run: |
-          rm .github/workflows/land-v0577-iab-drag.yml scripts/land-v0577.py .github/workflows/iab-http-export-v0577.yml scripts/land_iab_http_export_v0577.py
-          rm -f docs/diagnostics/v0577-drag-full-suite.txt
+          rm .github/workflows/land-v0577-iab-drag.yml scripts/land-v0577.py scripts/fix-v0577-drag.py
+          rm -f .github/workflows/iab-http-export-v0577.yml scripts/land_iab_http_export_v0577.py docs/diagnostics/v0577-drag-full-suite.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
