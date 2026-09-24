@@ -1,0 +1,36 @@
+name: Elyndra AutoTest IAB transfer v0.57.6 land
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/autotest-iab-transfer-v0576-land.yml'
+      - '.github/autotest-iab-transfer-v0576-patch.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-land:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply v0.57.6 IAB transfer patch
+        run: python3 .github/autotest-iab-transfer-v0576-patch.py
+      - name: Run targeted regressions
+        run: node --test test/autotest-iab-transfer-v0576.test.js test/ai-autotest-first-button-hotfix.test.js test/autotest-export-v0573.test.js test/autotest-save-v0574.test.js test/autotest-copy-v0575.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Commit tested v0.57.6
+        run: |
+          rm -f .github/workflows/autotest-iab-transfer-v0576-land.yml .github/autotest-iab-transfer-v0576-patch.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: recover AutoTest exports inside IAB"
+          git push origin main
