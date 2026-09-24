@@ -127,6 +127,15 @@ function addedIdFor(raw,added,key){
  const name=key==="definitions"?(String(raw?.kind||"").toUpperCase()+":"+String(raw?.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?raw?.title:raw?.name||"").trim().toLocaleLowerCase(),rows=added?.[key]||[];
  const hit=rows.find(x=>(key==="definitions"?(String(x.kind||"").toUpperCase()+":"+String(x.name||"").trim().toLocaleLowerCase()):String(key==="sideQuests"?x.title:x.name||"").trim().toLocaleLowerCase())===name);return hit?.id||null
 }
+function recoveryAffordance(state,plan,added={}){
+ if(!/FIRST_BUTTON_STALL_RECOVERY/i.test(String(plan?.requestedReason||"")))return null;
+ const locations=state.world?.registry?.locations||[],newIds=new Set((added.locations||[]).map(x=>String(x?.id||"")).filter(Boolean)),currentName=String(state.player?.location||state.world?.state?.location||""),current=locations.find(x=>x?.id===currentName||x?.name===currentName);
+ const candidates=locations.filter(x=>newIds.has(String(x?.id||""))&&x!==current&&!(Array.isArray(x?.accessRequirements)&&x.accessRequirements.length));if(!candidates.length)return null;
+ const routes=state.world?.travel?.routes||[];let route=null,target=null;
+ if(current)for(const r of routes){if(!r||r.open===false)continue;const other=String(r.fromId||"")===String(current.id||"")?String(r.toId||""):String(r.toId||"")===String(current.id||"")?String(r.fromId||""):"";const hit=candidates.find(x=>String(x.id||"")===other);if(hit){route=r;target=hit;break}}
+ target??=candidates[0];target.known=true;target.visibilityLock="KNOWN";target.revealedDay=target.revealedDay??Math.max(1,Number(state.world?.state?.day)||1);
+ return {kind:"location",id:String(target.id||""),name:String(target.name||""),routeId:route?.id||null,reason:"FIRST_BUTTON_STALL_RECOVERY"}
+}
 export function commitLazyGeneration(state,plan,generation,added,meta={}){
  const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan,{added});if(!v.valid)return {ok:false,errors:v.errors};
  const bindings={},echoBindings={};
@@ -143,10 +152,11 @@ export function commitLazyGeneration(state,plan,generation,added,meta={}){
  }
  for(const claimId of plan.claimIds)materializeGenerationClaim(state,claimId,uniq(bindings[claimId]||[]));
  for(const echoId of plan.legacyEchoIds||[])materializeHistoryLegacyEcho(state,echoId,uniq(echoBindings[echoId]||[]));
+ const affordance=recoveryAffordance(state,plan,added);if(affordance)plan.recoveryAffordance=structuredClone(affordance);
  plan.status="COMMITTED";plan.committedAt=Date.now();plan.entityRefs=uniq(Object.values(added||{}).flat().map(x=>x?.id),24);root.generationRevision=Math.max(root.generationRevision,Number(plan.generationRevision)||0);
  const replay={generationRevision:plan.generationRevision,worldVersion:plan.worldVersion,worldSeedFingerprint:plan.worldSeedFingerprint,entitySeed:plan.entitySeed,generationSlot:structuredClone(plan.generationSlot),promptVersion:plan.promptVersion,validationVersion:plan.validationVersion,generatedAtWorldTime:structuredClone(plan.generatedAtWorldTime),sourceProvider:clean(meta.sourceProvider,80)||"UNKNOWN",sourceModel:clean(meta.sourceModel,120)||"UNKNOWN"};
- root.commits.push({planId:plan.id,day:plan.day,reason:plan.reason,entityRefs:[...plan.entityRefs],claimIds:[...plan.claimIds],legacyEchoIds:[...(plan.legacyEchoIds||[])],worldVersion:Number(state.world?.version)||1,replay});root.commits=root.commits.slice(-80);
- return {ok:true,planId:plan.id,entityRefs:plan.entityRefs,claimIds:plan.claimIds,legacyEchoIds:plan.legacyEchoIds||[],replay}
+ root.commits.push({planId:plan.id,day:plan.day,reason:plan.reason,requestedReason:plan.requestedReason,entityRefs:[...plan.entityRefs],claimIds:[...plan.claimIds],legacyEchoIds:[...(plan.legacyEchoIds||[])],worldVersion:Number(state.world?.version)||1,recoveryAffordance:affordance?structuredClone(affordance):null,replay});root.commits=root.commits.slice(-80);
+ return {ok:true,planId:plan.id,entityRefs:plan.entityRefs,claimIds:plan.claimIds,legacyEchoIds:plan.legacyEchoIds||[],recoveryAffordance:affordance||null,replay}
 }
 export function abortLazyGeneration(state,plan,reason=""){
  if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.attempts=Math.max(1,Number(plan.attempts)||1);plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();return true
