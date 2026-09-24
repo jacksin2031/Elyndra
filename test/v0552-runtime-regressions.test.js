@@ -43,10 +43,10 @@ test("v0.55.2 stall recovery expansion exposes one newly generated reachable loc
  const out=commitLazyGeneration(s,plan,generation,added,{sourceProvider:"test",sourceModel:"test"});assert.equal(out.ok,true,out.errors?.join(",")||"");assert.equal(out.recoveryAffordance?.id,added.locations[0].id);assert.equal(added.locations[0].known,true);assert.equal(added.locations[0].visibilityLock,"KNOWN");assert.notEqual(added.locations[0].lore?.known,true)
 });
 
-test("v0.55.2 FIRST_BUTTON switches to a newly visible recovery route after five stagnant turns",()=>{
+test("v0.57.4 FIRST_BUTTON stays pinned to the first visible button after five stagnant turns",()=>{
  const s=actionState();s.world.registry.locations.push({id:"L2",name:"灰樺鎮蒸汽調節節點",known:true,visibilityLock:"KNOWN"});s.world.travel={routes:[{id:"R1",fromId:"L1",toId:"L2",open:true}]};s.suggestionIntents=[{label:"再問一次",action:"再問閥-04一次",kind:"SOCIAL",progression:true,targetId:"N1"}];
  const recent=Array.from({length:5},(_,i)=>({turn:i+1,progressed:false,action:"再問一次",kind:"SOCIAL"})),decision=firstButtonAutotestDecision(s,recent);
- assert.equal(decision.firstButtonOverride,true);assert.equal(decision.kind,"TRAVEL");assert.equal(decision.targetId,"L2");assert.match(decision.action,/灰樺鎮蒸汽調節節點/)
+ assert.equal(decision.firstButton,true);assert.equal(decision.suggestionIndex,0);assert.equal(decision.kind,"SOCIAL");assert.equal(decision.targetId,"N1");assert.equal(decision.action,"再問閥-04一次");assert.notEqual(decision.firstButtonOverride,true)
 });
 
 test("v0.55.2 autotest fingerprint ignores clock-only advancement",()=>{

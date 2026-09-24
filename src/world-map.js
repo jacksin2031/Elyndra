@@ -1,4 +1,4 @@
-import {ensureTravelNetwork,travelSnapshot} from "./travel-engine.js?v=57003";
+import {ensureTravelNetwork,travelSnapshot} from "./travel-engine.js?v=57004";
 export function worldMapSnapshot(state){
  const locations=(state.world?.registry?.locations||[]).filter(x=>x.known===true),knownIds=new Set(locations.map(x=>x.id)),travel=travelSnapshot(state);
  const byId=new Map(locations.map(x=>[x.id,x]));

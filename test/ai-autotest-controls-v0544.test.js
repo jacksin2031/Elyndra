@@ -19,12 +19,12 @@ test("v0.54.4 Developer Autotest exposes export selection and timeout cancellati
  assert.match(settings,/useTimeout=Number\.isFinite\(rawMs\)&&rawMs>0/)
 });
 
-test("v0.57.3 export path persists artifacts and requires explicit retry downloads",async()=>{
+test("v0.57.4 export path persists artifacts and requires explicit retry downloads",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  const start=app.indexOf("async function exportDeveloperAutotestResults"),end=app.indexOf("async function startDeveloperAutotest",start),block=app.slice(start,end);
  assert.match(block,/buildAutotestExportSnapshot/);assert.match(block,/saveLastAutotestExportSnapshot/);
  const persistBlock=block.slice(0,block.indexOf("function downloadDeveloperAutotestArtifact"));assert.doesNotMatch(persistBlock,/autotestDownload\(/);
- assert.match(app,/id="autotestRetryDebug"/);assert.match(app,/id="autotestRetryWorld"/);assert.match(app,/id="autotestRetryRecovery"/);assert.match(app,/setTimeout\(cleanup,120000\)/);assert.match(app,/await exportDeveloperAutotestResults\(report,developerAutotest\.results\)/)
+ assert.match(app,/id="autotestSaveDebug"/);assert.match(app,/id="autotestSaveWorld"/);assert.match(app,/id="autotestSaveRecovery"/);assert.match(app,/setTimeout\(cleanup,120000\)/);assert.match(app,/await exportDeveloperAutotestResults\(report,developerAutotest\.results\)/)
 });
 
 

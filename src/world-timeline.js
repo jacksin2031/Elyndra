@@ -1,4 +1,4 @@
-import {eventAllowedByPacing,eventDangerTier} from "./world-pacing.js?v=57003";
+import {eventAllowedByPacing,eventDangerTier} from "./world-pacing.js?v=57004";
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h)};

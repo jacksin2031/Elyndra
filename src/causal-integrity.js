@@ -1,14 +1,14 @@
-import {ensureWorldLedger} from "./world-ledger.js?v=57003";
-import {ensureGenerationClaims,reconcileGenerationClaims,validateGenerationClaims,materialSatisfiesClaim,forbiddenTermMatch} from "./generation-claims.js?v=57003";
-import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=57003";
-import {ensureFutureEngine} from "./future-engine.js?v=57003";
-import {ensureHistoryLegacy} from "./history-legacy.js?v=57003";
-import {ensureWorldCatalog,worldCatalogDefinitions} from "./world-catalog.js?v=57003";
-import {ensureVisibilityLocks} from "./visibility-lock.js?v=57003";
-import {ensureLazyGeneration} from "./lazy-generation.js?v=57003";
-import {ensureHistoryDepth} from "./history-depth.js?v=57003";
-import {ensureDocumentRuntime} from "./document-engine.js?v=57003";
-import {ensureItemHeritage} from "./item-heritage.js?v=57003";
+import {ensureWorldLedger} from "./world-ledger.js?v=57004";
+import {ensureGenerationClaims,reconcileGenerationClaims,validateGenerationClaims,materialSatisfiesClaim,forbiddenTermMatch} from "./generation-claims.js?v=57004";
+import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=57004";
+import {ensureFutureEngine} from "./future-engine.js?v=57004";
+import {ensureHistoryLegacy} from "./history-legacy.js?v=57004";
+import {ensureWorldCatalog,worldCatalogDefinitions} from "./world-catalog.js?v=57004";
+import {ensureVisibilityLocks} from "./visibility-lock.js?v=57004";
+import {ensureLazyGeneration} from "./lazy-generation.js?v=57004";
+import {ensureHistoryDepth} from "./history-depth.js?v=57004";
+import {ensureDocumentRuntime} from "./document-engine.js?v=57004";
+import {ensureItemHeritage} from "./item-heritage.js?v=57004";
 
 const LOCK_RANK={UNSEEN:0,HINTED:1,OBSERVED:2,KNOWN:3,CANON_LOCKED:4};
 const uniq=v=>[...new Set(v)];
