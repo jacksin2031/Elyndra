@@ -1,0 +1,55 @@
+name: Apply v0.56.1 Runtime Fixes
+
+on:
+  push:
+    branches:
+      - fix/v0.56.1-runtime-grounding
+    paths:
+      - .github/workflows/v0561-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply source patch from staged finalizer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/v0561-finalize.yml').read_text(encoding='utf-8').splitlines()
+          marker='      - name: Patch v0.56.1 runtime regressions'
+          start=src.index(marker)
+          run_idx=next(i for i in range(start+1,len(src)) if src[i].strip()=='run: |')
+          end=next(i for i in range(run_idx+1,len(src)) if src[i].startswith('      - name: Install'))
+          body=[]
+          for line in src[run_idx+1:end]:
+              body.append(line[10:] if line.startswith('          ') else line)
+          Path('/tmp/v0561-patch.py').write_text('\n'.join(body)+'\n',encoding='utf-8')
+          PY
+          python /tmp/v0561-patch.py
+      - name: Syntax
+        run: |
+          node --check src/state-sync.js
+          node --check src/contextual-actions.js
+          node --check src/model-json.js
+          node --check app.js
+          node --check test/v0561-runtime-grounding.test.js
+      - name: Full test suite
+        env:
+          CACHE_BASE_REF: main
+        run: npm test
+      - name: Commit verified source changes
+        run: |
+          git config user.name "A24DC523"
+          git config user.email "a24dc523@dhw.ac.jp"
+          git add -A -- . ':(exclude).github/workflows/*'
+          git commit -m "v0.56.1: harden scene grounding and semantic gating"
+          git push origin HEAD:fix/v0.56.1-runtime-grounding
