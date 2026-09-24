@@ -1088,6 +1088,7 @@ async function startDeveloperAutotest(config){
      }
     }
     await finalizeDeveloperAutotestWorld(config);
+    await finalizeDeveloperAutotestWorld(config);
     result.stopReason=result.stopReason||"TURN_LIMIT";result.status="COMPLETED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
     recordDebug("AUTOTEST_WORLD_PLAY_COMPLETED",{index:i,turns:result.turns,stopReason:result.stopReason,summary:result.summary});appendDeveloperAutotestLog(`世界 ${i} 遊玩測試完成：${result.turns} 回合 · ${result.stopReason}`)
    }catch(e){
