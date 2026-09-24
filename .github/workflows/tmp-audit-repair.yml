@@ -6,6 +6,7 @@ on:
       - fix/audit-2026-09-24-all
     paths:
       - 'scripts/run-audit-repair.py'
+      - 'scripts/fix-society-location-ref.py'
       - 'test/**'
       - '.github/workflows/tmp-audit-repair.yml'
 
@@ -24,6 +25,8 @@ jobs:
           node-version: '20'
       - name: Apply audit repairs
         run: python scripts/run-audit-repair.py
+      - name: Repair Society anchor recovery
+        run: python scripts/fix-society-location-ref.py
       - name: Syntax gate
         run: find . -path './.git' -prune -o -name '*.js' -type f -print0 | xargs -0 -n1 node --check
       - name: Full test suite
