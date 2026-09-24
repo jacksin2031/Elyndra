@@ -1,0 +1,143 @@
+name: Elyndra resilience suite hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/resilience-suite-hotfix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Apply resilience fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected source not found in {path}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          # P0: a successful Engine roll + source-grounded State Director discovery is authoritative.
+          # Narration may add evidence, but a scene timeout must not erase an already-grounded state mutation.
+          replace_once(
+              'src/state-sync.js',
+              '''   if(!discoveryNameGrounded(state,raw,context)){deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue}\n''',
+              '''   if(!discoveryNameGrounded(state,raw,context)){\n    const stateDirectorGrounded=context?.evidencePhase==="STATE_PENDING"&&context?.roll?.success===true;\n    if(stateDirectorGrounded){accepted.push(raw);continue}\n    deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue\n   }\n'''
+          )
+
+          # Robust model JSON extraction: continue scanning after malformed reasoning braces.
+          replace_once(
+              'src/model-json.js',
+              '''function firstBalancedModelJSON(value){\n let start=-1,inString=false,escaped=false,stack=[];\n for(let i=0;i<value.length;i++){\n  const ch=value[i];\n  if(start<0){if(ch==="{"||ch==="["){start=i;stack=[ch==="{"?"}":"]"]}continue}\n  if(inString){if(escaped)escaped=false;else if(ch==="\\\\")escaped=true;else if(ch==='"')inString=false;continue}\n  if(ch==='"'){inString=true;continue}\n  if(ch==="{"||ch==="[")stack.push(ch==="{"?"}":"]");\n  else if(ch==="}"||ch==="]"){if(stack.at(-1)!==ch)return "";stack.pop();if(!stack.length)return value.slice(start,i+1)}\n }\n return ""\n}\n''',
+              '''function firstBalancedModelJSON(value){\n return balancedModelJSONCandidates(value)[0]||""\n}\n\nfunction balancedModelJSONCandidates(value){\n const out=[];\n for(let start=0;start<value.length;start++){\n  const opener=value[start];if(opener!=="{"&&opener!=="[")continue;\n  let inString=false,escaped=false,invalid=false;const stack=[opener==="{"?"}":"]"];\n  for(let i=start+1;i<value.length;i++){\n   const ch=value[i];\n   if(inString){if(escaped)escaped=false;else if(ch==="\\\\")escaped=true;else if(ch==='"')inString=false;continue}\n   if(ch==='"'){inString=true;continue}\n   if(ch==="{"||ch==="[")stack.push(ch==="{"?"}":"]");\n   else if(ch==="}"||ch==="]"){\n    if(stack.at(-1)!==ch){invalid=true;break}\n    stack.pop();if(!stack.length){out.push(value.slice(start,i+1));start=i;break}\n   }\n  }\n  if(invalid)continue\n }\n return out\n}\n'''
+          )
+          replace_once(
+              'src/model-json.js',
+              ''' const balanced=firstBalancedModelJSON(source),candidates=[source];if(balanced&&balanced!==source)candidates.push(balanced);const a=source.indexOf("{"),b=source.lastIndexOf("}");\n if(a>=0&&b>a&&(a!==0||b!==source.length-1))candidates.push(source.slice(a,b+1));\n''',
+              ''' const balanced=firstBalancedModelJSON(source),candidates=[source];if(balanced&&balanced!==source)candidates.push(balanced);\n for(const candidate of balancedModelJSONCandidates(source))if(candidate&&candidate!==source)candidates.push(candidate);\n for(const match of source.matchAll(/```(?:json)?\\s*([\\s\\S]*?)```/gi))for(const candidate of balancedModelJSONCandidates(match[1]))candidates.push(candidate);\n const a=source.indexOf("{"),b=source.lastIndexOf("}");\n if(a>=0&&b>a&&(a!==0||b!==source.length-1))candidates.push(source.slice(a,b+1));\n'''
+          )
+
+          # Direct provider resilience: validate structured tasks at the transport boundary and retry once
+          # with a strict JSON-only contract before downstream parsers see the response.
+          replace_once(
+              'src/ai-settings.js',
+              '''import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=57002";\n''',
+              '''import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=57002";\nimport {parseModelJSON} from "./model-json.js?v=57002";\n'''
+          )
+          replace_once(
+              'src/ai-settings.js',
+              '''const RUNTIME_CONTROL_KEY="__ELYNDRA_DIRECT_AI_RUNTIME_CONTROL__";\nconst RATE_LIMIT_KEY="__ELYNDRA_PROVIDER_RATE_LIMITS__";\nconst SHED_ON_RATE_LIMIT=new Set(["turn_deferred","runtime_quality","quality","quality_repair","runtime_repair"]);\nfunction rateLimitRoot(){const current=globalThis[RATE_LIMIT_KEY];if(current&&typeof current==="object")return current;const initial={};globalThis[RATE_LIMIT_KEY]=initial;return initial}\nfunction rateLimitState(provider){const root=rateLimitRoot();return root[provider]??=({until:0,count:0,lastStatus:0})}\nfunction openRateLimit(provider,ms,status=429){const row=rateLimitState(provider),delay=Math.max(1000,Math.min(120000,Number(ms)||15000));row.until=Math.max(row.until,Date.now()+delay);row.count=(Number(row.count)||0)+1;row.lastStatus=status;recordDebug("AI_RATE_LIMIT_BACKPRESSURE",{provider,until:row.until,delayMs:delay,count:row.count,status});return row}\nfunction backpressureError(provider,task,until){const e=new Error(`AI_RATE_LIMIT_BACKPRESSURE: ${provider} cooldown active for ${task||"general"}`);e.code="AI_RATE_LIMIT_BACKPRESSURE";e.retryAt=until;return e}\nfunction directAIRuntimeControl(){const current=globalThis[RUNTIME_CONTROL_KEY];if(current&&typeof current==="object")return current;const initial={disableTimeout:false,signal:null,pauseWhenHidden:false};globalThis[RUNTIME_CONTROL_KEY]=initial;return initial}\nexport function setDirectAIRuntimeControl(control={}){const next={disableTimeout:control?.disableTimeout===true,signal:control?.signal||null,pauseWhenHidden:control?.pauseWhenHidden!==false};globalThis[RUNTIME_CONTROL_KEY]=next;return {...next}}\nexport function clearDirectAIRuntimeControl(){globalThis[RUNTIME_CONTROL_KEY]={disableTimeout:false,signal:null,pauseWhenHidden:false}}\n''',
+              '''const RUNTIME_CONTROL_KEY="__ELYNDRA_DIRECT_AI_RUNTIME_CONTROL__";\nconst RATE_LIMIT_KEY="__ELYNDRA_PROVIDER_RATE_LIMITS__";\nconst SHED_ON_RATE_LIMIT=new Set(["turn_deferred","runtime_expansion","history_deepening","runtime_quality","quality","quality_repair","runtime_repair"]);\nconst STRUCTURED_AI_TASKS=new Set(["action","scene","turn_state_fast","turn_state","turn_state_deep","turn_deferred","identity","geography","society","cast","core_anchor","core_rules","history","future","runtime_expansion","quality","quality_repair","recovery","runtime_quality","runtime_repair","history_deepening"]);\nfunction rateLimitRoot(){const current=globalThis[RATE_LIMIT_KEY];if(current&&typeof current==="object")return current;const initial={};globalThis[RATE_LIMIT_KEY]=initial;return initial}\nfunction rateLimitState(provider){const root=rateLimitRoot(),row=root[provider]??=({until:0,count:0,lastStatus:0,nextRequestAt:0,spacingMs:0});row.nextRequestAt=Math.max(0,Number(row.nextRequestAt)||0);row.spacingMs=Math.max(0,Number(row.spacingMs)||0);return row}\nfunction openRateLimit(provider,ms,status=429){const row=rateLimitState(provider),delay=Math.max(1000,Math.min(120000,Number(ms)||15000)),spacing=Math.max(1000,Math.min(5000,Math.round(delay/3)));row.until=Math.max(row.until,Date.now()+delay);row.nextRequestAt=Math.max(row.nextRequestAt,row.until);row.spacingMs=Math.max(row.spacingMs,spacing);row.count=(Number(row.count)||0)+1;row.lastStatus=status;recordDebug("AI_RATE_LIMIT_BACKPRESSURE",{provider,until:row.until,delayMs:delay,spacingMs:row.spacingMs,count:row.count,status});return row}\nfunction backpressureError(provider,task,until){const e=new Error(`AI_RATE_LIMIT_BACKPRESSURE: ${provider} cooldown active for ${task||"general"}`);e.code="AI_RATE_LIMIT_BACKPRESSURE";e.retryAt=until;return e}\nfunction directAIRuntimeControl(){const current=globalThis[RUNTIME_CONTROL_KEY];if(current&&typeof current==="object")return current;const initial={disableTimeout:false,signal:null,pauseWhenHidden:false,requestSpacingMs:0};globalThis[RUNTIME_CONTROL_KEY]=initial;return initial}\nexport function setDirectAIRuntimeControl(control={}){const next={disableTimeout:control?.disableTimeout===true,signal:control?.signal||null,pauseWhenHidden:control?.pauseWhenHidden!==false,requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs)||0)))};globalThis[RUNTIME_CONTROL_KEY]=next;return {...next}}\nexport function clearDirectAIRuntimeControl(){globalThis[RUNTIME_CONTROL_KEY]={disableTimeout:false,signal:null,pauseWhenHidden:false,requestSpacingMs:0}}\n'''
+          )
+          replace_once(
+              'src/ai-settings.js',
+              '''async function honorRateLimit(provider,task,parentSignals=[]){const row=rateLimitState(provider),remaining=Math.max(0,(Number(row.until)||0)-Date.now());if(!remaining)return;if(SHED_ON_RATE_LIMIT.has(String(task||"").toLowerCase())){recordDebug("AI_BACKPRESSURE_SKIPPED",{provider,task,until:row.until,remainingMs:remaining});throw backpressureError(provider,task,row.until)}recordDebug("AI_BACKPRESSURE_WAIT",{provider,task,until:row.until,remainingMs:remaining});await waitWithSignals(remaining,parentSignals)}\n''',
+              '''async function honorRateLimit(provider,task,parentSignals=[]){const row=rateLimitState(provider),now=Date.now(),cooldownRemaining=Math.max(0,(Number(row.until)||0)-now),taskName=String(task||"").toLowerCase();if(cooldownRemaining&&SHED_ON_RATE_LIMIT.has(taskName)){recordDebug("AI_BACKPRESSURE_SKIPPED",{provider,task,until:row.until,remainingMs:cooldownRemaining});throw backpressureError(provider,task,row.until)}const runtime=directAIRuntimeControl(),spacing=Math.max(Number(row.spacingMs)||0,Number(runtime.requestSpacingMs)||0),startAt=Math.max(now,Number(row.until)||0,Number(row.nextRequestAt)||0),remaining=Math.max(0,startAt-now);if(spacing>0)row.nextRequestAt=startAt+spacing;if(!remaining)return;recordDebug("AI_BACKPRESSURE_WAIT",{provider,task,until:row.until,startAt,remainingMs:remaining,spacingMs:spacing,reason:cooldownRemaining?"RATE_LIMIT":"PACING"});await waitWithSignals(remaining,parentSignals)}\n'''
+          )
+          replace_once(
+              'src/ai-settings.js',
+              '''  try{const call=s.provider==="gemini"?gemini:openAICompatible,pending=Promise.resolve().then(()=>call(s,{...args,signal:ctrl.signal}));const result=await hardProviderDeadline(pending,{controller:ctrl,timeoutMs,parentSignals});visibility.cleanup();const rate=rateLimitState(s.provider);rate.count=0;if(Date.now()>=rate.until)rate.until=0;return result}\n''',
+              '''  try{const call=s.provider==="gemini"?gemini:openAICompatible,pending=Promise.resolve().then(()=>call(s,{...args,signal:ctrl.signal}));const result=await hardProviderDeadline(pending,{controller:ctrl,timeoutMs,parentSignals});if(STRUCTURED_AI_TASKS.has(String(args?.aiTask||"").toLowerCase()))try{parseModelJSON(result)}catch(error){error.code="INVALID_MODEL_JSON";throw error}visibility.cleanup();const rate=rateLimitState(s.provider);rate.count=0;rate.lastStatus=200;if(Date.now()>=rate.until){rate.until=0;rate.spacingMs=Math.max(0,Math.floor((Number(rate.spacingMs)||0)*.75))}return result}\n'''
+          )
+          replace_once(
+              'src/ai-settings.js',
+              '''   if(!parentAborted&&Number(err?.status)===429){const row=openRateLimit(s.provider,err.retryAfterMs||15000,429);if(SHED_ON_RATE_LIMIT.has(String(args?.aiTask||"").toLowerCase()))throw backpressureError(s.provider,args?.aiTask,row.until);if(attempt===0){attempt++;await honorRateLimit(s.provider,args?.aiTask,parentSignals);continue}}\n   if(!parentAborted&&attempt===0&&(/AI_HTTP_5\\d\\d/.test(err.message)||((args?.retryOnTimeout!==false)&&(err.code==="AI_TIMEOUT"||err.name==="AbortError"||err.name==="TimeoutError")))){attempt++;await waitWithSignals(700,parentSignals);continue}\n''',
+              '''   if(!parentAborted&&Number(err?.status)===429){const row=openRateLimit(s.provider,err.retryAfterMs||15000,429);if(SHED_ON_RATE_LIMIT.has(String(args?.aiTask||"").toLowerCase()))throw backpressureError(s.provider,args?.aiTask,row.until);if(attempt===0){attempt++;await honorRateLimit(s.provider,args?.aiTask,parentSignals);continue}}\n   if(!parentAborted&&attempt===0&&err.code==="INVALID_MODEL_JSON"&&STRUCTURED_AI_TASKS.has(String(args?.aiTask||"").toLowerCase())){attempt++;args={...args,disableOptimization:true,temperature:0,system:String(args?.system||"")+"\\n上一個回應不是可解析 JSON。不要輸出 Thinking Process、推理、Markdown、前言或說明；直接從 { 或 [ 開始，只回傳 schema 要求的 JSON。"};recordDebug("AI_STRUCTURED_OUTPUT_RETRY",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",attempt:attempt+1,error:err.message});await waitWithSignals(150,parentSignals);continue}\n   if(!parentAborted&&attempt===0&&(/AI_HTTP_5\\d\\d/.test(err.message)||((args?.retryOnTimeout!==false)&&(err.code==="AI_TIMEOUT"||err.name==="AbortError"||err.name==="TimeoutError")))){attempt++;await waitWithSignals(700,parentSignals);continue}\n'''
+          )
+
+          # AutoTest gets gentle provider pacing even before a 429 is observed.
+          replace_once(
+              'app.js',
+              '''setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});\n''',
+              '''setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal,requestSpacingMs:1200});\n'''
+          )
+
+          # Quality review must settle top-level quality, both on success and on terminal unavailability.
+          replace_once(
+              'src/world-quality.js',
+              '''export function recordBackgroundQualityReview(state,{evaluation=null,repair=null,error=""}={}){\n state.world??={};state.world.quality=obj(state.world.quality)?state.world.quality:{};\n const prior=obj(state.world.quality.background)?state.world.quality.background:{};\n state.world.quality.background={\n  ...prior,running:false,reviewedAt:Date.now(),reviewedWorldVersion:Number(state.world.version)||1,\n  evaluation:evaluation?structuredClone(evaluation):prior.evaluation||null,\n  lastRepair:repair?structuredClone(repair):null,error:clean(error,300),\n  runs:Math.max(0,Number(prior.runs)||0)+1\n };\n return state.world.quality.background\n}\n''',
+              '''export function recordBackgroundQualityReview(state,{evaluation=null,repair=null,error=""}={}){\n state.world??={};state.world.quality=obj(state.world.quality)?state.world.quality:{};\n const quality=state.world.quality,prior=obj(quality.background)?quality.background:{},now=Date.now(),failure=clean(error,300);\n quality.background={\n  ...prior,running:false,reviewedAt:now,reviewedWorldVersion:Number(state.world.version)||1,\n  evaluation:evaluation?structuredClone(evaluation):prior.evaluation||null,\n  lastRepair:repair?structuredClone(repair):null,error:failure,\n  runs:Math.max(0,Number(prior.runs)||0)+1\n };\n quality.reviewedAt=now;quality.pending=false;quality.backgroundPending=false;\n if(evaluation){quality.status=String(evaluation.status||"PASS").toUpperCase();quality.source=clean(evaluation.source,30)||quality.source||"AI";quality.official=evaluation.official!==false;quality.overall=evaluation.overall??quality.overall??null;quality.provisionalOverall=evaluation.overall??quality.provisionalOverall??null;quality.error=""}\n else if(failure){quality.status="UNAVAILABLE";quality.source=quality.source||"FALLBACK";quality.official=false;quality.error=failure}\n return quality.background\n}\n'''
+          )
+
+          # AutoTest status: execution completion and health/degradation are different dimensions.
+          replace_once(
+              'src/ai-autotest.js',
+              '''const quality=world.quality||{},qualityPending=quality.pending===true||quality.backgroundPending===true||String(quality.status||"").toUpperCase()==="PENDING";if(qualityPending)issues.push({severity:"WARN",type:"WORLD_QUALITY_PENDING",message:"Background World Critic had not completed when this world snapshot was exported."});''',
+              '''const quality=world.quality||{},qualityStatus=String(quality.status||"").toUpperCase(),qualityPending=quality.pending===true||quality.backgroundPending===true||qualityStatus==="PENDING",qualityUnavailable=qualityStatus==="UNAVAILABLE";if(qualityPending)issues.push({severity:"WARN",type:"WORLD_QUALITY_PENDING",message:"Background World Critic had not completed when this world snapshot was exported."});if(qualityUnavailable)issues.push({severity:"WARN",type:"WORLD_QUALITY_UNAVAILABLE",message:"Background World Critic finished without an official evaluation.",error:text(quality.error||quality.background?.error||"",300)});'''
+          )
+          replace_once(
+              'src/ai-autotest.js',
+              '''quality:{status:quality.status||"",source:quality.source||"",pending:qualityPending,overall:quality.overall??null,provisionalOverall:quality.provisionalOverall??null},''',
+              '''quality:{status:quality.status||"",source:quality.source||"",pending:qualityPending,unavailable:qualityUnavailable,error:text(quality.error||quality.background?.error||"",300),overall:quality.overall??null,provisionalOverall:quality.provisionalOverall??null},'''
+          )
+          replace_once(
+              'src/ai-autotest.js',
+              '''if(list(world.actions).some(x=>x?.error)||runtimeRecoveryFailed(world)||String(world?.summary?.coherence?.status||"").toUpperCase()==="FAIL"||world?.summary?.coherence?.quality?.pending===true)return "DEGRADED";''',
+              '''if(list(world.actions).some(x=>x?.error)||runtimeRecoveryFailed(world)||String(world?.summary?.coherence?.status||"").toUpperCase()==="FAIL"||world?.summary?.coherence?.quality?.pending===true||world?.summary?.coherence?.quality?.unavailable===true)return "DEGRADED";'''
+          )
+          replace_once(
+              'src/ai-autotest.js',
+              '''effectiveWorlds=worlds.map(w=>({...w,reportedStatus:reportedWorldStatus(w)}));return {schema:"elyndra-autotest-report-v1",''',
+              '''effectiveWorlds=worlds.map(w=>({...w,reportedStatus:reportedWorldStatus(w)})),executionCompleted=w=>w.status==="COMPLETED"&&!(w.phase==="PLAY"&&Math.max(0,Number(w.turns)||0)===0);return {schema:"elyndra-autotest-report-v1",'''
+          )
+          replace_once(
+              'src/ai-autotest.js',
+              '''summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsCompleted:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:''',
+              '''summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsExecuted:effectiveWorlds.filter(executionCompleted).length,worldsCompleted:effectiveWorlds.filter(executionCompleted).length,worldsHealthy:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:'''
+          )
+
+          # Regression tests.
+          p=Path('test/model-json.test.js');t=p.read_text();t += '''\n\ntest("model JSON parser skips malformed reasoning braces and recovers later structured output",()=>{\n const raw='**Thinking Process:** inspect {not-json} first\\n```json\\n{"ok":true,"stage":"scene"}\\n```';\n assert.deepEqual(parseModelJSON(raw),{ok:true,stage:"scene"})\n});\n''';p.write_text(t)
+
+          p=Path('test/v0561-runtime-grounding.test.js');t=p.read_text();t += '''\n\ntest("successful source-grounded State Director discovery commits before narration",()=>{\n const s=state();s.world.registry.npcs=[{id:"N1",name:"引路人",known:true,encountered:true,locationId:"L1"}];\n const raw={op:"DISCOVER_FACT",title:"北側出口可通行",text:"引路人指出北側出口目前可通行。",factId:"obs-state",evidenceType:"HEARD",sourceKind:"NPC",sourceId:"N1"};\n const grounded=groundStatePatch(s,{baseRevision:0,operations:[raw]},{action:"詢問引路人北側出口",roll:{success:true},evidencePhase:"STATE_PENDING"});\n assert.equal(grounded.patch.operations.length,1);assert.equal(grounded.deferredEvidence.length,0)\n});\n''';p.write_text(t)
+
+          Path('test/autotest-resilience-v0572.test.js').write_text('''import test from "node:test";\nimport assert from "node:assert/strict";\nimport {readFile} from "node:fs/promises";\nimport {recordBackgroundQualityReview} from "../src/world-quality.js";\nimport {autotestWorldCoherence,buildAutotestReport} from "../src/ai-autotest.js";\n\nfunction baseState(){return {world:{id:"W",version:1,quality:{status:"PENDING",pending:true,backgroundPending:true,provisionalOverall:84},registry:{locations:[],npcs:[],factions:[]},generationClaims:{claims:[]},catalog:{civilizations:[],species:[],languages:[]},economy:{currencyExists:false},creation:{difficultyRules:{hunger:false,fatigue:false,statusEffects:false}},state:{day:1,clock:{totalMinutes:0}}},player:{status:"ALIVE",hp:100,level:1,knowledgeScore:0,survival:{satiety:100,fatigue:0,conditions:[]}},inventory:[],knowledge:[],events:[],discoveries:0,quests:{main:{title:"Q",stage:1,status:"ACTIVE",objectives:["O"]}}}}\n\ntest("background quality failure settles terminal UNAVAILABLE instead of permanent PENDING",()=>{\n const s=baseState();recordBackgroundQualityReview(s,{error:"AI_TIMEOUT"});\n assert.equal(s.world.quality.status,"UNAVAILABLE");assert.equal(s.world.quality.pending,false);assert.equal(s.world.quality.backgroundPending,false);assert.equal(s.world.quality.official,false);\n const coherence=autotestWorldCoherence(s);assert.equal(coherence.quality.pending,false);assert.equal(coherence.quality.unavailable,true);assert.ok(coherence.issues.some(x=>x.type==="WORLD_QUALITY_UNAVAILABLE"))\n});\n\ntest("background quality success settles official top-level quality",()=>{\n const s=baseState();recordBackgroundQualityReview(s,{evaluation:{status:"PASS",source:"AI",overall:91,official:true},repair:{applied:false,modified:[]}});\n assert.equal(s.world.quality.status,"PASS");assert.equal(s.world.quality.pending,false);assert.equal(s.world.quality.overall,91);assert.equal(s.world.quality.official,true)\n});\n\ntest("AutoTest reports execution completion separately from health",()=>{\n const s=baseState();recordBackgroundQualityReview(s,{error:"AI_TIMEOUT"});const summary={...s,summary:null};\n const report=buildAutotestReport({config:{worldCount:1,maxTurns:30},worlds:[{index:1,status:"COMPLETED",phase:"PLAY",turns:30,stopReason:"TURN_LIMIT",actions:[],summary:{...{worldId:"W",coherence:autotestWorldCoherence(s)}},generation:{diagnostics:{quality:"HEALTHY",stages:{}}}}],telemetry:[]});\n assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.worldsCompleted,1);assert.equal(report.summary.worldsHealthy,0);assert.equal(report.summary.worldsDegraded,1)\n});\n\ntest("AutoTest runtime enables provider pacing and sheds expansion during rate limit",async()=>{\n const ai=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),app=await readFile(new URL("../app.js",import.meta.url),"utf8");\n assert.match(ai,/AI_STRUCTURED_OUTPUT_RETRY/);assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(app,/requestSpacingMs:1200/)\n});\n''')
+          PY
+      - name: Run full test suite
+        run: npm test
+      - name: Commit tested hotfix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/resilience-suite-hotfix.yml
+          git add app.js src/state-sync.js src/model-json.js src/ai-settings.js src/world-quality.js src/ai-autotest.js test/model-json.test.js test/v0561-runtime-grounding.test.js test/autotest-resilience-v0572.test.js
+          git commit -m "fix: harden AutoTest state and AI resilience"
+          git push origin HEAD:main
