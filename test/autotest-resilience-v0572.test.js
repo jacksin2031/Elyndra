@@ -23,6 +23,12 @@ test("AutoTest reports execution completion separately from health",()=>{
  assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.worldsCompleted,0);assert.equal(report.summary.worldsHealthy,0);assert.equal(report.summary.worldsDegraded,1)
 });
 
+test("zero-turn PLAY record is not counted as an executed world",()=>{
+ const s=baseState();recordBackgroundQualityReview(s,{evaluation:{status:"PASS",source:"AI",overall:90,official:true}});
+ const report=buildAutotestReport({config:{worldCount:1,maxTurns:30},worlds:[{index:1,status:"COMPLETED",phase:"PLAY",turns:0,stopReason:"",actions:[],summary:{worldId:"W",coherence:autotestWorldCoherence(s)},generation:{diagnostics:{quality:"HEALTHY",stages:{}}}}],telemetry:[]});
+ assert.equal(report.summary.worldsExecuted,0)
+});
+
 test("AutoTest runtime enables provider pacing and sheds expansion during rate limit",async()=>{
  const ai=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\(\[.*runtime_expansion/);assert.match(ai,/control\?\.signal\?1200:0/);assert.match(app,/setDirectAIRuntimeControl\(\{disableTimeout:config\.disableTimeout===true,signal:developerAutotest\.batchController\.signal\}\)/)
