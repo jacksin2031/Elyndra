@@ -1,0 +1,13 @@
+const encoder=new TextEncoder();
+const hex=buffer=>Array.from(new Uint8Array(buffer),byte=>byte.toString(16).padStart(2,"0")).join("");
+function splitText(text,maxChars){const out=[];let at=0;while(at<text.length){let end=Math.min(text.length,at+maxChars);if(end<text.length){const prev=text.charCodeAt(end-1),next=text.charCodeAt(end);if(prev>=0xD800&&prev<=0xDBFF&&next>=0xDC00&&next<=0xDFFF)end-=1}if(end<=at)end=Math.min(text.length,at+maxChars);out.push(text.slice(at,end));at=end}return out}
+async function sha256(text,cryptoImpl){if(!cryptoImpl?.subtle?.digest)throw new Error("AUTOTEST_TRANSFER_SHA256_UNAVAILABLE");return hex(await cryptoImpl.subtle.digest("SHA-256",encoder.encode(text)))}
+export async function buildAutotestTextTransfer(artifact,{chunkChars=96000,cryptoImpl=globalThis.crypto}={}){
+ if(!artifact?.filename)throw new Error("AUTOTEST_TRANSFER_ARTIFACT_INVALID");
+ const body=String(artifact.body??""),limit=Math.max(4096,Math.floor(Number(chunkChars)||96000)),parts=splitText(body,limit),fullBytes=encoder.encode(body).length,fullSha256=await sha256(body,cryptoImpl);
+ const chunks=[];for(let i=0;i<parts.length;i++){const text=parts[i];chunks.push({index:i+1,text,chars:text.length,bytes:encoder.encode(text).length,sha256:await sha256(text,cryptoImpl)})}
+ return {schema:"elyndra-autotest-text-transfer-v1",filename:String(artifact.filename),mime:String(artifact.mime||"application/json;charset=utf-8"),encoding:"utf-8-raw-concat",chars:body.length,bytes:fullBytes,sha256:fullSha256,chunkChars:limit,totalChunks:chunks.length,chunks}
+}
+export function reconstructAutotestTextTransfer(transfer={}){return (Array.isArray(transfer.chunks)?transfer.chunks:[]).slice().sort((a,b)=>Number(a.index)-Number(b.index)).map(row=>String(row.text??"")).join("")}
+export function autotestTransferManifest(transfer={}){return {schema:transfer.schema||"elyndra-autotest-text-transfer-v1",filename:String(transfer.filename||""),mime:String(transfer.mime||""),encoding:String(transfer.encoding||"utf-8-raw-concat"),chars:Number(transfer.chars)||0,bytes:Number(transfer.bytes)||0,sha256:String(transfer.sha256||""),chunkChars:Number(transfer.chunkChars)||0,totalChunks:Number(transfer.totalChunks)||0,chunks:(Array.isArray(transfer.chunks)?transfer.chunks:[]).map(row=>({index:Number(row.index)||0,chars:Number(row.chars)||0,bytes:Number(row.bytes)||0,sha256:String(row.sha256||"")}))}}
+export async function verifyAutotestTextTransfer(transfer,{cryptoImpl=globalThis.crypto}={}){const text=reconstructAutotestTextTransfer(transfer),actual=await sha256(text,cryptoImpl);return {ok:actual===String(transfer?.sha256||""),actual,expected:String(transfer?.sha256||""),chars:text.length,bytes:encoder.encode(text).length}}

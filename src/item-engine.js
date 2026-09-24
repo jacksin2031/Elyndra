@@ -1,10 +1,10 @@
-import {isNpcPresent} from "./world-registry.js?v=57005";
-import {normalizeCheckBonuses} from "./check-engine.js?v=57005";
-import {ensureSurvival,survivalRules} from "./survival-engine.js?v=57005";
-import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=57005";
-import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=57005";
-import {adjustNpcRelationship,recordNpcMemory,upsertNpcBelief} from "./npc-cognition.js?v=57005";
-import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57005";
+import {isNpcPresent} from "./world-registry.js?v=57006";
+import {normalizeCheckBonuses} from "./check-engine.js?v=57006";
+import {ensureSurvival,survivalRules} from "./survival-engine.js?v=57006";
+import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=57006";
+import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=57006";
+import {adjustNpcRelationship,recordNpcMemory,upsertNpcBelief} from "./npc-cognition.js?v=57006";
+import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57006";
 
 const uid=prefix=>prefix+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));

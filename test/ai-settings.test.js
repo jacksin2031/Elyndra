@@ -55,7 +55,7 @@ test("AI settings UI exposes Agnes as a selectable mode",async()=>{
  assert.match(app,/Elyndra 自適應優化/);
  assert.match(app,/目前模型/);
  assert.doesNotMatch(app,/id="aiModel"/);
- assert.match(app,/ai-settings\.js\?v=57005/)
+ assert.match(app,/ai-settings\.js\?v=57006/)
 });
 
 
