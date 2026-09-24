@@ -1,15 +1,17 @@
 from pathlib import Path
 
-# Hard state-layer invariant: a failed Engine outcome may reveal information or
-# create consequences, but it may not complete item acquisition or player travel.
+# Hard state-layer invariant: when an Engine roll explicitly failed, the state
+# patch may reveal consequences but may not complete item acquisition or travel.
+# Calls without roll data keep legacy grounding semantics for lower-level tests.
 p = Path("src/state-sync.js")
 s = p.read_text(encoding="utf-8")
 old = '''  if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(state,raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
   if(type==="MOVE_PLAYER"){
 '''
-new = '''  if(type==="ACQUIRE_ITEM"&&context?.roll?.success!==true){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ENGINE_OUTCOME_FAILURE"});continue}
+new = '''  const explicitOutcomeFailure=context?.roll?.success===false;
+  if(type==="ACQUIRE_ITEM"&&explicitOutcomeFailure){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ENGINE_OUTCOME_FAILURE"});continue}
   if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(state,raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
-  if(type==="MOVE_PLAYER"&&context?.roll?.success!==true){rejected.push({index,op:type,location:clean(raw?.location,120),reason:"ENGINE_OUTCOME_FAILURE"});continue}
+  if(type==="MOVE_PLAYER"&&explicitOutcomeFailure){rejected.push({index,op:type,location:clean(raw?.location,120),reason:"ENGINE_OUTCOME_FAILURE"});continue}
   if(type==="MOVE_PLAYER"){
 '''
 if old not in s:
@@ -21,7 +23,6 @@ s = p.read_text(encoding="utf-8")
 old = 'import {groundStatePatch} from "../src/state-sync.js";'
 if old not in s:
     raise SystemExit("test state-sync import anchor missing")
-# import already sufficient; append focused commit-layer regression.
 marker='test("v0.55.0 failed outcomes cannot acquire items or complete travel at state commit"'
 if marker not in s:
     s += r'''
