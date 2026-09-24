@@ -18,3 +18,9 @@ test("model JSON parser still rejects unrecoverable native JSON syntax errors",(
 test("model JSON parser safely repairs trailing commas outside strings",()=>{
  assert.deepEqual(parseModelJSON('{"items":[{"id":1,},],"note":"keep ,} inside text"}'),{items:[{id:1}],note:"keep ,} inside text"})
 });
+
+
+test("model JSON parser skips malformed reasoning braces and recovers later structured output",()=>{
+ const raw='**Thinking Process:** inspect {not-json} first\n```json\n{"ok":true,"stage":"scene"}\n```';
+ assert.deepEqual(parseModelJSON(raw),{ok:true,stage:"scene"})
+});

@@ -321,12 +321,15 @@ export function backgroundQualityNeed(state){
 }
 export function recordBackgroundQualityReview(state,{evaluation=null,repair=null,error=""}={}){
  state.world??={};state.world.quality=obj(state.world.quality)?state.world.quality:{};
- const prior=obj(state.world.quality.background)?state.world.quality.background:{};
- state.world.quality.background={
-  ...prior,running:false,reviewedAt:Date.now(),reviewedWorldVersion:Number(state.world.version)||1,
+ const quality=state.world.quality,prior=obj(quality.background)?quality.background:{},now=Date.now(),failure=clean(error,300);
+ quality.background={
+  ...prior,running:false,reviewedAt:now,reviewedWorldVersion:Number(state.world.version)||1,
   evaluation:evaluation?structuredClone(evaluation):prior.evaluation||null,
-  lastRepair:repair?structuredClone(repair):null,error:clean(error,300),
+  lastRepair:repair?structuredClone(repair):null,error:failure,
   runs:Math.max(0,Number(prior.runs)||0)+1
  };
- return state.world.quality.background
+ quality.reviewedAt=now;quality.pending=false;quality.backgroundPending=false;
+ if(evaluation){quality.status=String(evaluation.status||"PASS").toUpperCase();quality.source=clean(evaluation.source,30)||quality.source||"AI";quality.official=evaluation.official!==false;quality.overall=evaluation.overall??quality.overall??null;quality.provisionalOverall=evaluation.overall??quality.provisionalOverall??null;quality.error=""}
+ else if(failure){quality.status="UNAVAILABLE";quality.source=quality.source||"FALLBACK";quality.official=false;quality.error=failure}
+ return quality.background
 }

@@ -51,22 +51,36 @@ function closeUnfinishedModelJSON(value){
 }
 
 function firstBalancedModelJSON(value){
- let start=-1,inString=false,escaped=false,stack=[];
- for(let i=0;i<value.length;i++){
-  const ch=value[i];
-  if(start<0){if(ch==="{"||ch==="["){start=i;stack=[ch==="{"?"}":"]"]}continue}
-  if(inString){if(escaped)escaped=false;else if(ch==="\\")escaped=true;else if(ch==='"')inString=false;continue}
-  if(ch==='"'){inString=true;continue}
-  if(ch==="{"||ch==="[")stack.push(ch==="{"?"}":"]");
-  else if(ch==="}"||ch==="]"){if(stack.at(-1)!==ch)return "";stack.pop();if(!stack.length)return value.slice(start,i+1)}
+ return balancedModelJSONCandidates(value)[0]||""
+}
+
+function balancedModelJSONCandidates(value){
+ const out=[];
+ for(let start=0;start<value.length;start++){
+  const opener=value[start];if(opener!=="{"&&opener!=="[")continue;
+  let inString=false,escaped=false,invalid=false;const stack=[opener==="{"?"}":"]"];
+  for(let i=start+1;i<value.length;i++){
+   const ch=value[i];
+   if(inString){if(escaped)escaped=false;else if(ch==="\\")escaped=true;else if(ch==='"')inString=false;continue}
+   if(ch==='"'){inString=true;continue}
+   if(ch==="{"||ch==="[")stack.push(ch==="{"?"}":"]");
+   else if(ch==="}"||ch==="]"){
+    if(stack.at(-1)!==ch){invalid=true;break}
+    stack.pop();if(!stack.length){out.push(value.slice(start,i+1));start=i;break}
+   }
+  }
+  if(invalid)continue
  }
- return ""
+ return out
 }
 
 export function parseModelJSON(raw){
  const source=String(raw??"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```$/,"").trim();
  if(!source)throw new Error("INVALID_MODEL_JSON: empty response");
- const balanced=firstBalancedModelJSON(source),candidates=[source];if(balanced&&balanced!==source)candidates.push(balanced);const a=source.indexOf("{"),b=source.lastIndexOf("}");
+ const balanced=firstBalancedModelJSON(source),candidates=[source];if(balanced&&balanced!==source)candidates.push(balanced);
+ for(const candidate of balancedModelJSONCandidates(source))if(candidate&&candidate!==source)candidates.push(candidate);
+ for(const match of source.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi))for(const candidate of balancedModelJSONCandidates(match[1]))candidates.push(candidate);
+ const a=source.indexOf("{"),b=source.lastIndexOf("}");
  if(a>=0&&b>a&&(a!==0||b!==source.length-1))candidates.push(source.slice(a,b+1));
  let lastError=null;
  for(const candidate of [...new Set(candidates)]){

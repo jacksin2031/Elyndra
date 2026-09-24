@@ -231,7 +231,11 @@ export function groundStatePatch(state,patch={},context={}){
   if(type==="DISCOVER_FACT"){
    raw=canonicalizeDiscoverySource(state,raw);
    if(!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(original?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
-   if(!discoveryNameGrounded(state,raw,context)){deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue}
+   if(!discoveryNameGrounded(state,raw,context)){
+    const stateDirectorGrounded=context?.evidencePhase==="STATE_PENDING"&&context?.roll?.success===true;
+    if(stateDirectorGrounded){accepted.push(raw);continue}
+    deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue
+   }
   }
   if(type==="REVEAL_ENTITY"){
    const entity=registryEntity(state,String(raw?.kind||""),clean(raw?.id,120));

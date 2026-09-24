@@ -40,3 +40,11 @@ test("v0.56.1 parser accepts first balanced JSON when provider appends another v
 test("v0.56.1 autotest finalizer is called once per generated world path",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8"),matches=app.match(/await finalizeDeveloperAutotestWorld\(config\);/g)||[];assert.equal(matches.length,2);assert.match(app,/projectDeferredSceneEvidence\(rows,context\?\.observableText\)/)
 });
+
+
+test("successful source-grounded State Director discovery commits before narration",()=>{
+ const s=state();s.world.registry.npcs=[{id:"N1",name:"引路人",known:true,encountered:true,locationId:"L1"}];
+ const raw={op:"DISCOVER_FACT",title:"北側出口可通行",text:"引路人指出北側出口目前可通行。",factId:"obs-state",evidenceType:"HEARD",sourceKind:"NPC",sourceId:"N1"};
+ const grounded=groundStatePatch(s,{baseRevision:0,operations:[raw]},{action:"詢問引路人北側出口",roll:{success:true},evidencePhase:"STATE_PENDING"});
+ assert.equal(grounded.patch.operations.length,1);assert.equal(grounded.deferredEvidence.length,0)
+});
