@@ -1,5 +1,6 @@
 name: Temporary v0.55.1 Regression Repair
 
+# harness revision 2: server/client chronology anchors split
 on:
   push:
     branches:
