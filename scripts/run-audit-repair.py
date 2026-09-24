@@ -41,6 +41,28 @@ if exported not in s:
 else:
     status.append('actionProfile export already present')
 
+# Deterministic mutations are allowed only for explicit commands. Negated or
+# compound natural-language sentences must fall through to intent/AI handling.
+old_rest = ' const q=clean(label,180);if(!/休息|睡眠|睡覺|紮營|露營|rest|sleep|camp/i.test(q))return null;'
+new_rest = ' const q=clean(label,180);if(!explicitRestCommand(q))return null;'
+if old_rest in s:
+    s = s.replace(old_rest, new_rest, 1)
+    status.append('hardened deterministic rest command')
+elif new_rest in s:
+    status.append('deterministic rest command already hardened')
+else:
+    raise RuntimeError('deterministicRestAction guard not found')
+
+old_travel = ' const q=clean(label,180),target=(state.world?.registry?.locations||[]).find(x=>x.known===true&&x.name&&q.includes(x.name));if(!target||!/前往|移動|走到|旅行|去|travel|go to|walk/i.test(q))return null;'
+new_travel = ' const q=clean(label,180),target=(state.world?.registry?.locations||[]).find(x=>x.known===true&&x.name&&q.includes(x.name));if(!target||!explicitTravelCommand(q,target.name))return null;'
+if old_travel in s:
+    s = s.replace(old_travel, new_travel, 1)
+    status.append('hardened deterministic travel command')
+elif new_travel in s:
+    status.append('deterministic travel command already hardened')
+else:
+    raise RuntimeError('deterministicKnownTravel guard not found')
+
 p.write_text(s, encoding='utf-8')
 
 # Fail immediately if this focused repair introduces a syntax regression.
@@ -56,7 +78,7 @@ subprocess.run(['git', 'config', 'user.email', 'actions@users.noreply.github.com
 subprocess.run(['git', 'add', 'src/game-engine.js', 'audit-repair-status.txt'], check=True)
 changed = subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode != 0
 if changed:
-    subprocess.run(['git', 'commit', '-m', 'fix: restore v0.54.19 action profiles after parser repair'], check=True)
+    subprocess.run(['git', 'commit', '-m', 'fix: require explicit deterministic rest and travel commands'], check=True)
     subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
 
 # Capture the suite once inside the repair step. Besides the tail, emit a compact
@@ -66,16 +88,17 @@ test_run = subprocess.run(['npm', 'test'], text=True, stdout=subprocess.PIPE, st
 output = test_run.stdout or ''
 Path('audit-test-output.txt').write_text(output[-60000:], encoding='utf-8')
 lines = output.splitlines()
+result_indexes = [i for i, row in enumerate(lines) if re.match(r'^(?:ok|not ok)\s+\d+\s+-\s+', row)]
 failures = []
-for i, line in enumerate(lines):
-    if not re.match(r'^not ok\s+\d+\s+-\s+', line):
+for pos, i in enumerate(result_indexes):
+    line = lines[i]
+    if not line.startswith('not ok '):
         continue
+    end = result_indexes[pos + 1] if pos + 1 < len(result_indexes) else len(lines)
+    segment = lines[i + 1:end]
     item = [line]
-    window = lines[i + 1:i + 80]
     wanted_prefixes = ('  error:', '  code:', '  operator:', '  expected:')
-    for row in window:
-        if re.match(r'^(ok|not ok)\s+\d+\s+-\s+', row) or row.startswith('# Subtest:'):
-            break
+    for row in segment:
         if row.startswith(wanted_prefixes):
             item.append(row[:1000])
         elif 'TestContext.<anonymous>' in row:
@@ -89,7 +112,7 @@ Path('audit-test-failures.txt').write_text(compact + '\n', encoding='utf-8')
 subprocess.run(['git', 'add', 'audit-test-output.txt', 'audit-test-failures.txt'], check=True)
 diagnostic_changed = subprocess.run(['git', 'diff', '--cached', '--quiet']).returncode != 0
 if diagnostic_changed:
-    subprocess.run(['git', 'commit', '-m', 'chore: capture compact v0.54.19 test failures'], check=True)
+    subprocess.run(['git', 'commit', '-m', 'chore: refresh compact v0.54.19 test failures'], check=True)
     subprocess.run(['git', 'push', 'origin', 'HEAD:fix/audit-2026-09-24-all'], check=True)
 
 status.append(f'full suite diagnostic exit={test_run.returncode}')
