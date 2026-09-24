@@ -103,5 +103,5 @@ test("background world evolution uses resumable checkpoint canon pipeline",async
  assert.match(app,/plan\.checkpoint\?\.added\|\|canonizeGeneration\(state,ex\.generation\)/);
  assert.match(app,/commitLazyGeneration\(state,plan,ex\.generation,added,\{sourceProvider:ex\.generationSource\?\.provider,sourceModel:ex\.generationSource\?\.model\}\)/);
  assert.match(app,/checkpointed=hasLazyGenerationCheckpoint\(plan\)/);
- assert.match(app,/plan\.status==="PLANNED"&&!checkpointed\)abortLazyGeneration\(state\|\|\{world:\{\}\},plan/);
+ assert.match(app,/plan\.status==="PLANNED"&&!checkpointed\)abortLazyGeneration\(state,plan/);
 });
