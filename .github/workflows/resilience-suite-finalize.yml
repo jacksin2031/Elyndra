@@ -1,0 +1,64 @@
+name: Elyndra resilience suite finalize
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/resilience-suite-finalize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-land:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply staged resilience patch
+        shell: bash
+        run: |
+          awk '/^          python3 <<'\''PY'\''$/{flag=1;next} flag && /^          PY$/{flag=0;exit} flag {sub(/^          /,""); print}' .github/workflows/resilience-suite-hotfix.yml > /tmp/elyndra-resilience-patch.py
+          test -s /tmp/elyndra-resilience-patch.py
+          python3 /tmp/elyndra-resilience-patch.py
+      - name: Preserve legacy runtime-control contract while keeping AutoTest pacing
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          p=Path('app.js');t=p.read_text()
+          old='setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal,requestSpacingMs:1200});'
+          new='setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});'
+          if old not in t: raise SystemExit('patched AutoTest runtime-control call not found')
+          p.write_text(t.replace(old,new,1))
+
+          p=Path('src/ai-settings.js');t=p.read_text()
+          old='requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs)||0)))'
+          new='requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs??(control?.signal?1200:0))||0)))'
+          if old not in t: raise SystemExit('runtime pacing setter not found')
+          p.write_text(t.replace(old,new,1))
+
+          p=Path('test/autotest-resilience-v0572.test.js');t=p.read_text()
+          old='assert.match(ai,/AI_STRUCTURED_OUTPUT_RETRY/);assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(app,/requestSpacingMs:1200/)'
+          new='assert.match(ai,/AI_STRUCTURED_OUTPUT_RETRY/);assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(ai,/control\\?\\.signal\\?1200:0/);assert.match(app,/setDirectAIRuntimeControl\\(\\{disableTimeout:config\\.disableTimeout===true,signal:developerAutotest\\.batchController\\.signal\\}\\)/)'
+          if old not in t: raise SystemExit('resilience pacing assertion not found')
+          p.write_text(t.replace(old,new,1))
+          PY
+      - name: Run targeted regression tests
+        run: node --test test/model-json.test.js test/v0561-runtime-grounding.test.js test/autotest-resilience-v0572.test.js test/ai-autotest-controls-v0544.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Commit tested resilience fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/resilience-suite-hotfix.yml .github/workflows/resilience-suite-hotfix-run.yml .github/workflows/resilience-suite-diagnostic.yml .github/workflows/resilience-suite-finalize.yml .github/resilience-test-failure.txt
+          git add app.js src/state-sync.js src/model-json.js src/ai-settings.js src/world-quality.js src/ai-autotest.js test/model-json.test.js test/v0561-runtime-grounding.test.js test/autotest-resilience-v0572.test.js
+          git commit -m "fix: harden AutoTest state and AI resilience"
+          git push origin HEAD:main
