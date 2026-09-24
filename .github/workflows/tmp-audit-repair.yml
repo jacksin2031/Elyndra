@@ -6,6 +6,8 @@ on:
       - fix/audit-2026-09-24-all
     paths:
       - 'scripts/run-audit-repair.py'
+      - 'test/**'
+      - '.github/workflows/tmp-audit-repair.yml'
 
 permissions:
   contents: write
