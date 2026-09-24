@@ -1,0 +1,125 @@
+name: Land v0.57.7 IAB native drag export
+
+on:
+  push:
+    paths:
+      - '.github/workflows/land-v0577-iab-drag.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-land:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply v0.57.7 native drag export patch
+        shell: bash
+        run: |
+          cat > src/autotest-drag-export.js <<'EOF'
+          const encoder=new TextEncoder();
+          const hex=buffer=>Array.from(new Uint8Array(buffer),byte=>byte.toString(16).padStart(2,"0")).join("");
+          async function sha256Bytes(bytes,cryptoImpl){if(!cryptoImpl?.subtle?.digest)throw new Error("AUTOTEST_DRAG_SHA256_UNAVAILABLE");return hex(await cryptoImpl.subtle.digest("SHA-256",bytes))}
+          function base64Bytes(bytes,btoaImpl=globalThis.btoa){if(typeof btoaImpl!=="function")throw new Error("AUTOTEST_DRAG_BASE64_UNAVAILABLE");let binary="";const step=0x8000;for(let i=0;i<bytes.length;i+=step)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(bytes.length,i+step)));return btoaImpl(binary)}
+          export async function buildAutotestDragPayload(artifact,{cryptoImpl=globalThis.crypto,btoaImpl=globalThis.btoa}={}){
+           if(!artifact?.filename)throw new Error("AUTOTEST_DRAG_ARTIFACT_INVALID");
+           const body=String(artifact.body??""),filename=String(artifact.filename),mime=String(artifact.mime||"application/json;charset=utf-8"),raw=encoder.encode(body),sha256=await sha256Bytes(raw,cryptoImpl),dataUrl=`data:${mime};base64,${base64Bytes(raw,btoaImpl)}`;
+           return {schema:"elyndra-autotest-native-drag-v1",filename,mime,chars:body.length,bytes:raw.length,sha256,body,dataUrl,downloadURL:`${mime}:${filename}:${dataUrl}`}
+          }
+          export function createAutotestDragFile(payload,{FileImpl=globalThis.File}={}){if(typeof FileImpl!=="function")throw new Error("AUTOTEST_DRAG_FILE_UNAVAILABLE");return new FileImpl([String(payload?.body??"")],String(payload?.filename||"Elyndra-autotest.json"),{type:String(payload?.mime||"application/json;charset=utf-8")})}
+          export function applyAutotestDragPayload(dataTransfer,payload,{FileImpl=globalThis.File}={}){
+           if(!dataTransfer)throw new Error("AUTOTEST_DRAG_DATA_TRANSFER_UNAVAILABLE");const file=createAutotestDragFile(payload,{FileImpl});let fileItem=false;
+           try{if(dataTransfer.items?.add){dataTransfer.items.add(file);fileItem=true}}catch{}
+           dataTransfer.setData?.("DownloadURL",String(payload.downloadURL||""));dataTransfer.setData?.("text/plain",String(payload.filename||""));try{dataTransfer.effectAllowed="copy"}catch{}
+           return {file,fileItem,downloadURL:Boolean(payload.downloadURL),filename:file.name,bytes:file.size,sha256:payload.sha256}
+          }
+          export async function verifyAutotestDragFile(file,payload,{cryptoImpl=globalThis.crypto}={}){
+           if(!file)throw new Error("AUTOTEST_DRAG_FILE_MISSING");const raw=new Uint8Array(await file.arrayBuffer()),actual=await sha256Bytes(raw,cryptoImpl),expected=String(payload?.sha256||""),filename=String(payload?.filename||"");
+           return {ok:String(file.name||"")===filename&&Number(file.size)===Number(payload?.bytes)&&actual===expected,filename:String(file.name||""),expectedFilename:filename,bytes:Number(file.size)||0,expectedBytes:Number(payload?.bytes)||0,sha256:actual,expectedSha256:expected}
+          }
+          EOF
+
+          cat > test/autotest-iab-drag-v0577.test.js <<'EOF'
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import {createHash,webcrypto} from "node:crypto";
+          import {readFile} from "node:fs/promises";
+          import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "../src/autotest-drag-export.js";
+          const sha=text=>createHash("sha256").update(text,"utf8").digest("hex");
+          const btoaNode=value=>Buffer.from(value,"binary").toString("base64");
+          class FakeFile {constructor(parts,name,options={}){this.name=name;this.type=options.type||"";this._bytes=new TextEncoder().encode(parts.join(""));this.size=this._bytes.length}async arrayBuffer(){return this._bytes.buffer.slice(this._bytes.byteOffset,this._bytes.byteOffset+this._bytes.byteLength)}}
+          test("v0.57.7 builds a native drag payload with exact filename bytes SHA and DownloadURL",async()=>{const body=JSON.stringify({worlds:["玄脈九域","九脈斷朝"],text:"測試🌏".repeat(100)}),artifact={filename:"Elyndra-autotest-debug-v0.57.6.json",mime:"application/json;charset=utf-8",body};const p=await buildAutotestDragPayload(artifact,{cryptoImpl:webcrypto,btoaImpl:btoaNode});assert.equal(p.filename,artifact.filename);assert.equal(p.bytes,Buffer.byteLength(body,"utf8"));assert.equal(p.sha256,sha(body));assert.match(p.dataUrl,/^data:application\/json;charset=utf-8;base64,/);assert.ok(p.downloadURL.startsWith(`${artifact.mime}:${artifact.filename}:data:`))});
+          test("v0.57.7 dragstart publishes both File item and Chromium DownloadURL",async()=>{const body='{"ok":true,"世界":"玄脈九域"}',p=await buildAutotestDragPayload({filename:"result.json",mime:"application/json",body},{cryptoImpl:webcrypto,btoaImpl:btoaNode}),added=[],data=new Map(),dt={items:{add:file=>added.push(file)},setData:(type,value)=>data.set(type,value),effectAllowed:"none"};const result=applyAutotestDragPayload(dt,p,{FileImpl:FakeFile});assert.equal(result.fileItem,true);assert.equal(added.length,1);assert.equal(added[0].name,"result.json");assert.equal(added[0].size,Buffer.byteLength(body));assert.equal(data.get("DownloadURL"),p.downloadURL);assert.equal(data.get("text/plain"),"result.json");assert.equal(dt.effectAllowed,"copy")});
+          test("v0.57.7 self-test verifies the dropped File byte-for-byte",async()=>{const body=JSON.stringify({large:"資料🌏".repeat(5000)}),p=await buildAutotestDragPayload({filename:"recovery.json",mime:"application/json",body},{cryptoImpl:webcrypto,btoaImpl:btoaNode}),dt={items:{add(){}},setData(){}};const {file}=applyAutotestDragPayload(dt,p,{FileImpl:FakeFile});const verified=await verifyAutotestDragFile(file,p,{cryptoImpl:webcrypto});assert.equal(verified.ok,true);assert.equal(verified.filename,"recovery.json");assert.equal(verified.sha256,p.sha256);assert.equal(verified.bytes,p.bytes)});
+          test("v0.57.7 UI exposes native drag as primary and keeps IndexedDB/text rescue",async()=>{const app=await readFile(new URL("../app.js",import.meta.url),"utf8");assert.match(app,/id="autotestDragDebug"/);assert.match(app,/id="autotestDragWorld"/);assert.match(app,/id="autotestDragRecovery"/);assert.match(app,/AUTOTEST_NATIVE_DRAG_SELFTEST_PASS/);assert.match(app,/DownloadURL/);assert.match(app,/loadLastAutotestExportSnapshot/);assert.match(app,/文字分段救援/) });
+          EOF
+
+          python <<'PY'
+          from pathlib import Path
+          import json,re
+          p=Path('app.js'); s=p.read_text()
+          s=s.replace('?v=57006','?v=57007')
+          old='import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57007";'
+          new=old+'\nimport {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57007";'
+          assert old in s
+          s=s.replace(old,new,1)
+          old='const developerAutotestTransfer={kind:"",transfer:null,index:0,full:false};'
+          new=old+'\nconst developerAutotestDrag={kind:"",payload:null,selfTest:null,lastDrag:null};'
+          assert old in s
+          s=s.replace(old,new,1)
+          old='<h3>IAB 頁面取回已保存 snapshot，不需重跑</h3>'
+          new='<h3>IAB 原生檔案拖出已保存 snapshot，不需重跑</h3>'
+          assert old in s;s=s.replace(old,new,1)
+          old='<p><strong>主要交付路徑：</strong>直接在頁面顯示完整 JSON 或固定大小分段，附檔名與 SHA-256；不依賴 File Picker、browser clipboard 或下載管理器。</p><div class="settings-actions">'
+          new='<p><strong>主要交付路徑：</strong>建立原生 File drag payload，同時提供 Chromium DownloadURL。可直接拖到 Windows Explorer 或 ChatGPT Web；不依賴 picker、clipboard 或下載按鈕。</p><div class="settings-actions">${exportArtifacts.debug?\'<button id="autotestDragDebug" class="primary">準備拖出 Debug JSON</button>\':""}${exportArtifacts.world?\'<button id="autotestDragWorld" class="primary">準備拖出世界 JSON</button>\':""}${exportArtifacts.recovery?\'<button id="autotestDragRecovery" class="primary">準備拖出 Recovery JSON</button>\':""}'
+          assert old in s;s=s.replace(old,new,1)
+          s=s.replace('<details><summary>Browser API fallback（Codex IAB 可能自動取消或不落地）</summary>','<details><summary>文字分段救援 / Browser API fallback</summary>',1)
+          marker='function developerAutotestTransferLabel(kind){'
+          assert marker in s
+          drag=r'''function developerAutotestDragLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界 JSON":"Recovery JSON"}
+function developerAutotestDragHtml(){
+ const p=developerAutotestDrag.payload;if(!p)return `<div class="eyebrow">AUTOTEST · NATIVE DRAG</div><h2>沒有可拖出資料</h2><button id="autotestDragBack" class="secondary">返回 AutoTest</button>`;
+ const label=developerAutotestDragLabel(developerAutotestDrag.kind),test=developerAutotestDrag.selfTest,testHtml=test?(test.ok?`<p class="success"><strong>PASS · IAB File payload 已在頁內 drop 自測驗證</strong><br>${esc(test.filename)} · ${Number(test.bytes).toLocaleString()} bytes<br>SHA-256 <code>${esc(test.sha256)}</code></p>`:`<p class="error"><strong>FAIL · drop payload 不完整</strong><br>${esc(test.filename||"")} · ${Number(test.bytes||0).toLocaleString()} bytes<br>SHA-256 <code>${esc(test.sha256||"")}</code></p>`):`<p class="muted">尚未做頁內 drop 自測。先把上方檔案卡拖到此區，可驗證 IAB drag data store 中的 File 是否 byte-for-byte 正確。</p>`;
+ return `<div class="eyebrow">AUTOTEST · IAB NATIVE FILE DRAG</div><h2>${esc(label)} 原生檔案交付</h2><div class="lore-item"><p><strong>檔名：</strong><code>${esc(p.filename)}</code></p><p><strong>大小：</strong>${Number(p.bytes).toLocaleString()} bytes · ${Number(p.chars).toLocaleString()} 字元</p><p><strong>SHA-256：</strong><code>${esc(p.sha256)}</code></p><p class="muted">此卡在 dragstart 同時發布原生 File item 與 Chromium DownloadURL。拖到 Windows Explorer 是本機落地路徑；拖到 ChatGPT Web 的檔案 drop area 是上傳路徑。Elyndra 只會回報 drag/drop 信號，不會把「開始拖曳」誤報為已保存或已上傳。</p></div><div id="autotestDragFile" draggable="true" tabindex="0" style="border:2px dashed currentColor;border-radius:14px;padding:28px;margin:18px 0;text-align:center;cursor:grab;user-select:none"><strong>⬇ 拖曳 ${esc(p.filename)}</strong><br><small>${Number(p.bytes).toLocaleString()} bytes · SHA-256 ${esc(p.sha256)}</small><br><span>拖到 Explorer / ChatGPT Web</span></div><div id="autotestDragSelfTest" style="border:1px dashed currentColor;border-radius:12px;padding:20px;margin:14px 0;text-align:center"><strong>頁內 IAB File 自測區</strong>${testHtml}</div><div class="settings-actions"><button id="autotestDragTextRescue" class="secondary">文字分段救援</button><button id="autotestDragBack" class="ghost">返回 AutoTest</button></div><p id="autotestDragStatus" class="muted">尚未向外部目的地交付。只有目的地實際接受 drop 後，才可在目的地驗證檔名與大小；Windows/ChatGPT 的最終保存狀態無法由來源頁面自行證明。</p>`
+}
+function bindDeveloperAutotestDrag(){
+ const source=$("#autotestDragFile"),zone=$("#autotestDragSelfTest"),status=$("#autotestDragStatus");
+ source?.addEventListener("dragstart",event=>{try{const info=applyAutotestDragPayload(event.dataTransfer,developerAutotestDrag.payload);developerAutotestDrag.lastDrag={startedAt:Date.now(),info};if(status)status.textContent=`Drag payload 已建立：File item=${info.fileItem?"YES":"NO"} · DownloadURL=${info.downloadURL?"YES":"NO"}。尚未證明目的地已保存/上傳。`;recordDebug("AUTOTEST_NATIVE_DRAG_STARTED",{kind:developerAutotestDrag.kind,filename:info.filename,bytes:info.bytes,sha256:info.sha256,fileItem:info.fileItem,downloadURL:info.downloadURL})}catch(error){if(status)status.textContent=`建立 drag payload 失敗：${error?.message||error}`;recordDebug("AUTOTEST_NATIVE_DRAG_FAILED",{kind:developerAutotestDrag.kind,error:error?.message||String(error)});event.preventDefault()}});
+ source?.addEventListener("dragend",event=>{const effect=String(event.dataTransfer?.dropEffect||"none");if(status)status.textContent=effect!=="none"?`目的地回報接受 drag（dropEffect=${effect}）。這不是保存/上傳完成證明；請在 Explorer 或 ChatGPT Web 以檔名/大小驗證。`:`未收到外部目的地接受信號（dropEffect=${effect}）。`;recordDebug("AUTOTEST_NATIVE_DRAG_ENDED",{kind:developerAutotestDrag.kind,dropEffect:effect,filename:developerAutotestDrag.payload?.filename||""})});
+ zone?.addEventListener("dragover",event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect="copy"});
+ zone?.addEventListener("drop",event=>{event.preventDefault();const file=event.dataTransfer?.files?.[0]||Array.from(event.dataTransfer?.items||[]).map(item=>item?.kind==="file"?item.getAsFile?.():null).find(Boolean);void verifyAutotestDragFile(file,developerAutotestDrag.payload).then(result=>{developerAutotestDrag.selfTest=result;recordDebug(result.ok?"AUTOTEST_NATIVE_DRAG_SELFTEST_PASS":"AUTOTEST_NATIVE_DRAG_SELFTEST_FAIL",result);openModal(developerAutotestDragHtml());bindDeveloperAutotestDrag()}).catch(error=>{developerAutotestDrag.selfTest={ok:false,filename:file?.name||"",bytes:file?.size||0,sha256:"",error:error?.message||String(error)};recordDebug("AUTOTEST_NATIVE_DRAG_SELFTEST_FAIL",developerAutotestDrag.selfTest);openModal(developerAutotestDragHtml());bindDeveloperAutotestDrag()})});
+ $("#autotestDragTextRescue")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer(developerAutotestDrag.kind));$("#autotestDragBack")?.addEventListener("click",openDeveloperAutotestPanel)
+}
+async function openDeveloperAutotestDragExport(kind){const artifact=developerAutotestArtifact(kind);if(!artifact){appendDeveloperAutotestLog("找不到可拖出的 AutoTest 匯出內容。");openDeveloperAutotestPanel();return}try{const payload=await buildAutotestDragPayload(artifact);developerAutotestDrag.kind=kind;developerAutotestDrag.payload=payload;developerAutotestDrag.selfTest=null;developerAutotestDrag.lastDrag=null;recordDebug("AUTOTEST_NATIVE_DRAG_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256});openModal(developerAutotestDragHtml());bindDeveloperAutotestDrag()}catch(error){appendDeveloperAutotestLog(`原生拖出資料建立失敗：${error?.message||error}`);recordDebug("AUTOTEST_NATIVE_DRAG_PREPARE_FAILED",{kind,error:error?.message||String(error)});openDeveloperAutotestPanel()}}
+'''
+          s=s.replace(marker,drag+marker,1)
+          bind='$("#autotestTransferDebug")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("debug"));'
+          assert bind in s
+          s=s.replace(bind,'$("#autotestDragDebug")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("debug"));$("#autotestDragWorld")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("world"));$("#autotestDragRecovery")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("recovery"));\n '+bind,1)
+          p.write_text(s)
+
+          Path('src/version.js').write_text('export const APP_VERSION="0.57.7";\n')
+          pkg=json.loads(Path('package.json').read_text());pkg['version']='0.57.7';Path('package.json').write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n')
+          h=Path('index.html');x=h.read_text().replace('app.js?v=57006','app.js?v=57007');h.write_text(x)
+          t=Path('test/version-ui.test.js');x=t.read_text().replace('v0.57.6 release contract','v0.57.7 release contract').replace('"0.57.6"','"0.57.7"').replace('57006','57007').replace('after v0.57.6','after v0.57.7');t.write_text(x)
+          old=Path('test/autotest-iab-transfer-v0576.test.js');x=old.read_text().replace('?v=57006','?v=57007');old.write_text(x)
+          Path('docs/releases/v0.57.7.md').write_text('# Elyndra v0.57.7\n\nIAB native file drag delivery update.\n\n- Keeps the existing IndexedDB AutoTest snapshot compatible; no rerun is required.\n- Adds a native drag payload containing both a generated File item and Chromium DownloadURL.\n- Supports dragging the persisted Debug/World/Recovery JSON toward Windows Explorer or a browser file-drop target such as ChatGPT Web.\n- Adds an in-page drop self-test that re-reads the generated File and verifies filename, byte count, and SHA-256.\n- Does not report an external save/upload as successful merely because dragging started.\n- Keeps v0.57.6 text chunks and picker/clipboard/download mechanisms only as recovery fallbacks.\n')
+          PY
+      - name: Run targeted v0.57.7 regressions
+        run: node --test test/autotest-iab-drag-v0577.test.js test/autotest-iab-transfer-v0576.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Commit tested v0.57.7
+        shell: bash
+        run: |
+          rm .github/workflows/land-v0577-iab-drag.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: add native IAB drag export"
+          git push origin HEAD:main
