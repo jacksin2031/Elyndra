@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/autotest-save-v0574-land.yml'
       - '.github/autotest-save-v0574-patch.py'
+      - '.github/autotest-save-v0574-contract.py'
 
 permissions:
   contents: write
@@ -21,14 +22,16 @@ jobs:
         with:
           node-version: 20
       - name: Apply v0.57.4 direct-save patch
-        run: python3 .github/autotest-save-v0574-patch.py
+        run: |
+          python3 .github/autotest-save-v0574-patch.py
+          python3 .github/autotest-save-v0574-contract.py
       - name: Run targeted regressions
         run: node --test test/autotest-save-v0574.test.js test/ai-autotest-first-button-hotfix.test.js test/autotest-export-v0573.test.js test/version-ui.test.js test/version-0551-release.test.js
       - name: Run full test suite
         run: npm test
       - name: Commit tested v0.57.4 fix
         run: |
-          rm -f .github/workflows/autotest-save-v0574-land.yml .github/autotest-save-v0574-patch.py
+          rm -f .github/workflows/autotest-save-v0574-land.yml .github/autotest-save-v0574-patch.py .github/autotest-save-v0574-contract.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
