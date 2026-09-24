@@ -56,8 +56,17 @@ jobs:
           html=re.sub(r'(app\.js\?v=)\d+',r'\g<1>57002',html)
           write("index.html",html)
 
+          # Canonical release assertions include both normal strings and escaped regex literals.
           for path in ["test/version-0551-release.test.js","test/version-ui.test.js"]:
-              write(path,read(path).replace("0.57.1","0.57.2").replace("57001","57002"))
+              text=read(path).replace("0.57.1","0.57.2").replace("0\\.57\\.1","0\\.57\\.2").replace("57001","57002")
+              write(path,text)
+
+          # Module cache contract has literal token assertions in addition to import specifiers.
+          p="test/module-cache.test.js"
+          text=read(p).replace("57001","57002")
+          text=text.replace("v0.56.1 keeps structured AI and Developer Autotest cache graphs coherent","v0.57.2 keeps structured AI and Developer Autotest cache graphs coherent")
+          text=text.replace("v0.56.1 cache generation","v0.57.2 cache generation").replace("v0.56.1 cache token","v0.57.2 cache token")
+          write(p,text)
 
           test=r'''import test from "node:test";
           import assert from "node:assert/strict";
@@ -66,7 +75,7 @@ jobs:
           import {resolveNpcCommitment} from "../src/npc-cognition.js";
           import {validateSaveState} from "../src/state-validator.js";
 
-          function state(){return {world:{id:"W",name:"測試界",state:{day:1},canon:{facts:[]},registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},player:{name:"測試者",worldNameKnown:false,calendarKnown:false,hp:10,maxHp:10,gold:0,knowledgeScore:0,location:"",wallet:{}},inventory:[],knowledge:[],events:[],quests:{main:{objectives:[]}},suggestions:[],narrative:""}}
+          function state(){return {world:{id:"W",name:"測試界",state:{day:1},canon:{facts:[]},registry:{locations:[],npcs:[],factions:[],sideQuests:[]}},player:{name:"測試者",worldNameKnown:false,calendarKnown:false,hp:10,maxHp:10,gold:0,knowledgeScore:0,location:"",wallet:{}},inventory:[],knowledge:[],events:[],npcs:{},quests:{main:{objectives:[]}},suggestions:[],narrative:""}}
           function npc(s,id="NPC-A"){const n={id,name:"甲",trust:50,memories:[],behaviorProfile:{promises:[],grudges:[]}};s.world.registry.npcs.push(n);return n}
           function quest(s,n){const q={id:"Q-1",title:"測試任務",objective:"完成測試",issuerNpcId:n.id,known:true,status:"OFFERED",progress:0,target:1,evidence:[],conditions:[],matchedConditions:[],matchedKeywords:[]};s.world.registry.sideQuests.push(q);return q}
 
