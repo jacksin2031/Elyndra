@@ -28,10 +28,37 @@ jobs:
       - name: Run targeted regressions
         run: node --test test/autotest-save-v0574.test.js test/ai-autotest-first-button-hotfix.test.js test/autotest-export-v0573.test.js test/version-ui.test.js test/version-0551-release.test.js
       - name: Run full test suite
-        run: npm test
-      - name: Commit tested v0.57.4 fix
+        id: fulltest
+        shell: bash
         run: |
-          rm -f .github/workflows/autotest-save-v0574-land.yml .github/autotest-save-v0574-patch.py .github/autotest-save-v0574-contract.py
+          set +e
+          npm test 2>&1 | tee /tmp/v0574-full-test.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          lines=Path('/tmp/v0574-full-test.log').read_text(errors='replace').splitlines()
+          keep=[]
+          for i,line in enumerate(lines):
+              if 'not ok ' in line or 'failureType:' in line or 'ERR_ASSERTION' in line or 'AssertionError' in line:
+                  a=max(0,i-5);b=min(len(lines),i+28)
+                  keep.extend(lines[a:b]);keep.append('\n---\n')
+          Path('.github/v0574-full-test-failures.txt').write_text('\n'.join(keep[-1200:]) or '\n'.join(lines[-500:]))
+          PY
+          fi
+          exit "$code"
+      - name: Publish full-test diagnostics
+        if: failure() && steps.fulltest.outcome == 'failure'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/v0574-full-test-failures.txt
+          git commit -m "chore: capture v0.57.4 full-test failures" || true
+          git push origin main || true
+      - name: Commit tested v0.57.4 fix
+        if: success()
+        run: |
+          rm -f .github/workflows/autotest-save-v0574-land.yml .github/autotest-save-v0574-patch.py .github/autotest-save-v0574-contract.py .github/v0574-full-test-failures.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
