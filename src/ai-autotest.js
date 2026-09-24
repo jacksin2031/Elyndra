@@ -1,4 +1,4 @@
-import {directChat} from "./ai-settings.js?v=55001";
+import {directChat} from "./ai-settings.js?v=55002";
 import {recordDebug} from "./debug-telemetry.js?v=55001";
 import {helperSnapshot} from "./helper-context.js?v=55001";
 

@@ -9,8 +9,8 @@ const VALID_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 const VALID_APPROACHES=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
 const DECISION_WORDS=/原諒(?:他|她|對方)?|相信(?:他|她|對方)|愛上|憎恨|效忠|宣誓忠誠|決定信任|決定原諒/;
 const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED"]);
-const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\s*([^，。；、,.;!?！？]{2,36})|(?:展示|出示|拿出)\s*(?:一(?:個|枚|片|件|瓶|把|本|張|塊|顆|粒))?\s*([^，。；、,.;!?！？]{2,36})/i;
-const SPECIAL_POWER=/靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense/i;
+const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\s*([^，。；、,.;!?！？]{2,36})/i;
+const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;
 
 function uniq(rows,max=8){
  const out=[];
@@ -140,7 +140,7 @@ export function evaluateSuggestionRequirements(state,row={}){
  const implied=impliedInventoryItem(x.action);
  if(implied&&!inventoryRows(state).some(item=>[item?.id,item?.name].some(v=>v&&String(v)===implied)))reasons.push("IMPLIED_ITEM_MISSING:"+implied);
  for(const required of x.requiredCapabilities)if(!capabilityAvailable(state,required))reasons.push("REQUIRED_CAPABILITY_MISSING:"+required);
- const special=x.action.match(SPECIAL_POWER)?.[0];if(special&&!capabilityAvailable(state,special))reasons.push("IMPLIED_CAPABILITY_MISSING:"+special);
+ const special=x.action.match(SPECIAL_POWER)?.[1];if(special&&!capabilityAvailable(state,special))reasons.push("IMPLIED_CAPABILITY_MISSING:"+special);
  if(x.targetId){const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===x.targetId);if(npc&&!(npc.known===true&&npc.alive!==false))reasons.push("TARGET_UNAVAILABLE")}
  return {ok:reasons.length===0,reasons,impliedItem:implied||null,impliedCapability:special||null}
 }
@@ -165,7 +165,7 @@ function seal(state,row){
 }
 export function buildContextualActionSet(state,input=[]){
  const recent=recentPlayerActions(state),isFresh=x=>freshSuggestion(recent,x);
- const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&isFresh(x)&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
+ const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk));
  if(!progression){const candidate=progressionSuggestion(state);if(isFresh(candidate))progression=candidate}
  const personalized=personalizedSuggestion(state);
@@ -210,7 +210,7 @@ export function trustedSuggestionAssessment(state,row){
  const engineKind=inferActionKind(x.action),localObserve=x.kind==="OBSERVE"&&engineKind==="TRAVEL"&&trustedSuggestionObservationDominant(x.action)&&!trustedSuggestionHasKnownDestination(state,x.action),kind=localObserve?"OBSERVE":engineKind==="GENERAL"?x.kind:engineKind;
  const actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});
  const corrected=kind!==x.kind;
- return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議已由 Engine 重新驗證需求、場景前提、語義種類與目標。",requirements:[],confidence:corrected?90:98,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
+ return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議已由 Engine 重新驗證需求、場景前提、語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
 }
 export function suggestionPresentation(state,row){
  const x=normalizeContextualSuggestion(row);if(!x)return {label:"",meta:""};
@@ -231,7 +231,7 @@ export function groundedTravelDestination(state,action="",roll={},intent={}){
  for(const route of routes){
   if(!route||route.open===false)continue;let id="";
   if(String(route.fromId||"")===String(current.id||""))id=String(route.toId||"");else if(String(route.toId||"")===String(current.id||""))id=String(route.fromId||"");else continue;
-  const target=byId.get(id);if(!target||target===current||Array.isArray(target.accessRequirements)&&target.accessRequirements.length||target.known!==true)continue;
+  const target=byId.get(id);if(!target||target===current||Array.isArray(target.accessRequirements)&&target.accessRequirements.length)continue;
   if(!adjacent.some(x=>String(x.id)===String(target.id)))adjacent.push(target)
  }
  const q=String(action||"");
