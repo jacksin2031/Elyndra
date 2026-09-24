@@ -1,0 +1,87 @@
+name: Elyndra resilience suite land
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/resilience-suite-land.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-land:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply staged resilience patch
+        shell: bash
+        run: |
+          awk '/^          python3 <<'\''PY'\''$/{flag=1;next} flag && /^          PY$/{flag=0;exit} flag {sub(/^          /,""); print}' .github/workflows/resilience-suite-hotfix.yml > /tmp/elyndra-resilience-patch.py
+          test -s /tmp/elyndra-resilience-patch.py
+          python3 /tmp/elyndra-resilience-patch.py
+      - name: Apply backward-compatible corrections
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path); t=p.read_text()
+              if old not in t:
+                  raise SystemExit(f"expected correction source not found in {path}: {old[:100]!r}")
+              p.write_text(t.replace(old,new,1))
+
+          # Preserve the exact public runtime-control call contract. Pacing defaults internally
+          # whenever AutoTest supplies its batch signal.
+          replace_once('app.js',
+              'setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal,requestSpacingMs:1200});',
+              'setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});')
+          replace_once('src/ai-settings.js',
+              'requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs)||0)))',
+              'requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs??(control?.signal?1200:0))||0)))')
+
+          # JSON recovery belongs in parseModelJSON, not directChat. directChat is also used by
+          # callers/tests that intentionally return plain text even when aiTask has a structured name.
+          replace_once('src/ai-settings.js',
+              'import {parseModelJSON} from "./model-json.js?v=57002";\n','')
+          replace_once('src/ai-settings.js',
+              'const STRUCTURED_AI_TASKS=new Set(["action","scene","turn_state_fast","turn_state","turn_state_deep","turn_deferred","identity","geography","society","cast","core_anchor","core_rules","history","future","runtime_expansion","quality","quality_repair","recovery","runtime_quality","runtime_repair","history_deepening"]);\n','')
+          replace_once('src/ai-settings.js',
+              'const result=await hardProviderDeadline(pending,{controller:ctrl,timeoutMs,parentSignals});if(STRUCTURED_AI_TASKS.has(String(args?.aiTask||"").toLowerCase()))try{parseModelJSON(result)}catch(error){error.code="INVALID_MODEL_JSON";throw error}visibility.cleanup();',
+              'const result=await hardProviderDeadline(pending,{controller:ctrl,timeoutMs,parentSignals});visibility.cleanup();')
+          replace_once('src/ai-settings.js',
+              '   if(!parentAborted&&attempt===0&&err.code==="INVALID_MODEL_JSON"&&STRUCTURED_AI_TASKS.has(String(args?.aiTask||"").toLowerCase())){attempt++;args={...args,disableOptimization:true,temperature:0,system:String(args?.system||"")+"\\n上一個回應不是可解析 JSON。不要輸出 Thinking Process、推理、Markdown、前言或說明；直接從 { 或 [ 開始，只回傳 schema 要求的 JSON。"};recordDebug("AI_STRUCTURED_OUTPUT_RETRY",{provider:s.provider,model:PROVIDERS[s.provider]?.model||s.model,task:args?.aiTask||"general",attempt:attempt+1,error:err.message});await waitWithSignals(150,parentSignals);continue}\n','')
+
+          # Keep legacy worldsCompleted semantics for compatibility; new worldsExecuted removes
+          # the ambiguity and worldsHealthy makes quality explicit.
+          replace_once('src/ai-autotest.js',
+              'summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsExecuted:effectiveWorlds.filter(executionCompleted).length,worldsCompleted:effectiveWorlds.filter(executionCompleted).length,worldsHealthy:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:',
+              'summary:{worldsRequested:Number(config.worldCount)||worlds.length,worldsExecuted:effectiveWorlds.filter(executionCompleted).length,worldsCompleted:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsHealthy:effectiveWorlds.filter(w=>w.reportedStatus==="COMPLETED").length,worldsFailed:')
+
+          # Align new tests with the backward-compatible public fields.
+          p=Path('test/autotest-resilience-v0572.test.js'); t=p.read_text()
+          t=t.replace('assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.worldsCompleted,1);assert.equal(report.summary.worldsHealthy,0);assert.equal(report.summary.worldsDegraded,1)',
+                      'assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.worldsCompleted,0);assert.equal(report.summary.worldsHealthy,0);assert.equal(report.summary.worldsDegraded,1)')
+          t=t.replace('assert.match(ai,/AI_STRUCTURED_OUTPUT_RETRY/);assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(app,/requestSpacingMs:1200/)',
+                      'assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(ai,/control\\?\\.signal\\?1200:0/);assert.match(app,/setDirectAIRuntimeControl\\(\\{disableTimeout:config\\.disableTimeout===true,signal:developerAutotest\\.batchController\\.signal\\}\\)/)')
+          p.write_text(t)
+          PY
+      - name: Run targeted regression tests
+        run: node --test test/model-json.test.js test/v0561-runtime-grounding.test.js test/autotest-resilience-v0572.test.js test/ai-autotest-controls-v0544.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Commit tested resilience fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/resilience-suite-hotfix.yml .github/workflows/resilience-suite-hotfix-run.yml .github/workflows/resilience-suite-diagnostic.yml .github/workflows/resilience-suite-finalize.yml .github/workflows/resilience-suite-land.yml .github/resilience-test-failure.txt
+          git add app.js src/state-sync.js src/model-json.js src/ai-settings.js src/world-quality.js src/ai-autotest.js test/model-json.test.js test/v0561-runtime-grounding.test.js test/autotest-resilience-v0572.test.js
+          git commit -m "fix: harden AutoTest state and AI resilience"
+          git push origin HEAD:main
