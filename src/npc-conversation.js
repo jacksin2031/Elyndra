@@ -1,11 +1,11 @@
-import {advanceTime} from "./world-clock.js?v=54018";
-import {tickWorld} from "./world-simulation.js?v=540181";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=54018";
-import {npcInteractionMode} from "./world-registry.js?v=54018";
-import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=54018";
-import {deriveSceneTitle} from "./runtime-guard.js?v=54018";
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=540181";
-import {markEntityObserved} from "./visibility-lock.js?v=54018";
+import {advanceTime} from "./world-clock.js?v=55000";
+import {tickWorld} from "./world-simulation.js?v=55000";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=55000";
+import {npcInteractionMode} from "./world-registry.js?v=55000";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=55000";
+import {deriveSceneTitle} from "./runtime-guard.js?v=55000";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=55000";
+import {markEntityObserved} from "./visibility-lock.js?v=55000";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
@@ -17,7 +17,7 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  const summary="玩家："+String(message||"").slice(0,180)+" / "+npc.name+"："+String(answer||"").slice(0,360);
  npc.memories.push({id:id(),type:"conversation",summary,day:state.world.state.day,minute:state.world.state.clock.totalMinutes,mode});
  npc.memories=npc.memories.slice(-12);
- const progressed=evaluateQuestEvidence(state,String(message||"")+" "+String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
+ const progressed=evaluateQuestEvidence(state,String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
  const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,firstEncounter,summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
  state.events.push(event);
  if(mode==="LOCAL")establishNpcRemoteContact(state,npc);

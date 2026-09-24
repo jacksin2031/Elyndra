@@ -1,5 +1,14 @@
 # Elyndra
 
+## v0.55.0 — AI Contract Hardening
+
+- Context budget preserves current-scene anchors and reports degradation.
+- AI suggestions require explicit requirements and deterministic item checks before trusted execution.
+- Engine failures reject arbitrary success prose.
+- NPC quest evidence separates player questions from testimony and rejects explicit denial.
+- Evidence-source display names normalize only to a unique canonical ID.
+
+
 ### v0.54.15 — Runtime Society / Visibility Recovery
 
 - Runtime Society 增加專屬輸出 headroom，第二次編譯會自動提高 token budget 並要求縮短文字、完整閉合 JSON，避免 Agnes 在 1600-token 邊界反覆截斷。

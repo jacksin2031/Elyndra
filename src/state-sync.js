@@ -169,7 +169,10 @@ function currentLocationRecord(state){
 }
 function registryEntity(state,kind,value){
  const key=kind==="npc"?"npcs":kind==="location"?"locations":kind==="faction"?"factions":kind==="sideQuest"?"sideQuests":"",rows=key?state?.world?.registry?.[key]||[]:[];
- return rows.find(x=>x?.id===value||x?.name===value||x?.title===value)||null
+ const exact=rows.find(x=>x?.id===value||x?.name===value||x?.title===value);if(exact)return exact;
+ const normalized=String(value||"").normalize("NFKC").replace(/\s+/g,"").toLowerCase();if(!normalized)return null;
+ const matches=rows.filter(x=>[x?.name,x?.title].some(label=>String(label||"").normalize("NFKC").replace(/\s+/g,"").toLowerCase()===normalized));
+ return matches.length===1?matches[0]:null
 }
 function canonicalizeDiscoverySource(state,raw){
  const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120);if(!sourceId)return raw;
@@ -234,7 +237,10 @@ export function groundStatePatch(state,patch={},context={}){
    const entity=registryEntity(state,String(raw?.kind||""),clean(raw?.id,120));
    if(entity?.id)raw={...raw,id:entity.id};else{rejected.push({index,op:type,kind:String(raw?.kind||""),id:clean(raw?.id,120),reason:"ENTITY_REVEAL_NOT_CANONICAL"});continue}
   }
+  const explicitOutcomeFailure=context?.roll?.success===false;
+  if(type==="ACQUIRE_ITEM"&&explicitOutcomeFailure){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ENGINE_OUTCOME_FAILURE"});continue}
   if(type==="ACQUIRE_ITEM"&&!acquiredItemGrounded(state,raw,context)){rejected.push({index,op:type,itemName:clean(raw?.item?.name,100),reason:"ITEM_NAME_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
+  if(type==="MOVE_PLAYER"&&explicitOutcomeFailure){rejected.push({index,op:type,location:clean(raw?.location,120),reason:"ENGINE_OUTCOME_FAILURE"});continue}
   if(type==="MOVE_PLAYER"){
    const target=clean(raw?.location,120),current=clean(state?.player?.location||state?.world?.state?.location,120),locations=state?.world?.registry?.locations||[],entity=locations.find(x=>x?.id===target||x?.name===target);
    if(!target){rejected.push({index,op:type,location:target,reason:"MOVE_TARGET_NOT_CANONICAL"});continue}
