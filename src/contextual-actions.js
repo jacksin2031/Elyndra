@@ -1,4 +1,4 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=56000";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=56001";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -11,6 +11,7 @@ const DECISION_WORDS=/原諒(?:他|她|對方)?|相信(?:他|她|對方)|愛上|
 const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED"]);
 const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\s*([^，。；、,.;!?！？]{2,36})/i;
 const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;
+const GENERIC_MAGIC_USE=/(?:運用|使用|施展|釋放|凝聚|抽取|引導|操控|催動|調動|注入|集中|感知).{0,14}(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic)|(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic).{0,14}(?:施展|釋放|凝聚|抽取|操控|催動|調動|注入)/i;
 
 function uniq(rows,max=8){
  const out=[];
@@ -133,6 +134,11 @@ function capabilityAvailable(state,required){
  const q=clean(required,80).toLowerCase();if(!q)return true;
  return playerCapabilityLabels(state).some(x=>{const v=x.toLowerCase();return v===q||v.includes(q)||q.includes(v)})
 }
+function genericMagicAvailable(state){
+ const p=state.player||{},magic=p.magic||{};
+ if((magic.knownSpells||[]).length||(magic.attunements||[]).length)return true;
+ return [...(p.capabilities||[]),...(p.talents||[])].some(row=>/magic|mana|spell|cast|靈息|靈能|魔力|魔法|法術|施法/i.test(String(typeof row==="string"?row:row?.id||row?.name||"")))
+}
 export function evaluateSuggestionRequirements(state,row={}){
  const x=normalizeContextualSuggestion(row);if(!x)return {ok:false,reasons:["INVALID_SUGGESTION"]};
  const reasons=[];
@@ -141,6 +147,7 @@ export function evaluateSuggestionRequirements(state,row={}){
  if(implied&&!inventoryRows(state).some(item=>[item?.id,item?.name].some(v=>v&&String(v)===implied)))reasons.push("IMPLIED_ITEM_MISSING:"+implied);
  for(const required of x.requiredCapabilities)if(!capabilityAvailable(state,required))reasons.push("REQUIRED_CAPABILITY_MISSING:"+required);
  const special=x.action.match(SPECIAL_POWER)?.[1];if(special&&!capabilityAvailable(state,special))reasons.push("IMPLIED_CAPABILITY_MISSING:"+special);
+ const genericMagic=GENERIC_MAGIC_USE.test(x.action);if(genericMagic&&!genericMagicAvailable(state))reasons.push("IMPLIED_CAPABILITY_MISSING:MAGIC_USE");
  if(x.targetId){const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===x.targetId);if(npc&&!(npc.known===true&&npc.alive!==false))reasons.push("TARGET_UNAVAILABLE")}
  return {ok:reasons.length===0,reasons,impliedItem:implied||null,impliedCapability:special||null}
 }
@@ -152,9 +159,16 @@ function contextSealCurrent(state,v){
   &&Number(v.eventCount)===sceneEventCount(state)
   &&(!v.inventorySeal||String(v.inventorySeal)===inventorySeal(state))
 }
+function canonicalTravelTarget(state,row={}){
+ const current=String(state.player?.location||""),locations=(state.world?.registry?.locations||[]).filter(loc=>loc?.known===true&&String(loc?.name||"")!==current&&String(loc?.id||"")!==current);
+ const target=clean(row?.targetId,100);if(target){const byId=locations.find(loc=>String(loc?.id||"")===target||String(loc?.name||"")===target);if(byId)return byId}
+ const action=String(row?.action||row?.label||"");return locations.find(loc=>loc?.name&&action.includes(String(loc.name)))||null
+}
 function canonicalSuggestion(state,row){
  const x=normalizeContextualSuggestion(row);if(!x)return null;
- const targetId=inferSuggestionTarget(state,x);return targetId&&!x.targetId?{...x,targetId}:x
+ const targetId=inferSuggestionTarget(state,x);let y=targetId&&!x.targetId?{...x,targetId}:x;
+ if(y.kind==="TRAVEL"&&!canonicalTravelTarget(state,y)){const observe=trustedSuggestionObservationDominant(y.action);y={...y,kind:observe?"OBSERVE":"GENERAL",targetId:null}}
+ return y
 }
 function seal(state,row){
  const x=canonicalSuggestion(state,row);if(!x||(x.source==="AI"&&!x.causalBasis))return null;
@@ -196,7 +210,7 @@ function trustedSuggestionHasKnownDestination(state,action){
  const current=String(state.player?.location||"");
  return (state.world?.registry?.locations||[]).some(loc=>loc?.known===true&&loc?.name&&String(loc.name)!==current&&String(action||"").includes(String(loc.name)))
 }
-function trustedSuggestionObservationDominant(action){return /觀察|查看|檢查|搜尋|尋找|調查|辨識|比對|描摹|記錄|線索|證據|痕跡|observe|inspect|search|investigate|compare|trace/i.test(String(action||""))}
+function trustedSuggestionObservationDominant(action){return /觀察|查看|檢查|搜尋|尋找|調查|辨識|比對|比較|確認|探索|描摹|記錄|線索|證據|痕跡|observe|inspect|search|investigate|compare|trace|explore|confirm/i.test(String(action||""))}
 export function trustedSuggestionAssessment(state,row){
  const x=canonicalSuggestion(state,row),v=row?.validatedContext;
  if(!x||row?.prevalidated!==true||!v)return null;
@@ -207,8 +221,9 @@ export function trustedSuggestionAssessment(state,row){
   const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===x.targetId);
   if(npc&&!(npc.known===true&&npc.alive!==false))return null
  }
- const engineKind=inferActionKind(x.action),localObserve=x.kind==="OBSERVE"&&engineKind==="TRAVEL"&&trustedSuggestionObservationDominant(x.action)&&!trustedSuggestionHasKnownDestination(state,x.action),kind=localObserve?"OBSERVE":engineKind==="GENERAL"?x.kind:engineKind;
- const actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});
+ const engineKind=inferActionKind(x.action),destination=canonicalTravelTarget(state,x),travelLike=x.kind==="TRAVEL"||engineKind==="TRAVEL",localTravel=travelLike&&!destination,localObserve=localTravel&&trustedSuggestionObservationDominant(x.action),kind=localTravel?(localObserve?"OBSERVE":"GENERAL"):(engineKind==="GENERAL"?x.kind:engineKind);
+ let actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});
+ if(localTravel)actionIntent={...actionIntent,kind,intent:kind==="OBSERVE"?"OBSERVE":"GENERAL",targetId:null};
  const corrected=kind!==x.kind;
  return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議已由 Engine 重新驗證需求、場景前提、語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
 }

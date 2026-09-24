@@ -231,7 +231,7 @@ export function groundStatePatch(state,patch={},context={}){
   if(type==="DISCOVER_FACT"){
    raw=canonicalizeDiscoverySource(state,raw);
    if(!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(original?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
-   if(!discoveryNameGrounded(state,raw,context)){rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});deferredEvidence.push(structuredClone(raw));continue}
+   if(!discoveryNameGrounded(state,raw,context)){deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue}
   }
   if(type==="REVEAL_ENTITY"){
    const entity=registryEntity(state,String(raw?.kind||""),clean(raw?.id,120));
@@ -256,6 +256,19 @@ export function groundStatePatch(state,patch={},context={}){
   accepted.push(raw)
  }
  next.operations=accepted;return {patch:next,rejected,deferredEvidence}
+}
+export function projectDeferredSceneEvidence(operations=[],observableText=""){
+ const evidence=clean(observableText,500);if(!evidence)return [];
+ const out=[],seen=new Set();
+ for(const raw of Array.isArray(operations)?operations:[]){
+  const type=String(raw?.op||"").toUpperCase();if(!["DISCOVER_FACT","ACQUIRE_ITEM"].includes(type))continue;
+  if(type==="DISCOVER_FACT"){
+   const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),key=`${sourceKind}:${sourceId}:${evidence}`;if(!sourceKind||!sourceId||seen.has(key))continue;seen.add(key);
+   out.push({...structuredClone(raw),title:evidenceMentions(evidence,raw?.title)?clean(raw?.title,100):"本回合確認到的可觀察線索",text:evidence});continue
+  }
+  const itemName=clean(raw?.item?.name,100),key=`ITEM:${itemName}`;if(!itemName||seen.has(key))continue;seen.add(key);out.push(structuredClone(raw))
+ }
+ return out
 }
 function semanticWorldImpact(raw){
  const kind=String(raw.targetKind||""),axis=clean(raw.axis,40),allowed={location:new Set(["safety","prosperity","supply","infrastructure","stability"]),npc:new Set(["trust"]),faction:new Set(["resources","influence","stability"]),world:new Set(["tension","crisisPressure"])};
