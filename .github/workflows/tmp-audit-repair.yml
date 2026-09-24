@@ -8,6 +8,7 @@ on:
       - 'scripts/run-audit-repair.py'
       - 'scripts/fix-society-location-ref.py'
       - 'scripts/fix-first-button-stall.py'
+      - 'scripts/fix-autotest-final-quality.py'
       - 'test/**'
       - '.github/workflows/tmp-audit-repair.yml'
 
@@ -30,6 +31,8 @@ jobs:
         run: python scripts/fix-society-location-ref.py
       - name: Repair FIRST_BUTTON stall recovery
         run: python scripts/fix-first-button-stall.py
+      - name: Settle autotest quality before export
+        run: python scripts/fix-autotest-final-quality.py
       - name: Syntax gate
         run: find . -path './.git' -prune -o -name '*.js' -type f -print0 | xargs -0 -n1 node --check
       - name: Full test suite
