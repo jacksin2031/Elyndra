@@ -44,7 +44,6 @@ test("v0.55.0 non-positive quantities do not satisfy required-item suggestions",
  state.inventory[0].quantity=-1;set=buildContextualActionSet(state,[suggestion]);assert.equal(set.all.some(x=>x.label==="拿出紙筆"),false)
 });
 
-
 test("v0.55.0 failed outcomes cannot acquire items or complete travel at state commit",()=>{
  const state={player:{location:"起點"},world:{state:{day:1},registry:{locations:[{id:"L1",name:"起點",known:true},{id:"L2",name:"終點",known:true}],npcs:[],factions:[],sideQuests:[]},canon:{facts:[]}},events:[],inventory:[],knowledge:[]};
  const patch={baseRevision:0,operations:[
@@ -55,4 +54,11 @@ test("v0.55.0 failed outcomes cannot acquire items or complete travel at state c
  assert.equal(grounded.patch.operations.length,0);
  assert.equal(grounded.rejected.length,2);
  assert.deepEqual(grounded.rejected.map(x=>x.reason),["ENGINE_OUTCOME_FAILURE","ENGINE_OUTCOME_FAILURE"])
+});
+
+test("v0.55.0 missing roll context is not treated as an explicit Engine failure",()=>{
+ const state={player:{location:"起點"},world:{state:{day:1},registry:{locations:[{id:"L1",name:"起點",known:true},{id:"L2",name:"終點",known:true}],npcs:[],factions:[],sideQuests:[]},canon:{facts:[]}},events:[],inventory:[],knowledge:[]};
+ const grounded=groundStatePatch(state,{baseRevision:0,operations:[{op:"MOVE_PLAYER",location:"終點"}]},{action:"前進"});
+ assert.equal(grounded.rejected.length,0);
+ assert.equal(grounded.patch.operations.length,1)
 });
