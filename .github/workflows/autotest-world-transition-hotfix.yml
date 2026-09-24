@@ -21,16 +21,15 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import json
 
           app_path=Path('app.js')
           app=app_path.read_text(encoding='utf-8')
 
           start=app.index('async function finalizeDeveloperAutotestWorld(config={}){')
           end=app.index('async function waitForAutotestActionReady',start)
-          new_finalize='''async function finalizeDeveloperAutotestWorld(config={},options={}){
+          new_finalize='''async function finalizeDeveloperAutotestWorld(config={}){
            if(!gameState||developerAutotest.stopRequested||developerAutotest.batchController?.signal?.aborted)return false;
-           const fastTransition=options?.fastTransition===true,transitionFrom=developerAutotest.worldIndex,transitionTo=transitionFrom+1;
+           const fastTransition=developerAutotest.worldIndex<Math.max(1,Number(config.worldCount)||1),transitionFrom=developerAutotest.worldIndex,transitionTo=transitionFrom+1;
            if(fastTransition){
             recordDebug("AUTOTEST_WORLD_TRANSITION_STARTED",{fromIndex:transitionFrom,toIndex:transitionTo,turn:developerAutotest.turn});
             cancelAutotestBackgroundWork({transition:true})
@@ -86,44 +85,22 @@ jobs:
           assert app.count(old_finally)==1, app.count(old_finally)
           app=app.replace(old_finally,'if(autotestRuntimeExpansion.controller===ctrl){autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0}',1)
 
-          old_call='await finalizeDeveloperAutotestWorld(config);'
-          assert app.count(old_call)==2, app.count(old_call)
-          app=app.replace(old_call,'await finalizeDeveloperAutotestWorld(config,{fastTransition:i<config.worldCount});')
-
           old_loop='''   if(developerAutotest.stopRequested)break;\n   developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");'''
           new_loop='''   if(developerAutotest.stopRequested)break;\n   if(i>1)recordDebug("AUTOTEST_NEXT_WORLD_STARTED",{index:i,worldsRequested:config.worldCount});\n   developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");'''
           assert old_loop in app
           app=app.replace(old_loop,new_loop,1)
-
-          assert './src/version.js?v=57002' in app
-          app=app.replace('./src/version.js?v=57002','./src/version.js?v=57003',1)
           app_path.write_text(app,encoding='utf-8')
 
-          pkg_path=Path('package.json')
-          pkg=json.loads(pkg_path.read_text(encoding='utf-8'))
-          assert pkg['version']=='0.57.2',pkg['version']
-          pkg['version']='0.57.3'
-          pkg_path.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-
-          version_path=Path('src/version.js')
-          version=version_path.read_text(encoding='utf-8')
-          assert 'APP_VERSION="0.57.2"' in version
-          version_path.write_text(version.replace('APP_VERSION="0.57.2"','APP_VERSION="0.57.3"',1),encoding='utf-8')
-
-          index_path=Path('index.html')
-          index=index_path.read_text(encoding='utf-8')
-          assert 'app.js?v=57002' in index
-          index_path.write_text(index.replace('app.js?v=57002','app.js?v=57003',1),encoding='utf-8')
-
-          test_path=Path('test/ai-autotest-world-transition-v0573.test.js')
+          test_path=Path('test/ai-autotest-world-transition.test.js')
           test_path.write_text(r'''import test from "node:test";
           import assert from "node:assert/strict";
           import {readFile} from "node:fs/promises";
 
-          test("v0.57.3 multi-world AutoTest transitions to every requested world",async()=>{
+          test("multi-world AutoTest transitions to every requested world without turning TURN_LIMIT into batch stop",async()=>{
            const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
            const finalizeStart=app.indexOf("async function finalizeDeveloperAutotestWorld"),finalizeEnd=app.indexOf("async function waitForAutotestActionReady",finalizeStart),finalize=app.slice(finalizeStart,finalizeEnd);
-           assert.match(finalize,/fastTransition=options\?\.fastTransition===true/);
+           assert.match(finalize,/async function finalizeDeveloperAutotestWorld\(config=\{\}\)/);
+           assert.match(finalize,/fastTransition=developerAutotest\.worldIndex<Math\.max\(1,Number\(config\.worldCount\)\|\|1\)/);
            assert.match(finalize,/cancelAutotestBackgroundWork\(\{transition:true\}\)/);
            assert.match(finalize,/timeoutMs=fastTransition\?2500:/);
            assert.match(finalize,/AUTOTEST_FINAL_QUALITY_DEFERRED/);
@@ -134,7 +111,7 @@ jobs:
            assert.match(cancel,/AUTOTEST_WORLD_BACKGROUND_CANCELLED/);
 
            const runnerStart=app.indexOf("async function startDeveloperAutotest"),runnerEnd=app.indexOf("$(\"#aiSettingsBtn\")",runnerStart),runner=app.slice(runnerStart,runnerEnd);
-           assert.equal((runner.match(/finalizeDeveloperAutotestWorld\(config,\{fastTransition:i<config\.worldCount\}\)/g)||[]).length,2);
+           assert.equal((runner.match(/await finalizeDeveloperAutotestWorld\(config\);/g)||[]).length,2);
            assert.match(runner,/AUTOTEST_NEXT_WORLD_STARTED/);
            assert.doesNotMatch(runner,/developerAutotest\.stopRequested\s*=\s*true/);
           });
@@ -151,11 +128,11 @@ jobs:
           PY
       - name: Verify regression suite
         run: npm test
-      - name: Commit v0.57.3 hotfix
+      - name: Commit hotfix
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "v0.57.3: fix AutoTest multi-world transition"
+          git commit -m "fix: continue AutoTest across requested worlds"
           git push origin HEAD:main
