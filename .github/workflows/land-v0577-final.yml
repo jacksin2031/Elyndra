@@ -1,0 +1,39 @@
+name: Land v0.57.7 final IAB export
+
+on:
+  push:
+    paths:
+      - ".github/workflows/land-v0577-final.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-land:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply product and payload fixes
+        run: |
+          python scripts/land-v0577.py
+          python scripts/fix-v0577-drag.py
+      - name: Targeted regressions
+        run: node --test test/autotest-iab-drag-v0577.test.js test/autotest-iab-transfer-v0576.test.js
+      - name: Full test suite
+        run: npm test
+      - name: Commit tested v0.57.7 product
+        shell: bash
+        run: |
+          rm -rf node_modules
+          git rm -f --ignore-unmatch .github/workflows/land-v0577-final.yml .github/workflows/land-v0577-iab-drag.yml scripts/land-v0577.py scripts/fix-v0577-drag.py .github/workflows/iab-http-export-v0577.yml scripts/land_iab_http_export_v0577.py scripts/fix_iab_http_export_v0577.py
+          rm -f docs/diagnostics/v0577-drag-full-suite.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: ship v0.57.7 native IAB file handoff"
+          git push origin HEAD:main
