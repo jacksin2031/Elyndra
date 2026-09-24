@@ -1,4 +1,4 @@
-import {worldCatalogDefinitions,ensureWorldCatalog} from "./world-catalog.js?v=57004";
+import {worldCatalogDefinitions,ensureWorldCatalog} from "./world-catalog.js?v=57005";
 
 const clean=(v,max=200)=>typeof v==="string"?v.trim().slice(0,max):"";
 const STATUS=new Set(["UNMATERIALIZED","RESERVED","MATERIALIZED","FAILED"]);

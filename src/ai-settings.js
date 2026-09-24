@@ -1,4 +1,4 @@
-import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=57004";
+import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=57005";
 const KEY="elyndra:ai-settings:v3";const V2_KEY="elyndra:ai-settings:v2";const OLD_KEY="elyndra:ai-settings:v1";
 export const PROVIDERS={
  openai:{label:"OpenAI",endpoint:"https://api.openai.com/v1/chat/completions",model:"gpt-5.6-luna",mode:"OpenAI"},
