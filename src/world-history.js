@@ -1,4 +1,4 @@
-import {signalHistoryResearch} from "./history-depth.js?v=57002";
+import {signalHistoryResearch} from "./history-depth.js?v=57003";
 const clean=(v,max=320)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 

@@ -1,5 +1,5 @@
-import {currentWeather} from "./weather-engine.js?v=57002";
-import {ensureEffectRuntime,syncEffectsFromSurvival,tickEffects,applyEffectTreatment,getEffects,observableEffectSnapshot} from "./effect-engine.js?v=57002";
+import {currentWeather} from "./weather-engine.js?v=57003";
+import {ensureEffectRuntime,syncEffectsFromSurvival,tickEffects,applyEffectTreatment,getEffects,observableEffectSnapshot} from "./effect-engine.js?v=57003";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const runtimeStateReady=state=>Boolean(state&&typeof state==="object"&&state.player&&state.world);
 const neutralSurvival=()=>({satiety:100,fatigue:0,exposure:0,injury:0,conditions:[]});

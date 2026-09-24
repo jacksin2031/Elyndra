@@ -1,4 +1,4 @@
-import {ensurePlayerExperience} from "./player-experience.js?v=57002";
+import {ensurePlayerExperience} from "./player-experience.js?v=57003";
 
 const clean=(v,max=320)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const uniq=(xs,max=8)=>[...new Set((Array.isArray(xs)?xs:[]).map(x=>clean(String(x||""),180)).filter(Boolean))].slice(0,max);

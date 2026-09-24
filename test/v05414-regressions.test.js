@@ -37,6 +37,6 @@ test("v0.54.14 Runtime Quest prompt makes target numeric and normalizes before v
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.match(client,/target 是完成任務所需的進度／證據門檻，只能是 1-5 的整數/);
  assert.match(client,/runtimeRows\(value,"sideQuests",slots\.sideQuests\)\.map\(normalizeRuntimeSideQuest\)/);
- assert.match(client,/runtime-generation-normalizer\.js\?v=57002/);
+ assert.match(client,/runtime-generation-normalizer\.js\?v=57003/);
  assert.match(client,/resilientWorldStage\("HISTORY",\{\s*timeoutMs:75000/);
 });
