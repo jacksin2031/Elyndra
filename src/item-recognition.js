@@ -1,5 +1,5 @@
-import {recordKnowledgeEvidence,recomputeCorroboration} from "./knowledge-model.js?v=56001";
-import {advanceItemKnowledge,ensureItemStory,itemStorySnapshot} from "./item-heritage.js?v=56001";
+import {recordKnowledgeEvidence,recomputeCorroboration} from "./knowledge-model.js?v=57000";
+import {advanceItemKnowledge,ensureItemStory,itemStorySnapshot} from "./item-heritage.js?v=57000";
 
 const clean=(v,max=300)=>typeof v==="string"?v.trim().slice(0,max):"";
 const smith=/鐵匠|鍛造|工匠|鑄|smith|forge|artisan|crafter/i,scholar=/學者|史家|研究|考古|圖書|scholar|historian|research|archaeolog|librar/i,soldier=/老兵|士兵|騎士|守衛|軍|傭兵|veteran|soldier|knight|guard|mercenar/i;
