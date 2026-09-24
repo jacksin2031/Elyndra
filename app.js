@@ -955,14 +955,28 @@ async function waitForAutotestIdle(timeoutMs=12000){
 }
 async function finalizeDeveloperAutotestWorld(config={}){
  if(!gameState||developerAutotest.stopRequested||developerAutotest.batchController?.signal?.aborted)return false;
- const timeoutMs=config.disableTimeout===true?180000:90000,started=Date.now();
- while(Date.now()-started<timeoutMs){
-  const settled=!document.hidden&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running;
-  if(settled)break;
-  if(document.hidden)await waitForAutotestVisible();else await new Promise(r=>setTimeout(r,120))
+ const fastTransition=developerAutotest.worldIndex<Math.max(1,Number(config.worldCount)||1),transitionFrom=developerAutotest.worldIndex,transitionTo=transitionFrom+1;
+ if(fastTransition){
+  recordDebug("AUTOTEST_WORLD_TRANSITION_STARTED",{fromIndex:transitionFrom,toIndex:transitionTo,turn:developerAutotest.turn});
+  cancelAutotestBackgroundWork({transition:true})
  }
- const runtimeSettled=!document.hidden&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running;
- if(!runtimeSettled){recordDebug("AUTOTEST_FINAL_SETTLE_TIMEOUT",{timeoutMs,foregroundIdle:autotestForegroundIdle(),runtimeExpansion:autotestRuntimeExpansion.running,worldBackground:worldBackground.running,historyBackground:historyBackground.running});return false}
+ const timeoutMs=fastTransition?2500:(config.disableTimeout===true?180000:90000),started=Date.now();
+ while(Date.now()-started<timeoutMs){
+  const settled=(fastTransition||!document.hidden)&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running&&!worldQualityBackground.running;
+  if(settled)break;
+  if(document.hidden&&!fastTransition)await waitForAutotestVisible();else await new Promise(r=>setTimeout(r,120))
+ }
+ const runtimeSettled=(fastTransition||!document.hidden)&&autotestForegroundIdle()&&!autotestRuntimeExpansion.running&&!worldBackground.running&&!historyBackground.running&&!worldQualityBackground.running;
+ if(!runtimeSettled){
+  recordDebug("AUTOTEST_FINAL_SETTLE_TIMEOUT",{timeoutMs,fastTransition,foregroundIdle:autotestForegroundIdle(),runtimeExpansion:autotestRuntimeExpansion.running,worldBackground:worldBackground.running,historyBackground:historyBackground.running,worldQualityBackground:worldQualityBackground.running});
+  if(!fastTransition)return false
+ }
+ if(fastTransition){
+  const finalQuality=gameState?.world?.quality||{},qualityPending=backgroundQualityNeed(gameState).required||finalQuality.pending===true||finalQuality.backgroundPending===true||String(finalQuality.status||"").toUpperCase()==="PENDING";
+  if(qualityPending)recordDebug("AUTOTEST_FINAL_QUALITY_DEFERRED",{worldIndex:transitionFrom,turn:developerAutotest.turn,reason:"WORLD_TRANSITION"});
+  recordDebug("AUTOTEST_WORLD_TRANSITION_READY",{fromIndex:transitionFrom,toIndex:transitionTo,turn:developerAutotest.turn,runtimeSettled,qualityPending,elapsedMs:Date.now()-started});
+  return runtimeSettled&&!qualityPending
+ }
  if(backgroundQualityNeed(gameState).required){
   recordDebug("AUTOTEST_FINAL_QUALITY_STARTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});
   await runBackgroundWorldQualityCritic({allowAutotest:true})
@@ -981,13 +995,19 @@ async function waitForAutotestActionReady(timeoutMs=38000){
  recordDebug("AUTOTEST_ACTION_READY_TIMEOUT",{timeoutMs,active:playerActionFlight.active,label:playerActionFlight.label,nonblocking:Boolean(nonblockingScene.controller),aiBusy,turnSyncBusy});
  return false
 }
-function cancelAutotestBackgroundWork(){
+function cancelAutotestBackgroundWork(options={}){
+ const transition=options?.transition===true;
  if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}
  if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}
  if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}
  if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}
- const expansionCtrl=autotestRuntimeExpansion.controller;if(expansionCtrl&&!expansionCtrl.signal.aborted)expansionCtrl.abort(new DOMException("AutoTest stopping","AbortError"));
- preemptBackgroundAI()
+ const expansionCtrl=autotestRuntimeExpansion.controller;
+ if(expansionCtrl&&!expansionCtrl.signal.aborted)expansionCtrl.abort(new DOMException(transition?"AutoTest world transition":"AutoTest stopping","AbortError"));
+ if(transition&&autotestRuntimeExpansion.controller===expansionCtrl){
+  autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0
+ }
+ preemptBackgroundAI();
+ if(transition)recordDebug("AUTOTEST_WORLD_BACKGROUND_CANCELLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,runtimeExpansion:Boolean(expansionCtrl),foregroundIdle:autotestForegroundIdle()})
 }
 async function createDeveloperAutotestWorld(raw,index){
  const draft=createWorldCreationDraft(raw),seed=compileWorldCreation(draft),state=newGame(seed);applyWorldCreationState(state,seed);
@@ -1017,7 +1037,7 @@ function scheduleDeveloperAutotestExpansion(reason="FIRST_BUTTON_STALL_RECOVERY"
  const stateToken=captureStateSession(),batchSignal=developerAutotest.batchController?.signal;if(batchSignal?.aborted)return false;
  const ctrl=new AbortController(),worldId=gameState.world?.id,relay=()=>{if(!ctrl.signal.aborted)ctrl.abort(batchSignal?.reason||new DOMException("AutoTest batch stopped","AbortError"))};if(batchSignal)batchSignal.addEventListener("abort",relay,{once:true});
  autotestRuntimeExpansion.running=true;autotestRuntimeExpansion.controller=ctrl;autotestRuntimeExpansion.reason=reason;autotestRuntimeExpansion.turn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_STARTED",{reason,turn,worldId,forcedRecovery});
- void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal,force:forcedRecovery}).then(ok=>{if(isCurrentStateSession(stateToken))recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok})}).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl)autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0});
+ void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal,force:forcedRecovery}).then(ok=>{if(isCurrentStateSession(stateToken))recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok})}).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl){autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0}});
  return true
 }
 async function executeDeveloperAutotestDecision(decision){
@@ -1046,6 +1066,7 @@ async function startDeveloperAutotest(config){
  try{
   for(let i=1;i<=config.worldCount;i++){
    if(developerAutotest.stopRequested)break;
+   if(i>1)recordDebug("AUTOTEST_NEXT_WORLD_STARTED",{index:i,worldsRequested:config.worldCount});
    developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");
    const worldStartedAt=Date.now(),result={index:i,status:"RUNNING",phase:"GENERATION",turns:0,stopReason:"",error:"",actions:[],generation:null,summary:null,world:null};
    try{
