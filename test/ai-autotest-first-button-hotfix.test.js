@@ -44,3 +44,6 @@ test("autotest report exposes the effective play strategy",()=>{
  const report=buildAutotestReport({config:{worldCount:1,maxTurns:1},worlds:[],telemetry:[],startedAt:1,endedAt:2});
  assert.equal(report.config.playStrategy,"AI_DECISION")
 });
+
+
+test("first-button anti-stall changes both action class and target after three stalled turns",()=>{const s=state();s.world.registry.locations.push({id:"LOC-2",name:"側路",known:true});s.suggestionIntents=[{label:"再問一次",action:"再次詢問同一名 NPC",kind:"SOCIAL",progression:true,risk:"LOW",targetId:"NPC-1"},{label:"改走側路",action:"離開對話並走向側路",kind:"TRAVEL",progression:true,risk:"LOW",targetId:"LOC-2"}];const recent=[1,2,3].map(i=>({action:"詢問 NPC "+i,kind:"SOCIAL",targetId:"NPC-1",progressed:false}));const decision=firstButtonAutotestDecision(s,recent);assert.equal(decision.firstButtonOverride,true);assert.equal(decision.kind,"TRAVEL");assert.equal(decision.targetId,"LOC-2");assert.notEqual(decision.targetId,"NPC-1")})

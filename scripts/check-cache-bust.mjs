@@ -13,7 +13,7 @@ export function cacheToken(version){
 const root=process.cwd();
 const pkg=JSON.parse(readFileSync(path.join(root,"package.json"),"utf8"));
 const expected=cacheToken(pkg.version);
-const base=process.env.GITHUB_BASE_REF||process.env.CACHE_BASE_REF||"";
+const base=process.env.CACHE_BASE_REF||process.env.GITHUB_BASE_REF||"";
 
 if(!base){
  console.log(`Cache contract skipped outside PR/base comparison (expected token ${expected}).`);
@@ -25,6 +25,9 @@ function git(...args){
 }
 function normalizeRepoPath(value){
  return value.split(path.sep).join("/").replace(/^\.\//,"")
+}
+function baseRevision(value){
+ const ref=String(value||"").trim();if(!ref)return "";if(/^[0-9a-f]{7,40}$/i.test(ref)||ref.startsWith("origin/"))return ref;return `origin/${ref}`
 }
 function listSrcModules(dir="src"){
  const abs=path.join(root,dir),out=[];
@@ -50,7 +53,7 @@ function moduleEdges(importer){
 
 let changed;
 try{
- changed=git("diff","--name-only",`origin/${base}...HEAD`).split(/\r?\n/).map(normalizeRepoPath).filter(Boolean)
+ changed=git("diff","--name-only",`${baseRevision(base)}...HEAD`).split(/\r?\n/).map(normalizeRepoPath).filter(Boolean)
 }catch(e){
  throw new Error("CACHE_BASE_DIFF_FAILED: "+e.message)
 }
