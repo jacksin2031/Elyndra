@@ -1,1484 +1,1484 @@
- duration_ms: 0.518136
+808194
   ...
 # Subtest: timeline cancellation is not evaluated before its earliest day
 ok 295 - timeline cancellation is not evaluated before its earliest day
   ---
-  duration_ms: 0.201574
+  duration_ms: 1.035045
   ...
 # Subtest: SOCIAL/TALK actions bypass local lore fast path
 ok 296 - SOCIAL/TALK actions bypass local lore fast path
   ---
-  duration_ms: 5.52491
+  duration_ms: 10.625261
   ...
 # Subtest: scene narrator keeps untriggered futures out of the opening scene
 ok 297 - scene narrator keeps untriggered futures out of the opening scene
   ---
-  duration_ms: 0.228482
+  duration_ms: 0.267919
   ...
 # Subtest: early timeline pressure is capped by the same danger profile
 ok 298 - early timeline pressure is capped by the same danger profile
   ---
-  duration_ms: 0.258382
+  duration_ms: 0.321798
   ...
 # Subtest: non-contextual lexical anomalies are covered by fallback quality review
 ok 299 - non-contextual lexical anomalies are covered by fallback quality review
   ---
-  duration_ms: 2.343888
+  duration_ms: 3.136995
   ...
 # Subtest: opening hook cannot pre-play an untriggered Future during newbie protection
 ok 300 - opening hook cannot pre-play an untriggered Future during newbie protection
   ---
-  duration_ms: 1.961011
+  duration_ms: 2.85481
   ...
 # Subtest: newbie opening downgrades severe world-driven catastrophe into a low-risk actionable hook
 ok 301 - newbie opening downgrades severe world-driven catastrophe into a low-risk actionable hook
   ---
-  duration_ms: 0.381482
+  duration_ms: 0.497565
   ...
 # Subtest: all player actions keep a single-flight UI lock until their visible result settles
 ok 302 - all player actions keep a single-flight UI lock until their visible result settles
   ---
-  duration_ms: 4.444742
+  duration_ms: 6.997906
   ...
 # Subtest: blocking State Sync rejects repeated actions without an action queue
 ok 303 - blocking State Sync rejects repeated actions without an action queue
   ---
-  duration_ms: 1.62482
+  duration_ms: 2.492827
   ...
 # Subtest: ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked
 ok 304 - ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked
   ---
-  duration_ms: 1.264611
+  duration_ms: 2.098143
   ...
 # Subtest: FAST and DEEP commit StatePatch without waiting for Player Action narration
 ok 305 - FAST and DEEP commit StatePatch without waiting for Player Action narration
   ---
-  duration_ms: 2.030684
+  duration_ms: 3.177461
   ...
 # Subtest: foreground gameplay preempts nonblocking narration Deferred and world background work
 ok 306 - foreground gameplay preempts nonblocking narration Deferred and world background work
   ---
-  duration_ms: 1.253612
+  duration_ms: 1.742141
   ...
 # Subtest: background world evolution waits for Player Action and Deferred work
 ok 307 - background world evolution waits for Player Action and Deferred work
   ---
-  duration_ms: 1.200184
+  duration_ms: 1.702617
   ...
 # Subtest: opening cast rejects a first-hand founder tied to century-old history without a lifespan mechanism
 ok 308 - opening cast rejects a first-hand founder tied to century-old history without a lifespan mechanism
   ---
-  duration_ms: 1.449611
+  duration_ms: 2.299578
   ...
 # Subtest: opening cast allows descendants or inheritors of old founders
 ok 309 - opening cast allows descendants or inheritors of old founders
   ---
-  duration_ms: 0.236273
+  duration_ms: 0.274961
   ...
 # Subtest: opening cast allows first-hand ancient witnesses when longevity is explicitly grounded
 ok 310 - opening cast allows first-hand ancient witnesses when longevity is explicitly grounded
   ---
-  duration_ms: 0.311741
+  duration_ms: 0.368425
   ...
 # Subtest: opening cast chronology guard ignores unrelated old history not referenced by the NPC
 ok 311 - opening cast chronology guard ignores unrelated old history not referenced by the NPC
   ---
-  duration_ms: 0.12766
+  duration_ms: 0.188541
   ...
 # Subtest: world generation link validation promotes chronology contradictions to a Cast pre-canon error
 ok 312 - world generation link validation promotes chronology contradictions to a Cast pre-canon error
   ---
-  duration_ms: 0.4757
+  duration_ms: 0.825224
   ...
 # Subtest: Opening Cast AI contract prevents century-old founder survival unless chronology is grounded
 ok 313 - Opening Cast AI contract prevents century-old founder survival unless chronology is grounded
   ---
-  duration_ms: 0.822933
+  duration_ms: 1.12949
   ...
 # Subtest: opening cast rejects Day 2+ future events written as already happening on Day 1
 ok 314 - opening cast rejects Day 2+ future events written as already happening on Day 1
   ---
-  duration_ms: 1.420587
+  duration_ms: 2.201655
   ...
 # Subtest: opening cast allows warnings and preventive goals about scheduled future events
 ok 315 - opening cast allows warnings and preventive goals about scheduled future events
   ---
-  duration_ms: 0.169626
+  duration_ms: 0.247349
   ...
 # Subtest: opening cast future guard ignores events explicitly allowed from Day 1
 ok 316 - opening cast future guard ignores events explicitly allowed from Day 1
   ---
-  duration_ms: 0.164217
+  duration_ms: 0.245878
   ...
 # Subtest: world generation link validation includes premature cast chronology errors
 ok 317 - world generation link validation includes premature cast chronology errors
   ---
-  duration_ms: 1.329261
+  duration_ms: 1.741499
   ...
 # Subtest: crossing Origin becomes real zero-local-knowledge Engine rules
 ok 318 - crossing Origin becomes real zero-local-knowledge Engine rules
   ---
-  duration_ms: 12.499452
+  duration_ms: 18.986144
   ...
 # Subtest: native Origin grants bounded local knowledge, local identity and language
 ok 319 - native Origin grants bounded local knowledge, local identity and language
   ---
-  duration_ms: 1.847118
+  duration_ms: 2.886389
   ...
 # Subtest: difficulty can preserve spoken language while making native literacy harder
 ok 320 - difficulty can preserve spoken language while making native literacy harder
   ---
-  duration_ms: 1.145635
+  duration_ms: 1.75272
   ...
 # Subtest: amnesia retains fragmented speech ability without auto-granting world truth
 ok 321 - amnesia retains fragmented speech ability without auto-granting world truth
   ---
-  duration_ms: 1.756481
+  duration_ms: 2.532932
   ...
 # Subtest: summoned Origin is briefed partial rather than globally omniscient
 ok 322 - summoned Origin is briefed partial rather than globally omniscient
   ---
-  duration_ms: 1.015972
+  duration_ms: 1.464364
   ...
 # Subtest: Origin opening contract exposes Engine permissions rather than prose guesses
 ok 323 - Origin opening contract exposes Engine permissions rather than prose guesses
   ---
-  duration_ms: 1.798258
+  duration_ms: 2.907147
   ...
 # Subtest: World Quality only flags names that exceed that Origin knowledge boundary
 ok 324 - World Quality only flags names that exceed that Origin knowledge boundary
   ---
-  duration_ms: 1.37144
+  duration_ms: 2.128068
   ...
 # Subtest: turn snapshot carries Engine Origin runtime and creation pipeline applies PRE/POST phases
 ok 325 - turn snapshot carries Engine Origin runtime and creation pipeline applies PRE/POST phases
   ---
-  duration_ms: 15.779318
+  duration_ms: 26.06933
   ...
 # Subtest: weak opening is upgraded into an actionable sensory hook
 ok 326 - weak opening is upgraded into an actionable sensory hook
   ---
-  duration_ms: 1.624397
+  duration_ms: 2.548711
   ...
 # Subtest: NPC behavior profile is deterministic and keeps explicit behavior
 ok 327 - NPC behavior profile is deterministic and keeps explicit behavior
   ---
-  duration_ms: 0.663752
+  duration_ms: 1.043601
   ...
 # Subtest: world impact projection enters normal narrative exactly once
 ok 328 - world impact projection enters normal narrative exactly once
   ---
-  duration_ms: 0.292257
+  duration_ms: 0.46228
   ...
 # Subtest: roleplay fallback suggestions prefer scene-grounded actions
 ok 329 - roleplay fallback suggestions prefer scene-grounded actions
   ---
-  duration_ms: 0.220057
+  duration_ms: 0.384816
   ...
 # Subtest: simple observe and basic talk bypass AI feasibility while consequential actions do not
 ok 330 - simple observe and basic talk bypass AI feasibility while consequential actions do not
   ---
-  duration_ms: 4.358123
+  duration_ms: 6.539775
   ...
 # Subtest: deterministic utility commands are recognized by the Engine fast path
 ok 331 - deterministic utility commands are recognized by the Engine fast path
   ---
-  duration_ms: 1.003285
+  duration_ms: 1.704921
   ...
 # Subtest: session checkpoint summarizes visible journey events
 ok 332 - session checkpoint summarizes visible journey events
   ---
-  duration_ms: 0.248849
+  duration_ms: 0.503437
   ...
 # Subtest: player survival uses satiety where 100 is full and time lowers it
 ok 333 - player survival uses satiety where 100 is full and time lowers it
   ---
-  duration_ms: 1.193623
+  duration_ms: 1.980093
   ...
 # Subtest: legacy v11 hunger migrates losslessly to v12 satiety
 ok 334 - legacy v11 hunger migrates losslessly to v12 satiety
   ---
-  duration_ms: 2.160844
+  duration_ms: 3.151892
   ...
 # Subtest: food restores satiety and consumables are consumed
 ok 335 - food restores satiety and consumables are consumed
   ---
-  duration_ms: 1.882496
+  duration_ms: 2.694552
   ...
 # Subtest: legacy REDUCE_HUNGER item effect is normalized into RESTORE_SATIETY
 ok 336 - legacy REDUCE_HUNGER item effect is normalized into RESTORE_SATIETY
   ---
-  duration_ms: 0.368694
+  duration_ms: 0.618741
   ...
 # Subtest: crafting verifies quantities, consumes materials, and creates output
 ok 337 - crafting verifies quantities, consumes materials, and creates output
   ---
-  duration_ms: 0.967337
+  duration_ms: 1.657353
   ...
 # Subtest: showing and giving a related item creates NPC-aware events and can satisfy quest conditions
 ok 338 - showing and giving a related item creates NPC-aware events and can satisfy quest conditions
   ---
-  duration_ms: 2.122818
+  duration_ms: 3.47257
   ...
 # Subtest: canonical location access can require a specific owned item
 ok 339 - canonical location access can require a specific owned item
   ---
-  duration_ms: 0.214027
+  duration_ms: 0.382271
   ...
 # Subtest: Engine independently confirms impossible movement even when AI proposes BLOCK
 ok 340 - Engine independently confirms impossible movement even when AI proposes BLOCK
   ---
-  duration_ms: 0.760857
+  duration_ms: 1.054231
   ...
 # Subtest: AI BLOCK proposal cannot veto a harmless action without an Engine reason
 ok 341 - AI BLOCK proposal cannot veto a harmless action without an Engine reason
   ---
-  duration_ms: 4.79883
+  duration_ms: 7.76314
   ...
 # Subtest: inventory status rest equipment and safe known travel complete without AI turn
 ok 342 - inventory status rest equipment and safe known travel complete without AI turn
   ---
-  duration_ms: 8.075642
+  duration_ms: 12.298696
   ...
 # Subtest: new protagonist is an ordinary modern-Earth person with zero isekai knowledge
 ok 343 - new protagonist is an ordinary modern-Earth person with zero isekai knowledge
   ---
-  duration_ms: 1.082161
+  duration_ms: 1.702296
   ...
 # Subtest: survival subsystem is safe during transient world reset windows
 ok 344 - survival subsystem is safe during transient world reset windows
   ---
-  duration_ms: 0.455056
+  duration_ms: 0.738735
   ...
 # Subtest: v0.54.10 direct and server world creation use exactly three bounded two-AI waves
 ok 345 - v0.54.10 direct and server world creation use exactly three bounded two-AI waves
   ---
-  duration_ms: 3.508852
+  duration_ms: 5.764703
   ...
 # Subtest: v0.54.10 checkpointed Geography remains valid after it is written into Canon
 ok 346 - v0.54.10 checkpointed Geography remains valid after it is written into Canon
   ---
-  duration_ms: 5.493348
+  duration_ms: 9.032371
   ...
 # Subtest: v0.54.10 selected player action remains frozen through intermediate refreshes
 ok 347 - v0.54.10 selected player action remains frozen through intermediate refreshes
   ---
-  duration_ms: 1.737374
+  duration_ms: 3.170878
   ...
 # Subtest: world compiler routes descriptive stages fast and canon-critical stages deep
 ok 348 - world compiler routes descriptive stages fast and canon-critical stages deep
   ---
-  duration_ms: 3.455127
+  duration_ms: 6.375929
   ...
 # Subtest: runtime labels Player Action FAST DEFERRED and DEEP tasks
 ok 349 - runtime labels Player Action FAST DEFERRED and DEEP tasks
   ---
-  duration_ms: 1.399895
+  duration_ms: 2.262709
   ...
 # Subtest: shared turn director selects four modes
 ok 350 - shared turn director selects four modes
   ---
-  duration_ms: 1.914537
+  duration_ms: 2.889444
   ...
 # Subtest: ai-client consumes shared Engine planner and keeps compatibility mode export
 ok 351 - ai-client consumes shared Engine planner and keeps compatibility mode export
   ---
-  duration_ms: 2.234063
+  duration_ms: 3.486595
   ...
 # Subtest: v0.53.1 lets core world compiler retry once after parallel provider timeouts
 ok 352 - v0.53.1 lets core world compiler retry once after parallel provider timeouts
   ---
-  duration_ms: 4.004209
+  duration_ms: 6.239576
   ...
 # Subtest: v0.53.1 local fallback never invents a confirmed discovery from dice success alone
 ok 353 - v0.53.1 local fallback never invents a confirmed discovery from dice success alone
   ---
-  duration_ms: 1.050006
+  duration_ms: 1.796171
   ...
 # Subtest: v0.53.1 contextual fallback remembers recently executed actions
 ok 354 - v0.53.1 contextual fallback remembers recently executed actions
   ---
-  duration_ms: 0.833473
+  duration_ms: 1.492667
   ...
 # Subtest: v0.53.1 debug bundle separates current-session summary from retained history
 ok 355 - v0.53.1 debug bundle separates current-session summary from retained history
   ---
-  duration_ms: 1.421833
+  duration_ms: 2.285982
   ...
 # Subtest: v0.54.1 DISCOVER_FACT requires an explicit Engine-groundable source
 ok 356 - v0.54.1 DISCOVER_FACT requires an explicit Engine-groundable source
   ---
-  duration_ms: 1.575842
+  duration_ms: 2.484481
   ...
 # Subtest: v0.54.1 legacy observation evidence no longer drifts into testimony
 ok 357 - v0.54.1 legacy observation evidence no longer drifts into testimony
   ---
-  duration_ms: 0.704321
+  duration_ms: 0.285442
   ...
 # Subtest: v0.54.1 lazy generation migration deduplicates repeated plan ids
 ok 358 - v0.54.1 lazy generation migration deduplicates repeated plan ids
   ---
-  duration_ms: 0.234291
+  duration_ms: 0.879596
   ...
 # Subtest: v0.54.1 runtime summary replaces the prior compaction text instead of concatenating it
 ok 359 - v0.54.1 runtime summary replaces the prior compaction text instead of concatenating it
   ---
-  duration_ms: 0.252958
+  duration_ms: 0.417406
   ...
 # Subtest: v0.54.1 FAST provider policy keeps requested completion budget and low reasoning
 ok 360 - v0.54.1 FAST provider policy keeps requested completion budget and low reasoning
   ---
-  duration_ms: 0.470514
+  duration_ms: 0.746087
   ...
 # Subtest: v0.54.1 FAST state snapshot only includes capability-relevant heavy sections
 ok 361 - v0.54.1 FAST state snapshot only includes capability-relevant heavy sections
   ---
-  duration_ms: 0.308962
+  duration_ms: 0.460697
   ...
 # Subtest: v0.54.1 foreground waits for State Sync, not Scene AI, and background requires idle grace
 ok 362 - v0.54.1 foreground waits for State Sync, not Scene AI, and background requires idle grace
   ---
-  duration_ms: 5.074845
+  duration_ms: 10.22531
   ...
 # Subtest: v0.54.1 world compiler circuit counts final distinct stage timeouts instead of attempts
 ok 363 - v0.54.1 world compiler circuit counts final distinct stage timeouts instead of attempts
   ---
-  duration_ms: 0.995459
+  duration_ms: 1.494279
   ...
 # Subtest: v0.54.6 successful pickup can fail forward when State AI is empty
 ok 364 - v0.54.6 successful pickup can fail forward when State AI is empty
   ---
-  duration_ms: 1.208203
+  duration_ms: 1.967039
   ...
 # Subtest: local deeds create earned renown, title, rumor and legacy mark
 ok 365 - local deeds create earned renown, title, rumor and legacy mark
   ---
-  duration_ms: 6.638784
+  duration_ms: 10.652093
   ...
 # Subtest: local rumor is known nearby but not telepathically known by a remote NPC
 ok 366 - local rumor is known nearby but not telepathically known by a remote NPC
   ---
-  duration_ms: 1.185312
+  duration_ms: 1.791382
   ...
 # Subtest: regional reputation spreads only after world time passes
 ok 367 - regional reputation spreads only after world time passes
   ---
-  duration_ms: 1.281597
+  duration_ms: 1.960597
   ...
 # Subtest: known faction can proactively seek the player after enough direct attention
 ok 368 - known faction can proactively seek the player after enough direct attention
   ---
-  duration_ms: 1.059359
+  duration_ms: 1.601649
   ...
 # Subtest: fearful public memory raises notoriety without deciding that the player is evil
 ok 369 - fearful public memory raises notoriety without deciding that the player is evil
   ---
-  duration_ms: 0.678248
+  duration_ms: 1.042869
   ...
 # Subtest: no-op impact candidate earns neither influence nor reputation
 ok 370 - no-op impact candidate earns neither influence nor reputation
   ---
-  duration_ms: 0.495998
+  duration_ms: 0.726431
   ...
 # Subtest: recognition candidate rejects invalid tone, spread and mark
 ok 371 - recognition candidate rejects invalid tone, spread and mark
   ---
-  duration_ms: 0.154746
+  duration_ms: 0.266646
   ...
 # Subtest: save format v11 migrates recognition state without breaking existing impact history
 ok 372 - save format v11 migrates recognition state without breaking existing impact history
   ---
-  duration_ms: 2.531158
+  duration_ms: 3.782386
   ...
 # Subtest: v0.54.8 compound movement keeps TRAVEL semantics
 ok 373 - v0.54.8 compound movement keeps TRAVEL semantics
   ---
-  duration_ms: 1.107838
+  duration_ms: 1.636513
   ...
 # Subtest: v0.54.8 runtime world expansion is staged instead of one-shot generation
 ok 374 - v0.54.8 runtime world expansion is staged instead of one-shot generation
   ---
-  duration_ms: 4.003925
+  duration_ms: 6.564791
   ...
 # Subtest: v0.54.8 autotest awaits necessary progressive expansion and player-action scene completion
 ok 375 - v0.54.8 autotest awaits necessary progressive expansion and player-action scene completion
   ---
-  duration_ms: 1.28256
+  duration_ms: 2.130853
   ...
 # Subtest: v0.54.8 Agnes preserves enough visible JSON budget for cast and runtime stages
 ok 376 - v0.54.8 Agnes preserves enough visible JSON budget for cast and runtime stages
   ---
-  duration_ms: 0.23004
+  duration_ms: 0.286723
   ...
 # Subtest: v0.54.10 runtime expansion resumes from committed stage checkpoints
 ok 377 - v0.54.10 runtime expansion resumes from committed stage checkpoints
   ---
-  duration_ms: 2.444288
+  duration_ms: 3.633418
   ...
 # Subtest: item acquisition requires the item name in observable scene evidence
 ok 378 - item acquisition requires the item name in observable scene evidence
   ---
-  duration_ms: 1.581405
+  duration_ms: 2.427364
   ...
 # Subtest: observable evidence is required before DISCOVER_FACT commits
 ok 379 - observable evidence is required before DISCOVER_FACT commits
   ---
-  duration_ms: 0.422826
+  duration_ms: 0.66113
   ...
 # Subtest: read documents can ground named knowledge
 ok 380 - read documents can ground named knowledge
   ---
-  duration_ms: 0.139756
+  duration_ms: 0.260364
   ...
 # Subtest: scene-confirmed unknown travel target becomes a canonical materialization candidate
 ok 381 - scene-confirmed unknown travel target becomes a canonical materialization candidate
   ---
-  duration_ms: 0.823181
+  duration_ms: 0.61285
   ...
 # Subtest: known local NPC can be contacted for the first time and becomes encountered
 ok 382 - known local NPC can be contacted for the first time and becomes encountered
   ---
-  duration_ms: 5.233881
+  duration_ms: 8.188671
   ...
 # Subtest: global economy reconciles actual regional currencies
 ok 383 - global economy reconciles actual regional currencies
   ---
-  duration_ms: 0.247841
+  duration_ms: 0.351023
   ...
 # Subtest: pending background critic never masquerades as an official numeric score
 ok 384 - pending background critic never masquerades as an official numeric score
   ---
-  duration_ms: 0.743113
+  duration_ms: 1.143578
   ...
 # Subtest: committed state diffs produce compact acquisition notifications
 ok 385 - committed state diffs produce compact acquisition notifications
   ---
-  duration_ms: 0.272844
+  duration_ms: 0.395135
   ...
 # Subtest: world constitution requires chronology and lifespan consistency
 ok 386 - world constitution requires chronology and lifespan consistency
   ---
-  duration_ms: 0.269158
+  duration_ms: 0.447572
   ...
 # Subtest: item name evidence can come from prior visible NPC dialogue or a read document
 ok 387 - item name evidence can come from prior visible NPC dialogue or a read document
   ---
-  duration_ms: 0.264765
+  duration_ms: 0.395806
   ...
 # Subtest: acquisition toast renders generated labels through textContent instead of innerHTML
 ok 388 - acquisition toast renders generated labels through textContent instead of innerHTML
   ---
-  duration_ms: 7.650847
+  duration_ms: 13.955931
   ...
 # Subtest: hardened acquisition runtime modules use fresh browser cache identities
 ok 389 - hardened acquisition runtime modules use fresh browser cache identities
   ---
-  duration_ms: 4.735288
+  duration_ms: 4.940099
   ...
 # Subtest: NPC simulation rotates beyond the first four entities
 ok 390 - NPC simulation rotates beyond the first four entities
   ---
-  duration_ms: 5.006964
+  duration_ms: 8.217044
   ...
 # Subtest: faction simulation rotates beyond the first four entities
 ok 391 - faction simulation rotates beyond the first four entities
   ---
-  duration_ms: 6.068322
+  duration_ms: 8.938005
   ...
 # Subtest: internal causal events never leak through graph snapshot
 ok 392 - internal causal events never leak through graph snapshot
   ---
-  duration_ms: 0.801888
+  duration_ms: 1.189873
   ...
 # Subtest: knowledge graph bootstrap still creates fundamentals after event nodes already exist
 ok 393 - knowledge graph bootstrap still creates fundamentals after event nodes already exist
   ---
-  duration_ms: 0.446801
+  duration_ms: 0.703108
   ...
 # Subtest: world tension advances by elapsed time instead of tick call count
 ok 394 - world tension advances by elapsed time instead of tick call count
   ---
-  duration_ms: 4.291701
+  duration_ms: 5.654117
   ...
 # Subtest: degraded AI context keeps the immutable world seed contract
 ok 395 - degraded AI context keeps the immutable world seed contract
   ---
-  duration_ms: 0.724878
+  duration_ms: 2.122148
   ...
 # Subtest: save migration v8 normalizes simulation cursors, visibility and impact runtime
 ok 396 - save migration v8 normalizes simulation cursors, visibility and impact runtime
   ---
-  duration_ms: 1.578263
+  duration_ms: 2.389535
   ...
 # Subtest: crisis pressure alone cannot unlock ENDGAME before world knowledge
 ok 397 - crisis pressure alone cannot unlock ENDGAME before world knowledge
   ---
-  duration_ms: 0.650636
+  duration_ms: 0.976206
   ...
 # Subtest: unverified AI discoveries cannot progress quests while owned evidence can
 ok 398 - unverified AI discoveries cannot progress quests while owned evidence can
   ---
-  duration_ms: 7.123815
+  duration_ms: 11.704861
   ...
 # Subtest: scheduled world timeline exposes only observable effect when due
 ok 399 - scheduled world timeline exposes only observable effect when due
   ---
-  duration_ms: 2.355059
+  duration_ms: 3.576091
   ...
 # Subtest: side quest reward uses current location currency instead of universal gold
 ok 400 - side quest reward uses current location currency instead of universal gold
   ---
-  duration_ms: 1.35137
+  duration_ms: 2.008155
   ...
 # Subtest: any known NPC can join and later leave under local relationship rules
 ok 401 - any known NPC can join and later leave under local relationship rules
   ---
-  duration_ms: 0.857881
+  duration_ms: 1.24186
   ...
 # Subtest: NPC discovery source accepts unique visible name and canonicalizes to id
 ok 402 - NPC discovery source accepts unique visible name and canonicalizes to id
   ---
-  duration_ms: 3.992546
+  duration_ms: 6.452051
   ...
 # Subtest: knowledge grounding uses observable claim evidence instead of requiring exact title text
 ok 403 - knowledge grounding uses observable claim evidence instead of requiring exact title text
   ---
-  duration_ms: 0.505432
+  duration_ms: 0.916735
   ...
 # Subtest: knowledge grounding still rejects unrelated claims
 ok 404 - knowledge grounding still rejects unrelated claims
   ---
-  duration_ms: 0.458267
+  duration_ms: 0.813924
   ...
 # Subtest: entity reveal by unique npc name is normalized to canonical id
 ok 405 - entity reveal by unique npc name is normalized to canonical id
   ---
-  duration_ms: 0.390312
+  duration_ms: 0.673963
   ...
 # Subtest: generic local TALK action persists encounter and grounded interaction memory
 ok 406 - generic local TALK action persists encounter and grounded interaction memory
   ---
-  duration_ms: 7.006591
+  duration_ms: 11.366251
   ...
 # Subtest: non-canonical AI target aliases are resolved to a real registry NPC instead of GUARD
 ok 407 - non-canonical AI target aliases are resolved to a real registry NPC instead of GUARD
   ---
-  duration_ms: 1.223182
+  duration_ms: 1.954155
   ...
 # Subtest: ambiguous generic NPC alias never invents a canonical target id
 ok 408 - ambiguous generic NPC alias never invents a canonical target id
   ---
-  duration_ms: 0.277347
+  duration_ms: 0.378624
   ...
 # Subtest: seven stagnant turns force a fresh travel recovery instead of another social loop
 ok 409 - seven stagnant turns force a fresh travel recovery instead of another social loop
   ---
-  duration_ms: 0.438235
+  duration_ms: 0.702547
   ...
 # Subtest: autotest provider failures fall back locally and open a decision circuit after two failures
 ok 410 - autotest provider failures fall back locally and open a decision circuit after two failures
   ---
-  duration_ms: 5.11502
+  duration_ms: 8.118681
   ...
 # Subtest: ordinary abort keeps deterministic lazy replay but provider abort rotates plan id and enters backoff
 ok 411 - ordinary abort keeps deterministic lazy replay but provider abort rotates plan id and enters backoff
   ---
-  duration_ms: 1.701078
+  duration_ms: 2.665778
   ...
 # Subtest: zero-turn PLAY world is not reported as completed and severe generation is surfaced
 ok 412 - zero-turn PLAY world is not reported as completed and severe generation is surfaced
   ---
-  duration_ms: 0.880565
+  duration_ms: 1.277236
   ...
 # Subtest: runtime contracts forbid alias target ids and narrator fact inversion
 ok 413 - runtime contracts forbid alias target ids and narrator fact inversion
   ---
-  duration_ms: 4.603823
+  duration_ms: 9.517132
   ...
 # Subtest: AI runtime control is shared across cache-versioned module instances and can pause hidden requests
 ok 414 - AI runtime control is shared across cache-versioned module instances and can pause hidden requests
   ---
-  duration_ms: 2.516675
+  duration_ms: 2.905993
   ...
 # Subtest: NPC becomes interactable only after an actual nearby reveal and stops being interactable after leaving
 ok 415 - NPC becomes interactable only after an actual nearby reveal and stops being interactable after leaving
   ---
-  duration_ms: 11.976761
+  duration_ms: 18.571601
   ...
 # Subtest: after a real local conversation a civilization-supported contact can remain remotely reachable
 ok 416 - after a real local conversation a civilization-supported contact can remain remotely reachable
   ---
-  duration_ms: 4.451977
+  duration_ms: 6.797453
   ...
 # Subtest: hearing about a remote NPC does not make that NPC directly interactable
 ok 417 - hearing about a remote NPC does not make that NPC directly interactable
   ---
-  duration_ms: 0.746936
+  duration_ms: 1.115635
   ...
 # Subtest: corrupted saved locations repair to a canonical known location
 ok 418 - corrupted saved locations repair to a canonical known location
   ---
-  duration_ms: 0.828087
+  duration_ms: 1.287735
   ...
 # Subtest: unknown player location adopts the canonical world-state location
 ok 419 - unknown player location adopts the canonical world-state location
   ---
-  duration_ms: 0.654218
+  duration_ms: 0.859288
   ...
 # Subtest: turn location changes accept only canonical registry locations
 ok 420 - turn location changes accept only canonical registry locations
   ---
-  duration_ms: 5.280008
+  duration_ms: 8.610966
   ...
 # Subtest: player-facing narrative strips system labels and rejects foreign-language leakage
 ok 421 - player-facing narrative strips system labels and rejects foreign-language leakage
   ---
-  duration_ms: 2.021721
+  duration_ms: 2.712836
   ...
 # Subtest: identical AI suggestions are replaced so action buttons do not stay stale
 ok 422 - identical AI suggestions are replaced so action buttons do not stay stale
   ---
-  duration_ms: 1.263443
+  duration_ms: 1.834101
   ...
 # Subtest: world inspection is generative rather than the old insufficient-condition local route
 ok 423 - world inspection is generative rather than the old insufficient-condition local route
   ---
-  duration_ms: 6.195706
+  duration_ms: 12.547999
   ...
 # Subtest: UI keeps wallet assets visible before considering local barter mode
 ok 424 - UI keeps wallet assets visible before considering local barter mode
   ---
-  duration_ms: 1.174003
+  duration_ms: 1.882953
   ...
 # Subtest: combat uses main action buttons and no longer has an automatic combat modal
 ok 425 - combat uses main action buttons and no longer has an automatic combat modal
   ---
-  duration_ms: 1.350664
+  duration_ms: 1.971436
   ...
 # Subtest: NPC contact dock filters through local-or-canonical-remote interaction boundary
 ok 426 - NPC contact dock filters through local-or-canonical-remote interaction boundary
   ---
-  duration_ms: 4.154727
+  duration_ms: 5.427085
   ...
 # Subtest: maintenance bounds event storage
 ok 427 - maintenance bounds event storage
   ---
-  duration_ms: 4.310598
+  duration_ms: 6.462811
   ...
 # Subtest: v0.54.19 recovers missing Society locationRef from faction locationName
 ok 428 - v0.54.19 recovers missing Society locationRef from faction locationName
   ---
-  duration_ms: 1.337341
+  duration_ms: 2.183792
   ...
 # Subtest: v0.54.19 still rejects a mismatched Society faction location
 ok 429 - v0.54.19 still rejects a mismatched Society faction location
   ---
-  duration_ms: 0.149724
+  duration_ms: 0.240968
   ...
 # Subtest: world creation uses bounded two-AI waves with Engine validation between waves
 ok 430 - world creation uses bounded two-AI waves with Engine validation between waves
   ---
-  duration_ms: 6.034192
+  duration_ms: 9.105316
   ...
 # Subtest: world creation progress represents real compiler boundaries instead of a fake 72 percent pulse
 ok 431 - world creation progress represents real compiler boundaries instead of a fake 72 percent pulse
   ---
-  duration_ms: 2.42207
+  duration_ms: 3.457829
   ...
 # Subtest: World Compiler preserves must-exist labels in Canon prompts
 ok 432 - World Compiler preserves must-exist labels in Canon prompts
   ---
-  duration_ms: 2.3091
+  duration_ms: 2.796114
   ...
 # Subtest: staged compiler loads timeout settings through current cache generation
 ok 433 - staged compiler loads timeout settings through current cache generation
   ---
-  duration_ms: 1.130674
+  duration_ms: 1.778648
   ...
 # Subtest: compiler schema prompts forbid literal placeholder echoes
 ok 434 - compiler schema prompts forbid literal placeholder echoes
   ---
-  duration_ms: 0.926887
+  duration_ms: 1.552237
   ...
 # Subtest: v0.54.11 normalizes valid top-level Core Rules before structure fallback
 ok 435 - v0.54.11 normalizes valid top-level Core Rules before structure fallback
   ---
-  duration_ms: 0.965038
+  duration_ms: 1.63428
   ...
 # Subtest: ENGINE_ONLY removes State AI from passive known and Engine-resolved actions
 ok 436 - ENGINE_ONLY removes State AI from passive known and Engine-resolved actions
   ---
-  duration_ms: 2.130064
+  duration_ms: 3.021069
   ...
 # Subtest: Dirty Flags grant only causally relevant capabilities
 ok 437 - Dirty Flags grant only causally relevant capabilities
   ---
-  duration_ms: 1.214936
+  duration_ms: 1.773339
   ...
 # Subtest: FAST exposes immediate capabilities and moves persistent tail to Deferred
 ok 438 - FAST exposes immediate capabilities and moves persistent tail to Deferred
   ---
-  duration_ms: 0.207313
+  duration_ms: 0.332188
   ...
 # Subtest: capability schema never exposes unrelated mutation classes
 ok 439 - capability schema never exposes unrelated mutation classes
   ---
-  duration_ms: 0.207486
+  duration_ms: 0.336937
   ...
 # Subtest: StatePatch rejects operations outside Engine whitelist and base revision mismatch
 ok 440 - StatePatch rejects operations outside Engine whitelist and base revision mismatch
   ---
-  duration_ms: 0.232111
+  duration_ms: 0.387581
   ...
 # Subtest: semantic relationship and impact operations remain semantic through adapter
 ok 441 - semantic relationship and impact operations remain semantic through adapter
   ---
-  duration_ms: 0.316621
+  duration_ms: 0.555494
   ...
 # Subtest: State Revision blocks stale immediate patches but permits safe Deferred rebase
 ok 442 - State Revision blocks stale immediate patches but permits safe Deferred rebase
   ---
-  duration_ms: 0.268843
+  duration_ms: 0.437865
   ...
 # Subtest: successful pickup wording enables ACQUIRE_ITEM even when suggestion kind is OBSERVE
 ok 443 - successful pickup wording enables ACQUIRE_ITEM even when suggestion kind is OBSERVE
   ---
-  duration_ms: 0.161359
+  duration_ms: 0.277366
   ...
 # Subtest: ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup action
 ok 444 - ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup action
   ---
-  duration_ms: 0.547466
+  duration_ms: 0.837057
   ...
 # Subtest: Engine pickup fail-forward extracts only explicit successful physical pickup nouns
 ok 445 - Engine pickup fail-forward extracts only explicit successful physical pickup nouns
   ---
-  duration_ms: 0.473799
+  duration_ms: 0.662412
   ...
 # Subtest: generated UI artwork is split into live frame background and icon layers
 ok 446 - generated UI artwork is split into live frame background and icon layers
   ---
-  duration_ms: 4.052501
+  duration_ms: 6.346053
   ...
 # Subtest: creator exposes player naming and gameplay uses dynamic action container
 ok 447 - creator exposes player naming and gameplay uses dynamic action container
   ---
-  duration_ms: 3.669295
+  duration_ms: 5.792995
   ...
 # Subtest: browser runtime groups primary risky and free contextual actions
 ok 448 - browser runtime groups primary risky and free contextual actions
   ---
-  duration_ms: 1.951863
+  duration_ms: 2.974051
   ...
 # Subtest: runtime source has no legacy world canon hard-coded into engine paths
 ok 449 - runtime source has no legacy world canon hard-coded into engine paths
   ---
-  duration_ms: 2.331656
+  duration_ms: 3.648997
   ...
 # Subtest: v0.54.11 Core Anchor accepts facts nested under worldBible and normalizes them to root
 ok 450 - v0.54.11 Core Anchor accepts facts nested under worldBible and normalizes them to root
   ---
-  duration_ms: 1.390958
+  duration_ms: 2.214209
   ...
 # Subtest: v0.54.11 Lazy Generation may cite any existing immutable canonical history
 ok 451 - v0.54.11 Lazy Generation may cite any existing immutable canonical history
   ---
-  duration_ms: 8.076107
+  duration_ms: 12.419852
   ...
 # Subtest: v0.54.11 runtime Geography accepts partial new-location progress and Engine-bound definition claims
 ok 452 - v0.54.11 runtime Geography accepts partial new-location progress and Engine-bound definition claims
   ---
-  duration_ms: 4.479988
+  duration_ms: 7.332268
   ...
 # Subtest: v0.54.11 report separates background network interruption from product AI failure
 ok 453 - v0.54.11 report separates background network interruption from product AI failure
   ---
-  duration_ms: 1.288988
+  duration_ms: 1.808855
   ...
 # Subtest: v0.54.11 app retries uncommitted autotest decision after background interruption
 ok 454 - v0.54.11 app retries uncommitted autotest decision after background interruption
   ---
-  duration_ms: 1.636646
+  duration_ms: 2.835754
   ...
 # Subtest: v0.54.12 normalizes common runtime Location shape drift before strict validation
 ok 455 - v0.54.12 normalizes common runtime Location shape drift before strict validation
   ---
-  duration_ms: 1.545724
+  duration_ms: 2.426052
   ...
 # Subtest: v0.54.12 Engine removes mismatched causal claim refs and binds them to a satisfying row
 ok 456 - v0.54.12 Engine removes mismatched causal claim refs and binds them to a satisfying row
   ---
-  duration_ms: 0.368802
+  duration_ms: 0.562166
   ...
 # Subtest: v0.54.12 parser repairs missing commas between model-generated array objects
 ok 457 - v0.54.12 parser repairs missing commas between model-generated array objects
   ---
-  duration_ms: 0.372808
+  duration_ms: 0.560883
   ...
 # Subtest: v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locations
 ok 458 - v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locations
   ---
-  duration_ms: 0.471694
+  duration_ms: 0.744024
   ...
 # Subtest: v0.54.12 ai-client release edges and runtime prompt remain parse-safe
 ok 459 - v0.54.12 ai-client release edges and runtime prompt remain parse-safe
   ---
-  duration_ms: 4.850298
+  duration_ms: 8.870586
   ...
 # Subtest: v0.54.13 accepts string lore without aborting generated NPC canonization
 ok 460 - v0.54.13 accepts string lore without aborting generated NPC canonization
   ---
-  duration_ms: 1.064277
+  duration_ms: 1.7794
   ...
 # Subtest: v0.54.13 keeps a checkpointed lazy plan eligible even after location count is satisfied
 ok 461 - v0.54.13 keeps a checkpointed lazy plan eligible even after location count is satisfied
   ---
-  duration_ms: 0.799883
+  duration_ms: 1.09695
   ...
 # Subtest: v0.54.13 recovers society history refs from its generated faction
 ok 462 - v0.54.13 recovers society history refs from its generated faction
   ---
-  duration_ms: 0.487261
+  duration_ms: 0.729908
   ...
 # Subtest: v0.54.13 folds orphan lore-only cast rows into the preceding NPC before link validation
 ok 463 - v0.54.13 folds orphan lore-only cast rows into the preceding NPC before link validation
   ---
-  duration_ms: 0.361088
+  duration_ms: 0.506983
   ...
 # Subtest: v0.54.13 model JSON repair handles a missing comma between properties
 ok 464 - v0.54.13 model JSON repair handles a missing comma between properties
   ---
-  duration_ms: 0.430039
+  duration_ms: 0.698439
   ...
 # Subtest: v0.54.13 Agnes Future gets enough structured output headroom to avoid 2200-token truncation
 ok 465 - v0.54.13 Agnes Future gets enough structured output headroom to avoid 2200-token truncation
   ---
-  duration_ms: 4.970753
+  duration_ms: 9.13364
   ...
 # Subtest: v0.54.13 repairs a single-op StatePatch envelope before normal validation
 ok 466 - v0.54.13 repairs a single-op StatePatch envelope before normal validation
   ---
-  duration_ms: 0.355235
+  duration_ms: 0.521129
   ...
 # Subtest: v0.54.14 normalizes Runtime SideQuest target drift before strict validation
 ok 467 - v0.54.14 normalizes Runtime SideQuest target drift before strict validation
   ---
-  duration_ms: 1.584987
+  duration_ms: 2.216112
   ...
 # Subtest: v0.54.14 preserves a legitimate numeric Runtime SideQuest target
 ok 468 - v0.54.14 preserves a legitimate numeric Runtime SideQuest target
   ---
-  duration_ms: 0.147845
+  duration_ms: 0.211563
   ...
 # Subtest: v0.54.14 Autotest fingerprint treats visible knowledge as state progress
 ok 469 - v0.54.14 Autotest fingerprint treats visible knowledge as state progress
   ---
-  duration_ms: 0.297165
+  duration_ms: 1.044953
   ...
 # Subtest: v0.54.14 Runtime Quest prompt makes target numeric and normalizes before validation
 ok 470 - v0.54.14 Runtime Quest prompt makes target numeric and normalizes before validation
   ---
-  duration_ms: 3.924823
+  duration_ms: 7.133358
   ...
 # Subtest: v0.54.15 normalizes malformed Runtime Cast NPC profiles before validation
 ok 471 - v0.54.15 normalizes malformed Runtime Cast NPC profiles before validation
   ---
-  duration_ms: 1.336443
+  duration_ms: 2.13453
   ...
 # Subtest: v0.54.15 keeps intra-location search OBSERVE but preserves genuine named TRAVEL
 ok 472 - v0.54.15 keeps intra-location search OBSERVE but preserves genuine named TRAVEL
   ---
-  duration_ms: 2.339309
+  duration_ms: 3.759753
   ...
 # Subtest: v0.54.15 gives Runtime Society enough output headroom and escalates retry budget
 ok 473 - v0.54.15 gives Runtime Society enough output headroom and escalates retry budget
   ---
-  duration_ms: 4.453671
+  duration_ms: 7.045625
   ...
 # Subtest: v0.54.15 opening nearby NPC is player-visible in direct and server world creation
 ok 474 - v0.54.15 opening nearby NPC is player-visible in direct and server world creation
   ---
-  duration_ms: 1.303039
+  duration_ms: 2.020358
   ...
 # Subtest: v0.54.16 travel semantics beat abandoned social clauses and embedded observation
 ok 475 - v0.54.16 travel semantics beat abandoned social clauses and embedded observation
   ---
-  duration_ms: 1.240513
+  duration_ms: 1.874236
   ...
 # Subtest: v0.54.16 grounded travel only resolves a unique or explicitly named adjacent canon destination
 ok 476 - v0.54.16 grounded travel only resolves a unique or explicitly named adjacent canon destination
   ---
-  duration_ms: 0.299231
+  duration_ms: 0.462149
   ...
 # Subtest: v0.54.16 model JSON repairs only unfinished tail closers
 ok 477 - v0.54.16 model JSON repairs only unfinished tail closers
   ---
-  duration_ms: 1.129797
+  duration_ms: 1.676067
   ...
 # Subtest: v0.54.16 app commits grounded progression for ENGINE_ONLY and grounded travel after empty State Sync
 ok 478 - v0.54.16 app commits grounded progression for ENGINE_ONLY and grounded travel after empty State Sync
   ---
-  duration_ms: 4.736296
+  duration_ms: 8.339852
   ...
 # Subtest: v0.54.19 is the canonical app and browser cache release
 ok 479 - v0.54.19 is the canonical app and browser cache release
   ---
-  duration_ms: 4.431815
+  duration_ms: 6.686948
   ...
 # Subtest: main UI exposes APP_VERSION and package version consistently
 ok 480 - main UI exposes APP_VERSION and package version consistently
   ---
-  duration_ms: 4.904691
+  duration_ms: 7.993408
   ...
 # Subtest: History/Future/character systems remain available after v0.53
 ok 481 - History/Future/character systems remain available after v0.53
   ---
-  duration_ms: 3.517038
+  duration_ms: 5.836266
   ...
 # Subtest: v0.50-v0.52 causal protections remain intact after v0.53
 ok 482 - v0.50-v0.52 causal protections remain intact after v0.53
   ---
-  duration_ms: 5.014659
+  duration_ms: 6.221742
   ...
 # Subtest: v0.53.0 hardens Knowledge, background races, Claims and Ledger causality
 ok 483 - v0.53.0 hardens Knowledge, background races, Claims and Ledger causality
   ---
-  duration_ms: 3.93227
+  duration_ms: 6.420462
   ...
 # Subtest: v0.54 Developer AI autotest remains available after v0.54.19 session/checkpoint hardening
 ok 484 - v0.54 Developer AI autotest remains available after v0.54.19 session/checkpoint hardening
   ---
-  duration_ms: 1.215164
+  duration_ms: 1.900094
   ...
 # Subtest: desktop game stage keeps one fixed logical canvas and uses layout zoom when available
 ok 485 - desktop game stage keeps one fixed logical canvas and uses layout zoom when available
   ---
-  duration_ms: 4.055495
+  duration_ms: 6.37592
   ...
 # Subtest: generated ornamental frames use 9-slice borders and scene artwork never stretches
 ok 486 - generated ornamental frames use 9-slice borders and scene artwork never stretches
   ---
-  duration_ms: 1.634179
+  duration_ms: 2.412848
   ...
 # Subtest: event visibility is explicit allow-list and missing visibility is hidden
 ok 487 - event visibility is explicit allow-list and missing visibility is hidden
   ---
-  duration_ms: 0.784419
+  duration_ms: 1.313353
   ...
 # Subtest: player event projection strips Director-only payload fields
 ok 488 - player event projection strips Director-only payload fields
   ---
-  duration_ms: 0.868921
+  duration_ms: 1.206174
   ...
 # Subtest: Scene Narrator snapshot cannot receive Director world state or faction simulation values
 ok 489 - Scene Narrator snapshot cannot receive Director world state or faction simulation values
   ---
-  duration_ms: 0.327617
+  duration_ms: 0.508846
   ...
 # Subtest: Lazy Generation plan is deterministic for the same Engine state and reserves explicit claims
 ok 490 - Lazy Generation plan is deterministic for the same Engine state and reserves explicit claims
   ---
-  duration_ms: 9.349681
+  duration_ms: 14.651783
   ...
 # Subtest: Lazy candidate is bounded by slots, plan history, claim semantics and reserved claim ids
 ok 491 - Lazy candidate is bounded by slots, plan history, claim semantics and reserved claim ids
   ---
-  duration_ms: 1.488683
+  duration_ms: 2.340103
   ...
 # Subtest: Lazy commit materializes reserved Generation Claims against semantically matched canonical ids
 ok 492 - Lazy commit materializes reserved Generation Claims against semantically matched canonical ids
   ---
-  duration_ms: 2.759942
+  duration_ms: 4.568337
   ...
 # Subtest: aborted Lazy Generation releases claims for deterministic retry
 ok 493 - aborted Lazy Generation releases claims for deterministic retry
   ---
-  duration_ms: 0.866575
+  duration_ms: 1.379566
   ...
 # Subtest: causal reconciliation auto-materializes History anchors already represented in registry
 ok 494 - causal reconciliation auto-materializes History anchors already represented in registry
   ---
-  duration_ms: 0.487321
+  duration_ms: 0.778488
   ...
 # Subtest: background world evolution uses resumable checkpoint canon pipeline
 ok 495 - background world evolution uses resumable checkpoint canon pipeline
   ---
-  duration_ms: 7.810595
+  duration_ms: 13.709581
   ...
 # Subtest: Visibility Lock infers current/known state and never downgrades
 ok 496 - Visibility Lock infers current/known state and never downgrades
   ---
-  duration_ms: 9.210371
+  duration_ms: 14.4464
   ...
 # Subtest: HINTED content protects hinted fields but can fill unhinted descriptive fields
 ok 497 - HINTED content protects hinted fields but can fill unhinted descriptive fields
   ---
-  duration_ms: 1.269115
+  duration_ms: 2.010911
   ...
 # Subtest: OBSERVED KNOWN and CANON_LOCKED entities reject background repair
 ok 498 - OBSERVED KNOWN and CANON_LOCKED entities reject background repair
   ---
-  duration_ms: 0.581849
+  duration_ms: 0.876861
   ...
 # Subtest: authorized reveal promotes entity to KNOWN monotonically
 ok 499 - authorized reveal promotes entity to KNOWN monotonically
   ---
-  duration_ms: 0.979729
+  duration_ms: 1.656291
   ...
 # Subtest: Lazy plan carries deterministic replay metadata
 ok 500 - Lazy plan carries deterministic replay metadata
   ---
-  duration_ms: 1.111071
+  duration_ms: 1.831687
   ...
 # Subtest: abort retry reuses deterministic revision; successful commit advances it
 ok 501 - abort retry reuses deterministic revision; successful commit advances it
   ---
-  duration_ms: 0.78082
+  duration_ms: 1.286283
   ...
 # Subtest: Causal Core exposes Director Visibility Lock snapshot
 ok 502 - Causal Core exposes Director Visibility Lock snapshot
   ---
-  duration_ms: 1.535114
+  duration_ms: 2.386519
   ...
 # Subtest: runtime expansion receives replay metadata and commit receives trusted model identity
 ok 503 - runtime expansion receives replay metadata and commit receives trusted model identity
   ---
-  duration_ms: 9.540247
+  duration_ms: 12.328791
   ...
 # Subtest: weather canon preserves genuinely otherworldly phenomena and bounded mechanics
 ok 504 - weather canon preserves genuinely otherworldly phenomena and bounded mechanics
   ---
-  duration_ms: 1.011752
+  duration_ms: 1.625623
   ...
 # Subtest: pre-canon and legacy worlds begin with neutral fallback weather
 ok 505 - pre-canon and legacy worlds begin with neutral fallback weather
   ---
-  duration_ms: 2.939003
+  duration_ms: 4.689482
   ...
 # Subtest: weather advances from world time and emits an observable event without reselecting the same phenomenon
 ok 506 - weather advances from world time and emits an observable event without reselecting the same phenomenon
   ---
-  duration_ms: 2.737
+  duration_ms: 4.555363
   ...
 # Subtest: moving into a weather zone respects local suppressions and affinities
 ok 507 - moving into a weather zone respects local suppressions and affinities
   ---
-  duration_ms: 6.155545
+  duration_ms: 8.966849
   ...
 # Subtest: weather contributes its own bounded D20 modifier
 ok 508 - weather contributes its own bounded D20 modifier
   ---
-  duration_ms: 1.770874
+  duration_ms: 2.717946
   ...
 # Subtest: player and helper weather views expose sensations but not hidden canon mechanics
 ok 509 - player and helper weather views expose sensations but not hidden canon mechanics
   ---
-  duration_ms: 2.666043
+  duration_ms: 5.011161
   ...
 # Subtest: Scene Narrator sees current observable weather but not Director weather canon
 ok 510 - Scene Narrator sees current observable weather but not Director weather canon
   ---
-  duration_ms: 0.855753
+  duration_ms: 1.315477
   ...
 # Subtest: save migration initializes weather runtime and location profiles
 ok 511 - save migration initializes weather runtime and location profiles
   ---
-  duration_ms: 2.340733
+  duration_ms: 2.205933
   ...
 # Subtest: weather UI and AI generation contracts are wired into the current release
 ok 512 - weather UI and AI generation contracts are wired into the current release
   ---
-  duration_ms: 7.005066
+  duration_ms: 14.258634
   ...
 # Subtest: v0.54.3 core fallback follows resolved civilization, technology and magic blueprint values
 ok 513 - v0.54.3 core fallback follows resolved civilization, technology and magic blueprint values
   ---
-  duration_ms: 0.941405
+  duration_ms: 1.563709
   ...
 # Subtest: v0.54.3 fallback does not grant world-range near-instant communication to low-organization worlds merely because magic is high
 ok 514 - v0.54.3 fallback does not grant world-range near-instant communication to low-organization worlds merely because magic is high
   ---
-  duration_ms: 0.123437
+  duration_ms: 0.198329
   ...
 # Subtest: v0.54.3 anchor fallback preserves every must-exist Blueprint element in hidden Canon
 ok 515 - v0.54.3 anchor fallback preserves every must-exist Blueprint element in hidden Canon
   ---
-  duration_ms: 0.281607
+  duration_ms: 0.41378
   ...
 # Subtest: AI-selected worldTheme becomes the single canonical seed-compliance theme
 ok 516 - AI-selected worldTheme becomes the single canonical seed-compliance theme
   ---
-  duration_ms: 0.820191
+  duration_ms: 1.323622
   ...
 # Subtest: theme canonicalization does not invent missing compliance rows
 ok 517 - theme canonicalization does not invent missing compliance rows
   ---
-  duration_ms: 0.10002
+  duration_ms: 0.178051
   ...
 # Subtest: both direct and server world paths canonicalize theme before Engine validation
 ok 518 - both direct and server world paths canonicalize theme before Engine validation
   ---
-  duration_ms: 5.590805
+  duration_ms: 9.377455
   ...
 # Subtest: core normalization tolerates common model shape drift without inventing lore
 ok 519 - core normalization tolerates common model shape drift without inventing lore
   ---
-  duration_ms: 0.637997
+  duration_ms: 0.925121
   ...
 # Subtest: semantic core repair merges only supplied corrections and reports unresolved requirements
 ok 520 - semantic core repair merges only supplied corrections and reports unresolved requirements
   ---
-  duration_ms: 0.260136
+  duration_ms: 0.459244
   ...
 # Subtest: two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states
 ok 521 - two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states
   ---
-  duration_ms: 0.42097
+  duration_ms: 0.572074
   ...
 # Subtest: two-agent waves share one anchor and Engine validates cross-stage references
 ok 522 - two-agent waves share one anchor and Engine validates cross-stage references
   ---
-  duration_ms: 0.852852
+  duration_ms: 1.324844
   ...
 # Subtest: link validation rejects disconnected future events and cast content
 ok 523 - link validation rejects disconnected future events and cast content
   ---
-  duration_ms: 0.183133
+  duration_ms: 0.289319
   ...
 # Subtest: linked core agents cannot drift from the Engine-owned world identity
 ok 524 - linked core agents cannot drift from the Engine-owned world identity
   ---
-  duration_ms: 0.713424
+  duration_ms: 1.049953
   ...
 # Subtest: identity fallback never turns World Constitution labels into worldName or worldTheme
 ok 525 - identity fallback never turns World Constitution labels into worldName or worldTheme
   ---
-  duration_ms: 0.362359
+  duration_ms: 0.578245
   ...
 # Subtest: identity fallback construction always produces complete seed compliance rows
 ok 526 - identity fallback construction always produces complete seed compliance rows
   ---
-  duration_ms: 0.131799
+  duration_ms: 0.228926
   ...
 # Subtest: future links salvage known anchor aliases and drop invented locations without discarding valid history links
 ok 527 - future links salvage known anchor aliases and drop invented locations without discarding valid history links
   ---
-  duration_ms: 0.331601
+  duration_ms: 0.57006
   ...
 # Subtest: future link validator accepts starting settlement as a canonical anchor target
 ok 528 - future link validator accepts starting settlement as a canonical anchor target
   ---
-  duration_ms: 0.140354
+  duration_ms: 0.235608
   ...
 # Subtest: World Creation 2.0 resolves deterministic random values before AI
 ok 529 - World Creation 2.0 resolves deterministic random values before AI
   ---
-  duration_ms: 1.893184
+  duration_ms: 3.043681
   ...
 # Subtest: locked fields remain USER-owned even when their mode says random or style
 ok 530 - locked fields remain USER-owned even when their mode says random or style
   ---
-  duration_ms: 0.327326
+  duration_ms: 0.292133
   ...
 # Subtest: degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values
 ok 531 - degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values
   ---
-  duration_ms: 1.997552
+  duration_ms: 1.760825
   ...
 # Subtest: custom world style stays first-class and becomes Seed style foundation
 ok 532 - custom world style stays first-class and becomes Seed style foundation
   ---
-  duration_ms: 0.626395
+  duration_ms: 0.769732
   ...
 # Subtest: hard Constitution tags compile ahead of long freeform text
 ok 533 - hard Constitution tags compile ahead of long freeform text
   ---
-  duration_ms: 0.31489
+  duration_ms: 0.457902
   ...
 # Subtest: Blueprint Compliance rejects missing required, positive forbidden and profile drift
 ok 534 - Blueprint Compliance rejects missing required, positive forbidden and profile drift
   ---
-  duration_ms: 0.841224
+  duration_ms: 1.324764
   ...
 # Subtest: Blueprint Compliance accepts equivalent wording for built-in technology requirements
 ok 535 - Blueprint Compliance accepts equivalent wording for built-in technology requirements
   ---
-  duration_ms: 0.475608
+  duration_ms: 0.649548
   ...
 # Subtest: Blueprint Compliance accepts explicit prohibitions and reports named compliance rows
 ok 536 - Blueprint Compliance accepts explicit prohibitions and reports named compliance rows
   ---
-  duration_ms: 0.512518
+  duration_ms: 0.750396
   ...
 # Subtest: creation state persists origin role difficulty and dynamic constitution
 ok 537 - creation state persists origin role difficulty and dynamic constitution
   ---
-  duration_ms: 0.87105
+  duration_ms: 1.346014
   ...
 # Subtest: World Contract is public projection and keeps hidden truth out
 ok 538 - World Contract is public projection and keeps hidden truth out
   ---
-  duration_ms: 0.593992
+  duration_ms: 0.924239
   ...
 # Subtest: Blueprint Compliance rejects weather contradictions and prompt-template leakage
 ok 539 - Blueprint Compliance rejects weather contradictions and prompt-template leakage
   ---
-  duration_ms: 0.495437
+  duration_ms: 0.745377
   ...
 # Subtest: world compiler produces valid seed-derived canon
 ok 540 - world compiler produces valid seed-derived canon
   ---
-  duration_ms: 2.687543
+  duration_ms: 4.176378
   ...
 # Subtest: new game has persistent runtime domains without preset action buttons
 ok 541 - new game has persistent runtime domains without preset action buttons
   ---
-  duration_ms: 1.364748
+  duration_ms: 2.246378
   ...
 # Subtest: validator rejects broken world
 ok 542 - validator rejects broken world
   ---
-  duration_ms: 0.118029
+  duration_ms: 0.223607
   ...
 # Subtest: d20 stays inside rules
 ok 543 - d20 stays inside rules
   ---
-  duration_ms: 0.203962
+  duration_ms: 0.313894
   ...
 # Subtest: arbitrary action appends a generic player event without fixed companion logic
 ok 544 - arbitrary action appends a generic player event without fixed companion logic
   ---
-  duration_ms: 5.893122
+  duration_ms: 10.058759
   ...
 # Subtest: AI candidate assigns hidden world truth without giving it to the player
 ok 545 - AI candidate assigns hidden world truth without giving it to the player
   ---
-  duration_ms: 6.489793
+  duration_ms: 10.346074
   ...
 # Subtest: invalid AI candidate is rejected
 ok 546 - invalid AI candidate is rejected
   ---
-  duration_ms: 0.429008
+  duration_ms: 0.584687
   ...
 # Subtest: AI world is rejected when seed compliance mismatches user settings
 ok 547 - AI world is rejected when seed compliance mismatches user settings
   ---
-  duration_ms: 0.558803
+  duration_ms: 0.893612
   ...
 # Subtest: custom world prompt is a hard seed requirement
 ok 548 - custom world prompt is a hard seed requirement
   ---
-  duration_ms: 0.481147
+  duration_ms: 0.733224
   ...
 # Subtest: high political complexity requires an opening faction structure
 ok 549 - high political complexity requires an opening faction structure
   ---
-  duration_ms: 0.451342
+  duration_ms: 0.97859
   ...
 # Subtest: free action is recorded and advances profile-specific minutes
 ok 550 - free action is recorded and advances profile-specific minutes
   ---
-  duration_ms: 1.170354
+  duration_ms: 1.830154
   ...
 # Subtest: user supplied player name overrides AI naming
 ok 551 - user supplied player name overrides AI naming
   ---
-  duration_ms: 1.724603
+  duration_ms: 2.574237
   ...
 # Subtest: new game contains main quest
 ok 552 - new game contains main quest
   ---
-  duration_ms: 0.28591
+  duration_ms: 0.464975
   ...
 # Subtest: world-ready notification fires when World Contract is ready before crossing
 ok 553 - world-ready notification fires when World Contract is ready before crossing
   ---
-  duration_ms: 3.902206
+  duration_ms: 6.196195
   ...
 # Subtest: notification copy tells player to review contract before crossing
 ok 554 - notification copy tells player to review contract before crossing
   ---
-  duration_ms: 1.434378
+  duration_ms: 2.371642
   ...
 # Subtest: world-ready notification never leaks the hidden generated world name
 ok 555 - world-ready notification never leaks the hidden generated world name
   ---
-  duration_ms: 1.268361
+  duration_ms: 2.180366
   ...
 # Subtest: LOCAL delayed consequence cannot mutate WORLD authority
 ok 556 - LOCAL delayed consequence cannot mutate WORLD authority
   ---
-  duration_ms: 6.764115
+  duration_ms: 10.493528
   ...
 # Subtest: invalid delayed mutation cannot create phantom influence
 ok 557 - invalid delayed mutation cannot create phantom influence
   ---
-  duration_ms: 0.803803
+  duration_ms: 1.169275
   ...
 # Subtest: failed roll cannot create positive durable local result
 ok 558 - failed roll cannot create positive durable local result
   ---
-  duration_ms: 0.591038
+  duration_ms: 0.928396
   ...
 # Subtest: failed roll may record a real cost without granting success
 ok 559 - failed roll may record a real cost without granting success
   ---
-  duration_ms: 1.027501
+  duration_ms: 1.295259
   ...
 # Subtest: pending consequences are never silently evicted after forty
 ok 560 - pending consequences are never silently evicted after forty
   ---
-  duration_ms: 3.834604
+  duration_ms: 6.456769
   ...
 # Subtest: remote consequence changes state but does not leak until observed locally
 ok 561 - remote consequence changes state but does not leak until observed locally
   ---
-  duration_ms: 0.879482
+  duration_ms: 1.308543
   ...
 # Subtest: timeline impacts stay inside event window and due events trigger by effective day
 ok 562 - timeline impacts stay inside event window and due events trigger by effective day
   ---
-  duration_ms: 0.904491
+  duration_ms: 1.352385
   ...
 # Subtest: future or malformed save versions are rejected and malformed impact state fails validation
 ok 563 - future or malformed save versions are rejected and malformed impact state fails validation
   ---
-  duration_ms: 2.531631
+  duration_ms: 3.861673
   ...
 # Subtest: unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes
 ok 564 - unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes
   ---
-  duration_ms: 0.761799
+  duration_ms: 1.11318
   ...
 # Subtest: FACTION consequence cannot jump from its parent faction to another faction
 ok 565 - FACTION consequence cannot jump from its parent faction to another faction
   ---
-  duration_ms: 5.732118
+  duration_ms: 8.552077
   ...
 # Subtest: local player impact mutates current state and appends immutable impact history
 ok 566 - local player impact mutates current state and appends immutable impact history
   ---
-  duration_ms: 6.948309
+  duration_ms: 9.659076
   ...
 # Subtest: semantic impact effects are converted into scope-bounded Engine numbers
 ok 567 - semantic impact effects are converted into scope-bounded Engine numbers
   ---
-  duration_ms: 0.76126
+  duration_ms: 1.166109
   ...
 # Subtest: impact engine refuses unknown targets and excessive early-game scope
 ok 568 - impact engine refuses unknown targets and excessive early-game scope
   ---
-  duration_ms: 0.731826
+  duration_ms: 1.11318
   ...
 # Subtest: regional influence unlocks through accumulated knowledge and prior impact
 ok 569 - regional influence unlocks through accumulated knowledge and prior impact
   ---
-  duration_ms: 0.915135
+  duration_ms: 1.431573
   ...
 # Subtest: delayed consequences fire from world time instead of the original turn
 ok 570 - delayed consequences fire from world time instead of the original turn
   ---
-  duration_ms: 1.130646
+  duration_ms: 1.994763
   ...
 # Subtest: player can alter future timeline timing without rewriting the base event
 ok 571 - player can alter future timeline timing without rewriting the base event
   ---
-  duration_ms: 0.935043
+  duration_ms: 1.459946
   ...
 # Subtest: failed roll cannot escalate a proposed impact above local scope
 ok 572 - failed roll cannot escalate a proposed impact above local scope
   ---
-  duration_ms: 0.505669
+  duration_ms: 0.966106
   ...
 # Subtest: impact snapshot gives Director current mutable state and recent player consequences
 ok 573 - impact snapshot gives Director current mutable state and recent player consequences
   ---
-  duration_ms: 0.675617
+  duration_ms: 1.076443
   ...
 # Subtest: save format v11 preserves impact runtime and initializes recognition
 ok 574 - save format v11 preserves impact runtime and initializes recognition
   ---
-  duration_ms: 3.055003
+  duration_ms: 4.347356
   ...
 # Subtest: invalid impact candidate is rejected before mutation
 ok 575 - invalid impact candidate is rejected before mutation
   ---
-  duration_ms: 0.205885
+  duration_ms: 0.29558
   ...
 # Subtest: generation diagnostics separates structural success from fallback degradation
 ok 576 - generation diagnostics separates structural success from fallback degradation
   ---
-  duration_ms: 0.931488
+  duration_ms: 1.543722
   ...
 # Subtest: critic normalization keeps structured repair targets
 ok 577 - critic normalization keeps structured repair targets
   ---
-  duration_ms: 0.305148
+  duration_ms: 0.459414
   ...
 # Subtest: repair patch cannot retcon identity history timeline windows or provenance
 ok 578 - repair patch cannot retcon identity history timeline windows or provenance
   ---
-  duration_ms: 0.595889
+  duration_ms: 1.002614
   ...
 # Subtest: fallback critic detects knowledge leak and generic future events
 ok 579 - fallback critic detects knowledge leak and generic future events
   ---
-  duration_ms: 0.665406
+  duration_ms: 1.001743
   ...
 # Subtest: runtime expansion requires valid history provenance and schedules maintenance
 ok 580 - runtime expansion requires valid history provenance and schedules maintenance
   ---
-  duration_ms: 0.394267
+  duration_ms: 0.649739
   ...
 # Subtest: canonization persists valid historyRefs on locations npcs factions and quests
 ok 581 - canonization persists valid historyRefs on locations npcs factions and quests
   ---
-  duration_ms: 4.247124
+  duration_ms: 6.843579
   ...
 # Subtest: fallback critic always creates actionable findings for unresolved fallback stages
 ok 582 - fallback critic always creates actionable findings for unresolved fallback stages
   ---
-  duration_ms: 0.506766
+  duration_ms: 0.770863
   ...
 # Subtest: successful recovery suppresses stage fallback findings but preserves diagnostics history
 ok 583 - successful recovery suppresses stage fallback findings but preserves diagnostics history
   ---
-  duration_ms: 0.214642
+  duration_ms: 0.345573
   ...
 # Subtest: fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references
 ok 584 - fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references
   ---
-  duration_ms: 0.649175
+  duration_ms: 1.026259
   ...
 # Subtest: quality normalization fills omitted dimensions from the supplied overall score
 ok 585 - quality normalization fills omitted dimensions from the supplied overall score
   ---
-  duration_ms: 0.155878
+  duration_ms: 0.275182
   ...
 # Subtest: random world settings fills legacy quick-random fields
 ok 586 - random world settings fills legacy quick-random fields
   ---
-  duration_ms: 0.837931
+  duration_ms: 1.360851
   ...
 # Subtest: random world settings rejects missing option sets
 ok 587 - random world settings rejects missing option sets
   ---
-  duration_ms: 0.252443
+  duration_ms: 0.414621
   ...
 # Subtest: World Creation UI provides Custom World and 1-10 degree sliders
 ok 588 - World Creation UI provides Custom World and 1-10 degree sliders
   ---
-  duration_ms: 4.225741
+  duration_ms: 7.301871
   ...
 # Subtest: World Constitution Tag Builder has preset library and custom tags for all three rule buckets
 ok 589 - World Constitution Tag Builder has preset library and custom tags for all three rule buckets
   ---
-  duration_ms: 2.157851
+  duration_ms: 3.271585
   ...
 # Subtest: reroll only changes creator settings and never generates a world
 ok 590 - reroll only changes creator settings and never generates a world
   ---
-  duration_ms: 1.265521
+  duration_ms: 1.973471
   ...
 1..590
 # tests 590
@@ -1488,4 +1488,4 @@ ok 590 - reroll only changes creator settings and never generates a world
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 5398.281562
+# duration_ms 8554.820799
