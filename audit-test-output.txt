@@ -1,740 +1,1491 @@
-ll>同行者</small><p>${active.length?active.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · ${esc(companionLabel(x)||"同行中")}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
-     </div>`)
-    });
-    $("#runtimeBtn")?.addEventListener("click",()=>{
-     const survival=survivalSnapshot(gameState),magic=gameState.player.magic||{strain:0,capacity:100,knownSpells:[]},talents=talentSnapshot(gameState),travel=travelSnapshot(gameState,{director:false}),market=marketSnapshot(gameState),dungeon=dungeonSnapshot(gameState,{director:false}),culture=cultureSnapshot(gameState),registry=ensureWorldRegistry(gameState),locNames=new Map(registry.locations.map(x=>[x.id,x.name])),companions=ensureNpcRuntime(gameState).filter(x=>x.companion?.status==="ACTIVE");
-     const routeText=travel.routes.length?travel.routes.map(r=>`${esc(locNames.get(r.fromId)||"?")} ↔ ${esc(locNames.get(r.toId)||"?")} · 約 ${r.baseMinutes} 分 · ${esc(r.terrain)}`).join("<br>"):"尚未掌握可確認路線";
-     const marketText=market?.goods?.length?market.goods.map(g=>`${esc(g.name)} · ${g.price} · ${g.stock>0?"仍有存貨":"暫時缺貨"}`).join("<br>"):"目前沒有可確認的地方市場商品";
-     const dungeonText=dungeon?.rooms?.length?dungeon.rooms.map(r=>`${esc(r.name)} · ${r.cleared?"已走過":"仍待探索"}`).join("<br>"):"目前沒有已探索的遺構空間";
-     const lockedReason=x=>({OTHER_PATH_LOCKED:"其他成長路線的進階能力已鎖定",PREVIOUS_TIER_REQUIRED:"要先走完前一階段",NO_TALENT_POINT:"目前天賦點不足"})[x.reason]||"暫時無法選擇";
-     const talentRows=talents.available.map(x=>`<div class="lore-item"><small>${esc(x.pathName)} · 第 ${x.tier} 階${x.cost<99?` · 需要 ${x.cost} 點`:""}</small><h3>${esc(x.name)}</h3><p>${esc(x.description)}</p><button class="${x.available?"secondary":"ghost"}" data-learn-talent="${esc(x.id)}" ${x.available?"":"disabled"}>${x.available?"選擇這項能力":esc(lockedReason(x))}</button></div>`).join("");
-     openModal(`<div class="eyebrow">TRAVELLER STATUS</div><h2>旅人狀態</h2><p class="muted">只顯示你能理解並用來作決定的狀態；世界完整性、AI 與生成診斷仍保留在 Debug。</p><div class="lore-list">
-     <div class="lore-item"><small>身體狀況</small><p>飽食度 ${Math.round(survival.satiety)} · 疲勞 ${Math.round(survival.fatigue)} · 環境暴露 ${Math.round(survival.exposure)} · 傷勢 ${Math.round(survival.injury)}<br>${survival.conditions.length?survival.conditions.map(esc).join(" · "):"目前狀態穩定"}</p></div>
-     <div class="lore-item"><small>魔法負荷</small><p>${Math.round(magic.strain||0)} / ${magic.capacity||100}<br>${(magic.knownSpells||[]).length?(magic.knownSpells||[]).map(x=>`${esc(x.name)} · 消耗 ${x.cost}`).join("<br>"):"尚未掌握有可靠證據支持的術式"}</p></div>
-     <div class="lore-item"><small>你的路線</small><h3>${talents.identity.committed?esc(talents.identity.path.name):"尚未定型"}</h3><p>${esc(talents.identity.description)}<br><small>可用天賦點：${talents.points}</small></p></div>
-     <div class="lore-item"><small>當地生活</small><p>${culture?esc(culture.identity||"當地文化仍待理解")+"<br>"+esc(culture.standing):"目前沒有足夠資料"}</p></div>
-     <div class="lore-item"><small>已知路線</small><p>${routeText}</p></div>
-     <div class="lore-item"><small>附近補給</small><p>${marketText}</p></div>
-     <div class="lore-item"><small>遺構記錄</small><p>${dungeonText}</p></div>
-     <div class="lore-item"><small>同行者</small><p>${companions.length?companions.map(x=>`${esc(x.name)} · ${esc(x.role||"")} · ${esc(companionLabel(x)||"同行中")}`).join("<br>"):"目前沒有同行夥伴"}</p></div>
-     ${talents.owned.length?`<div class="lore-item"><small>已形成的能力</small><p>${talents.owned.map(x=>`${esc(x.pathName||"")} · ${esc(x.name)}`).join("<br>")}</p></div>`:""}
-     ${talentRows||'<div class="lore-item"><p>目前沒有新的成長選擇。</p></div>'}
-     </div>`);
-     qsa("#modalContent [data-learn-talent]").forEach(b=>b.onclick=async()=>{const result=learnTalent(gameState,b.dataset.learnTalent);if(result.ok){await persist();await refresh();$("#runtimeBtn").click()}});
-    });
-    $("#impactBtn")?.addEventListener("click",()=>{const snap=impactSnapshot(gameState),recognition=recognitionSnapshot(gameState),records=playerImpactRecords(gameState,50).reverse(),total=Object.values(snap.influence).reduce((a,b)=>a+(Number(b)||0),0);openModal(`<div class="eyebrow">WORLD IMPACT & REPUTATION</div><h2>我改變過的世界</h2><p class="muted">世界會記住你做過的事，但不同地方、人物與勢力只會知道真正傳到他們耳中的部分。</p><div class="lore-list"><div class="lore-item"><small>CURRENT REACH</small><h3>${esc(impactLabel(snap.capability.maxScope))}級影響 · ${esc(renownLabel(recognition.tier))}</h3><p>累積影響 ${total} · 名聲 ${recognition.renown} · 惡名／戒心 ${recognition.notoriety}</p></div>${recognition.titles.length?`<div class="lore-item"><small>HOW THE WORLD NAMES YOU</small><h3>${recognition.titles.map(x=>esc(x.label)).join(" · ")}</h3></div>`:""}${recognition.activeRumors.length?`<div class="lore-item"><small>ACTIVE RUMORS</small><p>${recognition.activeRumors.slice().reverse().map(x=>`${esc(x.targetName||"世界")}：${esc(x.text)}`).join("<br><br>")}</p></div>`:""}${recognition.marks.length?`<div class="lore-item"><small>LEGACY MARKS</small><p>${recognition.marks.slice().reverse().map(x=>`${esc(x.targetName||"世界")} · ${esc(x.label)}`).join("<br>")}</p></div>`:""}${recognition.reactions.length?`<div class="lore-item"><small>WORLD REACTIONS</small><p>${recognition.reactions.slice().reverse().map(x=>esc(x.summary)).join("<br><br>")}</p></div>`:""}${records.map(x=>`<div class="lore-item"><small>DAY ${x.day} · ${esc(impactLabel(x.scope))} · ${esc(x.targetName||"世界")}</small><h3>${esc(x.title)}</h3><p>${esc(x.summary)}</p></div>`).join("")||"<div class=\"lore-item\"><p>你尚未對世界造成持久改變。繼續探索、建立關係並介入真正重要的事件。</p></div>"}</div>`)});
-    $("#journalBtn").onclick=()=>openJournalUI(gameState,openModal,persist,"quests");
-    $("#inventoryBtn").onclick=()=>openInventoryUI(gameState,openModal,persist,runAction);
-    $("#historyBtn").onclick=()=>{
-     const recaps=recentJourneyCheckpoints(gameState,12).slice().reverse(),events=playerVisibleEvents(gameState,18).filter(e=>e.type!=="SESSION_CHECKPOINT").reverse();
-     const recapCards=recaps.map(r=>`<div class="lore-item"><small>DAY ${r.day} · ${esc(r.reason)} · ${esc(r.location||"旅途中")}</small><h3>這段旅程發生了甚麼</h3><p>${esc(r.summary)}</p>${r.discoveries?.length?`<small>記住的線索</small><p>${r.discoveries.map(esc).join("<br>")}</p>`:""}${r.worldChanges?.length?`<small>世界留下的變化</small><p>${r.worldChanges.map(esc).join("<br>")}</p>`:""}${r.unresolved?.length?`<small>仍未放下</small><p>${r.unresolved.map(esc).join("<br>")}</p>`:""}</div>`).join("");
-     const recentCards=events.slice(0,8).map(e=>`<div class="lore-item"><small>DAY ${e.day}${e.time?` · ${esc(e.time)}`:""}</small><p>${e.summary?esc(e.summary):e.action?esc(e.customText||e.action):"你繼續走在這個陌生世界裡。"}</p></div>`).join("");
-     openModal(`<div class="eyebrow">JOURNEY MEMORY</div><h2>旅程回顧</h2><p class="muted">以自然停頓點整理旅程，而不是把每個 Engine event 當成日誌。</p><div class="lore-list">${recapCards||recentCards||'<div class="lore-item"><p>旅程才剛開始。</p></div>'}</div>`)
-    };
-    
-    function autotestDownload(filename,body,type="application/json;charset=utf-8"){
-     const blob=new Blob([body],{type}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),800)
-    }
-    function autotestStamp(){return new Date().toISOString().replace(/[:.]/g,"-")}
-    function autotestTelemetryErrors(since=0){return telemetryEntries().filter(e=>Number(e.at)>=since&&(/ERROR|FAILED/.test(String(e.type||""))||e.data?.status==="ERROR")).length}
-    function appendDeveloperAutotestLog(message){
-     const line=String(message||"").slice(0,500);developerAutotest.lastMessage=line;developerAutotest.logs.push({at:Date.now(),message:line});developerAutotest.logs=developerAutotest.logs.slice(-80);
-     const status=$("#autotestLiveStatus");if(status)status.textContent=line;
-     const log=$("#autotestLiveLog");if(log)log.textContent=developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n");
-     const progress=$("#autotestProgressText");if(progress){const total=Number(developerAutotest.config?.worldCount)||0,maxTurns=Number(developerAutotest.config?.maxTurns)||0;progress.textContent=developerAutotest.running?`世界 ${developerAutotest.worldIndex}/${total} · 回合 ${developerAutotest.turn}/${maxTurns}`:"未執行"}
-    }
-    function developerAutotestPanelHtml(){
-     const c=developerAutotest.config||{mode:"play",worldCount:1,maxTurns:30,stopCondition:"TURN_LIMIT",conditionTarget:10,customCondition:"",exportMode:"both",disableTimeout:false};
-     const running=developerAutotest.running,report=developerAutotest.lastReport,summary=report?.summary;
-     return `<div class="eyebrow">DEVELOPER · AI AUTOTEST</div><h2>AI 自動測試</h2><p class="muted">使用目前已設定的 Elyndra AI Provider/API。測試世界不會覆蓋正式存檔；AI 玩家只會收到真實玩家此刻能看見或已知的情報，不會取得 hidden Canon。</p>
-     <div class="settings-grid">
-     <label>測試模式<select id="autotestMode" ${running?"disabled":""}><option value="play">AI 遊玩測試</option><option value="worlds">隨機世界生成測試</option></select></label>
-     <label>隨機世界數量<input id="autotestWorldCount" type="number" min="1" max="20" value="${Math.max(1,Number(c.worldCount)||1)}" ${running?"disabled":""}></label>
-     <label>每個世界最多回合<input id="autotestMaxTurns" type="number" min="1" max="500" value="${Math.max(1,Number(c.maxTurns)||30)}" ${running?"disabled":""}></label>
-     <label>停止條件<select id="autotestStopCondition" ${running?"disabled":""}><option value="TURN_LIMIT">只按回合上限</option><option value="PLAYER_DOWNED">玩家倒下</option><option value="MAIN_QUEST_COMPLETE">主線完成</option><option value="KNOWLEDGE_SCORE">知識分數達標</option><option value="PLAYER_LEVEL">玩家等級達標</option><option value="DISCOVERIES">發現數達標</option><option value="ERROR_COUNT">錯誤數達標</option><option value="CUSTOM_AI">自訂可觀察條件</option></select></label>
-     <label>條件目標值<input id="autotestConditionTarget" type="number" min="1" max="9999" value="${Math.max(1,Number(c.conditionTarget)||10)}" ${running?"disabled":""}></label>
-     <label>輸出內容<select id="autotestExportMode" ${running?"disabled":""}><option value="both">Debug + 世界</option><option value="debug">只傳出 Debug</option><option value="world">只傳出世界</option></select></label>
-     <label>AI Timeout<span><input id="autotestDisableTimeout" type="checkbox" ${c.disableTimeout?"checked":""} ${running?"disabled":""}> 取消 AI Timeout</span></label>
-     </div>
-     <label class="full">自訂停止條件<input id="autotestCustomCondition" maxlength="500" value="${esc(c.customCondition||"")}" placeholder="例如：加入任一勢力並取得一項新知識" ${running?"disabled":""}></label>
-     <p class="muted">AI 每回合可以直接選擇現有行動按鈕，亦可以自行輸入自由行動。無論設定任何停止條件，回合上限仍會作為安全上限。「取消 AI Timeout」只移除 Provider request 的時間上限；仍可隨時按「停止測試」Abort 當前請求。</p>
-     <div class="settings-actions"><button id="autotestStart" class="primary" ${running?"disabled":""}>開始自動測試</button><button id="autotestStop" class="secondary" ${running?"":"disabled"}>停止測試</button></div>
-     <div class="lore-list"><div class="lore-item"><small>PROGRESS</small><h3 id="autotestProgressText">${running?`世界 ${developerAutotest.worldIndex}/${c.worldCount} · 回合 ${developerAutotest.turn}/${c.maxTurns}`:"未執行"}</h3><p id="autotestLiveStatus">${esc(developerAutotest.lastMessage||"設定完成後按「開始自動測試」。")}</p><pre id="autotestLiveLog" class="debug-log">${esc(developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n"))}</pre></div>
-     ${summary?`<div class="lore-item"><small>LAST REPORT</small><h3>${summary.worldsCompleted} 完成 · ${summary.worldsFailed} 失敗 · ${summary.totalTurns} 回合</h3><p>Issues ${summary.issues} · AI Requests ${summary.aiRequests} · Tokens ${Number(summary.tokenTotals?.total||0).toLocaleString()} · 平均 AI latency ${summary.aiLatencyAverageMs}ms</p></div>`:""}</div>
-     <p class="muted">完成後會按「輸出內容」設定下載 Debug JSON、測試世界，或兩者；單一世界為 .elyndra，多世界為 JSON bundle。</p>`;
-    }
-    function readDeveloperAutotestConfig(){
-     return {
-      mode:$("#autotestMode")?.value==="worlds"?"worlds":"play",
-      worldCount:Math.max(1,Math.min(20,Math.round(Number($("#autotestWorldCount")?.value)||1))),
-      maxTurns:Math.max(1,Math.min(500,Math.round(Number($("#autotestMaxTurns")?.value)||30))),
-      stopCondition:String($("#autotestStopCondition")?.value||"TURN_LIMIT"),
-      conditionTarget:Math.max(1,Math.round(Number($("#autotestConditionTarget")?.value)||10)),
-      customCondition:String($("#autotestCustomCondition")?.value||"").trim().slice(0,500),
-      exportMode:["debug","world"].includes($("#autotestExportMode")?.value)?$("#autotestExportMode").value:"both",
-      disableTimeout:$("#autotestDisableTimeout")?.checked===true,
-      playStrategy:autotestPlayStrategy()
-     }
-    }
-    function bindDeveloperAutotestPanel(){
-     const c=developerAutotest.config||{mode:"play",stopCondition:"TURN_LIMIT",exportMode:"both"};if($("#autotestMode"))$("#autotestMode").value=c.mode||"play";if($("#autotestStopCondition"))$("#autotestStopCondition").value=c.stopCondition||"TURN_LIMIT";if($("#autotestExportMode"))$("#autotestExportMode").value=["debug","world"].includes(c.exportMode)?c.exportMode:"both";
-     $("#autotestStart")?.addEventListener("click",()=>{if(developerAutotest.running)return;developerAutotest.config=readDeveloperAutotestConfig();void startDeveloperAutotest(developerAutotest.config)});
-     $("#autotestStop")?.addEventListener("click",()=>{developerAutotest.stopRequested=true;const reason=new DOMException("Developer autotest stopped","AbortError");developerAutotest.controller?.abort(reason);developerAutotest.batchController?.abort(reason);appendDeveloperAutotestLog("已要求停止；正在 Abort 當前 AI request，之後於安全點結束。");recordDebug("AUTOTEST_STOP_REQUESTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn})})
-    }
-    function openDeveloperAutotestPanel(){openModal(developerAutotestPanelHtml());bindDeveloperAutotestPanel()}
-    $("#developerBtn")?.addEventListener("click",openDeveloperAutotestPanel);
-    
-    function autotestForegroundIdle(){return !aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running}
-    async function waitForAutotestIdle(timeoutMs=12000){
-     const started=Date.now();
-     while(Date.now()-started<timeoutMs){
-      if(autotestForegroundIdle())return true;
-      await new Promise(r=>setTimeout(r,80))
-     }
-     if(autotestForegroundIdle())return true;
-     recordDebug("AUTOTEST_IDLE_TIMEOUT",{timeoutMs,aiBusy,turnSyncBusy,nonblocking:Boolean(nonblockingScene.controller),deferred:deferredDirector.running});
-     return false
-    }
-    async function waitForAutotestActionReady(timeoutMs=38000){
-     const started=Date.now();
-     while(Date.now()-started<timeoutMs){
-      if(!playerActionFlight.active)return true;
-      await new Promise(r=>setTimeout(r,25))
-     }
-     if(!playerActionFlight.active)return true;
-     recordDebug("AUTOTEST_ACTION_READY_TIMEOUT",{timeoutMs,active:playerActionFlight.active,label:playerActionFlight.label,nonblocking:Boolean(nonblockingScene.controller),aiBusy,turnSyncBusy});
-     return false
-    }
-    function cancelAutotestBackgroundWork(){
-     if(deferredDirector.timer){clearTimeout(deferredDirector.timer);deferredDirector.timer=0}
-     if(worldBackground.timer){clearTimeout(worldBackground.timer);worldBackground.timer=0}
-     if(worldQualityBackground.timer){clearTimeout(worldQualityBackground.timer);worldQualityBackground.timer=0}
-     if(historyBackground.timer){clearTimeout(historyBackground.timer);historyBackground.timer=0}
-     const expansionCtrl=autotestRuntimeExpansion.controller;if(expansionCtrl&&!expansionCtrl.signal.aborted)expansionCtrl.abort(new DOMException("AutoTest stopping","AbortError"));
-     preemptBackgroundAI()
-    }
-    async function createDeveloperAutotestWorld(raw,index){
-     const draft=createWorldCreationDraft(raw),seed=compileWorldCreation(draft),state=newGame(seed);applyWorldCreationState(state,seed);
-     recordDebug("AUTOTEST_WORLD_GENERATION_STARTED",{index,masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale});
-     const candidate=await generateWorldCandidate(seed,state.world.constitution,p=>appendDeveloperAutotestLog(`世界 ${index} · ${p.label||"World Compiler"} ${p.progress||0}%`));
-     const creationValidation=validateWorldCreationCandidate(seed,candidate);if(!creationValidation.valid)throw new Error("AUTOTEST_WORLD_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
-     applyWorldCandidate(state,candidate);canonizeGeneration(state,candidate.generation);applyOriginRuntime(state,{phase:"POST_CANON"});
-     const migrated=migrate(state),validation=validateWorld(migrated.world);if(!validation.valid)throw new Error("AUTOTEST_WORLD_INVALID:"+validation.errors.join(","));
-     recordDebug("AUTOTEST_WORLD_GENERATION_COMPLETED",{index,worldId:migrated.world?.id,name:migrated.world?.name,genre:migrated.world?.seedContract?.genre||raw.worldStyle});
-     return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale},validation,generationDiagnostics:structuredClone(candidate?.generationDiagnostics||migrated.world?.generationDiagnostics||null)}
-    }
-    async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED",options={}){
-     const state=gameState,sessionToken=captureStateSession(),pending=pendingRuntimeGenerationPlan(state);if(!developerAutotestActive||!state||!aiStatus.aiConfigured||(!needsExpansion(state)&&!pending))return false;
-     const background=options?.background===true,signal=options?.signal||developerAutotest.batchController?.signal,plan=pending||planLazyGeneration(state,{reason}),startedAt=Date.now();recordDebug("AUTOTEST_RUNTIME_EXPANSION_STARTED",{reason,planId:plan.id,resumeStage:plan.checkpoint?.stage||null,background});
-     try{
-      const ex=await generateRegionExpansion(state,reason,{signal,plan,onStage:background?undefined:stage=>commitRuntimeStageCheckpoint(plan,stage,sessionToken,state)});if(signal?.aborted||!isCurrentStateSession(sessionToken))throw signal?.reason||new DOMException("AutoTest expansion stale","AbortError");if(!ex?.generation)throw new Error("AUTOTEST_RUNTIME_EXPANSION_EMPTY");
-      const valid=validateLazyGenerationCandidate(state,ex.generation,plan,{added:plan.checkpoint?.added});if(!valid.valid)throw new Error("AUTOTEST_LAZY_GENERATION_CONTRACT_FAILED:"+valid.errors.join(","));
-      const added=plan.checkpoint?.added||canonizeGeneration(state,ex.generation),committed=commitLazyGeneration(state,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("AUTOTEST_LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
-      recordExpansion(state,ex.region||plan.region||"未知邊境",ex.reason||reason);state.world.state.flags.requestExpansion=false;markWorldEvolution(state,{reason});bumpStateRevision(state,"AUTOTEST_RUNTIME_EXPANSION");
-      await persist(state,sessionToken);if(!background&&isCurrentStateSession(sessionToken))await refresh();recordDebug("AUTOTEST_RUNTIME_EXPANSION_COMPLETED",{reason,planId:plan.id,elapsedMs:Date.now()-startedAt,locations:added.locations?.length||0,npcs:added.npcs?.length||0,factions:added.factions?.length||0,sideQuests:added.sideQuests?.length||0,background});return true
-     }catch(e){const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(state,plan,e?.message||"AUTOTEST_RUNTIME_EXPANSION_FAILED");recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:e?.message||String(e),checkpointed,resumeStage:plan.checkpoint?.stage||null,elapsedMs:Date.now()-startedAt,background});return false}
-    }
-    function autotestRecentStallCount(rows=[]){let count=0;for(const row of rows.slice().reverse()){if(row?.progressed!==false)break;count++}return count}
-    function scheduleDeveloperAutotestExpansion(reason="FIRST_BUTTON_STALL_RECOVERY",turn=0){
-     if(!developerAutotestActive||!developerAutotest.running||!gameState||!aiStatus.aiConfigured||autotestRuntimeExpansion.running||!needsExpansion(gameState))return false;
-     const stateToken=captureStateSession(),batchSignal=developerAutotest.batchController?.signal;if(batchSignal?.aborted)return false;
-     const ctrl=new AbortController(),worldId=gameState.world?.id,relay=()=>{if(!ctrl.signal.aborted)ctrl.abort(batchSignal?.reason||new DOMException("AutoTest batch stopped","AbortError"))};if(batchSignal)batchSignal.addEventListener("abort",relay,{once:true});
-     autotestRuntimeExpansion.running=true;autotestRuntimeExpansion.controller=ctrl;autotestRuntimeExpansion.reason=reason;autotestRuntimeExpansion.turn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_STARTED",{reason,turn,worldId});
-     void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal}).then(ok=>{if(isCurrentStateSession(stateToken))recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok})}).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl)autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0});
-     return true
-    }
-    async function executeDeveloperAutotestDecision(decision){
-     if(decision.mode==="combat"){await runCombatAction(decision.combatAction||"attack");return}
-     if(decision.mode==="suggestion"){
-      const source=gameState?.suggestionIntents?.length?gameState.suggestionIntents:(gameState?.suggestions||[]),chosen=source[Math.max(0,Math.min(source.length-1,Number(decision.suggestionIndex)||0))];
-      if(chosen&&typeof chosen==="object"){await runAction("free",chosen.action||chosen.label||decision.action,{suggestion:chosen});return}
-      if(typeof chosen==="string"){await runAction("free",chosen);return}
-     }
-     await runAction("free",decision.action||"觀察四周並確認目前最明顯的變化")
-    }
-    function exportDeveloperAutotestResults(report,results){
-     const stamp=autotestStamp(),selection=autotestExportSelection(developerAutotest.config?.exportMode),debugPayload={...report,telemetry:telemetryEntries().filter(e=>Number(e.at)>=developerAutotest.startedAt),actions:results.map(r=>({index:r.index,status:r.status,stopReason:r.stopReason,actions:r.actions}))};
-     if(selection.debug)autotestDownload(`Elyndra-autotest-debug-v${APP_VERSION}-${stamp}.json`,JSON.stringify(debugPayload,null,2));
-     const worlds=results.filter(r=>r.world).map(r=>({index:r.index,status:r.status,stopReason:r.stopReason,summary:r.summary,world:r.world}));
-     if(selection.world&&worlds.length===1)autotestDownload(`Elyndra-autotest-world-v${APP_VERSION}-${stamp}.elyndra`,JSON.stringify(worlds[0].world,null,2));
-     else if(selection.world&&worlds.length)autotestDownload(`Elyndra-autotest-worlds-v${APP_VERSION}-${stamp}.json`,JSON.stringify({schema:"elyndra-autotest-worlds-v1",appVersion:APP_VERSION,createdAt:new Date().toISOString(),worlds},null,2));
-     recordDebug("AUTOTEST_EXPORTED",{exportMode:selection.mode,debug:selection.debug,world:selection.world,worlds:selection.world?worlds.length:0,issues:report.summary?.issues||0,totalTurns:report.summary?.totalTurns||0})
-    }
-    async function startDeveloperAutotest(config){
-     if(developerAutotest.running)return;
-     aiStatus=await aiHealth();if(!aiStatus.aiConfigured){appendDeveloperAutotestLog("需要先在 AI 設定連接 Provider/API。");openDeveloperAutotestPanel();return}
-     const originalState=gameState?structuredClone(gameState):null,originalScreen=document.body.dataset.screen||"landing";
-     developerAutotest.running=true;developerAutotestActive=true;developerAutotest.stopRequested=false;developerAutotest.results=[];developerAutotest.startedAt=Date.now();developerAutotest.endedAt=0;developerAutotest.worldIndex=0;developerAutotest.turn=0;developerAutotest.logs=[];developerAutotest.lastReport=null;developerAutotest.hiddenAt=document.hidden?Date.now():0;developerAutotest.lastVisibleAt=document.hidden?0:Date.now();developerAutotest.backgroundInterruptions=0;developerAutotest.backgroundDurationMs=0;developerAutotest.config=structuredClone(config);developerAutotest.batchController=new AbortController();setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});
-     cancelAutotestBackgroundWork();recordDebug("AUTOTEST_BATCH_STARTED",{config});openDeveloperAutotestPanel();appendDeveloperAutotestLog(`開始 ${config.worldCount} 個世界的 ${config.mode==="worlds"?"World Fuzz":"AI Playthrough"} 測試。`);
-     try{
-      for(let i=1;i<=config.worldCount;i++){
-       if(developerAutotest.stopRequested)break;
-       developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");
-       const worldStartedAt=Date.now(),result={index:i,status:"RUNNING",phase:"GENERATION",turns:0,stopReason:"",error:"",actions:[],generation:null,summary:null,world:null};
-       try{
-        appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
-        const generated=await createDeveloperAutotestWorld(randomAutotestWorldRaw(Math.random,i),i);
-        result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
-        replaceGameState(generated.state,"AUTOTEST_WORLD_READY");const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);
-        if(config.mode==="worlds"){
-         result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
-         appendDeveloperAutotestLog(`世界 ${i} 生成驗證完成。`);continue
-        }
-        result.phase="PLAY";const recentActions=[];
-        for(let turn=1;turn<=config.maxTurns;turn++){
-         if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
-         developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON";let firstButtonExpansionReason="";if(!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(firstButtonFast&&needsExpansion(gameState)){const stall=autotestRecentStallCount(recentActions),sparseWorld=(gameState.world?.registry?.locations||[]).length<=1&&turn>=5;if(stall>=3||sparseWorld)firstButtonExpansionReason=stall>=3?"FIRST_BUTTON_STALL_RECOVERY":"FIRST_BUTTON_SPARSE_WORLD";else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"TURN",turn,stall})}if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();
-         const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
-         try{
-          const ctrl=new AbortController();developerAutotest.controller=ctrl;
-          const decision=await decideAutotestAction(gameState,{recentActions,customCondition:config.stopCondition==="CUSTOM_AI"?config.customCondition:"",signal:ctrl.signal,disableTimeout:config.disableTimeout===true});developerAutotest.controller=null;row.decision=decision;
-          appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn}: ${decision.mode==="suggestion"?"[按鈕] ":decision.mode==="combat"?"[戰鬥] ":"[自由] "}${decision.action||decision.combatAction}`);
-          recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
-          if(firstButtonFast&&firstButtonExpansionReason){const scheduled=scheduleDeveloperAutotestExpansion(firstButtonExpansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:firstButtonExpansionReason,turn,scheduled})}
-          if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
-          await executeDeveloperAutotestDecision(decision);if(firstButtonFast)await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);
-          row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push({action:decision.action||decision.combatAction||"",mode:decision.mode,kind:decision.kind||"",progression:decision.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
-          recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
-          const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
-         }catch(e){
-          developerAutotest.controller=null;
-          if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
-          if(!row.decision&&autotestBackgroundAffected(e)){
-           developerAutotest.backgroundInterruptions++;
-           recordDebug("AUTOTEST_EXTERNAL_BACKGROUND_INTERRUPTION",{worldIndex:i,turn,error:e?.message||String(e),phase:"DECISION",retry:true});
-           appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 因背景切換中斷 AI 決策；回到前景後重試同一回合。`);
-           await waitForAutotestVisible();turn--;continue
-          }
-          row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;recentActions.push({action:row.decision?.action||row.decision?.combatAction||"",mode:row.decision?.mode||"",kind:row.decision?.kind||"",progression:row.decision?.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
-          recordDebug("AUTOTEST_TURN_FAILED",{worldIndex:i,turn,error:row.error,durationMs:row.durationMs});appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 發生錯誤：${row.error}`);
-          const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:false},config,{});if(stop){result.stopReason=stop;break}
-         }
-        }
-        result.stopReason=result.stopReason||"TURN_LIMIT";result.status="COMPLETED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);
-        recordDebug("AUTOTEST_WORLD_PLAY_COMPLETED",{index:i,turns:result.turns,stopReason:result.stopReason,summary:result.summary});appendDeveloperAutotestLog(`世界 ${i} 遊玩測試完成：${result.turns} 回合 · ${result.stopReason}`)
-       }catch(e){
-        result.status="FAILED";result.error=e?.message||String(e);result.summary=gameState?autotestWorldSummary(gameState):null;if(gameState)result.world=structuredClone(gameState);developerAutotest.results.push(result);
-        recordDebug("AUTOTEST_WORLD_FAILED",{index:i,phase:result.phase,error:result.error});appendDeveloperAutotestLog(`世界 ${i} 失敗：${result.error}`)
-       }
-      }
-     }finally{
-      developerAutotest.controller=null;developerAutotest.endedAt=Date.now();cancelAutotestBackgroundWork();clearDirectAIRuntimeControl();developerAutotest.batchController=null;
-      const runTelemetry=telemetryEntries().filter(e=>Number(e.at)>=developerAutotest.startedAt),report=buildAutotestReport({config,worlds:developerAutotest.results,telemetry:runTelemetry,startedAt:developerAutotest.startedAt,endedAt:developerAutotest.endedAt});
-      developerAutotest.lastReport=report;recordDebug("AUTOTEST_BATCH_COMPLETED",{summary:report.summary,stopRequested:developerAutotest.stopRequested,backgroundInterruptions:developerAutotest.backgroundInterruptions,backgroundDurationMs:developerAutotest.backgroundDurationMs});
-      try{exportDeveloperAutotestResults(report,developerAutotest.results)}catch(e){recordDebug("AUTOTEST_EXPORT_FAILED",{error:e?.message||String(e)})}
-      developerAutotest.running=false;developerAutotestActive=false;developerAutotest.stopRequested=false;replaceGameState(originalState,"AUTOTEST_RESTORE");
-      await refresh();if(originalState&&aiStatus.aiConfigured){scheduleWorldQualityCritic("post_autotest_restore",1800);scheduleWorldEvolution("post_autotest_restore",BACKGROUND_IDLE_GRACE_MS);scheduleHistoryDeepening("post_autotest_restore",2400)}if(originalState&&originalScreen==="game")show("game");else if(originalScreen==="creator")show("creator");else show("landing");
-      appendDeveloperAutotestLog(`測試完成：${report.summary.worldsCompleted} 個完成、${report.summary.worldsFailed} 個失敗、${report.summary.totalTurns} 回合、${report.summary.issues} 個問題。`);openDeveloperAutotestPanel()
-     }
-    }
-    
-    $("#aiSettingsBtn").onclick=()=>{const s=loadAISettings(),j=loadJevSettings();openModal(`<div class="eyebrow">LOCAL AI CONFIG</div><h2>AI 設定</h2><p class="muted">API Key 只保存在這個瀏覽器。模型由 Elyndra 按 Provider 固定管理，用戶不需要輸入模型名稱。</p><div class="settings-grid"><label>Provider<select id="aiProvider"><option value="openai">OpenAI</option><option value="gemini">Gemini</option><option value="agnes">Agnes 3.0 Flash</option></select></label><label>API Endpoint<input id="aiEndpoint" type="url" value="${esc(s.endpoint)}"></label><label>目前模型<input id="aiModelDisplay" value="${esc(PROVIDERS[s.provider]?.model||s.model)}" readonly></label><label>AI 優化模式<select id="aiOptimization"><option value="standard">標準</option><option value="adaptive">Elyndra 自適應優化</option></select></label><label>API Key<input id="aiKey" type="password" autocomplete="new-password" value="" placeholder="${s.apiKey?"已保存 · 輸入新 Key 才會取代":"尚未設定"}"></label></div><p id="aiProviderHint" class="muted"></p><p id="aiOptimizationHint" class="muted"></p><hr><div class="eyebrow">JEV DECISION ROUTER · OPTIONAL</div><p class="muted">只負責低成本 routing；失敗會自動回本地規則。Jev Key 亦只保存在本瀏覽器。</p><div class="settings-grid"><label>啟用 Jev<input id="jevEnabled" type="checkbox" ${j.enabled?"checked":""}></label><label>Jev Endpoint<input id="jevEndpoint" type="url" value="${esc(j.endpoint)}"></label><label>Jev Model<input id="jevModel" value="${esc(j.model)}"></label><label>Jev API Key<input id="jevKey" type="password" autocomplete="off" value="${esc(j.apiKey)}"></label><label>Confidence Threshold<input id="jevThreshold" type="number" min=".5" max=".95" step=".01" value="${j.threshold}"></label></div><div class="settings-actions"><button id="jevSave" class="secondary">儲存並測試 Jev</button><button id="jevClear" class="ghost">清除 Jev</button></div><p id="jevResult" class="muted"></p><div class="settings-actions"><button id="aiSave" class="primary">儲存並測試</button><button id="aiClear" class="secondary">清除本地 Key</button></div><p id="aiTestResult" class="muted"></p>`);
-    const provider=$("#aiProvider"),endpoint=$("#aiEndpoint"),modelDisplay=$("#aiModelDisplay"),optimization=$("#aiOptimization"),key=$("#aiKey"),providerHint=$("#aiProviderHint"),optimizationHint=$("#aiOptimizationHint");
-    const syncProviderHint=()=>{const p=PROVIDERS[provider.value];if(!p)return;if(modelDisplay)modelDisplay.value=p.model;if(providerHint)providerHint.textContent=`${p.label} · Elyndra 固定模型：${p.model}`;if(optimizationHint)optimizationHint.textContent=optimization.value==="adaptive"?"自適應優化會按任務重要性分配思考：行動／敘事較快，核心規則／歷史／Timeline 更深入，Critic／Recovery 使用最高保護。":"標準模式不主動指定 Provider 思考強度，使用模型預設行為。"};
-    provider.value=s.provider;optimization.value=s.optimization==="adaptive"?"adaptive":"standard";syncProviderHint();optimization.onchange=syncProviderHint;provider.onchange=()=>{saveAISettings({provider:s.provider,endpoint:endpoint.value,apiKey:key.value,optimization:optimization.value});key.value="";const next=selectAIProvider(provider.value),p=PROVIDERS[provider.value];endpoint.value=next.endpoint||p.endpoint;optimization.value=next.optimization==="adaptive"?"adaptive":"standard";key.placeholder=next.apiKey?"已保存 · 輸入新 Key 才會取代":"尚未設定";s.provider=provider.value;syncProviderHint()};
-    $("#aiSave").onclick=async()=>{const btn=$("#aiSave"),out=$("#aiTestResult");saveAISettings({provider:provider.value,endpoint:endpoint.value,apiKey:$("#aiKey").value,optimization:optimization.value});btn.disabled=true;out.textContent="正在測試連線…";try{await testDirectAI();aiStatus=await aiHealth();out.textContent="連線成功。AI ONLINE 已啟用。";await refresh()}catch(e){aiStatus=await aiHealth();out.textContent="設定已保存在本地，但連線失敗："+e.message;await refresh()}finally{btn.disabled=false}};
-    $("#jevSave").onclick=async()=>{saveJevSettings({enabled:$("#jevEnabled").checked,endpoint:$("#jevEndpoint").value,model:$("#jevModel").value,apiKey:$("#jevKey").value,threshold:$("#jevThreshold").value});const out=$("#jevResult");out.textContent="正在測試 Jev…";try{const r=await testJev();out.textContent=`Jev OK · ${r.route} · confidence ${r.confidence.toFixed(2)}`}catch(e){out.textContent="Jev 連線失敗："+e.message}};$("#jevClear").onclick=()=>{clearJevSettings();$("#jevResult").textContent="Jev 本地設定已清除。"};
-    $("#aiClear").onclick=async()=>{clearAISettings(provider.value);const fresh=loadAISettings(provider.value);endpoint.value=fresh.endpoint;optimization.value=fresh.optimization==="adaptive"?"adaptive":"standard";key.value="";key.placeholder="尚未設定";syncProviderHint();aiStatus=await aiHealth();$("#aiTestResult").textContent=`${PROVIDERS[provider.value].label} 的本地 API 設定已清除。`;await refresh()}};
-    $("#saveToolsBtn").onclick=()=>openSaveManagerUI(gameState,openModal,{onLoad:async loaded=>{replaceGameState(migrate(loaded),"LOAD_SLOT");await refresh();$("#modal").classList.add("hidden");show("game")},onImport:()=>$("#importFile").click()});
-    $("#importFile").onchange=async e=>{try{replaceGameState(migrate(await importWorld(e.target.files[0])),"IMPORT_WORLD");await refresh();$("#modal").classList.add("hidden");show("game")}catch(err){alert(err.message)}finally{e.target.value=""}};
-    $("#resetBtn").onclick=async()=>{if(confirm("確定要刪除目前的本地世界嗎？")){await deleteWorld();replaceGameState(null,"RESET_WORLD");await refresh();show("landing")}};
-    $("#gameMenuBtn")?.addEventListener("click",()=>openModal(`<div class="eyebrow">選單</div><h2>旅程設定</h2><p class="muted">一般冒險期間把系統設定收起，避免打斷場景。</p><div class="lore-list"><button class="secondary" data-system-open="aiSettingsBtn">AI 設定</button><button class="secondary" data-system-open="saveToolsBtn">存檔管理</button><button class="ghost" data-system-open="helperBtn">旅途助手</button><button class="ghost" data-system-open="runtimeBtn">異界狀態</button><button class="ghost" data-system-open="historyBtn">旅程紀錄</button><button class="ghost" data-system-open="debugBtn">Debug 診斷</button><button class="ghost" data-system-open="developerBtn">開發者 · AI 自動測試</button><button class="ghost" data-system-open="impactBtn">世界留下的痕跡</button><button class="ghost danger-ghost" data-system-open="resetBtn">重置世界</button></div>`));
-    $("#modalContent")?.addEventListener("click",e=>{const id=e.target.closest("[data-system-open]")?.dataset.systemOpen;if(id)document.getElementById(id)?.click()});
-    $("#moreBtn")?.addEventListener("click",()=>$("#gameMenuBtn")?.click());
-    qsa("[data-nav-home]").forEach(b=>b.addEventListener("click",()=>{$("#modal")?.classList.add("hidden");$(".scene")?.scrollIntoView({behavior:"smooth",block:"start"})}));
-    qsa("[data-mobile-target]").forEach(b=>b.addEventListener("click",()=>{qsa("[data-mobile-target]").forEach(x=>x.classList.toggle("active",x===b));const target=b.dataset.mobileTarget;if(target==="home"){$("#modal")?.classList.add("hidden");$(".scene")?.scrollIntoView({behavior:"smooth",block:"start"});return}document.getElementById(target)?.click()}));
-    window.addEventListener("resize",scheduleGameStageFit,{passive:true});
-    window.visualViewport?.addEventListener("resize",scheduleGameStageFit,{passive:true});
-    scheduleGameStageFit();
-    const versionBadge=$("#versionBadge");if(versionBadge)versionBadge.textContent=`v${APP_VERSION}`;
-    aiStatus=await aiHealth();await refresh();
-  operator: 'match'
-  stack: |-
-    TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/visibility-lazy-generation-v044.test.js:106:9)
-    async Test.run (node:internal/test_runner/test:797:9)
-    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+20118
+  ...
+# Subtest: high-danger timeline events wait until the danger curve allows them
+ok 291 - high-danger timeline events wait until the danger curve allows them
+  ---
+  duration_ms: 1.083613
+  ...
+# Subtest: negative cancel authoring is normalized into a positive cancellation condition
+ok 292 - negative cancel authoring is normalized into a positive cancellation condition
+  ---
+  duration_ms: 0.595915
+  ...
+# Subtest: timeline cancellation is not evaluated before its earliest day
+ok 293 - timeline cancellation is not evaluated before its earliest day
+  ---
+  duration_ms: 0.264298
+  ...
+# Subtest: SOCIAL/TALK actions bypass local lore fast path
+ok 294 - SOCIAL/TALK actions bypass local lore fast path
+  ---
+  duration_ms: 6.872224
+  ...
+# Subtest: scene narrator keeps untriggered futures out of the opening scene
+ok 295 - scene narrator keeps untriggered futures out of the opening scene
+  ---
+  duration_ms: 0.260512
+  ...
+# Subtest: early timeline pressure is capped by the same danger profile
+ok 296 - early timeline pressure is capped by the same danger profile
+  ---
+  duration_ms: 0.319766
+  ...
+# Subtest: non-contextual lexical anomalies are covered by fallback quality review
+ok 297 - non-contextual lexical anomalies are covered by fallback quality review
+  ---
+  duration_ms: 3.840719
+  ...
+# Subtest: opening hook cannot pre-play an untriggered Future during newbie protection
+ok 298 - opening hook cannot pre-play an untriggered Future during newbie protection
+  ---
+  duration_ms: 2.401575
+  ...
+# Subtest: newbie opening downgrades severe world-driven catastrophe into a low-risk actionable hook
+ok 299 - newbie opening downgrades severe world-driven catastrophe into a low-risk actionable hook
+  ---
+  duration_ms: 0.40035
+  ...
+# Subtest: all player actions keep a single-flight UI lock until their visible result settles
+ok 300 - all player actions keep a single-flight UI lock until their visible result settles
+  ---
+  duration_ms: 5.237801
+  ...
+# Subtest: blocking State Sync rejects repeated actions without an action queue
+ok 301 - blocking State Sync rejects repeated actions without an action queue
+  ---
+  duration_ms: 1.931851
+  ...
+# Subtest: ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked
+ok 302 - ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked
+  ---
+  duration_ms: 1.615361
+  ...
+# Subtest: FAST and DEEP commit StatePatch without waiting for Player Action narration
+ok 303 - FAST and DEEP commit StatePatch without waiting for Player Action narration
+  ---
+  duration_ms: 2.55512
+  ...
+# Subtest: foreground gameplay preempts nonblocking narration Deferred and world background work
+ok 304 - foreground gameplay preempts nonblocking narration Deferred and world background work
+  ---
+  duration_ms: 1.460676
+  ...
+# Subtest: background world evolution waits for Player Action and Deferred work
+ok 305 - background world evolution waits for Player Action and Deferred work
+  ---
+  duration_ms: 1.364653
+  ...
+# Subtest: opening cast rejects a first-hand founder tied to century-old history without a lifespan mechanism
+ok 306 - opening cast rejects a first-hand founder tied to century-old history without a lifespan mechanism
+  ---
+  duration_ms: 1.795359
+  ...
+# Subtest: opening cast allows descendants or inheritors of old founders
+ok 307 - opening cast allows descendants or inheritors of old founders
+  ---
+  duration_ms: 0.25263
+  ...
+# Subtest: opening cast allows first-hand ancient witnesses when longevity is explicitly grounded
+ok 308 - opening cast allows first-hand ancient witnesses when longevity is explicitly grounded
+  ---
+  duration_ms: 0.373824
+  ...
+# Subtest: opening cast chronology guard ignores unrelated old history not referenced by the NPC
+ok 309 - opening cast chronology guard ignores unrelated old history not referenced by the NPC
+  ---
+  duration_ms: 0.147213
+  ...
+# Subtest: world generation link validation promotes chronology contradictions to a Cast pre-canon error
+ok 310 - world generation link validation promotes chronology contradictions to a Cast pre-canon error
+  ---
+  duration_ms: 0.588716
+  ...
+# Subtest: Opening Cast AI contract prevents century-old founder survival unless chronology is grounded
+ok 311 - Opening Cast AI contract prevents century-old founder survival unless chronology is grounded
+  ---
+  duration_ms: 1.042497
+  ...
+# Subtest: opening cast rejects Day 2+ future events written as already happening on Day 1
+ok 312 - opening cast rejects Day 2+ future events written as already happening on Day 1
+  ---
+  duration_ms: 1.690968
+  ...
+# Subtest: opening cast allows warnings and preventive goals about scheduled future events
+ok 313 - opening cast allows warnings and preventive goals about scheduled future events
+  ---
+  duration_ms: 0.212452
+  ...
+# Subtest: opening cast future guard ignores events explicitly allowed from Day 1
+ok 314 - opening cast future guard ignores events explicitly allowed from Day 1
+  ---
+  duration_ms: 0.174734
+  ...
+# Subtest: world generation link validation includes premature cast chronology errors
+ok 315 - world generation link validation includes premature cast chronology errors
+  ---
+  duration_ms: 1.508586
+  ...
+# Subtest: crossing Origin becomes real zero-local-knowledge Engine rules
+ok 316 - crossing Origin becomes real zero-local-knowledge Engine rules
+  ---
+  duration_ms: 15.236349
+  ...
+# Subtest: native Origin grants bounded local knowledge, local identity and language
+ok 317 - native Origin grants bounded local knowledge, local identity and language
+  ---
+  duration_ms: 2.208609
+  ...
+# Subtest: difficulty can preserve spoken language while making native literacy harder
+ok 318 - difficulty can preserve spoken language while making native literacy harder
+  ---
+  duration_ms: 1.421847
+  ...
+# Subtest: amnesia retains fragmented speech ability without auto-granting world truth
+ok 319 - amnesia retains fragmented speech ability without auto-granting world truth
+  ---
+  duration_ms: 1.18123
+  ...
+# Subtest: summoned Origin is briefed partial rather than globally omniscient
+ok 320 - summoned Origin is briefed partial rather than globally omniscient
+  ---
+  duration_ms: 2.114227
+  ...
+# Subtest: Origin opening contract exposes Engine permissions rather than prose guesses
+ok 321 - Origin opening contract exposes Engine permissions rather than prose guesses
+  ---
+  duration_ms: 2.335971
+  ...
+# Subtest: World Quality only flags names that exceed that Origin knowledge boundary
+ok 322 - World Quality only flags names that exceed that Origin knowledge boundary
+  ---
+  duration_ms: 1.708314
+  ...
+# Subtest: turn snapshot carries Engine Origin runtime and creation pipeline applies PRE/POST phases
+ok 323 - turn snapshot carries Engine Origin runtime and creation pipeline applies PRE/POST phases
+  ---
+  duration_ms: 19.494566
+  ...
+# Subtest: weak opening is upgraded into an actionable sensory hook
+ok 324 - weak opening is upgraded into an actionable sensory hook
+  ---
+  duration_ms: 1.978042
+  ...
+# Subtest: NPC behavior profile is deterministic and keeps explicit behavior
+ok 325 - NPC behavior profile is deterministic and keeps explicit behavior
+  ---
+  duration_ms: 0.771828
+  ...
+# Subtest: world impact projection enters normal narrative exactly once
+ok 326 - world impact projection enters normal narrative exactly once
+  ---
+  duration_ms: 0.355144
+  ...
+# Subtest: roleplay fallback suggestions prefer scene-grounded actions
+ok 327 - roleplay fallback suggestions prefer scene-grounded actions
+  ---
+  duration_ms: 0.26666
+  ...
+# Subtest: simple observe and basic talk bypass AI feasibility while consequential actions do not
+ok 328 - simple observe and basic talk bypass AI feasibility while consequential actions do not
+  ---
+  duration_ms: 5.287834
+  ...
+# Subtest: deterministic utility commands are recognized by the Engine fast path
+ok 329 - deterministic utility commands are recognized by the Engine fast path
+  ---
+  duration_ms: 1.21436
+  ...
+# Subtest: session checkpoint summarizes visible journey events
+ok 330 - session checkpoint summarizes visible journey events
+  ---
+  duration_ms: 0.30525
+  ...
+# Subtest: player survival uses satiety where 100 is full and time lowers it
+ok 331 - player survival uses satiety where 100 is full and time lowers it
+  ---
+  duration_ms: 1.434438
+  ...
+# Subtest: legacy v11 hunger migrates losslessly to v12 satiety
+ok 332 - legacy v11 hunger migrates losslessly to v12 satiety
+  ---
+  duration_ms: 2.020751
+  ...
+# Subtest: food restores satiety and consumables are consumed
+ok 333 - food restores satiety and consumables are consumed
+  ---
+  duration_ms: 2.927963
+  ...
+# Subtest: legacy REDUCE_HUNGER item effect is normalized into RESTORE_SATIETY
+ok 334 - legacy REDUCE_HUNGER item effect is normalized into RESTORE_SATIETY
+  ---
+  duration_ms: 0.398727
+  ...
+# Subtest: crafting verifies quantities, consumes materials, and creates output
+ok 335 - crafting verifies quantities, consumes materials, and creates output
+  ---
+  duration_ms: 1.161579
+  ...
+# Subtest: showing and giving a related item creates NPC-aware events and can satisfy quest conditions
+ok 336 - showing and giving a related item creates NPC-aware events and can satisfy quest conditions
+  ---
+  duration_ms: 2.619261
+  ...
+# Subtest: canonical location access can require a specific owned item
+ok 337 - canonical location access can require a specific owned item
+  ---
+  duration_ms: 0.265502
+  ...
+# Subtest: Engine independently confirms impossible movement even when AI proposes BLOCK
+ok 338 - Engine independently confirms impossible movement even when AI proposes BLOCK
+  ---
+  duration_ms: 0.871813
+  ...
+# Subtest: AI BLOCK proposal cannot veto a harmless action without an Engine reason
+ok 339 - AI BLOCK proposal cannot veto a harmless action without an Engine reason
+  ---
+  duration_ms: 5.842872
+  ...
+# Subtest: inventory status rest equipment and safe known travel complete without AI turn
+ok 340 - inventory status rest equipment and safe known travel complete without AI turn
+  ---
+  duration_ms: 9.735054
+  ...
+# Subtest: new protagonist is an ordinary modern-Earth person with zero isekai knowledge
+ok 341 - new protagonist is an ordinary modern-Earth person with zero isekai knowledge
+  ---
+  duration_ms: 1.254207
+  ...
+# Subtest: survival subsystem is safe during transient world reset windows
+ok 342 - survival subsystem is safe during transient world reset windows
+  ---
+  duration_ms: 0.573116
+  ...
+# Subtest: v0.54.10 direct and server world creation use exactly three bounded two-AI waves
+ok 343 - v0.54.10 direct and server world creation use exactly three bounded two-AI waves
+  ---
+  duration_ms: 4.300637
+  ...
+# Subtest: v0.54.10 checkpointed Geography remains valid after it is written into Canon
+ok 344 - v0.54.10 checkpointed Geography remains valid after it is written into Canon
+  ---
+  duration_ms: 6.600163
+  ...
+# Subtest: v0.54.10 selected player action remains frozen through intermediate refreshes
+ok 345 - v0.54.10 selected player action remains frozen through intermediate refreshes
+  ---
+  duration_ms: 2.319277
+  ...
+# Subtest: world compiler routes descriptive stages fast and canon-critical stages deep
+ok 346 - world compiler routes descriptive stages fast and canon-critical stages deep
+  ---
+  duration_ms: 4.088529
+  ...
+# Subtest: runtime labels Player Action FAST DEFERRED and DEEP tasks
+ok 347 - runtime labels Player Action FAST DEFERRED and DEEP tasks
+  ---
+  duration_ms: 2.175677
+  ...
+# Subtest: shared turn director selects four modes
+ok 348 - shared turn director selects four modes
+  ---
+  duration_ms: 2.353061
+  ...
+# Subtest: ai-client consumes shared Engine planner and keeps compatibility mode export
+ok 349 - ai-client consumes shared Engine planner and keeps compatibility mode export
+  ---
+  duration_ms: 1.693328
+  ...
+# Subtest: v0.53.1 lets core world compiler retry once after parallel provider timeouts
+ok 350 - v0.53.1 lets core world compiler retry once after parallel provider timeouts
+  ---
+  duration_ms: 4.779397
+  ...
+# Subtest: v0.53.1 local fallback never invents a confirmed discovery from dice success alone
+ok 351 - v0.53.1 local fallback never invents a confirmed discovery from dice success alone
+  ---
+  duration_ms: 1.303873
+  ...
+# Subtest: v0.53.1 contextual fallback remembers recently executed actions
+ok 352 - v0.53.1 contextual fallback remembers recently executed actions
+  ---
+  duration_ms: 1.094914
+  ...
+# Subtest: v0.53.1 debug bundle separates current-session summary from retained history
+ok 353 - v0.53.1 debug bundle separates current-session summary from retained history
+  ---
+  duration_ms: 1.813066
+  ...
+# Subtest: v0.54.1 DISCOVER_FACT requires an explicit Engine-groundable source
+ok 354 - v0.54.1 DISCOVER_FACT requires an explicit Engine-groundable source
+  ---
+  duration_ms: 1.807209
+  ...
+# Subtest: v0.54.1 legacy observation evidence no longer drifts into testimony
+ok 355 - v0.54.1 legacy observation evidence no longer drifts into testimony
+  ---
+  duration_ms: 0.203684
+  ...
+# Subtest: v0.54.1 lazy generation migration deduplicates repeated plan ids
+ok 356 - v0.54.1 lazy generation migration deduplicates repeated plan ids
+  ---
+  duration_ms: 0.761385
+  ...
+# Subtest: v0.54.1 runtime summary replaces the prior compaction text instead of concatenating it
+ok 357 - v0.54.1 runtime summary replaces the prior compaction text instead of concatenating it
+  ---
+  duration_ms: 0.375251
+  ...
+# Subtest: v0.54.1 FAST provider policy keeps requested completion budget and low reasoning
+ok 358 - v0.54.1 FAST provider policy keeps requested completion budget and low reasoning
+  ---
+  duration_ms: 0.57169
+  ...
+# Subtest: v0.54.1 FAST state snapshot only includes capability-relevant heavy sections
+ok 359 - v0.54.1 FAST state snapshot only includes capability-relevant heavy sections
+  ---
+  duration_ms: 0.3446
+  ...
+# Subtest: v0.54.1 foreground waits for State Sync, not Scene AI, and background requires idle grace
+ok 360 - v0.54.1 foreground waits for State Sync, not Scene AI, and background requires idle grace
+  ---
+  duration_ms: 5.870717
+  ...
+# Subtest: v0.54.1 world compiler circuit counts final distinct stage timeouts instead of attempts
+ok 361 - v0.54.1 world compiler circuit counts final distinct stage timeouts instead of attempts
+  ---
+  duration_ms: 1.234398
+  ...
+# Subtest: v0.54.6 successful pickup can fail forward when State AI is empty
+ok 362 - v0.54.6 successful pickup can fail forward when State AI is empty
+  ---
+  duration_ms: 1.61789
+  ...
+# Subtest: local deeds create earned renown, title, rumor and legacy mark
+ok 363 - local deeds create earned renown, title, rumor and legacy mark
+  ---
+  duration_ms: 7.923917
+  ...
+# Subtest: local rumor is known nearby but not telepathically known by a remote NPC
+ok 364 - local rumor is known nearby but not telepathically known by a remote NPC
+  ---
+  duration_ms: 1.385584
+  ...
+# Subtest: regional reputation spreads only after world time passes
+ok 365 - regional reputation spreads only after world time passes
+  ---
+  duration_ms: 1.532965
+  ...
+# Subtest: known faction can proactively seek the player after enough direct attention
+ok 366 - known faction can proactively seek the player after enough direct attention
+  ---
+  duration_ms: 1.247712
+  ...
+# Subtest: fearful public memory raises notoriety without deciding that the player is evil
+ok 367 - fearful public memory raises notoriety without deciding that the player is evil
+  ---
+  duration_ms: 0.827116
+  ...
+# Subtest: no-op impact candidate earns neither influence nor reputation
+ok 368 - no-op impact candidate earns neither influence nor reputation
+  ---
+  duration_ms: 0.559041
+  ...
+# Subtest: recognition candidate rejects invalid tone, spread and mark
+ok 369 - recognition candidate rejects invalid tone, spread and mark
+  ---
+  duration_ms: 0.225089
+  ...
+# Subtest: save format v11 migrates recognition state without breaking existing impact history
+ok 370 - save format v11 migrates recognition state without breaking existing impact history
+  ---
+  duration_ms: 3.018795
+  ...
+# Subtest: v0.54.8 compound movement keeps TRAVEL semantics
+ok 371 - v0.54.8 compound movement keeps TRAVEL semantics
+  ---
+  duration_ms: 1.306226
+  ...
+# Subtest: v0.54.8 runtime world expansion is staged instead of one-shot generation
+ok 372 - v0.54.8 runtime world expansion is staged instead of one-shot generation
+  ---
+  duration_ms: 4.64681
+  ...
+# Subtest: v0.54.8 autotest awaits necessary progressive expansion and player-action scene completion
+ok 373 - v0.54.8 autotest awaits necessary progressive expansion and player-action scene completion
+  ---
+  duration_ms: 1.550299
+  ...
+# Subtest: v0.54.8 Agnes preserves enough visible JSON budget for cast and runtime stages
+ok 374 - v0.54.8 Agnes preserves enough visible JSON budget for cast and runtime stages
+  ---
+  duration_ms: 0.24161
+  ...
+# Subtest: v0.54.10 runtime expansion resumes from committed stage checkpoints
+ok 375 - v0.54.10 runtime expansion resumes from committed stage checkpoints
+  ---
+  duration_ms: 2.723468
+  ...
+# Subtest: item acquisition requires the item name in observable scene evidence
+ok 376 - item acquisition requires the item name in observable scene evidence
+  ---
+  duration_ms: 1.86844
+  ...
+# Subtest: observable evidence is required before DISCOVER_FACT commits
+ok 377 - observable evidence is required before DISCOVER_FACT commits
+  ---
+  duration_ms: 0.517509
+  ...
+# Subtest: read documents can ground named knowledge
+ok 378 - read documents can ground named knowledge
+  ---
+  duration_ms: 0.766088
+  ...
+# Subtest: scene-confirmed unknown travel target becomes a canonical materialization candidate
+ok 379 - scene-confirmed unknown travel target becomes a canonical materialization candidate
+  ---
+  duration_ms: 0.476738
+  ...
+# Subtest: known local NPC can be contacted for the first time and becomes encountered
+ok 380 - known local NPC can be contacted for the first time and becomes encountered
+  ---
+  duration_ms: 6.153021
+  ...
+# Subtest: global economy reconciles actual regional currencies
+ok 381 - global economy reconciles actual regional currencies
+  ---
+  duration_ms: 0.253246
+  ...
+# Subtest: pending background critic never masquerades as an official numeric score
+ok 382 - pending background critic never masquerades as an official numeric score
+  ---
+  duration_ms: 0.911374
+  ...
+# Subtest: committed state diffs produce compact acquisition notifications
+ok 383 - committed state diffs produce compact acquisition notifications
+  ---
+  duration_ms: 0.295508
+  ...
+# Subtest: world constitution requires chronology and lifespan consistency
+ok 384 - world constitution requires chronology and lifespan consistency
+  ---
+  duration_ms: 0.332162
+  ...
+# Subtest: item name evidence can come from prior visible NPC dialogue or a read document
+ok 385 - item name evidence can come from prior visible NPC dialogue or a read document
+  ---
+  duration_ms: 0.29365
+  ...
+# Subtest: acquisition toast renders generated labels through textContent instead of innerHTML
+ok 386 - acquisition toast renders generated labels through textContent instead of innerHTML
+  ---
+  duration_ms: 7.9743
+  ...
+# Subtest: hardened acquisition runtime modules use fresh browser cache identities
+ok 387 - hardened acquisition runtime modules use fresh browser cache identities
+  ---
+  duration_ms: 4.462748
+  ...
+# Subtest: NPC simulation rotates beyond the first four entities
+ok 388 - NPC simulation rotates beyond the first four entities
+  ---
+  duration_ms: 6.294276
+  ...
+# Subtest: faction simulation rotates beyond the first four entities
+ok 389 - faction simulation rotates beyond the first four entities
+  ---
+  duration_ms: 7.152861
+  ...
+# Subtest: internal causal events never leak through graph snapshot
+ok 390 - internal causal events never leak through graph snapshot
+  ---
+  duration_ms: 0.930512
+  ...
+# Subtest: knowledge graph bootstrap still creates fundamentals after event nodes already exist
+ok 391 - knowledge graph bootstrap still creates fundamentals after event nodes already exist
+  ---
+  duration_ms: 0.521601
+  ...
+# Subtest: world tension advances by elapsed time instead of tick call count
+ok 392 - world tension advances by elapsed time instead of tick call count
+  ---
+  duration_ms: 5.209927
+  ...
+# Subtest: degraded AI context keeps the immutable world seed contract
+ok 393 - degraded AI context keeps the immutable world seed contract
+  ---
+  duration_ms: 0.863113
+  ...
+# Subtest: save migration v8 normalizes simulation cursors, visibility and impact runtime
+ok 394 - save migration v8 normalizes simulation cursors, visibility and impact runtime
+  ---
+  duration_ms: 1.949206
+  ...
+# Subtest: crisis pressure alone cannot unlock ENDGAME before world knowledge
+ok 395 - crisis pressure alone cannot unlock ENDGAME before world knowledge
+  ---
+  duration_ms: 0.749709
+  ...
+# Subtest: unverified AI discoveries cannot progress quests while owned evidence can
+ok 396 - unverified AI discoveries cannot progress quests while owned evidence can
+  ---
+  duration_ms: 8.644208
+  ...
+# Subtest: scheduled world timeline exposes only observable effect when due
+ok 397 - scheduled world timeline exposes only observable effect when due
+  ---
+  duration_ms: 2.794278
+  ...
+# Subtest: side quest reward uses current location currency instead of universal gold
+ok 398 - side quest reward uses current location currency instead of universal gold
+  ---
+  duration_ms: 1.573524
+  ...
+# Subtest: any known NPC can join and later leave under local relationship rules
+ok 399 - any known NPC can join and later leave under local relationship rules
+  ---
+  duration_ms: 1.031218
+  ...
+# Subtest: NPC discovery source accepts unique visible name and canonicalizes to id
+ok 400 - NPC discovery source accepts unique visible name and canonicalizes to id
+  ---
+  duration_ms: 4.737603
+  ...
+# Subtest: knowledge grounding uses observable claim evidence instead of requiring exact title text
+ok 401 - knowledge grounding uses observable claim evidence instead of requiring exact title text
+  ---
+  duration_ms: 0.564034
+  ...
+# Subtest: knowledge grounding still rejects unrelated claims
+ok 402 - knowledge grounding still rejects unrelated claims
+  ---
+  duration_ms: 0.542788
+  ...
+# Subtest: entity reveal by unique npc name is normalized to canonical id
+ok 403 - entity reveal by unique npc name is normalized to canonical id
+  ---
+  duration_ms: 0.490998
+  ...
+# Subtest: generic local TALK action persists encounter and grounded interaction memory
+ok 404 - generic local TALK action persists encounter and grounded interaction memory
+  ---
+  duration_ms: 8.482663
+  ...
+# Subtest: non-canonical AI target aliases are resolved to a real registry NPC instead of GUARD
+ok 405 - non-canonical AI target aliases are resolved to a real registry NPC instead of GUARD
+  ---
+  duration_ms: 1.513041
+  ...
+# Subtest: ambiguous generic NPC alias never invents a canonical target id
+ok 406 - ambiguous generic NPC alias never invents a canonical target id
+  ---
+  duration_ms: 0.28675
+  ...
+# Subtest: seven stagnant turns force a fresh travel recovery instead of another social loop
+ok 407 - seven stagnant turns force a fresh travel recovery instead of another social loop
+  ---
+  duration_ms: 0.523868
+  ...
+# Subtest: autotest provider failures fall back locally and open a decision circuit after two failures
+ok 408 - autotest provider failures fall back locally and open a decision circuit after two failures
+  ---
+  duration_ms: 6.163209
+  ...
+# Subtest: ordinary abort keeps deterministic lazy replay but provider abort rotates plan id and enters backoff
+ok 409 - ordinary abort keeps deterministic lazy replay but provider abort rotates plan id and enters backoff
+  ---
+  duration_ms: 2.07502
+  ...
+# Subtest: zero-turn PLAY world is not reported as completed and severe generation is surfaced
+ok 410 - zero-turn PLAY world is not reported as completed and severe generation is surfaced
+  ---
+  duration_ms: 1.01106
+  ...
+# Subtest: runtime contracts forbid alias target ids and narrator fact inversion
+ok 411 - runtime contracts forbid alias target ids and narrator fact inversion
+  ---
+  duration_ms: 5.982755
+  ...
+# Subtest: AI runtime control is shared across cache-versioned module instances and can pause hidden requests
+ok 412 - AI runtime control is shared across cache-versioned module instances and can pause hidden requests
+  ---
+  duration_ms: 1.628232
+  ...
+# Subtest: NPC becomes interactable only after an actual nearby reveal and stops being interactable after leaving
+ok 413 - NPC becomes interactable only after an actual nearby reveal and stops being interactable after leaving
+  ---
+  duration_ms: 13.617202
+  ...
+# Subtest: after a real local conversation a civilization-supported contact can remain remotely reachable
+ok 414 - after a real local conversation a civilization-supported contact can remain remotely reachable
+  ---
+  duration_ms: 5.332435
+  ...
+# Subtest: hearing about a remote NPC does not make that NPC directly interactable
+ok 415 - hearing about a remote NPC does not make that NPC directly interactable
+  ---
+  duration_ms: 0.956866
+  ...
+# Subtest: corrupted saved locations repair to a canonical known location
+ok 416 - corrupted saved locations repair to a canonical known location
+  ---
+  duration_ms: 1.860909
+  ...
+# Subtest: unknown player location adopts the canonical world-state location
+ok 417 - unknown player location adopts the canonical world-state location
+  ---
+  duration_ms: 0.715048
+  ...
+# Subtest: turn location changes accept only canonical registry locations
+ok 418 - turn location changes accept only canonical registry locations
+  ---
+  duration_ms: 6.671094
+  ...
+# Subtest: player-facing narrative strips system labels and rejects foreign-language leakage
+ok 419 - player-facing narrative strips system labels and rejects foreign-language leakage
+  ---
+  duration_ms: 1.387502
+  ...
+# Subtest: identical AI suggestions are replaced so action buttons do not stay stale
+ok 420 - identical AI suggestions are replaced so action buttons do not stay stale
+  ---
+  duration_ms: 1.461032
+  ...
+# Subtest: world inspection is generative rather than the old insufficient-condition local route
+ok 421 - world inspection is generative rather than the old insufficient-condition local route
+  ---
+  duration_ms: 10.750843
+  ...
+# Subtest: UI keeps wallet assets visible before considering local barter mode
+ok 422 - UI keeps wallet assets visible before considering local barter mode
+  ---
+  duration_ms: 1.512345
+  ...
+# Subtest: combat uses main action buttons and no longer has an automatic combat modal
+ok 423 - combat uses main action buttons and no longer has an automatic combat modal
+  ---
+  duration_ms: 1.498653
+  ...
+# Subtest: NPC contact dock filters through local-or-canonical-remote interaction boundary
+ok 424 - NPC contact dock filters through local-or-canonical-remote interaction boundary
+  ---
+  duration_ms: 4.616045
+  ...
+# Subtest: maintenance bounds event storage
+ok 425 - maintenance bounds event storage
+  ---
+  duration_ms: 5.043354
+  ...
+# Subtest: world creation uses bounded two-AI waves with Engine validation between waves
+ok 426 - world creation uses bounded two-AI waves with Engine validation between waves
+  ---
+  duration_ms: 6.826521
+  ...
+# Subtest: world creation progress represents real compiler boundaries instead of a fake 72 percent pulse
+ok 427 - world creation progress represents real compiler boundaries instead of a fake 72 percent pulse
+  ---
+  duration_ms: 2.678857
+  ...
+# Subtest: World Compiler preserves must-exist labels in Canon prompts
+ok 428 - World Compiler preserves must-exist labels in Canon prompts
+  ---
+  duration_ms: 2.052908
+  ...
+# Subtest: staged compiler loads timeout settings through current cache generation
+ok 429 - staged compiler loads timeout settings through current cache generation
+  ---
+  duration_ms: 1.332491
+  ...
+# Subtest: compiler schema prompts forbid literal placeholder echoes
+ok 430 - compiler schema prompts forbid literal placeholder echoes
+  ---
+  duration_ms: 1.139861
+  ...
+# Subtest: v0.54.11 normalizes valid top-level Core Rules before structure fallback
+ok 431 - v0.54.11 normalizes valid top-level Core Rules before structure fallback
+  ---
+  duration_ms: 1.105732
+  ...
+# Subtest: ENGINE_ONLY removes State AI from passive known and Engine-resolved actions
+ok 432 - ENGINE_ONLY removes State AI from passive known and Engine-resolved actions
+  ---
+  duration_ms: 2.461228
+  ...
+# Subtest: Dirty Flags grant only causally relevant capabilities
+ok 433 - Dirty Flags grant only causally relevant capabilities
+  ---
+  duration_ms: 1.45095
+  ...
+# Subtest: FAST exposes immediate capabilities and moves persistent tail to Deferred
+ok 434 - FAST exposes immediate capabilities and moves persistent tail to Deferred
+  ---
+  duration_ms: 0.240686
+  ...
+# Subtest: capability schema never exposes unrelated mutation classes
+ok 435 - capability schema never exposes unrelated mutation classes
+  ---
+  duration_ms: 0.257394
+  ...
+# Subtest: StatePatch rejects operations outside Engine whitelist and base revision mismatch
+ok 436 - StatePatch rejects operations outside Engine whitelist and base revision mismatch
+  ---
+  duration_ms: 0.280603
+  ...
+# Subtest: semantic relationship and impact operations remain semantic through adapter
+ok 437 - semantic relationship and impact operations remain semantic through adapter
+  ---
+  duration_ms: 0.363334
+  ...
+# Subtest: State Revision blocks stale immediate patches but permits safe Deferred rebase
+ok 438 - State Revision blocks stale immediate patches but permits safe Deferred rebase
+  ---
+  duration_ms: 0.324303
+  ...
+# Subtest: successful pickup wording enables ACQUIRE_ITEM even when suggestion kind is OBSERVE
+ok 439 - successful pickup wording enables ACQUIRE_ITEM even when suggestion kind is OBSERVE
+  ---
+  duration_ms: 0.183851
+  ...
+# Subtest: ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup action
+ok 440 - ACQUIRE_ITEM commit must copy an item name grounded in the explicit pickup action
+  ---
+  duration_ms: 0.652958
+  ...
+# Subtest: Engine pickup fail-forward extracts only explicit successful physical pickup nouns
+ok 441 - Engine pickup fail-forward extracts only explicit successful physical pickup nouns
+  ---
+  duration_ms: 0.565432
+  ...
+# Subtest: generated UI artwork is split into live frame background and icon layers
+ok 442 - generated UI artwork is split into live frame background and icon layers
+  ---
+  duration_ms: 5.61951
+  ...
+# Subtest: creator exposes player naming and gameplay uses dynamic action container
+ok 443 - creator exposes player naming and gameplay uses dynamic action container
+  ---
+  duration_ms: 4.296337
+  ...
+# Subtest: browser runtime groups primary risky and free contextual actions
+ok 444 - browser runtime groups primary risky and free contextual actions
+  ---
+  duration_ms: 2.413359
+  ...
+# Subtest: runtime source has no legacy world canon hard-coded into engine paths
+ok 445 - runtime source has no legacy world canon hard-coded into engine paths
+  ---
+  duration_ms: 2.617958
+  ...
+# Subtest: v0.54.11 Core Anchor accepts facts nested under worldBible and normalizes them to root
+ok 446 - v0.54.11 Core Anchor accepts facts nested under worldBible and normalizes them to root
+  ---
+  duration_ms: 1.667731
+  ...
+# Subtest: v0.54.11 Lazy Generation may cite any existing immutable canonical history
+ok 447 - v0.54.11 Lazy Generation may cite any existing immutable canonical history
+  ---
+  duration_ms: 9.777137
+  ...
+# Subtest: v0.54.11 runtime Geography accepts partial new-location progress and Engine-bound definition claims
+ok 448 - v0.54.11 runtime Geography accepts partial new-location progress and Engine-bound definition claims
+  ---
+  duration_ms: 6.971214
+  ...
+# Subtest: v0.54.11 report separates background network interruption from product AI failure
+ok 449 - v0.54.11 report separates background network interruption from product AI failure
+  ---
+  duration_ms: 1.498011
+  ...
+# Subtest: v0.54.11 app retries uncommitted autotest decision after background interruption
+ok 450 - v0.54.11 app retries uncommitted autotest decision after background interruption
+  ---
+  duration_ms: 1.96962
+  ...
+# Subtest: v0.54.12 normalizes common runtime Location shape drift before strict validation
+ok 451 - v0.54.12 normalizes common runtime Location shape drift before strict validation
+  ---
+  duration_ms: 1.81755
+  ...
+# Subtest: v0.54.12 Engine removes mismatched causal claim refs and binds them to a satisfying row
+ok 452 - v0.54.12 Engine removes mismatched causal claim refs and binds them to a satisfying row
+  ---
+  duration_ms: 0.426366
+  ...
+# Subtest: v0.54.12 parser repairs missing commas between model-generated array objects
+ok 453 - v0.54.12 parser repairs missing commas between model-generated array objects
+  ---
+  duration_ms: 0.436587
+  ...
+# Subtest: v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locations
+ok 454 - v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locations
+  ---
+  duration_ms: 0.575578
+  ...
+# Subtest: v0.54.12 ai-client release edges and runtime prompt remain parse-safe
+ok 455 - v0.54.12 ai-client release edges and runtime prompt remain parse-safe
+  ---
+  duration_ms: 6.191717
+  ...
+# Subtest: v0.54.13 accepts string lore without aborting generated NPC canonization
+ok 456 - v0.54.13 accepts string lore without aborting generated NPC canonization
+  ---
+  duration_ms: 1.292226
+  ...
+# Subtest: v0.54.13 keeps a checkpointed lazy plan eligible even after location count is satisfied
+ok 457 - v0.54.13 keeps a checkpointed lazy plan eligible even after location count is satisfied
+  ---
+  duration_ms: 0.914518
+  ...
+# Subtest: v0.54.13 recovers society history refs from its generated faction
+ok 458 - v0.54.13 recovers society history refs from its generated faction
+  ---
+  duration_ms: 0.625675
+  ...
+# Subtest: v0.54.13 folds orphan lore-only cast rows into the preceding NPC before link validation
+ok 459 - v0.54.13 folds orphan lore-only cast rows into the preceding NPC before link validation
+  ---
+  duration_ms: 0.387874
+  ...
+# Subtest: v0.54.13 model JSON repair handles a missing comma between properties
+ok 460 - v0.54.13 model JSON repair handles a missing comma between properties
+  ---
+  duration_ms: 0.55294
+  ...
+# Subtest: v0.54.13 Agnes Future gets enough structured output headroom to avoid 2200-token truncation
+ok 461 - v0.54.13 Agnes Future gets enough structured output headroom to avoid 2200-token truncation
+  ---
+  duration_ms: 5.932307
+  ...
+# Subtest: v0.54.13 repairs a single-op StatePatch envelope before normal validation
+ok 462 - v0.54.13 repairs a single-op StatePatch envelope before normal validation
+  ---
+  duration_ms: 0.364882
+  ...
+# Subtest: v0.54.14 normalizes Runtime SideQuest target drift before strict validation
+ok 463 - v0.54.14 normalizes Runtime SideQuest target drift before strict validation
+  ---
+  duration_ms: 1.617773
+  ...
+# Subtest: v0.54.14 preserves a legitimate numeric Runtime SideQuest target
+ok 464 - v0.54.14 preserves a legitimate numeric Runtime SideQuest target
+  ---
+  duration_ms: 0.134708
+  ...
+# Subtest: v0.54.14 Autotest fingerprint treats visible knowledge as state progress
+ok 465 - v0.54.14 Autotest fingerprint treats visible knowledge as state progress
+  ---
+  duration_ms: 0.343005
+  ...
+# Subtest: v0.54.14 Runtime Quest prompt makes target numeric and normalizes before validation
+ok 466 - v0.54.14 Runtime Quest prompt makes target numeric and normalizes before validation
+  ---
+  duration_ms: 4.602839
+  ...
+# Subtest: v0.54.15 normalizes malformed Runtime Cast NPC profiles before validation
+ok 467 - v0.54.15 normalizes malformed Runtime Cast NPC profiles before validation
+  ---
+  duration_ms: 1.624815
+  ...
+# Subtest: v0.54.15 keeps intra-location search OBSERVE but preserves genuine named TRAVEL
+ok 468 - v0.54.15 keeps intra-location search OBSERVE but preserves genuine named TRAVEL
+  ---
+  duration_ms: 2.943102
+  ...
+# Subtest: v0.54.15 gives Runtime Society enough output headroom and escalates retry budget
+ok 469 - v0.54.15 gives Runtime Society enough output headroom and escalates retry budget
+  ---
+  duration_ms: 5.333918
+  ...
+# Subtest: v0.54.15 opening nearby NPC is player-visible in direct and server world creation
+ok 470 - v0.54.15 opening nearby NPC is player-visible in direct and server world creation
+  ---
+  duration_ms: 1.51557
+  ...
+# Subtest: v0.54.16 travel semantics beat abandoned social clauses and embedded observation
+ok 471 - v0.54.16 travel semantics beat abandoned social clauses and embedded observation
+  ---
+  duration_ms: 1.465663
+  ...
+# Subtest: v0.54.16 grounded travel only resolves a unique or explicitly named adjacent canon destination
+ok 472 - v0.54.16 grounded travel only resolves a unique or explicitly named adjacent canon destination
+  ---
+  duration_ms: 0.342216
+  ...
+# Subtest: v0.54.16 model JSON repairs only unfinished tail closers
+ok 473 - v0.54.16 model JSON repairs only unfinished tail closers
+  ---
+  duration_ms: 1.336506
+  ...
+# Subtest: v0.54.16 app commits grounded progression for ENGINE_ONLY and grounded travel after empty State Sync
+ok 474 - v0.54.16 app commits grounded progression for ENGINE_ONLY and grounded travel after empty State Sync
+  ---
+  duration_ms: 5.870888
+  ...
+# Subtest: v0.54.19 is the canonical app and browser cache release
+ok 475 - v0.54.19 is the canonical app and browser cache release
+  ---
+  duration_ms: 5.327398
+  ...
+# Subtest: main UI exposes APP_VERSION and package version consistently
+ok 476 - main UI exposes APP_VERSION and package version consistently
+  ---
+  duration_ms: 5.785208
+  ...
+# Subtest: History/Future/character systems remain available after v0.53
+ok 477 - History/Future/character systems remain available after v0.53
+  ---
+  duration_ms: 4.345926
+  ...
+# Subtest: v0.50-v0.52 causal protections remain intact after v0.53
+ok 478 - v0.50-v0.52 causal protections remain intact after v0.53
+  ---
+  duration_ms: 5.890384
+  ...
+# Subtest: v0.53.0 hardens Knowledge, background races, Claims and Ledger causality
+ok 479 - v0.53.0 hardens Knowledge, background races, Claims and Ledger causality
+  ---
+  duration_ms: 4.688029
+  ...
+# Subtest: v0.54 Developer AI autotest remains available after v0.54.19 session/checkpoint hardening
+ok 480 - v0.54 Developer AI autotest remains available after v0.54.19 session/checkpoint hardening
+  ---
+  duration_ms: 1.472864
+  ...
+# Subtest: desktop game stage keeps one fixed logical canvas and uses layout zoom when available
+ok 481 - desktop game stage keeps one fixed logical canvas and uses layout zoom when available
+  ---
+  duration_ms: 5.116896
+  ...
+# Subtest: generated ornamental frames use 9-slice borders and scene artwork never stretches
+ok 482 - generated ornamental frames use 9-slice borders and scene artwork never stretches
+  ---
+  duration_ms: 1.989568
+  ...
+# Subtest: event visibility is explicit allow-list and missing visibility is hidden
+ok 483 - event visibility is explicit allow-list and missing visibility is hidden
+  ---
+  duration_ms: 0.923615
+  ...
+# Subtest: player event projection strips Director-only payload fields
+ok 484 - player event projection strips Director-only payload fields
+  ---
+  duration_ms: 1.004857
+  ...
+# Subtest: Scene Narrator snapshot cannot receive Director world state or faction simulation values
+ok 485 - Scene Narrator snapshot cannot receive Director world state or faction simulation values
+  ---
+  duration_ms: 0.428735
+  ...
+# Subtest: Lazy Generation plan is deterministic for the same Engine state and reserves explicit claims
+ok 486 - Lazy Generation plan is deterministic for the same Engine state and reserves explicit claims
+  ---
+  duration_ms: 11.225455
+  ...
+# Subtest: Lazy candidate is bounded by slots, plan history, claim semantics and reserved claim ids
+ok 487 - Lazy candidate is bounded by slots, plan history, claim semantics and reserved claim ids
+  ---
+  duration_ms: 1.793266
+  ...
+# Subtest: Lazy commit materializes reserved Generation Claims against semantically matched canonical ids
+ok 488 - Lazy commit materializes reserved Generation Claims against semantically matched canonical ids
+  ---
+  duration_ms: 3.287457
+  ...
+# Subtest: aborted Lazy Generation releases claims for deterministic retry
+ok 489 - aborted Lazy Generation releases claims for deterministic retry
+  ---
+  duration_ms: 1.053152
+  ...
+# Subtest: causal reconciliation auto-materializes History anchors already represented in registry
+ok 490 - causal reconciliation auto-materializes History anchors already represented in registry
+  ---
+  duration_ms: 0.607442
+  ...
+# Subtest: background world evolution uses resumable checkpoint canon pipeline
+ok 491 - background world evolution uses resumable checkpoint canon pipeline
+  ---
+  duration_ms: 7.791035
   ...
 # Subtest: Visibility Lock infers current/known state and never downgrades
 ok 492 - Visibility Lock infers current/known state and never downgrades
   ---
-  duration_ms: 15.045946
+  duration_ms: 11.012727
   ...
 # Subtest: HINTED content protects hinted fields but can fill unhinted descriptive fields
 ok 493 - HINTED content protects hinted fields but can fill unhinted descriptive fields
   ---
-  duration_ms: 2.168553
+  duration_ms: 1.52814
   ...
 # Subtest: OBSERVED KNOWN and CANON_LOCKED entities reject background repair
 ok 494 - OBSERVED KNOWN and CANON_LOCKED entities reject background repair
   ---
-  duration_ms: 0.873559
+  duration_ms: 0.608727
   ...
 # Subtest: authorized reveal promotes entity to KNOWN monotonically
 ok 495 - authorized reveal promotes entity to KNOWN monotonically
   ---
-  duration_ms: 1.770681
+  duration_ms: 1.173306
   ...
 # Subtest: Lazy plan carries deterministic replay metadata
 ok 496 - Lazy plan carries deterministic replay metadata
   ---
-  duration_ms: 1.784678
+  duration_ms: 1.417405
   ...
 # Subtest: abort retry reuses deterministic revision; successful commit advances it
 ok 497 - abort retry reuses deterministic revision; successful commit advances it
   ---
-  duration_ms: 1.283493
+  duration_ms: 0.977603
   ...
 # Subtest: Causal Core exposes Director Visibility Lock snapshot
 ok 498 - Causal Core exposes Director Visibility Lock snapshot
   ---
-  duration_ms: 2.465774
+  duration_ms: 1.862978
   ...
 # Subtest: runtime expansion receives replay metadata and commit receives trusted model identity
 ok 499 - runtime expansion receives replay metadata and commit receives trusted model identity
   ---
-  duration_ms: 13.256158
+  duration_ms: 8.386577
   ...
 # Subtest: weather canon preserves genuinely otherworldly phenomena and bounded mechanics
 ok 500 - weather canon preserves genuinely otherworldly phenomena and bounded mechanics
   ---
-  duration_ms: 1.699527
+  duration_ms: 1.227783
   ...
 # Subtest: pre-canon and legacy worlds begin with neutral fallback weather
 ok 501 - pre-canon and legacy worlds begin with neutral fallback weather
   ---
-  duration_ms: 4.986331
+  duration_ms: 3.602342
   ...
 # Subtest: weather advances from world time and emits an observable event without reselecting the same phenomenon
 ok 502 - weather advances from world time and emits an observable event without reselecting the same phenomenon
   ---
-  duration_ms: 4.768339
+  duration_ms: 3.367273
   ...
 # Subtest: moving into a weather zone respects local suppressions and affinities
 ok 503 - moving into a weather zone respects local suppressions and affinities
   ---
-  duration_ms: 9.630375
+  duration_ms: 7.261898
   ...
 # Subtest: weather contributes its own bounded D20 modifier
 ok 504 - weather contributes its own bounded D20 modifier
   ---
-  duration_ms: 2.952221
+  duration_ms: 2.19717
   ...
 # Subtest: player and helper weather views expose sensations but not hidden canon mechanics
 ok 505 - player and helper weather views expose sensations but not hidden canon mechanics
   ---
-  duration_ms: 4.263497
+  duration_ms: 3.196533
   ...
 # Subtest: Scene Narrator sees current observable weather but not Director weather canon
 ok 506 - Scene Narrator sees current observable weather but not Director weather canon
   ---
-  duration_ms: 2.575
+  duration_ms: 1.123839
   ...
 # Subtest: save migration initializes weather runtime and location profiles
 ok 507 - save migration initializes weather runtime and location profiles
   ---
-  duration_ms: 2.377047
+  duration_ms: 2.680898
   ...
 # Subtest: weather UI and AI generation contracts are wired into the current release
 ok 508 - weather UI and AI generation contracts are wired into the current release
   ---
-  duration_ms: 12.818031
+  duration_ms: 8.134676
   ...
 # Subtest: v0.54.3 core fallback follows resolved civilization, technology and magic blueprint values
 ok 509 - v0.54.3 core fallback follows resolved civilization, technology and magic blueprint values
   ---
-  duration_ms: 1.674119
+  duration_ms: 1.145024
   ...
 # Subtest: v0.54.3 fallback does not grant world-range near-instant communication to low-organization worlds merely because magic is high
 ok 510 - v0.54.3 fallback does not grant world-range near-instant communication to low-organization worlds merely because magic is high
   ---
-  duration_ms: 0.218703
+  duration_ms: 0.143008
   ...
 # Subtest: v0.54.3 anchor fallback preserves every must-exist Blueprint element in hidden Canon
 ok 511 - v0.54.3 anchor fallback preserves every must-exist Blueprint element in hidden Canon
   ---
-  duration_ms: 0.526393
+  duration_ms: 0.292158
   ...
 # Subtest: AI-selected worldTheme becomes the single canonical seed-compliance theme
 ok 512 - AI-selected worldTheme becomes the single canonical seed-compliance theme
   ---
-  duration_ms: 1.426259
+  duration_ms: 0.976108
   ...
 # Subtest: theme canonicalization does not invent missing compliance rows
 ok 513 - theme canonicalization does not invent missing compliance rows
   ---
-  duration_ms: 0.165079
+  duration_ms: 0.110085
   ...
 # Subtest: both direct and server world paths canonicalize theme before Engine validation
 ok 514 - both direct and server world paths canonicalize theme before Engine validation
   ---
-  duration_ms: 10.079101
+  duration_ms: 6.343925
   ...
 # Subtest: core normalization tolerates common model shape drift without inventing lore
 ok 515 - core normalization tolerates common model shape drift without inventing lore
   ---
-  duration_ms: 1.011983
+  duration_ms: 0.730802
   ...
 # Subtest: semantic core repair merges only supplied corrections and reports unresolved requirements
 ok 516 - semantic core repair merges only supplied corrections and reports unresolved requirements
   ---
-  duration_ms: 0.500056
+  duration_ms: 0.331635
   ...
 # Subtest: two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states
 ok 517 - two authored isekai weather phenomena are enough for Core and Engine expands them to four runtime states
   ---
-  duration_ms: 0.620622
+  duration_ms: 0.438686
   ...
 # Subtest: two-agent waves share one anchor and Engine validates cross-stage references
 ok 518 - two-agent waves share one anchor and Engine validates cross-stage references
   ---
-  duration_ms: 1.356298
+  duration_ms: 0.99366
   ...
 # Subtest: link validation rejects disconnected future events and cast content
 ok 519 - link validation rejects disconnected future events and cast content
   ---
-  duration_ms: 0.297628
+  duration_ms: 0.260742
   ...
 # Subtest: linked core agents cannot drift from the Engine-owned world identity
 ok 520 - linked core agents cannot drift from the Engine-owned world identity
   ---
-  duration_ms: 1.059743
+  duration_ms: 0.827307
   ...
 # Subtest: identity fallback never turns World Constitution labels into worldName or worldTheme
 ok 521 - identity fallback never turns World Constitution labels into worldName or worldTheme
   ---
-  duration_ms: 0.590675
+  duration_ms: 0.462264
   ...
 # Subtest: identity fallback construction always produces complete seed compliance rows
 ok 522 - identity fallback construction always produces complete seed compliance rows
   ---
-  duration_ms: 0.227195
+  duration_ms: 0.162817
   ...
 # Subtest: future links salvage known anchor aliases and drop invented locations without discarding valid history links
 ok 523 - future links salvage known anchor aliases and drop invented locations without discarding valid history links
   ---
-  duration_ms: 0.541142
+  duration_ms: 0.391618
   ...
 # Subtest: future link validator accepts starting settlement as a canonical anchor target
 ok 524 - future link validator accepts starting settlement as a canonical anchor target
   ---
-  duration_ms: 0.241322
+  duration_ms: 0.169534
   ...
 # Subtest: World Creation 2.0 resolves deterministic random values before AI
 ok 525 - World Creation 2.0 resolves deterministic random values before AI
   ---
-  duration_ms: 3.117584
+  duration_ms: 2.265281
   ...
 # Subtest: locked fields remain USER-owned even when their mode says random or style
 ok 526 - locked fields remain USER-owned even when their mode says random or style
   ---
-  duration_ms: 0.288851
+  duration_ms: 0.238154
   ...
 # Subtest: degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values
 ok 527 - degree settings preserve 1-10 precision while legacy Seed receives 1-5 compatibility values
   ---
-  duration_ms: 1.070273
+  duration_ms: 1.504418
   ...
 # Subtest: custom world style stays first-class and becomes Seed style foundation
 ok 528 - custom world style stays first-class and becomes Seed style foundation
   ---
-  duration_ms: 1.02749
+  duration_ms: 0.588362
   ...
 # Subtest: hard Constitution tags compile ahead of long freeform text
 ok 529 - hard Constitution tags compile ahead of long freeform text
   ---
-  duration_ms: 0.476552
+  duration_ms: 0.344239
   ...
 # Subtest: Blueprint Compliance rejects missing required, positive forbidden and profile drift
 ok 530 - Blueprint Compliance rejects missing required, positive forbidden and profile drift
   ---
-  duration_ms: 1.782817
+  duration_ms: 1.010046
   ...
 # Subtest: Blueprint Compliance accepts equivalent wording for built-in technology requirements
 ok 531 - Blueprint Compliance accepts equivalent wording for built-in technology requirements
   ---
-  duration_ms: 0.724155
+  duration_ms: 0.588005
   ...
 # Subtest: Blueprint Compliance accepts explicit prohibitions and reports named compliance rows
 ok 532 - Blueprint Compliance accepts explicit prohibitions and reports named compliance rows
   ---
-  duration_ms: 0.779579
+  duration_ms: 0.59597
   ...
 # Subtest: creation state persists origin role difficulty and dynamic constitution
 ok 533 - creation state persists origin role difficulty and dynamic constitution
   ---
-  duration_ms: 1.322875
+  duration_ms: 1.032335
   ...
 # Subtest: World Contract is public projection and keeps hidden truth out
 ok 534 - World Contract is public projection and keeps hidden truth out
   ---
-  duration_ms: 0.923609
+  duration_ms: 0.697213
   ...
 # Subtest: Blueprint Compliance rejects weather contradictions and prompt-template leakage
 ok 535 - Blueprint Compliance rejects weather contradictions and prompt-template leakage
   ---
-  duration_ms: 0.774399
+  duration_ms: 0.597697
   ...
 # Subtest: world compiler produces valid seed-derived canon
 ok 536 - world compiler produces valid seed-derived canon
   ---
-  duration_ms: 4.422235
+  duration_ms: 3.283862
   ...
 # Subtest: new game has persistent runtime domains without preset action buttons
 ok 537 - new game has persistent runtime domains without preset action buttons
   ---
-  duration_ms: 2.261883
+  duration_ms: 1.82988
   ...
 # Subtest: validator rejects broken world
 ok 538 - validator rejects broken world
   ---
-  duration_ms: 0.199123
+  duration_ms: 0.167534
   ...
 # Subtest: d20 stays inside rules
 ok 539 - d20 stays inside rules
   ---
-  duration_ms: 0.302456
+  duration_ms: 0.227173
   ...
 # Subtest: arbitrary action appends a generic player event without fixed companion logic
 ok 540 - arbitrary action appends a generic player event without fixed companion logic
   ---
-  duration_ms: 9.759673
+  duration_ms: 7.172515
   ...
 # Subtest: AI candidate assigns hidden world truth without giving it to the player
 ok 541 - AI candidate assigns hidden world truth without giving it to the player
   ---
-  duration_ms: 10.66249
+  duration_ms: 7.749108
   ...
 # Subtest: invalid AI candidate is rejected
 ok 542 - invalid AI candidate is rejected
   ---
-  duration_ms: 0.648674
+  duration_ms: 0.533376
   ...
 # Subtest: AI world is rejected when seed compliance mismatches user settings
 ok 543 - AI world is rejected when seed compliance mismatches user settings
   ---
-  duration_ms: 0.89801
+  duration_ms: 0.706873
   ...
 # Subtest: custom world prompt is a hard seed requirement
 ok 544 - custom world prompt is a hard seed requirement
   ---
-  duration_ms: 0.734604
+  duration_ms: 0.540637
   ...
 # Subtest: high political complexity requires an opening faction structure
 ok 545 - high political complexity requires an opening faction structure
   ---
-  duration_ms: 0.751036
+  duration_ms: 0.566949
   ...
 # Subtest: free action is recorded and advances profile-specific minutes
 ok 546 - free action is recorded and advances profile-specific minutes
   ---
-  duration_ms: 1.82786
+  duration_ms: 1.407789
   ...
 # Subtest: user supplied player name overrides AI naming
 ok 547 - user supplied player name overrides AI naming
   ---
-  duration_ms: 2.893605
+  duration_ms: 2.027686
   ...
 # Subtest: new game contains main quest
 ok 548 - new game contains main quest
   ---
-  duration_ms: 0.476151
+  duration_ms: 0.386115
   ...
 # Subtest: world-ready notification fires when World Contract is ready before crossing
 ok 549 - world-ready notification fires when World Contract is ready before crossing
   ---
-  duration_ms: 6.529218
+  duration_ms: 6.110196
   ...
 # Subtest: notification copy tells player to review contract before crossing
 ok 550 - notification copy tells player to review contract before crossing
   ---
-  duration_ms: 4.565634
+  duration_ms: 1.741262
   ...
 # Subtest: world-ready notification never leaks the hidden generated world name
 ok 551 - world-ready notification never leaks the hidden generated world name
   ---
-  duration_ms: 2.847679
+  duration_ms: 1.573411
   ...
 # Subtest: LOCAL delayed consequence cannot mutate WORLD authority
 ok 552 - LOCAL delayed consequence cannot mutate WORLD authority
   ---
-  duration_ms: 11.528009
+  duration_ms: 8.079327
   ...
 # Subtest: invalid delayed mutation cannot create phantom influence
 ok 553 - invalid delayed mutation cannot create phantom influence
   ---
-  duration_ms: 1.269606
+  duration_ms: 0.952487
   ...
 # Subtest: failed roll cannot create positive durable local result
 ok 554 - failed roll cannot create positive durable local result
   ---
-  duration_ms: 1.044876
+  duration_ms: 0.75604
   ...
 # Subtest: failed roll may record a real cost without granting success
 ok 555 - failed roll may record a real cost without granting success
   ---
-  duration_ms: 1.395411
+  duration_ms: 1.011426
   ...
 # Subtest: pending consequences are never silently evicted after forty
 ok 556 - pending consequences are never silently evicted after forty
   ---
-  duration_ms: 7.050446
+  duration_ms: 4.6417
   ...
 # Subtest: remote consequence changes state but does not leak until observed locally
 ok 557 - remote consequence changes state but does not leak until observed locally
   ---
-  duration_ms: 1.52851
+  duration_ms: 1.038413
   ...
 # Subtest: timeline impacts stay inside event window and due events trigger by effective day
 ok 558 - timeline impacts stay inside event window and due events trigger by effective day
   ---
-  duration_ms: 1.497473
+  duration_ms: 1.085834
   ...
 # Subtest: future or malformed save versions are rejected and malformed impact state fails validation
 ok 559 - future or malformed save versions are rejected and malformed impact state fails validation
   ---
-  duration_ms: 4.288034
+  duration_ms: 3.073974
   ...
 # Subtest: unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes
 ok 560 - unverified knowledgeScore or non-VERIFIED fact references cannot unlock higher impact scopes
   ---
-  duration_ms: 1.223389
+  duration_ms: 0.890712
   ...
 # Subtest: FACTION consequence cannot jump from its parent faction to another faction
 ok 561 - FACTION consequence cannot jump from its parent faction to another faction
   ---
-  duration_ms: 9.194065
+  duration_ms: 6.983237
   ...
 # Subtest: local player impact mutates current state and appends immutable impact history
 ok 562 - local player impact mutates current state and appends immutable impact history
   ---
-  duration_ms: 10.309853
+  duration_ms: 7.116897
   ...
 # Subtest: semantic impact effects are converted into scope-bounded Engine numbers
 ok 563 - semantic impact effects are converted into scope-bounded Engine numbers
   ---
-  duration_ms: 1.198463
+  duration_ms: 0.902746
   ...
 # Subtest: impact engine refuses unknown targets and excessive early-game scope
 ok 564 - impact engine refuses unknown targets and excessive early-game scope
   ---
-  duration_ms: 1.166333
+  duration_ms: 0.867347
   ...
 # Subtest: regional influence unlocks through accumulated knowledge and prior impact
 ok 565 - regional influence unlocks through accumulated knowledge and prior impact
   ---
-  duration_ms: 1.440836
+  duration_ms: 1.050394
   ...
 # Subtest: delayed consequences fire from world time instead of the original turn
 ok 566 - delayed consequences fire from world time instead of the original turn
   ---
-  duration_ms: 1.923419
+  duration_ms: 1.37951
   ...
 # Subtest: player can alter future timeline timing without rewriting the base event
 ok 567 - player can alter future timeline timing without rewriting the base event
   ---
-  duration_ms: 1.477965
+  duration_ms: 1.107592
   ...
 # Subtest: failed roll cannot escalate a proposed impact above local scope
 ok 568 - failed roll cannot escalate a proposed impact above local scope
   ---
-  duration_ms: 0.82331
+  duration_ms: 0.637436
   ...
 # Subtest: impact snapshot gives Director current mutable state and recent player consequences
 ok 569 - impact snapshot gives Director current mutable state and recent player consequences
   ---
-  duration_ms: 2.0416
+  duration_ms: 0.868228
   ...
 # Subtest: save format v11 preserves impact runtime and initializes recognition
 ok 570 - save format v11 preserves impact runtime and initializes recognition
   ---
-  duration_ms: 3.738546
+  duration_ms: 3.666337
   ...
 # Subtest: invalid impact candidate is rejected before mutation
 ok 571 - invalid impact candidate is rejected before mutation
   ---
-  duration_ms: 0.305883
+  duration_ms: 0.250032
   ...
 # Subtest: generation diagnostics separates structural success from fallback degradation
 ok 572 - generation diagnostics separates structural success from fallback degradation
   ---
-  duration_ms: 1.545142
+  duration_ms: 1.122775
   ...
 # Subtest: critic normalization keeps structured repair targets
 ok 573 - critic normalization keeps structured repair targets
   ---
-  duration_ms: 0.537015
+  duration_ms: 0.39625
   ...
 # Subtest: repair patch cannot retcon identity history timeline windows or provenance
 ok 574 - repair patch cannot retcon identity history timeline windows or provenance
   ---
-  duration_ms: 1.026992
+  duration_ms: 0.782452
   ...
 # Subtest: fallback critic detects knowledge leak and generic future events
 ok 575 - fallback critic detects knowledge leak and generic future events
   ---
-  duration_ms: 1.053932
+  duration_ms: 0.759715
   ...
 # Subtest: runtime expansion requires valid history provenance and schedules maintenance
 ok 576 - runtime expansion requires valid history provenance and schedules maintenance
   ---
-  duration_ms: 0.703517
+  duration_ms: 0.486484
   ...
 # Subtest: canonization persists valid historyRefs on locations npcs factions and quests
 ok 577 - canonization persists valid historyRefs on locations npcs factions and quests
   ---
-  duration_ms: 7.525773
+  duration_ms: 5.090904
   ...
 # Subtest: fallback critic always creates actionable findings for unresolved fallback stages
 ok 578 - fallback critic always creates actionable findings for unresolved fallback stages
   ---
-  duration_ms: 0.827429
+  duration_ms: 0.6121
   ...
 # Subtest: successful recovery suppresses stage fallback findings but preserves diagnostics history
 ok 579 - successful recovery suppresses stage fallback findings but preserves diagnostics history
   ---
-  duration_ms: 0.372256
+  duration_ms: 0.256532
   ...
 # Subtest: fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references
 ok 580 - fallback recovery may rename fallback-owned anchor faction and npc while synchronizing references
   ---
-  duration_ms: 1.062809
+  duration_ms: 0.775057
   ...
 # Subtest: quality normalization fills omitted dimensions from the supplied overall score
 ok 581 - quality normalization fills omitted dimensions from the supplied overall score
   ---
-  duration_ms: 0.276998
+  duration_ms: 0.183955
   ...
 # Subtest: random world settings fills legacy quick-random fields
 ok 582 - random world settings fills legacy quick-random fields
   ---
-  duration_ms: 1.435987
+  duration_ms: 1.004331
   ...
 # Subtest: random world settings rejects missing option sets
 ok 583 - random world settings rejects missing option sets
   ---
-  duration_ms: 0.412622
+  duration_ms: 0.306072
   ...
 # Subtest: World Creation UI provides Custom World and 1-10 degree sliders
 ok 584 - World Creation UI provides Custom World and 1-10 degree sliders
   ---
-  duration_ms: 7.559856
+  duration_ms: 6.469857
   ...
 # Subtest: World Constitution Tag Builder has preset library and custom tags for all three rule buckets
 ok 585 - World Constitution Tag Builder has preset library and custom tags for all three rule buckets
   ---
-  duration_ms: 4.097288
+  duration_ms: 2.70683
   ...
 # Subtest: reroll only changes creator settings and never generates a world
 ok 586 - reroll only changes creator settings and never generates a world
   ---
-  duration_ms: 2.254068
+  duration_ms: 1.668518
   ...
 1..586
 # tests 586
 # suites 0
-# pass 583
-# fail 3
+# pass 586
+# fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 8646.559655
+# duration_ms 6283.610372

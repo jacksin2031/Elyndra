@@ -1,27 +1,8 @@
-not ok 73 - F02 negated rest/travel never trigger deterministic mutation
-  error: |-
-  code: 'ERR_ASSERTION'
-  expected: true
-  operator: 'strictEqual'
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/audit-fixes-v05419.test.js:16:945)
 
-not ok 280 - v0.54.19 keeps structured AI and Developer Autotest cache graphs coherent
-  error: 'adventure imports must use tracked release tokens'
-  code: 'ERR_ASSERTION'
-  expected: true
-  operator: '=='
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/module-cache.test.js:43:156)
-
-not ok 491 - background world evolution uses resumable checkpoint canon pipeline
-  error: |-
-  code: 'ERR_ASSERTION'
-  expected:
-  operator: 'match'
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/visibility-lazy-generation-v044.test.js:106:9)
 
 # tests 586
-# pass 583
-# fail 3
+# pass 586
+# fail 0
 # cancelled 0
 # skipped 0
 # todo 0
