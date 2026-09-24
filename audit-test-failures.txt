@@ -1,13 +1,20 @@
-not ok 426 - v0.54.19 recovers missing Society locationRef from faction locationName
+not ok 223 - v0.54.19 FIRST_BUTTON stall recovery bypasses only the generic expansion gate
   error: |-
   code: 'ERR_ASSERTION'
-  expected: false
-  operator: 'strictEqual'
-TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/society-anchor-v05419.test.js:23:9)
+  expected:
+  operator: 'match'
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/first-button-stall-recovery-v05419.test.js:7:9)
 
-# tests 588
-# pass 587
-# fail 1
+not ok 224 - v0.54.19 computes FIRST_BUTTON stalls even when needsExpansion is false
+  error: |-
+  code: 'ERR_ASSERTION'
+  expected:
+  operator: 'match'
+TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/first-button-stall-recovery-v05419.test.js:16:9)
+
+# tests 590
+# pass 588
+# fail 2
 # cancelled 0
 # skipped 0
 # todo 0
