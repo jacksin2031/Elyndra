@@ -9,6 +9,8 @@ const VALID_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 const VALID_APPROACHES=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
 const DECISION_WORDS=/原諒(?:他|她|對方)?|相信(?:他|她|對方)|愛上|憎恨|效忠|宣誓忠誠|決定信任|決定原諒/;
 const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED"]);
+const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\s*([^，。；、,.;!?！？]{2,36})/i;
+const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;
 
 function uniq(rows,max=8){
  const out=[];
@@ -23,6 +25,13 @@ function presentNpcs(state){
 function currentLocationRecord(state){
  const name=String(state.player?.location||""),rows=state.world?.registry?.locations||[];
  return rows.find(x=>x?.name===name||x?.id===name)||null
+}
+function inferSuggestionTarget(state,row){
+ if(row?.targetId)return row.targetId;
+ if(String(row?.kind||"").toUpperCase()!=="SOCIAL")return null;
+ const action=String(row?.action||row?.label||"");
+ const matches=presentNpcs(state).filter(n=>n?.name&&action.includes(String(n.name))).sort((a,b)=>String(b.name).length-String(a.name).length);
+ return matches.length===1?String(matches[0].id):null
 }
 function observableAffordance(state,row){
  const kind=inferActionKind(row?.action||row?.label||""),event=recentVisibleEvent(state),loc=currentLocationRecord(state);
@@ -80,7 +89,7 @@ export function normalizeContextualSuggestion(row={}){
 }
 function progressionSuggestion(state){
  const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],event=recentVisibleEvent(state),loc=currentLocation(state);
- if(npc&&objective)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}目前目標最直接的線索`,action:`向${clean(npc.name,50)}詢問怎樣才能確認「${objective}」，只追問對方親眼知道或能指出的具體線索`,kind:"SOCIAL",risk:"LOW",skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
+ if(npc&&objective)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}目前目標最直接的線索`,action:`向${clean(npc.name,50)}詢問怎樣才能確認「${objective}」，只追問對方親眼知道或能指出的具體線索`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
  if(event?.summary)return normalizeContextualSuggestion({label:`追查「${clean(event.summary,44)}」留下的下一條線索`,action:`沿著最近事件「${clean(event.summary,100)}」造成的可見影響，找出一項能繼續追查的具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"最近玩家已知事件可被繼續調查",requirementsSatisfied:true,source:"ENGINE"});
  if(objective)return normalizeContextualSuggestion({label:`找出能推進「${objective.slice(0,38)}」的證據`,action:`在${loc}針對目前目標「${objective}」尋找一項可以直接驗證、並能指出下一步去向的線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"目前主線目標仍未完成",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`在${loc}找出最值得繼續追查的新線索`,action:`在${loc}檢查最近出現的異常、痕跡或人物反應，找出一項可以實際追查的下一步線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"目前場景允許建立下一個可驗證目標",requirementsSatisfied:true,source:"ENGINE"})
@@ -92,13 +101,13 @@ function personalizedSuggestion(state){
  if(!top||Number(top[1])<3)return null;
  const [kind]=top,npc=presentNpcs(state)[0];
  if(kind==="OBSERVE")return normalizeContextualSuggestion({label:`用熟練觀察比對${loc}的新痕跡`,action:`運用已累積的觀察經驗，在${loc}比對痕跡的新舊、方向與不自然之處`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"OBSERVE 技能已達熟練等級",requirementsSatisfied:true,source:"ENGINE"});
- if(kind==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`試探${clean(npc.name,50)}略過的細節`,action:`用較熟練的交涉方式向${clean(npc.name,50)}追問前後不一致或刻意略過的細節，但不預設對方正在說謊`,kind:"SOCIAL",risk:"MEDIUM",skillHint:"交涉",approach:"SOCIAL",causalBasis:"SOCIAL 技能已達熟練等級且 NPC 在場",requirementsSatisfied:true,source:"ENGINE"});
+ if(kind==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`試探${clean(npc.name,50)}略過的細節`,action:`用較熟練的交涉方式向${clean(npc.name,50)}追問前後不一致或刻意略過的細節，但不預設對方正在說謊`,kind:"SOCIAL",risk:"MEDIUM",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",causalBasis:"SOCIAL 技能已達熟練等級且 NPC 在場",requirementsSatisfied:true,source:"ENGINE"});
  if(kind==="TRAVEL")return normalizeContextualSuggestion({label:`先找出${loc}最安全有效的進退路線`,action:`利用熟練的旅行判斷，在${loc}比較可見通道、地形與人流，找出一條能繼續前進又保留退路的路線`,kind:"TRAVEL",risk:"LOW",skillHint:"生存 / 移動",approach:"STEADY",causalBasis:"TRAVEL 技能已達熟練等級",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:"用熟練的危境判斷測試眼前阻礙",action:`在${loc}選擇一個可以撤退的位置，先用最小代價測試眼前最明顯的危險或阻礙`,kind:"RISKY",risk:"MEDIUM",skillHint:"敏捷 / 體能",approach:"BOLD",causalBasis:"RISKY 技能已達熟練等級",requirementsSatisfied:true,source:"ENGINE"})
 }
 function fallbackByApproach(state,approach){
  const npc=presentNpcs(state)[0],loc=currentLocation(state);
- if(approach==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}剛才最在意的是哪件事`,action:`向${clean(npc.name,50)}詢問剛才最值得注意的變化，要求對方只說自己能確認的部分`,kind:"SOCIAL",risk:"LOW",skillHint:"交涉",approach:"SOCIAL",causalBasis:"NPC 目前在場",requirementsSatisfied:true,source:"ENGINE"});
+ if(approach==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}剛才最在意的是哪件事`,action:`向${clean(npc.name,50)}詢問剛才最值得注意的變化，要求對方只說自己能確認的部分`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",causalBasis:"NPC 目前在場",requirementsSatisfied:true,source:"ENGINE"});
  if(approach==="CREATIVE")return normalizeContextualSuggestion({label:"利用現場環境製造一個觀察機會",action:`利用${loc}現有的人流、遮蔽物或聲音製造一個小干擾，藉機觀察誰會對異常作出反應`,kind:"GENERAL",risk:"MEDIUM",skillHint:"應變",approach:"CREATIVE",consequenceHint:"可能引起注意",causalBasis:"只使用當前可見環境，不依賴未知資源",requirementsSatisfied:true,source:"ENGINE"});
  if(approach==="BOLD")return normalizeContextualSuggestion({label:"冒險靠近最明顯的危險源",action:`直接靠近${loc}目前最明顯的危險或阻礙，嘗試在被迫撤退前確認它後面是否有可利用的通路或線索`,kind:"RISKY",risk:"HIGH",skillHint:"敏捷 / 體能",approach:"BOLD",consequenceHint:"可能受傷或暴露位置",causalBasis:"玩家可以選擇主動承擔場景風險",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`先觀察${loc}的出入口與新痕跡`,action:`保持可撤退距離，觀察${loc}的出入口、人流與最新痕跡，先確認哪個方向最值得行動`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前位置可直接觀察",requirementsSatisfied:true,source:"ENGINE"})
@@ -106,7 +115,35 @@ function fallbackByApproach(state,approach){
 function sceneEventCount(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL").length}
 function inventoryQuantity(row){if(row?.quantity===undefined||row?.quantity===null)return 1;const n=Number(row.quantity);return Number.isFinite(n)?n:0}
 function inventorySeal(state){return (state.inventory||[]).filter(x=>inventoryQuantity(x)>0).map(x=>`${String(x?.id||x?.name||"")}:${inventoryQuantity(x)}`).sort().join("|").slice(0,900)}
-function requiredItemsAvailable(state,row){const required=Array.isArray(row?.requiredItemIds)?row.requiredItemIds:[];if(!required.length)return true;const have=new Set((state.inventory||[]).filter(x=>inventoryQuantity(x)>0).flatMap(x=>[String(x?.id||""),String(x?.name||"")]).filter(Boolean));return required.every(x=>have.has(String(x)))}
+function inventoryRows(state){return (state.inventory||[]).filter(x=>inventoryQuantity(x)>0)}
+function requiredItemsAvailable(state,row){const required=Array.isArray(row?.requiredItemIds)?row.requiredItemIds:[];if(!required.length)return true;const have=new Set(inventoryRows(state).flatMap(x=>[String(x?.id||""),String(x?.name||"")]).filter(Boolean));return required.every(x=>have.has(String(x)))}
+function impliedInventoryItem(action=""){
+ const m=String(action||"").match(POSSESSION_ITEM);return clean(m?.[1]||m?.[2]||"",50).replace(/^(?:那|這)(?:一)?(?:個|枚|片|件|瓶|把|本|張|塊|顆|粒)?/i,"").trim()
+}
+function playerCapabilityLabels(state){
+ const p=state.player||{},magic=p.magic||{},out=[];
+ for(const [key,value] of Object.entries(p.skills||{}))if(Number(value)>0)out.push(key);
+ for(const row of magic.knownSpells||[])out.push(row?.id,row?.name,row?.school);
+ for(const row of magic.attunements||[])out.push(typeof row==="string"?row:row?.id,typeof row==="string"?row:row?.name);
+ for(const row of p.talents||[])out.push(typeof row==="string"?row:row?.id,typeof row==="string"?row:row?.name);
+ for(const row of p.capabilities||[])out.push(typeof row==="string"?row:row?.id,typeof row==="string"?row:row?.name);
+ return [...new Set(out.map(x=>clean(x,80)).filter(Boolean))]
+}
+function capabilityAvailable(state,required){
+ const q=clean(required,80).toLowerCase();if(!q)return true;
+ return playerCapabilityLabels(state).some(x=>{const v=x.toLowerCase();return v===q||v.includes(q)||q.includes(v)})
+}
+export function evaluateSuggestionRequirements(state,row={}){
+ const x=normalizeContextualSuggestion(row);if(!x)return {ok:false,reasons:["INVALID_SUGGESTION"]};
+ const reasons=[];
+ if(!requiredItemsAvailable(state,x))reasons.push("REQUIRED_ITEM_MISSING");
+ const implied=impliedInventoryItem(x.action);
+ if(implied&&!inventoryRows(state).some(item=>[item?.id,item?.name].some(v=>v&&String(v)===implied)))reasons.push("IMPLIED_ITEM_MISSING:"+implied);
+ for(const required of x.requiredCapabilities)if(!capabilityAvailable(state,required))reasons.push("REQUIRED_CAPABILITY_MISSING:"+required);
+ const special=x.action.match(SPECIAL_POWER)?.[1];if(special&&!capabilityAvailable(state,special))reasons.push("IMPLIED_CAPABILITY_MISSING:"+special);
+ if(x.targetId){const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===x.targetId);if(npc&&!(npc.known===true&&npc.alive!==false))reasons.push("TARGET_UNAVAILABLE")}
+ return {ok:reasons.length===0,reasons,impliedItem:implied||null,impliedCapability:special||null}
+}
 function contextSealCurrent(state,v){
  if(!v)return false;
  return String(v.worldId||"")===String(state.world?.id||"")
@@ -115,15 +152,20 @@ function contextSealCurrent(state,v){
   &&Number(v.eventCount)===sceneEventCount(state)
   &&(!v.inventorySeal||String(v.inventorySeal)===inventorySeal(state))
 }
+function canonicalSuggestion(state,row){
+ const x=normalizeContextualSuggestion(row);if(!x)return null;
+ const targetId=inferSuggestionTarget(state,x);return targetId&&!x.targetId?{...x,targetId}:x
+}
 function seal(state,row){
- const x=normalizeContextualSuggestion(row);if(!x||x.requirementsSatisfied!==true||!requiredItemsAvailable(state,x)||(x.source==="AI"&&!x.causalBasis))return null;
- if(x.prevalidated&&x.validatedContext)return contextSealCurrent(state,x.validatedContext)?x:null;
+ const x=canonicalSuggestion(state,row);if(!x||(x.source==="AI"&&!x.causalBasis))return null;
+ const requirements=evaluateSuggestionRequirements(state,x);if(!requirements.ok)return null;
+ if(x.prevalidated&&x.validatedContext)return contextSealCurrent(state,x.validatedContext)?{...x,requirementsSatisfied:true}:null;
  const affordance=observableAffordance(state,x);
- return {...x,affordance,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null,inventorySeal:inventorySeal(state)}}
+ return {...x,requirementsSatisfied:true,affordance,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null,inventorySeal:inventorySeal(state)}}
 }
 export function buildContextualActionSet(state,input=[]){
  const recent=recentPlayerActions(state),isFresh=x=>freshSuggestion(recent,x);
- const raw=uniq((Array.isArray(input)?input:[]).map(normalizeContextualSuggestion).filter(x=>x&&isFresh(x)&&x.requirementsSatisfied!==false&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))),8);
+ const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk));
  if(!progression){const candidate=progressionSuggestion(state);if(isFresh(candidate))progression=candidate}
  const personalized=personalizedSuggestion(state);
@@ -156,18 +198,19 @@ function trustedSuggestionHasKnownDestination(state,action){
 }
 function trustedSuggestionObservationDominant(action){return /觀察|查看|檢查|搜尋|尋找|調查|辨識|比對|描摹|記錄|線索|證據|痕跡|observe|inspect|search|investigate|compare|trace/i.test(String(action||""))}
 export function trustedSuggestionAssessment(state,row){
- const x=normalizeContextualSuggestion(row),v=row?.validatedContext;
+ const x=canonicalSuggestion(state,row),v=row?.validatedContext;
  if(!x||row?.prevalidated!==true||!v)return null;
- if(!contextSealCurrent(state,v)||!requiredItemsAvailable(state,x))return null;
+ const requirements=evaluateSuggestionRequirements(state,x);
+ if(!contextSealCurrent(state,v)||!requirements.ok)return null;
  if(state.combat?.active||state.player?.status==="DOWNED")return null;
- if(v.targetId){
-  const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===v.targetId);
+ if(x.targetId){
+  const npc=(state.world?.registry?.npcs||[]).find(n=>n.id===x.targetId);
   if(npc&&!(npc.known===true&&npc.alive!==false))return null
  }
  const engineKind=inferActionKind(x.action),localObserve=x.kind==="OBSERVE"&&engineKind==="TRAVEL"&&trustedSuggestionObservationDominant(x.action)&&!trustedSuggestionHasKnownDestination(state,x.action),kind=localObserve?"OBSERVE":engineKind==="GENERAL"?x.kind:engineKind;
  const actionIntent=normalizeActionIntent({targetId:x.targetId,method:x.approach,subActions:[x.action]},x.action,kind,{registry:state.world?.registry||{}});
  const corrected=kind!==x.kind;
- return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議的場景前提仍有效，Engine 已重新驗證其語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
+ return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議已由 Engine 重新驗證需求、場景前提、語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
 }
 export function suggestionPresentation(state,row){
  const x=normalizeContextualSuggestion(row);if(!x)return {label:"",meta:""};
@@ -197,8 +240,8 @@ export function groundedTravelDestination(state,action="",roll={},intent={}){
 }
 
 export function groundedSuggestionFailForward(state,row,roll={}){
- const x=normalizeContextualSuggestion(row),v=row?.validatedContext,a=x?.affordance;
- if(!x||row?.prevalidated!==true||!v||!contextSealCurrent(state,v)||roll?.success!==true||x.progression!==true||!a?.sourceKind||!a?.sourceId||!a?.text)return null;
+ const x=canonicalSuggestion(state,row),v=row?.validatedContext,a=x?.affordance;
+ if(!x||row?.prevalidated!==true||!v||!contextSealCurrent(state,v)||!evaluateSuggestionRequirements(state,x).ok||roll?.success!==true||x.progression!==true||!a?.sourceKind||!a?.sourceId||!a?.text)return null;
  if(a.sourceKind==="EVENT"){
   const event=(state.events||[]).find(e=>String(e?.id)===a.sourceId&&e?.visibility!=="INTERNAL");if(!event)return null
  }else if(a.sourceKind==="LOCATION"){

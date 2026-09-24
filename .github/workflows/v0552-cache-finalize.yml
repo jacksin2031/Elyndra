@@ -1,0 +1,93 @@
+name: v0552-cache-finalize
+
+on:
+  push:
+    branches:
+      - fix/v0.55.2-runtime-autotest
+    paths:
+      - .github/workflows/v0552-cache-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0.55.2-runtime-autotest
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Synchronize transitive v0.55.2 cache graph
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const replacements={
+            'src/ai-client.js':[
+              ['./ai-settings.js?v=55001','./ai-settings.js?v=55002'],
+              ['./lazy-generation.js?v=55001','./lazy-generation.js?v=55002']
+            ],
+            'src/adventure-engine.js':[
+              ['./contextual-actions.js?v=55001','./contextual-actions.js?v=55002'],
+              ['./combat-engine.js?v=55001','./combat-engine.js?v=55002']
+            ],
+            'src/causal-integrity.js':[
+              ['./lazy-generation.js?v=55001','./lazy-generation.js?v=55002']
+            ],
+            'src/causal-world-core.js':[
+              ['./lazy-generation.js?v=55001','./lazy-generation.js?v=55002'],
+              ['./causal-integrity.js?v=55001','./causal-integrity.js?v=55002']
+            ],
+            'src/storage.js':[
+              ['./causal-world-core.js?v=55001','./causal-world-core.js?v=55002']
+            ],
+            'src/world-engine.js':[
+              ['./causal-world-core.js?v=55001','./causal-world-core.js?v=55002']
+            ],
+            'src/progression-ui.js':[
+              ['./storage.js?v=55001','./storage.js?v=55002']
+            ],
+            'src/combat-engine.js':[
+              ['./world-engine.js?v=55001','./world-engine.js?v=55002']
+            ],
+            'src/game-engine.js':[
+              ['./world-engine.js?v=55001','./world-engine.js?v=55002']
+            ]
+          };
+          for(const [file,pairs] of Object.entries(replacements)){
+            let src=fs.readFileSync(file,'utf8');
+            for(const [from,to] of pairs){
+              const n=src.split(from).length-1;
+              if(n!==1)throw new Error(`${file}: expected one ${from}, found ${n}`);
+              src=src.replace(from,to);
+            }
+            fs.writeFileSync(file,src);
+          }
+          let test=fs.readFileSync('test/module-cache.test.js','utf8');
+          for(const [from,to] of [
+            ['ai-settings\\.js\\?v=55001','ai-settings\\.js\\?v=55002'],
+            ['lazy-generation\\.js\\?v=55001','lazy-generation\\.js\\?v=55002']
+          ]){
+            const n=test.split(from).length-1;
+            if(n!==1)throw new Error(`module-cache contract: expected one ${from}, found ${n}`);
+            test=test.replace(from,to);
+          }
+          fs.writeFileSync('test/module-cache.test.js',test);
+          NODE
+      - name: Verify PR cache contract and full test suite
+        env:
+          CACHE_BASE_REF: main
+        run: npm test
+      - name: Commit verified cache graph and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "Elyndra v0.55.2 Cache Finalizer"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/v0552-cache-finalize.yml
+          git add src/ai-client.js src/adventure-engine.js src/causal-integrity.js src/causal-world-core.js src/storage.js src/world-engine.js src/progression-ui.js src/combat-engine.js src/game-engine.js test/module-cache.test.js
+          git commit -m "fix: synchronize v0.55.2 transitive cache graph"
+          git push origin HEAD:fix/v0.55.2-runtime-autotest
