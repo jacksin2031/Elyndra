@@ -1,0 +1,287 @@
+ok 17 - v0.54.4 Developer Autotest exposes export selection and timeout cancellation controls
+  ---
+  duration_ms: 7.252966
+  ...
+# Subtest: v0.57.4 export path persists artifacts and requires explicit retry downloads
+not ok 18 - v0.57.4 export path persists artifacts and requires explicit retry downloads
+  ---
+  duration_ms: 6.843913
+  location: '/home/runner/work/Elyndra/Elyndra/test/ai-autotest-controls-v0544.test.js:22:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /id="autotestRetryDebug"/. Input:
+    
+    'window.__ELYNDRA_BOOTED__=true;\n' +
+      'import {APP_VERSION} from "./src/version.js?v=57004";\n' +
+      'import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57004";\n' +
+      'import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57004";\n' +
+      'import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57004";\n' +
+      'import {sceneTurnPreview} from "./src/turn-compiler.js?v=57004";\n' +
+      'import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57004";\n' +
+      'import {maintainSession} from "./src/session-maintenance.js?v=57004";\n' +
+      'import {performAction} from "./src/game-engine.js?v=57004";\n' +
+      'import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57004";\n' +
+      'import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57004";\n' +
+      'import {ensureWorldSimulation} from "./src/world-simulation.js?v=57004";\n' +
+      'import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57004";\n' +
+      'import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57004";\n' +
+      'import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57004";\n' +
+      'import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57004";\n' +
+      'import {ensureFactionRuntime} from "./src/faction-engine.js?v=57004";\n' +
+      'import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57004";\n' +
+      'import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57004";\n' +
+      'import {ensureCrisis} from "./src/crisis-engine.js?v=57004";\n' +
+
+---
+
+# Subtest: v0.57.4 export path persists artifacts and requires explicit retry downloads
+not ok 18 - v0.57.4 export path persists artifacts and requires explicit retry downloads
+  ---
+  duration_ms: 6.843913
+  location: '/home/runner/work/Elyndra/Elyndra/test/ai-autotest-controls-v0544.test.js:22:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /id="autotestRetryDebug"/. Input:
+    
+    'window.__ELYNDRA_BOOTED__=true;\n' +
+      'import {APP_VERSION} from "./src/version.js?v=57004";\n' +
+      'import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57004";\n' +
+      'import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57004";\n' +
+      'import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57004";\n' +
+      'import {sceneTurnPreview} from "./src/turn-compiler.js?v=57004";\n' +
+      'import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57004";\n' +
+      'import {maintainSession} from "./src/session-maintenance.js?v=57004";\n' +
+      'import {performAction} from "./src/game-engine.js?v=57004";\n' +
+      'import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57004";\n' +
+      'import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57004";\n' +
+      'import {ensureWorldSimulation} from "./src/world-simulation.js?v=57004";\n' +
+      'import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57004";\n' +
+      'import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57004";\n' +
+      'import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57004";\n' +
+      'import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57004";\n' +
+      'import {ensureFactionRuntime} from "./src/faction-engine.js?v=57004";\n' +
+      'import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57004";\n' +
+      'import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57004";\n' +
+      'import {ensureCrisis} from "./src/crisis-engine.js?v=57004";\n' +
+      'import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57004";\n' +
+      'import {playerVisibleEvents} from "./src/event-visibility.js?v=57004";\n' +
+      'import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57004";\n' +
+      'import {getWorldStylePreset} from "./src/world-style-presets.js?v=57004";\n' +
+
+---
+
+      ' if(!developerAutotest.running)return;\n' +
+      ' const now=Date.now();\n' +
+      ' if(document.hidden){\n' +
+      '  developerAutotest'... 158778 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    window.__ELYNDRA_BOOTED__=true;
+    import {APP_VERSION} from "./src/version.js?v=57004";
+    import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57004";
+    import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57004";
+    import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57004";
+    import {sceneTurnPreview} from "./src/turn-compiler.js?v=57004";
+    import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57004";
+    import {maintainSession} from "./src/session-maintenance.js?v=57004";
+    import {performAction} from "./src/game-engine.js?v=57004";
+    import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57004";
+    import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57004";
+    import {ensureWorldSimulation} from "./src/world-simulation.js?v=57004";
+    import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57004";
+    import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57004";
+    import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57004";
+    import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57004";
+    import {ensureFactionRuntime} from "./src/faction-engine.js?v=57004";
+    import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57004";
+    import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57004";
+    import {ensureCrisis} from "./src/crisis-engine.js?v=57004";
+    import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57004";
+    import {playerVisibleEvents} from "./src/event-visibility.js?v=57004";
+    import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57004";
+    import {getWorldStylePreset} from "./src/world-style-presets.js?v=57004";
+
+---
+
+      ' const now=Date.now();\n' +
+      ' if(document.hidden){\n' +
+      '  developerAutotest'... 158778 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    window.__ELYNDRA_BOOTED__=true;
+    import {APP_VERSION} from "./src/version.js?v=57004";
+    import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57004";
+    import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57004";
+    import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57004";
+    import {sceneTurnPreview} from "./src/turn-compiler.js?v=57004";
+    import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57004";
+    import {maintainSession} from "./src/session-maintenance.js?v=57004";
+    import {performAction} from "./src/game-engine.js?v=57004";
+    import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57004";
+    import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57004";
+    import {ensureWorldSimulation} from "./src/world-simulation.js?v=57004";
+    import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57004";
+    import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57004";
+    import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57004";
+    import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57004";
+    import {ensureFactionRuntime} from "./src/faction-engine.js?v=57004";
+    import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57004";
+    import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57004";
+    import {ensureCrisis} from "./src/crisis-engine.js?v=57004";
+    import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57004";
+    import {playerVisibleEvents} from "./src/event-visibility.js?v=57004";
+    import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57004";
+    import {getWorldStylePreset} from "./src/world-style-presets.js?v=57004";
+    import {randomWorldSettings} from "./src/world-randomizer.js?v=57004";
+
+---
+
+ok 557 - v0.55.2 stall recovery expansion exposes one newly generated reachable location without exposing its lore
+  ---
+  duration_ms: 8.122187
+  ...
+# Subtest: v0.55.2 FIRST_BUTTON switches to a newly visible recovery route after five stagnant turns
+not ok 558 - v0.55.2 FIRST_BUTTON switches to a newly visible recovery route after five stagnant turns
+  ---
+  duration_ms: 12.536551
+  location: '/home/runner/work/Elyndra/Elyndra/test/v0552-runtime-regressions.test.js:46:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - true
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/v0552-runtime-regressions.test.js:49:9)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: v0.55.2 autotest fingerprint ignores clock-only advancement
+ok 559 - v0.55.2 autotest fingerprint ignores clock-only advancement
+  ---
+  duration_ms: 0.418532
+
+---
+
+# Subtest: v0.55.2 FIRST_BUTTON switches to a newly visible recovery route after five stagnant turns
+not ok 558 - v0.55.2 FIRST_BUTTON switches to a newly visible recovery route after five stagnant turns
+  ---
+  duration_ms: 12.536551
+  location: '/home/runner/work/Elyndra/Elyndra/test/v0552-runtime-regressions.test.js:46:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - true
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/v0552-runtime-regressions.test.js:49:9)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: v0.55.2 autotest fingerprint ignores clock-only advancement
+ok 559 - v0.55.2 autotest fingerprint ignores clock-only advancement
+  ---
+  duration_ms: 0.418532
+  ...
+# Subtest: v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED
+ok 560 - v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED
+  ---
+
+---
+
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + undefined
+    - true
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/v0552-runtime-regressions.test.js:49:9)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: v0.55.2 autotest fingerprint ignores clock-only advancement
+ok 559 - v0.55.2 autotest fingerprint ignores clock-only advancement
+  ---
+  duration_ms: 0.418532
+  ...
+# Subtest: v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED
+ok 560 - v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED
+  ---
+  duration_ms: 1.478521
+  ...
+# Subtest: v0.55.2 failed final quality critic cannot be represented as a clean settlement
+ok 561 - v0.55.2 failed final quality critic cannot be represented as a clean settlement
+  ---
+  duration_ms: 0.481449
+  ...
+
+---
+
+    + actual - expected
+    
+    + undefined
+    - true
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/v0552-runtime-regressions.test.js:49:9)
+    Test.runInAsyncScope (node:async_hooks:206:9)
+    Test.run (node:internal/test_runner/test:796:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:526:18)
+    Test.postRun (node:internal/test_runner/test:889:19)
+    Test.run (node:internal/test_runner/test:835:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:526:7)
+  ...
+# Subtest: v0.55.2 autotest fingerprint ignores clock-only advancement
+ok 559 - v0.55.2 autotest fingerprint ignores clock-only advancement
+  ---
+  duration_ms: 0.418532
+  ...
+# Subtest: v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED
+ok 560 - v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED
+  ---
+  duration_ms: 1.478521
+  ...
+# Subtest: v0.55.2 failed final quality critic cannot be represented as a clean settlement
+ok 561 - v0.55.2 failed final quality critic cannot be represented as a clean settlement
+  ---
+  duration_ms: 0.481449
+  ...
+# Subtest: v0.55.2 429 opens backpressure and sheds subsequent low-priority work
+
+---
