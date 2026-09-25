@@ -20,6 +20,17 @@ jobs:
           node-version: 20
       - name: Apply v0.57.10 patch
         run: python3 scripts/land-v05710-iab-download.py
+      - name: Use Chromium native download readback
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/prove-autotest-iab-download-browser.mjs')
+          s=p.read_text(encoding='utf-8')
+          old='const path=join(out,expected.filename);await download.saveAs(path);const bytes=await readFile(path),sha=createHash("sha256").update(bytes).digest("hex");'
+          new='const failure=await download.failure();assert.equal(failure,null,`browser download failed: ${failure||"unknown"}`);const nativePath=await download.path();assert.ok(nativePath,"Chromium must expose a landed download file");const bytes=await readFile(nativePath),sha=createHash("sha256").update(bytes).digest("hex");'
+          assert old in s
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
       - name: Targeted unit regression
         run: node --test test/autotest-download-v05710.test.js
       - name: Full test suite
