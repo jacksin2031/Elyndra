@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {sanitizeSuggestion,sanitizePlayerText} from "../src/runtime-guard.js";
 import {normalizeContextualSuggestion,regenerateContextualActionSet} from "../src/contextual-actions.js";
-import {canonicalizeNpcIdentityText,playerVisibleNpcName} from "../src/player-entity-visibility.js";
+import {canonicalizeNpcIdentityText,playerVisibleNpcName,revealNpcNameFromEvidence} from "../src/player-entity-visibility.js";
 
 function state(){return {world:{id:"W1",state:{day:1},registry:{locations:[{id:"L1",name:"石橋",known:true}],npcs:[],sideQuests:[]},creation:{blueprint:{difficulty:"normal"}}},player:{location:"石橋",difficulty:"normal",skills:{OBSERVE:1,SOCIAL:1,TRAVEL:0,RISKY:0},magic:{knownSpells:[]}},quests:{main:{title:"",objectives:[],status:"ACTIVE"}},events:[]}}
 
@@ -23,10 +23,14 @@ test("v0.57.19 refresh suggestions use player-visible NPC identity",()=>{
  const set=regenerateContextualActionSet(s);assert.equal(playerVisibleNpcName(s,npc),"眼前的陌生人");for(const row of set.all)assert.doesNotMatch(row.label+" "+row.action,/瑟琳/)
 });
 
-test("v0.57.19 known NPC self-name near-variant is canonicalized without revealing hidden names",()=>{
+test("v0.57.19 NPC self-name near-variant follows canonical identity without accidental prefix reveal",()=>{
  const known=state(),npc={id:"N1",name:"瑟琳",known:true,nameKnown:true};known.world.registry.npcs.push(npc);
  assert.equal(canonicalizeNpcIdentityText(known,npc,"賽琳：我知道一條路。"),"瑟琳：我知道一條路。");
  assert.equal(canonicalizeNpcIdentityText(known,npc,"我是賽琳，你可以跟著我。"),"我是瑟琳，你可以跟著我。");
  const hidden=state(),hiddenNpc={id:"N2",name:"瑟琳",known:true,nameKnown:false};hidden.world.registry.npcs.push(hiddenNpc);
- assert.equal(canonicalizeNpcIdentityText(hidden,hiddenNpc,"我是賽琳。"),"我是賽琳。")
+ assert.equal(canonicalizeNpcIdentityText(hidden,hiddenNpc,"賽琳：我知道一條路。"),"賽琳：我知道一條路。");
+ const selfIntro=canonicalizeNpcIdentityText(hidden,hiddenNpc,"我是賽琳，你可以叫我賽琳。");
+ assert.equal(selfIntro,"我是瑟琳，你可以叫我賽琳。");
+ assert.equal(revealNpcNameFromEvidence(hidden,hiddenNpc,{answer:selfIntro}),true);
+ assert.equal(playerVisibleNpcName(hidden,hiddenNpc),"瑟琳")
 });
