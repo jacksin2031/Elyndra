@@ -17,6 +17,8 @@ jobs:
           node-version: 20
       - name: Apply v0.57.22 patch
         run: python scripts/v05722_patch.py
+      - name: Apply v0.57.22 cache/release refine
+        run: python scripts/v05722_refine.py
       - name: Focused native artifact regressions
         run: node --test test/v05722-native-artifact-handoff.test.js
       - name: Run non-download regression suite
@@ -28,7 +30,7 @@ jobs:
         run: |
           git config user.name "Elyndra CI"
           git config user.email "actions@users.noreply.github.com"
-          git rm scripts/v05722_patch.py .github/workflows/v05722-closure.yml
+          git rm scripts/v05722_patch.py scripts/v05722_refine.py .github/workflows/v05722-closure.yml .github/workflows/v05722-diagnostic.yml
           git add app.js index.html package.json src test
           if git diff --cached --quiet; then
             echo "No validated product changes to commit"
