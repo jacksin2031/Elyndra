@@ -23,9 +23,10 @@ export function revealNpcNameFromEvidence(state,npc,{answer="",reason="NPC_SELF_
 
 function nearCanonicalName(candidate,canonical){const a=[...clean(candidate,24)],b=[...clean(canonical,24)];if(a.length!==b.length||a.length<2||a.length>8)return false;let diff=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i]&&++diff>1)return false;return diff===1}
 export function canonicalizeNpcIdentityText(state,npc,value=""){
- let out=String(value||"");const canonical=clean(npc?.name,80);if(!canonical||!npcNameKnown(state,npc))return out;
+ let out=String(value||""),canonical=clean(npc?.name,80);if(!canonical)return out;
+ const known=npcNameKnown(state,npc);
  out=out.replace(/((?:我叫|我是|叫我|稱呼我(?:為)?|我的名字是|名字是)\s*[「『"“]?)([\u3400-\u9fff·・\-]{2,12})/g,(all,prefix,candidate)=>nearCanonicalName(candidate,canonical)?prefix+canonical:all);
- out=out.replace(/^([\u3400-\u9fff·・\-]{2,12})(?=[：:])/,(all,candidate)=>nearCanonicalName(candidate,canonical)?canonical:all);
+ if(known)out=out.replace(/^([\u3400-\u9fff·・\-]{2,12})(?=[：:])/,(all,candidate)=>nearCanonicalName(candidate,canonical)?canonical:all);
  return out
 }
 export function redactUnknownNpcNames(state,value=""){
