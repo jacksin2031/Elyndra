@@ -1,0 +1,36 @@
+name: v0.57.17 non-download closure
+
+on:
+  push:
+    branches:
+      - feat/v0.57.17-visibility-narrator-trace
+
+permissions:
+  contents: write
+
+jobs:
+  closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply v0.57.17 hotfix
+        run: python scripts/v05717_patch.py
+      - name: Focused v0.57.17 regressions
+        run: node --test test/v05717-visibility-narrator-trace.test.js
+      - name: Run non-download regression suite
+        run: npm run test:nondownload
+      - name: Check diff
+        run: git diff --check
+      - name: Commit validated closure
+        run: |
+          rm -f scripts/v05717_patch.py .github/workflows/v05717-closure.yml
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "v0.57.17: align player-visible identity and outcome narration"
+          git push origin HEAD:feat/v0.57.17-visibility-narrator-trace
