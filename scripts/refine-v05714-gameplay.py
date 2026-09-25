@@ -40,11 +40,12 @@ new='assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.w
 if old not in s: raise SystemExit('execution/health contract anchor missing')
 s=s.replace(old,new,1); write(p,s)
 
-# Current release assertions.
+# Current release assertions, including regex-escaped release literals.
 for p in ['test/version-0551-release.test.js','test/version-ui.test.js']:
     s=read(p)
-    if '0.57.13' not in s: raise SystemExit(f'version expectation anchor missing: {p}')
-    write(p,s.replace('0.57.13','0.57.14'))
+    if '0.57.13' not in s and r'0\.57\.13' not in s: raise SystemExit(f'version expectation anchor missing: {p}')
+    s=s.replace('0.57.13','0.57.14').replace(r'0\.57\.13',r'0\.57\.14')
+    write(p,s)
 
 # The new regression should expect completed execution plus degraded health for advisory critic failure.
 p='test/v05714-gameplay-regressions.test.js'; s=read(p)
