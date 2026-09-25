@@ -1,0 +1,42 @@
+name: v0.57.21 cache token fix
+on:
+  push:
+    branches:
+      - fix/v0.57.21-autotest-latency-recovery
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Align changed stylesheet cache token
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='styles.css?v=57001'
+          new='styles.css?v=57021'
+          if old not in s:
+              raise SystemExit('expected stale styles token not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Verify PR cache graph
+        env:
+          CACHE_BASE_REF: 793408d770e308a27cfc33301a40b99495328f80
+        run: npm run cache:check
+      - name: Commit verified cache fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/v05721-cache-token-fix.yml
+          git add index.html
+          git diff --cached --check
+          git commit -m "v0.57.21: align stylesheet cache token"
+          git push origin HEAD:fix/v0.57.21-autotest-latency-recovery
