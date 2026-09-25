@@ -19,7 +19,9 @@ jobs:
         with:
           node-version: 20
       - name: Apply v0.57.17 hotfix
-        run: python scripts/v05717_patch.py
+        run: |
+          python scripts/v05717_patch.py
+          python scripts/v05717_refine.py
       - name: Focused v0.57.17 regressions
         run: node --test test/v05717-visibility-narrator-trace.test.js
       - name: Run non-download regression suite
@@ -28,7 +30,7 @@ jobs:
         run: git diff --check
       - name: Commit validated closure
         run: |
-          rm -f scripts/v05717_patch.py .github/workflows/v05717-closure.yml
+          rm -f scripts/v05717_patch.py scripts/v05717_refine.py .github/workflows/v05717-closure.yml
           git add -A
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
