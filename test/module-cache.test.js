@@ -33,7 +33,7 @@ test("v0.57.11 keeps structured AI and Developer Autotest cache graphs coherent"
  ]);
  assert.match(html,/app\.js\?v=57011/);
  const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
- assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="57011"),"all app browser imports must use the v0.57.11 cache generation");assert.ok(appImports.includes("57011"),"the runtime graph must expose the v0.57.6 cache token");
+ assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="57011"),"all app browser imports must use the v0.57.11 cache generation");assert.ok(appImports.includes("57011"),"the runtime graph must expose the v0.57.11 cache token");
  assert.match(actions,/\.\/action-intent\.js\?v=57011/);assert.match(contracts,/\.\/action-intent\.js\?v=57011/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=57011/);
  assert.match(client,/\.\/ai-settings\.js\?v=57011/);
  assert.match(client,/\.\/turn-compiler\.js\?v=57011/);assert.match(client,/\.\/turn-outcome\.js\?v=57011/);
