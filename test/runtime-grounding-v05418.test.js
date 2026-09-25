@@ -38,4 +38,4 @@ test("item name evidence can come from prior visible NPC dialogue or a read docu
 
 test("acquisition toast renders generated labels through textContent instead of innerHTML",async()=>{const source=await import("node:fs/promises").then(fs=>fs.readFile(new URL("../src/acquisition-notifier.js",import.meta.url),"utf8"));assert.doesNotMatch(source,/\.innerHTML\s*=/);assert.match(source,/textContent=/)});
 
-test("hardened acquisition runtime modules use fresh browser cache identities",async()=>{const source=await import("node:fs/promises").then(fs=>fs.readFile(new URL("../app.js",import.meta.url),"utf8"));assert.match(source,/acquisition-notifier\.js\?v=57017/);assert.match(source,/state-sync\.js\?v=57017/)});
+test("hardened acquisition runtime modules use fresh browser cache identities",async()=>{const source=await import("node:fs/promises").then(fs=>fs.readFile(new URL("../app.js",import.meta.url),"utf8"));assert.match(source,/acquisition-notifier\.js\?v=57018/);assert.match(source,/state-sync\.js\?v=57018/)});

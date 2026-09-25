@@ -1,70 +1,70 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=57017";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57017";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57017";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57017";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=57017";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57017";
-import {maintainSession} from "./src/session-maintenance.js?v=57017";
-import {performAction} from "./src/game-engine.js?v=57017";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57017";
-import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57017";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=57017";
-import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57017";
-import {playerVisibleLocationName} from "./src/player-location-visibility.js?v=57017";
-import {playerVisibleNpcName} from "./src/player-entity-visibility.js?v=57017";
-import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57017";
-import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57017";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57017";
-import {ensureFactionRuntime} from "./src/faction-engine.js?v=57017";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57017";
-import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57017";
-import {ensureCrisis} from "./src/crisis-engine.js?v=57017";
-import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57017";
-import {playerVisibleEvents} from "./src/event-visibility.js?v=57017";
-import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57017";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=57017";
-import {randomWorldSettings} from "./src/world-randomizer.js?v=57017";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=57017";
-import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57017";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57017";
-import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57017";
-import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57017";
-import {deriveSceneTitle} from "./src/runtime-guard.js?v=57017";
-import {worldCommunication} from "./src/communication-engine.js?v=57017";
-import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57017";
-import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57017";
-import {ensureMagicRuntime} from "./src/magic-engine.js?v=57017";
-import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57017";
-import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57017";
-import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57017";
-import {marketSnapshot} from "./src/economy-engine.js?v=57017";
-import {cultureSnapshot} from "./src/culture-engine.js?v=57017";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57017";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57017";
-import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57017";
-import {worldMapSnapshot} from "./src/world-map.js?v=57017";
-import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57017";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57017";
-import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57017";
-import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57017";
-import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57017";
-import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57017";
-import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57017";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57017";
-import {createStateSessionGuard} from "./src/state-session.js?v=57017";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57017";
-import {applyOriginRuntime} from "./src/origin-runtime.js?v=57017";
-import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57017";
-import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57017";
-import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57017";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=57017";
-import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57017";
-import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57017";
-import {copyAutotestText} from "./src/autotest-copy.js?v=57017";
-import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57017";
-import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57017";
-import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile} from "./src/autotest-download.js?v=57017";
+import {APP_VERSION} from "./src/version.js?v=57018";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57018";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57018";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57018";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=57018";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57018";
+import {maintainSession} from "./src/session-maintenance.js?v=57018";
+import {performAction} from "./src/game-engine.js?v=57018";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57018";
+import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57018";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=57018";
+import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57018";
+import {playerVisibleLocationName} from "./src/player-location-visibility.js?v=57018";
+import {playerVisibleNpcName} from "./src/player-entity-visibility.js?v=57018";
+import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57018";
+import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57018";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57018";
+import {ensureFactionRuntime} from "./src/faction-engine.js?v=57018";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57018";
+import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57018";
+import {ensureCrisis} from "./src/crisis-engine.js?v=57018";
+import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57018";
+import {playerVisibleEvents} from "./src/event-visibility.js?v=57018";
+import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57018";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=57018";
+import {randomWorldSettings} from "./src/world-randomizer.js?v=57018";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=57018";
+import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57018";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57018";
+import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57018";
+import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57018";
+import {deriveSceneTitle} from "./src/runtime-guard.js?v=57018";
+import {worldCommunication} from "./src/communication-engine.js?v=57018";
+import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57018";
+import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57018";
+import {ensureMagicRuntime} from "./src/magic-engine.js?v=57018";
+import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57018";
+import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57018";
+import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57018";
+import {marketSnapshot} from "./src/economy-engine.js?v=57018";
+import {cultureSnapshot} from "./src/culture-engine.js?v=57018";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57018";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57018";
+import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57018";
+import {worldMapSnapshot} from "./src/world-map.js?v=57018";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57018";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57018";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57018";
+import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57018";
+import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57018";
+import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57018";
+import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57018";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57018";
+import {createStateSessionGuard} from "./src/state-session.js?v=57018";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57018";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=57018";
+import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57018";
+import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57018";
+import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57018";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=57018";
+import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57018";
+import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57018";
+import {copyAutotestText} from "./src/autotest-copy.js?v=57018";
+import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57018";
+import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57018";
+import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,ensureAutotestDownloadBridge} from "./src/autotest-download.js?v=57018";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 const stateSession=createStateSessionGuard(null);
 function captureStateSession(){return stateSession.capture(gameState)}
@@ -1123,14 +1123,14 @@ function developerAutotestDownloadHtml(){
 }
 function bindDeveloperAutotestDownload(){
  const p=developerAutotestDownload.payload,lease=developerAutotestDownload.lease,anchor=$("#autotestDownloadAnchor"),input=$("#autotestDownloadVerifyFile"),status=$("#autotestDownloadStatus");
- if(anchor&&p&&lease){anchor.href=lease.url;anchor.download=p.filename;anchor.addEventListener("click",()=>{developerAutotestDownload.request={status:"requested",requestedAt:Date.now(),filename:p.filename,bytes:p.bytes,sha256:p.sha256};developerAutotestDownload.verification=null;if(status)status.textContent=`DOWNLOAD REQUESTED · NOT VERIFIED · ${p.filename} · ${Number(p.bytes).toLocaleString()} bytes · SHA-256 ${p.sha256}`;recordDebug("AUTOTEST_DOWNLOAD_REQUESTED",{kind:developerAutotestDownload.kind,filename:p.filename,bytes:p.bytes,sha256:p.sha256,userActivation:Boolean(navigator.userActivation?.isActive)})})}
+ if(anchor&&p&&lease){anchor.href=lease.url;if(lease.method==="service-worker-http"){anchor.removeAttribute?.("download");anchor.target="_blank";anchor.rel="noopener";anchor.dataset.elyndraNativeDownload="service-worker-http-isolated-navigation"}else{anchor.download=p.filename;anchor.removeAttribute?.("target");anchor.rel="noopener"}anchor.addEventListener("click",()=>{developerAutotestDownload.request={status:"requested",requestedAt:Date.now(),filename:p.filename,bytes:p.bytes,sha256:p.sha256};developerAutotestDownload.verification=null;if(status)status.textContent=`DOWNLOAD REQUESTED · NOT VERIFIED · ${p.filename} · ${Number(p.bytes).toLocaleString()} bytes · SHA-256 ${p.sha256}`;recordDebug("AUTOTEST_DOWNLOAD_REQUESTED",{kind:developerAutotestDownload.kind,filename:p.filename,bytes:p.bytes,sha256:p.sha256,userActivation:Boolean(navigator.userActivation?.isActive)})})}
  input?.addEventListener("change",()=>{const file=input.files?.[0]||null;void verifyAutotestDownloadedFile(file,p).then(result=>{developerAutotestDownload.verification=result;recordDebug(result.ok?"AUTOTEST_DOWNLOAD_VERIFIED":"AUTOTEST_DOWNLOAD_VERIFY_FAILED",{kind:developerAutotestDownload.kind,...result});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}).catch(error=>{developerAutotestDownload.verification={ok:false,filename:file?.name||"",bytes:file?.size||0,sha256:"",error:error?.message||String(error)};recordDebug("AUTOTEST_DOWNLOAD_VERIFY_FAILED",{kind:developerAutotestDownload.kind,error:error?.message||String(error)});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()})});
  $("#autotestDownloadBack")?.addEventListener("click",()=>{releaseDeveloperAutotestDownloadLease();openDeveloperAutotestPanel()})
 }
 async function openDeveloperAutotestDownload(kind){
  const artifact=developerAutotestArtifact(kind);if(!artifact){appendDeveloperAutotestLog("找不到可下載的 AutoTest 匯出內容。");openDeveloperAutotestPanel();return}
  releaseDeveloperAutotestDownloadLease();
- try{const payload=await buildAutotestDownloadPayload(artifact),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
+ try{const payload=await buildAutotestDownloadPayload(artifact),bridge=await ensureAutotestDownloadBridge({scriptUrl:"./autotest-export-sw.js?v=57018",scope:"./",timeoutMs:8000}),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false,bridgeStatus:bridge.status,bridgeControlled:bridge.controlled,leaseMethod:lease.method});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
  catch(error){appendDeveloperAutotestLog(`標準下載資料建立失敗：${error?.message||error}`);recordDebug("AUTOTEST_DOWNLOAD_PREPARE_FAILED",{kind,error:error?.message||String(error)});openDeveloperAutotestPanel()}
 }
 function developerAutotestTransferLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界檔":"Recovery JSON"}

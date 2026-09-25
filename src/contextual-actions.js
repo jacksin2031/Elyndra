@@ -1,6 +1,6 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57017";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57017";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57017";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57018";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57018";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57018";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
