@@ -15,9 +15,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - name: Install
-        run: npm ci
       - name: Apply release bump
         run: python scripts/v05721_release_patch.py
       - name: Apply AI recovery patch
