@@ -8,10 +8,11 @@ for path in (ROOT/'test').glob('*.js'):
     text=text.replace('57018','57019')
     path.write_text(text,encoding='utf-8')
 
-# Canonical release expectations.
+# Canonical release expectations, including escaped regex literals.
 for rel in ['test/version-0551-release.test.js','test/version-ui.test.js']:
     path=ROOT/rel
-    text=path.read_text(encoding='utf-8').replace('0.57.18','0.57.19')
+    text=path.read_text(encoding='utf-8')
+    text=text.replace('0.57.18','0.57.19').replace(r'0\.57\.18',r'0\.57\.19')
     path.write_text(text,encoding='utf-8')
 
 # v0.57.15 fixture intends to test a present, name-known NPC. v0.57.17 separated
