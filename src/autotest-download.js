@@ -18,3 +18,14 @@ export async function verifyAutotestDownloadedFile(file,payload,{cryptoImpl=glob
  const raw=new Uint8Array(await file.arrayBuffer()),actual=await sha256Bytes(raw,cryptoImpl),expected=String(payload?.sha256||""),filename=String(payload?.filename||"");
  return {ok:String(file.name||"")===filename&&Number(file.size)===Number(payload?.bytes)&&actual===expected,filename:String(file.name||""),expectedFilename:filename,bytes:Number(file.size)||0,expectedBytes:Number(payload?.bytes)||0,sha256:actual,expectedSha256:expected}
 }
+
+export function requestAutotestBrowserDownload(artifact,{BlobImpl=globalThis.Blob,URLImpl=globalThis.URL,documentImpl=globalThis.document,setTimeoutImpl=globalThis.setTimeout,nowImpl=Date.now,revokeDelayMs=60000}={}){
+ if(!artifact?.filename)throw new Error("AUTOTEST_DOWNLOAD_ARTIFACT_INVALID");
+ if(typeof BlobImpl!=="function"||typeof URLImpl?.createObjectURL!=="function"||typeof URLImpl?.revokeObjectURL!=="function")throw new Error("AUTOTEST_DOWNLOAD_OBJECT_URL_UNAVAILABLE");
+ if(typeof documentImpl?.createElement!=="function")throw new Error("AUTOTEST_DOWNLOAD_DOCUMENT_UNAVAILABLE");
+ const body=String(artifact.body??""),filename=String(artifact.filename),mime=String(artifact.mime||"application/octet-stream"),blob=new BlobImpl([body],{type:mime}),url=URLImpl.createObjectURL(blob),anchor=documentImpl.createElement("a"),host=documentImpl.body||documentImpl.documentElement;
+ if(!host||typeof host.appendChild!=="function"){URLImpl.revokeObjectURL(url);throw new Error("AUTOTEST_DOWNLOAD_DOCUMENT_UNAVAILABLE")}
+ anchor.href=url;anchor.download=filename;anchor.rel="noopener";if(anchor.style)anchor.style.display="none";host.appendChild(anchor);
+ try{anchor.click()}finally{anchor.remove?.();const revoke=()=>{try{URLImpl.revokeObjectURL(url)}catch{}};if(typeof setTimeoutImpl==="function")setTimeoutImpl(revoke,Math.max(1000,Number(revokeDelayMs)||60000));else revoke()}
+ return {status:"requested",requestedAt:Number(typeof nowImpl==="function"?nowImpl():Date.now()),filename,mime,bytes:Number(blob.size)||encoder.encode(body).length,chars:body.length}
+}
