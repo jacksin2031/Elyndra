@@ -1,0 +1,49 @@
+name: One-time repository branch cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup-branches-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-time-branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Delete every branch except main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          deleted=0
+          while IFS= read -r ref; do
+            branch="${ref#origin/}"
+            if [[ -z "$branch" || "$branch" == "main" || "$branch" == "HEAD" ]]; then
+              continue
+            fi
+            echo "Deleting stale branch: $branch"
+            git push origin --delete "$branch"
+            deleted=$((deleted + 1))
+          done < <(git for-each-ref --format='%(refname:short)' refs/remotes/origin | grep -v '^origin/HEAD$' || true)
+          echo "Deleted $deleted stale branches."
+
+      - name: Remove one-time cleanup workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/cleanup-branches-once.yml
+          git commit -m "chore: remove one-time branch cleanup workflow"
+          git push origin HEAD:main
