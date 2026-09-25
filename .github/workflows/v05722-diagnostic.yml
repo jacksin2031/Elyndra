@@ -13,6 +13,8 @@ jobs:
           node-version: 20
       - name: Apply v0.57.22 patch
         run: python scripts/v05722_patch.py
+      - name: Apply v0.57.22 cache/release refine
+        run: python scripts/v05722_refine.py
       - name: Capture non-download regression output
         id: nondownload
         shell: bash
