@@ -1,7 +1,7 @@
-import {recordCausalEvent} from "./knowledge-graph.js?v=57014";
-import {ensureWorldRegistry} from "./world-registry.js?v=57014";
-import {ensureClock} from "./world-clock.js?v=57014";
-import {ensureCrisis} from "./crisis-engine.js?v=57014";
+import {recordCausalEvent} from "./knowledge-graph.js?v=57015";
+import {ensureWorldRegistry} from "./world-registry.js?v=57015";
+import {ensureClock} from "./world-clock.js?v=57015";
+import {ensureCrisis} from "./crisis-engine.js?v=57015";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 function simulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:ensureClock(state).totalMinutes,flags:{}};state.world.state.simulation.factionCursor??=0;return state.world.state.simulation}
 function roundRobin(state,list,key,limit=4){if(!list.length)return [];const sim=simulation(state),count=Math.min(limit,list.length),start=Math.max(0,Number(sim[key])||0)%list.length,out=Array.from({length:count},(_,i)=>list[(start+i)%list.length]);sim[key]=(start+count)%list.length;return out}
