@@ -51,6 +51,8 @@ export function recordAIUsage({provider,model,task,tier,status="SUCCESS",latency
 }
 export function telemetryEntries(){return read().entries.slice()}
 export function clearDebugTelemetry(){write({entries:[]});recordDebug("DEBUG_CLEARED",{at:Date.now()})}
+function telemetryErrorClass(entry){const raw=String(entry?.data?.error||entry?.data?.reason||entry?.data?.message||"");if(/AI_TIMEOUT/.test(raw))return "TIMEOUT";if(/AI_RATE_LIMIT|AI_HTTP_429/.test(raw))return "RATE_LIMIT";if(/Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(raw))return "TRANSPORT";if(/EMPTY_AI_RESPONSE/.test(raw))return "EMPTY_RESPONSE";if(/INVALID_MODEL_JSON/.test(raw))return "INVALID_JSON";if(/AI_HTTP_5\d\d/.test(raw))return "HTTP_5XX";if(/AI_ABORTED/.test(raw)||entry?.data?.aborted===true)return "ABORTED";return "OTHER"}
+function countBy(rows,key){const out={};for(const row of rows){const value=String(key(row)||"unknown");out[value]=(out[value]||0)+1}return out}
 export function telemetrySummary(entries=telemetryEntries()){
  const ai=entries.filter(x=>x.type==="AI_REQUEST"),gameplay=entries.filter(x=>String(x.type||"").startsWith("GAME_")),ok=ai.filter(x=>x.data?.status==="SUCCESS"),billable=ai.filter(x=>Number(x.data?.usage?.total)>0);
  const preemptions=entries.filter(x=>x.type==="AI_CALL_FAILED"&&(x.data?.aborted===true||/AI_ABORTED/.test(String(x.data?.error||""))));
@@ -61,8 +63,8 @@ export function telemetrySummary(entries=telemetryEntries()){
  };
  const errors=entries.filter(x=>!preemptions.includes(x)&&!mirroredFailure(x)&&(/ERROR|FAILED/.test(String(x.type||""))||x.data?.status==="ERROR"));
  const tokens=billable.reduce((a,x)=>{const u=x.data?.usage||{};a.input+=Number(u.input)||0;a.output+=Number(u.output)||0;a.reasoning+=Number(u.reasoning)||0;a.cached+=Number(u.cached)||0;a.total+=Number(u.total)||0;a.api+=(u.source==="API");a.estimated+=(u.source!=="API");return a},{input:0,output:0,reasoning:0,cached:0,total:0,api:0,estimated:0});
- const latency=ok.reduce((a,x)=>a+(Number(x.data?.latencyMs)||0),0);
- return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,gameplayEvents:gameplay.length,aiRequests:ai.length,aiSuccess:ok.length,aiUsageResponses:billable.length,errorCount:errors.length,preemptionCount:preemptions.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
+ const latency=ok.reduce((a,x)=>a+(Number(x.data?.latencyMs)||0),0),errorBreakdown={byType:countBy(errors,x=>x.type),byTask:countBy(errors,x=>x.data?.task||"non-ai"),byProvider:countBy(errors,x=>x.data?.provider||"unknown"),byClass:countBy(errors,telemetryErrorClass)};
+ return {sessionId:SESSION_ID,sessionStartedAt:SESSION_STARTED,exportedAt:Date.now(),entryCount:entries.length,gameplayEvents:gameplay.length,aiRequests:ai.length,aiSuccess:ok.length,aiUsageResponses:billable.length,errorCount:errors.length,errorBreakdown,preemptionCount:preemptions.length,tokenTotals:tokens,aiLatencyMsTotal:latency,aiLatencyMsAverage:ok.length?Math.round(latency/ok.length):0}
 }
 export function debugBundle({appVersion="",gameState=null,aiSettings=null,runtime={}}={}){
  const entries=telemetryEntries(),currentEntries=entries.filter(x=>x.sessionId===SESSION_ID),summary={...telemetrySummary(currentEntries),historyEntryCount:entries.length};

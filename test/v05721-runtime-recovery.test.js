@@ -31,16 +31,18 @@ test("v0.57.21 rejects suggestion targets from a foreign scene but accepts curre
  assert.equal(good.valid,true);
 });
 
-test("v0.57.21 deterministic AutoTest recovery rotates grounded fast-path actions",()=>{
+test("v0.57.21 deterministic AutoTest recovery rotates grounded hard-stall travel actions",()=>{
  const snapshot={world:{location:"眼前的裂隙"},quest:{objectives:["理解目前異常"]},suggestions:[],combat:{active:false}};
  const recent=Array.from({length:7},()=>({action:"停止重複目前互動，沿眼前的裂隙尋找新人物或可驗證線索",kind:"GENERAL",progressed:false,targetId:null}));
  const first=deterministicAutotestDecision(snapshot,recent,"test fallback");
  assert.equal(first.mode,"free");
- assert.equal(first.kind,"OBSERVE");
+ assert.equal(first.kind,"TRAVEL");
  assert.doesNotMatch(first.action,/停止重複目前互動/);
+ assert.match(first.action,/出口|通道/);
  const second=deterministicAutotestDecision(snapshot,[...recent,{action:first.action,kind:first.kind,progressed:false,targetId:null}],"test fallback");
+ assert.equal(second.mode,"free");assert.equal(second.kind,"TRAVEL");
  assert.notEqual(second.action,first.action);
- assert.match(second.action,/^(?:檢查|搜尋|觀察)/);
+ assert.match(second.action,/出口|通道/);
 });
 
 test("v0.57.21 Codex bridge reconstructs retained artifact without picker/download/clipboard",async()=>{

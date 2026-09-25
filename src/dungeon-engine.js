@@ -1,5 +1,5 @@
-import {discoverHistoryEvidence} from "./world-history.js?v=57020";
-import {ensureSurvival} from "./survival-engine.js?v=57020";
+import {discoverHistoryEvidence} from "./world-history.js?v=57021";
+import {ensureSurvival} from "./survival-engine.js?v=57021";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const hash=s=>{let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h)};
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
