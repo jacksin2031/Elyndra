@@ -18,17 +18,19 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 20
+      - name: Apply world-scope and locale refinement
+        run: python scripts/v05719-world-scope-refine.py
       - name: Run focused player-facing regressions
         run: node --test test/v05719-player-facing-consistency.test.js
       - name: Run non-download regression suite
         run: npm run test:nondownload
       - name: Check diff
         run: git diff --check
-      - name: Remove temporary workflow after validation
+      - name: Commit validated final product
         run: |
-          rm .github/workflows/v05719-final-review.yml
+          rm scripts/v05719-world-scope-refine.py .github/workflows/v05719-final-review.yml
           git config user.name "elyndra-ci"
           git config user.email "actions@users.noreply.github.com"
           git add -A
-          git commit -m "chore: finalize v0.57.19 validation"
+          git commit -m "fix: isolate world-scoped suggestions and locale output"
           git push origin HEAD:feat/v0.57.19-player-facing-consistency
