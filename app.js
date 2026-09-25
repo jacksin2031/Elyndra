@@ -1,66 +1,67 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=57006";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57006";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57006";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57006";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=57006";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57006";
-import {maintainSession} from "./src/session-maintenance.js?v=57006";
-import {performAction} from "./src/game-engine.js?v=57006";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57006";
-import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57006";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=57006";
-import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57006";
-import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57006";
-import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57006";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57006";
-import {ensureFactionRuntime} from "./src/faction-engine.js?v=57006";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57006";
-import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57006";
-import {ensureCrisis} from "./src/crisis-engine.js?v=57006";
-import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57006";
-import {playerVisibleEvents} from "./src/event-visibility.js?v=57006";
-import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57006";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=57006";
-import {randomWorldSettings} from "./src/world-randomizer.js?v=57006";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=57006";
-import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57006";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57006";
-import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57006";
-import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57006";
-import {deriveSceneTitle} from "./src/runtime-guard.js?v=57006";
-import {worldCommunication} from "./src/communication-engine.js?v=57006";
-import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57006";
-import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57006";
-import {ensureMagicRuntime} from "./src/magic-engine.js?v=57006";
-import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57006";
-import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57006";
-import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57006";
-import {marketSnapshot} from "./src/economy-engine.js?v=57006";
-import {cultureSnapshot} from "./src/culture-engine.js?v=57006";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57006";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57006";
-import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57006";
-import {worldMapSnapshot} from "./src/world-map.js?v=57006";
-import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57006";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57006";
-import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57006";
-import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57006";
-import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57006";
-import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57006";
-import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57006";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57006";
-import {createStateSessionGuard} from "./src/state-session.js?v=57006";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57006";
-import {applyOriginRuntime} from "./src/origin-runtime.js?v=57006";
-import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57006";
-import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57006";
-import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57006";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=57006";
-import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57006";
-import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57006";
-import {copyAutotestText} from "./src/autotest-copy.js?v=57006";
-import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57006";
+import {APP_VERSION} from "./src/version.js?v=57007";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57007";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57007";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57007";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=57007";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57007";
+import {maintainSession} from "./src/session-maintenance.js?v=57007";
+import {performAction} from "./src/game-engine.js?v=57007";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57007";
+import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57007";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=57007";
+import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57007";
+import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57007";
+import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57007";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57007";
+import {ensureFactionRuntime} from "./src/faction-engine.js?v=57007";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57007";
+import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57007";
+import {ensureCrisis} from "./src/crisis-engine.js?v=57007";
+import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57007";
+import {playerVisibleEvents} from "./src/event-visibility.js?v=57007";
+import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57007";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=57007";
+import {randomWorldSettings} from "./src/world-randomizer.js?v=57007";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=57007";
+import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57007";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57007";
+import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57007";
+import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57007";
+import {deriveSceneTitle} from "./src/runtime-guard.js?v=57007";
+import {worldCommunication} from "./src/communication-engine.js?v=57007";
+import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57007";
+import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57007";
+import {ensureMagicRuntime} from "./src/magic-engine.js?v=57007";
+import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57007";
+import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57007";
+import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57007";
+import {marketSnapshot} from "./src/economy-engine.js?v=57007";
+import {cultureSnapshot} from "./src/culture-engine.js?v=57007";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57007";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57007";
+import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57007";
+import {worldMapSnapshot} from "./src/world-map.js?v=57007";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57007";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57007";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57007";
+import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57007";
+import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57007";
+import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57007";
+import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57007";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57007";
+import {createStateSessionGuard} from "./src/state-session.js?v=57007";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57007";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=57007";
+import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57007";
+import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57007";
+import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57007";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=57007";
+import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57007";
+import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57007";
+import {copyAutotestText} from "./src/autotest-copy.js?v=57007";
+import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57007";
+import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57007";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 const stateSession=createStateSessionGuard(null);
 function captureStateSession(){return stateSession.capture(gameState)}
@@ -78,6 +79,7 @@ const historyBackground={timer:0,running:false,controller:null,lastReason:"histo
 let developerAutotestActive=false;
 const developerAutotest={running:false,stopRequested:false,worldIndex:0,turn:0,results:[],startedAt:0,endedAt:0,config:null,controller:null,batchController:null,lastReport:null,lastMessage:"",logs:[],hiddenAt:0,lastVisibleAt:0,backgroundInterruptions:0,backgroundDurationMs:0,exportSnapshot:null,exportPersistence:null};
 const developerAutotestTransfer={kind:"",transfer:null,index:0,full:false};
+const developerAutotestDrag={kind:"",payload:null,selfTest:null,lastDrag:null};
 void loadLastAutotestExportSnapshot().then(snapshot=>{if(!snapshot)return;developerAutotest.exportSnapshot=snapshot;developerAutotest.exportPersistence={backend:"indexeddb-or-fallback",persisted:true,restored:true};if(!developerAutotest.lastReport&&snapshot.debugPayload?.summary)developerAutotest.lastReport=snapshot.debugPayload;recordDebug("AUTOTEST_EXPORT_CACHE_RESTORED",{createdAt:snapshot.createdAt,worlds:snapshot.worlds?.length||0})}).catch(error=>recordDebug("AUTOTEST_EXPORT_CACHE_RESTORE_FAILED",{error:error?.message||String(error)}));
 const autotestRuntimeExpansion={running:false,controller:null,reason:"",turn:0};
 const AUTOTEST_BACKGROUND_GRACE_MS=15000;
@@ -913,7 +915,7 @@ function appendDeveloperAutotestLog(message){
 function developerAutotestPanelHtml(){
  const c=developerAutotest.config||{mode:"play",worldCount:1,maxTurns:30,stopCondition:"TURN_LIMIT",conditionTarget:10,customCondition:"",exportMode:"both",disableTimeout:false};
  const running=developerAutotest.running,report=developerAutotest.lastReport,summary=report?.summary,exportSnapshot=developerAutotest.exportSnapshot,exportArtifacts=exportSnapshot?buildAutotestExportArtifacts(exportSnapshot):{},saveCapability=autotestSaveCapability(window);
- const exportPanel=exportSnapshot?`<div class="lore-item"><small>EXPORT READY · ${esc(exportSnapshot.createdAt||"")} · v${esc(exportSnapshot.appVersion||"?")}</small><h3>IAB 頁面取回已保存 snapshot，不需重跑</h3><p>${developerAutotest.exportPersistence?.persisted?"結果已保存於瀏覽器 IndexedDB；重新整理後仍可載入。":"結果目前保留在本頁記憶體。"}</p><p><strong>主要交付路徑：</strong>直接在頁面顯示完整 JSON 或固定大小分段，附檔名與 SHA-256；不依賴 File Picker、browser clipboard 或下載管理器。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestTransferDebug" class="primary">頁面取回 Debug JSON</button>':""}${exportArtifacts.world?'<button id="autotestTransferWorld" class="primary">頁面取回世界 JSON</button>':""}${exportArtifacts.recovery?'<button id="autotestTransferRecovery" class="primary">頁面取回 Recovery JSON</button>':""}<button id="autotestReloadExport" class="secondary">重新載入已保存結果</button></div><details><summary>Browser API fallback（Codex IAB 可能自動取消或不落地）</summary><p class="muted">以下只保留兼容性，不作為成功交付判定。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestSaveDebug" class="ghost">Save Picker：Debug</button><button id="autotestCopyDebug" class="ghost">Browser Clipboard：Debug</button>':""}${exportArtifacts.world?'<button id="autotestSaveWorld" class="ghost">Save Picker：世界</button><button id="autotestCopyWorld" class="ghost">Browser Clipboard：世界</button>':""}${exportArtifacts.recovery?'<button id="autotestSaveRecovery" class="ghost">Save Picker：Recovery</button>':""}${saveCapability.directoryPicker?'<button id="autotestSaveAll" class="ghost">Directory Picker：全部</button>':""}${exportArtifacts.debug?'<button id="autotestFallbackDebug" class="ghost">傳統下載 Debug</button>':""}${exportArtifacts.world?'<button id="autotestFallbackWorld" class="ghost">傳統下載世界</button>':""}${exportArtifacts.recovery?'<button id="autotestFallbackRecovery" class="ghost">傳統下載 Recovery</button>':""}</div></details></div>`:`<div class="lore-item"><small>EXPORT RECOVERY</small><p>若之前已完成測試，可從瀏覽器保存區載入後使用 IAB 頁面取回，不需再跑回合。</p><button id="autotestReloadExport" class="secondary">載入上次匯出資料</button></div>`;
+ const exportPanel=exportSnapshot?`<div class="lore-item"><small>EXPORT READY · ${esc(exportSnapshot.createdAt||"")} · v${esc(exportSnapshot.appVersion||"?")}</small><h3>IAB 原生檔案拖出已保存 snapshot，不需重跑</h3><p>${developerAutotest.exportPersistence?.persisted?"結果已保存於瀏覽器 IndexedDB；重新整理後仍可載入。":"結果目前保留在本頁記憶體。"}</p><p><strong>主要交付路徑：</strong>建立原生 File drag payload，同時提供 Chromium DownloadURL。可直接拖到 Windows Explorer 或 ChatGPT Web；不依賴 picker、clipboard 或下載按鈕。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestDragDebug" class="primary">準備拖出 Debug JSON</button>':""}${exportArtifacts.world?'<button id="autotestDragWorld" class="primary">準備拖出世界 JSON</button>':""}${exportArtifacts.recovery?'<button id="autotestDragRecovery" class="primary">準備拖出 Recovery JSON</button>':""}${exportArtifacts.debug?'<button id="autotestTransferDebug" class="primary">頁面取回 Debug JSON</button>':""}${exportArtifacts.world?'<button id="autotestTransferWorld" class="primary">頁面取回世界 JSON</button>':""}${exportArtifacts.recovery?'<button id="autotestTransferRecovery" class="primary">頁面取回 Recovery JSON</button>':""}<button id="autotestReloadExport" class="secondary">重新載入已保存結果</button></div><details><summary>文字分段救援 / Browser API fallback</summary><p class="muted">以下只保留兼容性，不作為成功交付判定。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestSaveDebug" class="ghost">Save Picker：Debug</button><button id="autotestCopyDebug" class="ghost">Browser Clipboard：Debug</button>':""}${exportArtifacts.world?'<button id="autotestSaveWorld" class="ghost">Save Picker：世界</button><button id="autotestCopyWorld" class="ghost">Browser Clipboard：世界</button>':""}${exportArtifacts.recovery?'<button id="autotestSaveRecovery" class="ghost">Save Picker：Recovery</button>':""}${saveCapability.directoryPicker?'<button id="autotestSaveAll" class="ghost">Directory Picker：全部</button>':""}${exportArtifacts.debug?'<button id="autotestFallbackDebug" class="ghost">傳統下載 Debug</button>':""}${exportArtifacts.world?'<button id="autotestFallbackWorld" class="ghost">傳統下載世界</button>':""}${exportArtifacts.recovery?'<button id="autotestFallbackRecovery" class="ghost">傳統下載 Recovery</button>':""}</div></details></div>`:`<div class="lore-item"><small>EXPORT RECOVERY</small><p>若之前已完成測試，可從瀏覽器保存區載入後使用 IAB 頁面取回，不需再跑回合。</p><button id="autotestReloadExport" class="secondary">載入上次匯出資料</button></div>`;
  return `<div class="eyebrow">DEVELOPER · AI AUTOTEST</div><h2>AI 自動測試</h2><p class="muted">使用目前已設定的 Elyndra AI Provider/API。測試世界不會覆蓋正式存檔；AI 玩家只會收到真實玩家此刻能看見或已知的情報，不會取得 hidden Canon。</p>
  <div class="settings-grid">
  <label>測試模式<select id="autotestMode" ${running?"disabled":""}><option value="play">AI 遊玩測試</option><option value="worlds">隨機世界生成測試</option></select></label>
@@ -948,6 +950,7 @@ function bindDeveloperAutotestPanel(){
  const c=developerAutotest.config||{mode:"play",stopCondition:"TURN_LIMIT",exportMode:"both"};if($("#autotestMode"))$("#autotestMode").value=c.mode||"play";if($("#autotestStopCondition"))$("#autotestStopCondition").value=c.stopCondition||"TURN_LIMIT";if($("#autotestExportMode"))$("#autotestExportMode").value=["debug","world"].includes(c.exportMode)?c.exportMode:"both";
  $("#autotestStart")?.addEventListener("click",()=>{if(developerAutotest.running)return;developerAutotest.config=readDeveloperAutotestConfig();void startDeveloperAutotest(developerAutotest.config)});
  $("#autotestStop")?.addEventListener("click",()=>{developerAutotest.stopRequested=true;const reason=new DOMException("Developer autotest stopped","AbortError");developerAutotest.controller?.abort(reason);developerAutotest.batchController?.abort(reason);appendDeveloperAutotestLog("已要求停止；正在 Abort 當前 AI request，之後於安全點結束。");recordDebug("AUTOTEST_STOP_REQUESTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn})});
+ $("#autotestDragDebug")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("debug"));$("#autotestDragWorld")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("world"));$("#autotestDragRecovery")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("recovery"));
  $("#autotestTransferDebug")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("debug"));$("#autotestTransferWorld")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("world"));$("#autotestTransferRecovery")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("recovery"));
  $("#autotestSaveDebug")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("debug"));$("#autotestSaveWorld")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("world"));$("#autotestSaveRecovery")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("recovery"));$("#autotestSaveAll")?.addEventListener("click",()=>void saveAllDeveloperAutotestArtifacts());
  $("#autotestCopyDebug")?.addEventListener("click",()=>void copyDeveloperAutotestArtifact("debug"));$("#autotestCopyWorld")?.addEventListener("click",()=>void copyDeveloperAutotestArtifact("world"));
@@ -1071,6 +1074,21 @@ async function exportDeveloperAutotestResults(report,results){
  appendDeveloperAutotestLog(`匯出資料已準備${developerAutotest.exportPersistence?.persisted?"並保存到瀏覽器":"於本頁記憶體"}；請用下方按鈕下載，無需重跑測試。`);return snapshot
 }
 function developerAutotestArtifact(kind){const snapshot=developerAutotest.exportSnapshot;if(!snapshot)return null;return buildAutotestExportArtifacts(snapshot)[kind]||null}
+function developerAutotestDragLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界 JSON":"Recovery JSON"}
+function developerAutotestDragHtml(){
+ const p=developerAutotestDrag.payload;if(!p)return `<div class="eyebrow">AUTOTEST · NATIVE DRAG</div><h2>沒有可拖出資料</h2><button id="autotestDragBack" class="secondary">返回 AutoTest</button>`;
+ const label=developerAutotestDragLabel(developerAutotestDrag.kind),test=developerAutotestDrag.selfTest,testHtml=test?(test.ok?`<p class="success"><strong>PASS · IAB File payload 已在頁內 drop 自測驗證</strong><br>${esc(test.filename)} · ${Number(test.bytes).toLocaleString()} bytes<br>SHA-256 <code>${esc(test.sha256)}</code></p>`:`<p class="error"><strong>FAIL · drop payload 不完整</strong><br>${esc(test.filename||"")} · ${Number(test.bytes||0).toLocaleString()} bytes<br>SHA-256 <code>${esc(test.sha256||"")}</code></p>`):`<p class="muted">尚未做頁內 drop 自測。先把上方檔案卡拖到此區，可驗證 IAB drag data store 中的 File 是否 byte-for-byte 正確。</p>`;
+ return `<div class="eyebrow">AUTOTEST · IAB NATIVE FILE DRAG</div><h2>${esc(label)} 原生檔案交付</h2><div class="lore-item"><p><strong>檔名：</strong><code>${esc(p.filename)}</code></p><p><strong>大小：</strong>${Number(p.bytes).toLocaleString()} bytes · ${Number(p.chars).toLocaleString()} 字元</p><p><strong>SHA-256：</strong><code>${esc(p.sha256)}</code></p><p class="muted">此卡在 dragstart 同時發布原生 File item 與 Chromium DownloadURL。拖到 Windows Explorer 是本機落地路徑；拖到 ChatGPT Web 的檔案 drop area 是上傳路徑。Elyndra 只會回報 drag/drop 信號，不會把「開始拖曳」誤報為已保存或已上傳。</p></div><div id="autotestDragFile" draggable="true" tabindex="0" style="border:2px dashed currentColor;border-radius:14px;padding:28px;margin:18px 0;text-align:center;cursor:grab;user-select:none"><strong>⬇ 拖曳 ${esc(p.filename)}</strong><br><small>${Number(p.bytes).toLocaleString()} bytes · SHA-256 ${esc(p.sha256)}</small><br><span>拖到 Explorer / ChatGPT Web</span></div><div id="autotestDragSelfTest" style="border:1px dashed currentColor;border-radius:12px;padding:20px;margin:14px 0;text-align:center"><strong>頁內 IAB File 自測區</strong>${testHtml}</div><div class="settings-actions"><button id="autotestDragTextRescue" class="secondary">文字分段救援</button><button id="autotestDragBack" class="ghost">返回 AutoTest</button></div><p id="autotestDragStatus" class="muted">尚未向外部目的地交付。只有目的地實際接受 drop 後，才可在目的地驗證檔名與大小；Windows/ChatGPT 的最終保存狀態無法由來源頁面自行證明。</p>`
+}
+function bindDeveloperAutotestDrag(){
+ const source=$("#autotestDragFile"),zone=$("#autotestDragSelfTest"),status=$("#autotestDragStatus");
+ source?.addEventListener("dragstart",event=>{try{const info=applyAutotestDragPayload(event.dataTransfer,developerAutotestDrag.payload);developerAutotestDrag.lastDrag={startedAt:Date.now(),info};if(status)status.textContent=`Drag payload 已建立：File item=${info.fileItem?"YES":"NO"} · DownloadURL=${info.downloadURL?"YES":"NO"}。尚未證明目的地已保存/上傳。`;recordDebug("AUTOTEST_NATIVE_DRAG_STARTED",{kind:developerAutotestDrag.kind,filename:info.filename,bytes:info.bytes,sha256:info.sha256,fileItem:info.fileItem,downloadURL:info.downloadURL})}catch(error){if(status)status.textContent=`建立 drag payload 失敗：${error?.message||error}`;recordDebug("AUTOTEST_NATIVE_DRAG_FAILED",{kind:developerAutotestDrag.kind,error:error?.message||String(error)});event.preventDefault()}});
+ source?.addEventListener("dragend",event=>{const effect=String(event.dataTransfer?.dropEffect||"none");if(status)status.textContent=effect!=="none"?`目的地回報接受 drag（dropEffect=${effect}）。這不是保存/上傳完成證明；請在 Explorer 或 ChatGPT Web 以檔名/大小驗證。`:`未收到外部目的地接受信號（dropEffect=${effect}）。`;recordDebug("AUTOTEST_NATIVE_DRAG_ENDED",{kind:developerAutotestDrag.kind,dropEffect:effect,filename:developerAutotestDrag.payload?.filename||""})});
+ zone?.addEventListener("dragover",event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect="copy"});
+ zone?.addEventListener("drop",event=>{event.preventDefault();const file=event.dataTransfer?.files?.[0]||Array.from(event.dataTransfer?.items||[]).map(item=>item?.kind==="file"?item.getAsFile?.():null).find(Boolean);void verifyAutotestDragFile(file,developerAutotestDrag.payload).then(result=>{developerAutotestDrag.selfTest=result;recordDebug(result.ok?"AUTOTEST_NATIVE_DRAG_SELFTEST_PASS":"AUTOTEST_NATIVE_DRAG_SELFTEST_FAIL",result);openModal(developerAutotestDragHtml());bindDeveloperAutotestDrag()}).catch(error=>{developerAutotestDrag.selfTest={ok:false,filename:file?.name||"",bytes:file?.size||0,sha256:"",error:error?.message||String(error)};recordDebug("AUTOTEST_NATIVE_DRAG_SELFTEST_FAIL",developerAutotestDrag.selfTest);openModal(developerAutotestDragHtml());bindDeveloperAutotestDrag()})});
+ $("#autotestDragTextRescue")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer(developerAutotestDrag.kind));$("#autotestDragBack")?.addEventListener("click",openDeveloperAutotestPanel)
+}
+async function openDeveloperAutotestDragExport(kind){const artifact=developerAutotestArtifact(kind);if(!artifact){appendDeveloperAutotestLog("找不到可拖出的 AutoTest 匯出內容。");openDeveloperAutotestPanel();return}try{const payload=await buildAutotestDragPayload(artifact);developerAutotestDrag.kind=kind;developerAutotestDrag.payload=payload;developerAutotestDrag.selfTest=null;developerAutotestDrag.lastDrag=null;recordDebug("AUTOTEST_NATIVE_DRAG_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256});openModal(developerAutotestDragHtml());bindDeveloperAutotestDrag()}catch(error){appendDeveloperAutotestLog(`原生拖出資料建立失敗：${error?.message||error}`);recordDebug("AUTOTEST_NATIVE_DRAG_PREPARE_FAILED",{kind,error:error?.message||String(error)});openDeveloperAutotestPanel()}}
 function developerAutotestTransferLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界 JSON":"Recovery JSON"}
 function developerAutotestTransferHtml(){
  const t=developerAutotestTransfer.transfer;if(!t)return `<div class="eyebrow">AUTOTEST · IAB TRANSFER</div><h2>沒有可顯示資料</h2><button id="autotestTransferBack" class="secondary">返回 AutoTest</button>`;
