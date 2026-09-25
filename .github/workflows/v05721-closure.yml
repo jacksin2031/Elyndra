@@ -1,0 +1,44 @@
+name: v0.57.21 closure
+on:
+  push:
+    branches:
+      - fix/v0.57.21-autotest-latency-recovery
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Apply release bump
+        run: python scripts/v05721_release_patch.py
+      - name: Apply AI recovery patch
+        run: python scripts/v05721_ai_patch.py
+      - name: Apply UI provenance and Codex bridge patch
+        run: python scripts/v05721_app_patch.py
+      - name: Focused v0.57.21 regressions
+        run: node --test test/v05721-runtime-recovery.test.js
+      - name: Run non-download regression suite
+        run: npm run test:nondownload
+      - name: Check diff
+        run: git diff --check
+      - name: Commit validated v0.57.21
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f scripts/v05721_release_patch.py scripts/v05721_ai_patch.py scripts/v05721_app_patch.py .github/workflows/v05721-closure.yml
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit"
+            exit 0
+          fi
+          git commit -m "v0.57.21: harden AutoTest recovery provenance and retained artifact handoff"
+          git push origin HEAD:fix/v0.57.21-autotest-latency-recovery
