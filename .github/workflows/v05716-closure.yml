@@ -1,0 +1,36 @@
+name: v0.57.16 non-download closure
+
+on:
+  push:
+    branches:
+      - feat/v0.57.16-visibility-narrator-difficulty-delivery
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Setup Node 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '20'
+      - name: Apply v0.57.16 patch
+        run: python scripts/apply_v05716.py
+      - name: Run non-download regression suite
+        run: npm run test:nondownload
+      - name: Check diff
+        run: git diff --check
+      - name: Commit validated closure
+        run: |
+          rm -f scripts/apply_v05716.py .github/workflows/v05716-closure.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "v0.57.16: harden player knowledge and autotest difficulty"
+          git push origin HEAD:${GITHUB_REF_NAME}
