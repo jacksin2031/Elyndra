@@ -36,7 +36,25 @@ jobs:
           Path('.github/workflows/v05711-r2.yml').unlink()
           PY
       - name: Unit and full regression suite
-        run: npm test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
+          code=${PIPESTATUS[0]}
+          {
+            echo '### v0.57.11 unit/regression diagnostic'
+            echo '```text'
+            tail -n 400 test-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Upload regression diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05711-regression-diagnostics
+          path: test-output.txt
+          if-no-files-found: error
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright@1.55.0
