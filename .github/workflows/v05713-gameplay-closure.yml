@@ -15,7 +15,9 @@ jobs:
         with:
           node-version: 20
       - name: Apply v0.57.13 gameplay fixes
-        run: python scripts/apply-v05713-gameplay.py
+        run: |
+          python scripts/apply-v05713-gameplay.py
+          python scripts/patch-v05713-stale-tests.py
       - name: Run non-download validation only
         shell: bash
         env:
@@ -33,7 +35,7 @@ jobs:
       - name: Commit validated v0.57.13 closure
         shell: bash
         run: |
-          rm .github/workflows/v05713-gameplay-closure.yml scripts/apply-v05713-gameplay.py
+          rm .github/workflows/v05713-gameplay-closure.yml scripts/apply-v05713-gameplay.py scripts/patch-v05713-stale-tests.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
