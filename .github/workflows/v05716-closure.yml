@@ -22,6 +22,8 @@ jobs:
           node-version: '20'
       - name: Apply v0.57.16 patch
         run: python scripts/apply_v05716.py
+      - name: Apply v0.57.16 test-contract refinement
+        run: python scripts/refine_v05716.py
       - name: Run v0.57.16 focused non-download regressions
         run: node --test --test-reporter=spec test/v05716-knowledge-narrator-difficulty.test.js
       - name: Run full non-download suite with concise failure diagnostics
@@ -40,7 +42,7 @@ jobs:
         run: git diff --check
       - name: Commit validated closure
         run: |
-          rm -f scripts/apply_v05716.py .github/workflows/v05716-closure.yml
+          rm -f scripts/apply_v05716.py scripts/refine_v05716.py .github/workflows/v05716-closure.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
