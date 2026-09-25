@@ -13,4 +13,8 @@ t=t.replace('message=r.accepted?npc.name+" 接受了同行邀請。":npc.name+" 
 t=t.replace('message=acceptCompanionOffer(gameState,npc.id)?npc.name+" 正式加入旅程。":"這個同行提議已經失效。"', 'message=acceptCompanionOffer(gameState,npc.id)?visibleName+" 正式加入旅程。":"這個同行提議已經失效。"')
 t=t.replace('message=dismissCompanion(gameState,npc.id)?npc.name+" 暫時離開了隊伍。":"目前無法離隊。"', 'message=dismissCompanion(gameState,npc.id)?visibleName+" 暫時離開了隊伍。":"目前無法離隊。"')
 p.write_text(t,encoding='utf-8')
+# Release contract contains an escaped semantic-version regex that the broad bump does not rewrite.
+release=Path('test/version-0551-release.test.js')
+r=release.read_text(encoding='utf-8').replace('0\\.57\\.16','0\\.57\\.17')
+release.write_text(r,encoding='utf-8')
 print('v0.57.17 refinement applied')
