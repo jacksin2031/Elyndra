@@ -49,6 +49,13 @@ jobs:
         run: |
           set -o pipefail
           npm test 2>&1 | tee /tmp/v05711-cache-test-output.txt
+      - name: Preserve npm test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05711-npm-test-output
+          path: /tmp/v05711-cache-test-output.txt
+          if-no-files-found: warn
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright@1.55.0
