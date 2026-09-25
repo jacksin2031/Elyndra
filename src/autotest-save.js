@@ -19,15 +19,17 @@ export async function saveAutotestArtifactWithPicker(artifact,{showSaveFilePicke
 }
 export async function shareAutotestArtifact(artifact,{navigatorImpl=globalThis.navigator,FileImpl=globalThis.File,cryptoImpl=globalThis.crypto,nowImpl=Date.now}={}){
  if(!artifact?.filename)throw new Error("AUTOTEST_SHARE_ARTIFACT_INVALID");
- const filename=String(artifact.filename),mime=String(artifact.mime||"application/octet-stream"),raw=encoder.encode(String(artifact.body||"")),sha256=await sha256Bytes(raw,cryptoImpl);
- if(typeof navigatorImpl?.share!=="function"||typeof navigatorImpl?.canShare!=="function"||typeof FileImpl!=="function")return {status:"unsupported",method:"web-share-file",filename,bytes:raw.byteLength,sha256};
+ const filename=String(artifact.filename),mime=String(artifact.mime||"application/octet-stream"),raw=encoder.encode(String(artifact.body||""));
+ if(typeof navigatorImpl?.share!=="function"||typeof navigatorImpl?.canShare!=="function"||typeof FileImpl!=="function")return {status:"unsupported",method:"web-share-file",filename,bytes:raw.byteLength,sha256:await sha256Bytes(raw,cryptoImpl)};
  const file=new FileImpl([raw],filename,{type:mime,lastModified:Number(typeof nowImpl==="function"?nowImpl():Date.now())||Date.now()});
  let supported=false;try{supported=navigatorImpl.canShare({files:[file]})===true}catch{}
- if(!supported)return {status:"unsupported",method:"web-share-file",filename,bytes:raw.byteLength,sha256};
- try{await navigatorImpl.share({files:[file],title:`Elyndra AutoTest · ${filename}`})}
- catch(error){if(cancelled(error))return {status:"cancelled",method:"web-share-file",filename,bytes:raw.byteLength,sha256};throw error}
+ if(!supported)return {status:"unsupported",method:"web-share-file",filename,bytes:raw.byteLength,sha256:await sha256Bytes(raw,cryptoImpl)};
+ const shaPromise=sha256Bytes(raw,cryptoImpl);let sharePromise;
+ try{sharePromise=navigatorImpl.share({files:[file],title:`Elyndra AutoTest · ${filename}`})}
+ catch(error){if(cancelled(error))return {status:"cancelled",method:"web-share-file",filename,bytes:raw.byteLength,sha256:await shaPromise};throw error}
+ try{await sharePromise}catch(error){if(cancelled(error))return {status:"cancelled",method:"web-share-file",filename,bytes:raw.byteLength,sha256:await shaPromise};throw error}
  if(Number(file.size)!==raw.byteLength)throw new Error("AUTOTEST_SHARE_FILE_SIZE_MISMATCH");
- return {status:"shared",method:"web-share-file",filename:file.name||filename,bytes:Number(file.size)||raw.byteLength,sha256}
+ return {status:"shared",method:"web-share-file",filename:file.name||filename,bytes:Number(file.size)||raw.byteLength,sha256:await shaPromise}
 }
 export async function saveAutotestArtifactsToDirectory(artifacts,{showDirectoryPickerImpl=globalThis.showDirectoryPicker}={}){
  const rows=Object.values(artifacts||{}).filter(Boolean);
