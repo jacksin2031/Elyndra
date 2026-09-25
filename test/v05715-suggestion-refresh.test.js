@@ -4,7 +4,7 @@ import {readFile} from "node:fs/promises";
 import {regenerateContextualActionSet} from "../src/contextual-actions.js";
 
 function baseState(overrides={}){
- const state={world:{id:"W1",state:{day:2,location:"起點"},travel:{routes:[{id:"R1",fromId:"L1",toId:"L2",open:true}]},registry:{locations:[{id:"L1",name:"起點",known:true},{id:"L2",name:"河岸",known:true},{id:"L3",name:"封閉塔樓",known:true}],npcs:[{id:"N1",name:"巡路人",known:true,alive:true,locationId:"L1"}],sideQuests:[]},creation:{blueprint:{difficulty:"normal"}}},player:{location:"起點",status:"ACTIVE",difficulty:"normal",skills:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0},magic:{knownSpells:[]}},quests:{main:{title:"找出異常來源",objectives:["確認河谷異常的可驗證來源"],status:"ACTIVE"}},inventory:[{id:"I1",name:"觀測筆記",quantity:1,category:"DOCUMENT"}],events:[],suggestions:[],suggestionIntents:[]};
+ const state={world:{id:"W1",state:{day:2,location:"起點"},travel:{routes:[{id:"R1",fromId:"L1",toId:"L2",open:true}]},registry:{locations:[{id:"L1",name:"起點",known:true},{id:"L2",name:"河岸",known:true},{id:"L3",name:"封閉塔樓",known:true}],npcs:[{id:"N1",name:"巡路人",known:true,nameKnown:true,alive:true,locationId:"L1"}],sideQuests:[]},creation:{blueprint:{difficulty:"normal"}}},player:{location:"起點",status:"ACTIVE",difficulty:"normal",skills:{OBSERVE:0,SOCIAL:0,TRAVEL:0,RISKY:0},magic:{knownSpells:[]}},quests:{main:{title:"找出異常來源",objectives:["確認河谷異常的可驗證來源"],status:"ACTIVE"}},inventory:[{id:"I1",name:"觀測筆記",quantity:1,category:"DOCUMENT"}],events:[],suggestions:[],suggestionIntents:[]};
  return Object.assign(state,overrides)
 }
 

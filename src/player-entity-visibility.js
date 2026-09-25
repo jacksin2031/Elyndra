@@ -20,6 +20,14 @@ export function revealNpcNameFromEvidence(state,npc,{answer="",reason="NPC_SELF_
  state.events.push({id:"EV-"+uid(),type:"NPC_NAME_REVEALED",visibility:"PLAYER_KNOWN",npcId:npc.id,reason,summary:`你確認對方的稱呼是「${name}」。`,day:Number(state.world?.state?.day)||1,at:Date.now()});
  return true
 }
+
+function nearCanonicalName(candidate,canonical){const a=[...clean(candidate,24)],b=[...clean(canonical,24)];if(a.length!==b.length||a.length<2||a.length>8)return false;let diff=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i]&&++diff>1)return false;return diff===1}
+export function canonicalizeNpcIdentityText(state,npc,value=""){
+ let out=String(value||"");const canonical=clean(npc?.name,80);if(!canonical||!npcNameKnown(state,npc))return out;
+ out=out.replace(/((?:我叫|我是|叫我|稱呼我(?:為)?|我的名字是|名字是)\s*[「『"“]?)([\u3400-\u9fff·・\-]{2,12})/g,(all,prefix,candidate)=>nearCanonicalName(candidate,canonical)?prefix+canonical:all);
+ out=out.replace(/^([\u3400-\u9fff·・\-]{2,12})(?=[：:])/,(all,candidate)=>nearCanonicalName(candidate,canonical)?canonical:all);
+ return out
+}
 export function redactUnknownNpcNames(state,value=""){
  let out=String(value||"");for(const npc of state?.world?.registry?.npcs||[]){const name=clean(npc?.name,80);if(name&&!npcNameKnown(state,npc))out=out.split(name).join(playerVisibleNpcName(state,npc))}return out
 }
