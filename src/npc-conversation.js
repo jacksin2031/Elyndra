@@ -1,14 +1,14 @@
-import {advanceTime} from "./world-clock.js?v=57018";
-import {tickWorld} from "./world-simulation.js?v=57018";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=57018";
-import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57018";
-import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57018";
-import {npcInteractionMode} from "./world-registry.js?v=57018";
-import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=57018";
-import {deriveSceneTitle} from "./runtime-guard.js?v=57018";
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=57018";
-import {markEntityObserved} from "./visibility-lock.js?v=57018";
-import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57018";
+import {advanceTime} from "./world-clock.js?v=57019";
+import {tickWorld} from "./world-simulation.js?v=57019";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=57019";
+import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57019";
+import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57019";
+import {npcInteractionMode} from "./world-registry.js?v=57019";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=57019";
+import {deriveSceneTitle,sanitizePlayerText} from "./runtime-guard.js?v=57019";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=57019";
+import {markEntityObserved} from "./visibility-lock.js?v=57019";
+import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57019";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
@@ -20,8 +20,9 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  const memory=recordNpcMemory(state,npc,{type:"CONVERSATION",summary,importance:firstEncounter?3:1,entityRefs:[npc.id],source:"CONVERSATION",day:state.world.state.day,minute:state.world.state.clock.totalMinutes});
  const progressed=evaluateQuestEvidence(state,String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
  const questInteractions=evaluateNpcQuestInteraction(state,npc.id,{type:"TALK",text:String(message||"")+"\n"+String(answer||"")});
- const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",npcId:npc.id,mode,firstEncounter,memoryId:memory?.id||null,questInteractions:questInteractions.map(x=>({questId:x.questId,action:x.action})),summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
+ const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",worldId:state.world?.id||null,location:state.player?.location||state.world?.state?.location||null,npcId:npc.id,mode,firstEncounter,memoryId:memory?.id||null,questInteractions:questInteractions.map(x=>({questId:x.questId,action:x.action})),summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
  state.events.push(event);
+ const clueText=progressed?.length?sanitizePlayerText(answer,220,""):"";if(clueText)state.events.push({id:id(),type:"NPC_CLUE_CONFIRMED",visibility:"PLAYER_KNOWN",worldId:state.world?.id||null,location:state.player?.location||state.world?.state?.location||null,npcId:npc.id,sourceEventId:event.id,summary:clueText,day:state.world.state.day,at:Date.now()});
  if(mode==="LOCAL")establishNpcRemoteContact(state,npc);
  const worldEvent=tickWorld(state);
  state.narrative=String(answer||"").slice(0,900);

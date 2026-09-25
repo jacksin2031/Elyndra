@@ -1,4 +1,4 @@
-import {applyOriginRuntime} from "./origin-runtime.js?v=57018";
+import {applyOriginRuntime} from "./origin-runtime.js?v=57019";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=v=>Array.isArray(v)?v.map(x=>clean(x,120)).filter(Boolean):clean(v,1200).split(/[\n,，;；]+/).map(x=>clean(x,120)).filter(Boolean);

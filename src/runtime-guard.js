@@ -1,12 +1,15 @@
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=57018";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57018";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=57019";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57019";
 const clean=(v,max=1200)=>String(v??"").normalize("NFC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").replace(/\uFFFD/g,"").trim().slice(0,max);
 const SYSTEM_LINE=/^\s*(?:\[|【)\s*(?:世界動向|世界改變|世界開始記住你|系統|SYSTEM|WORLD\s*(?:EVENT|UPDATE)|DEBUG|STATE)\s*(?:\]|】)\s*[:：-]?\s*/i;
 const ROLE_LINE=/^\s*(?:narrative|scene|assistant|system|敘事|旁白)\s*[:：]\s*/i;
 const FOREIGN=/[\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/g;
 const HAN=/[\u3400-\u9fff]/g;
 const LATIN=/[A-Za-z]/g;
-const SIMPLIFIED_MARKER=/[这转询问当视现节轻触锋锐属边缘测试温质闭仪监为从发确认记录状态细详标围环参见续验证获长设仅报断体统网络灵气区门进观点线导级结构开关与动无处应术觉话资]/g;
+const SIMPLIFIED_MARKER=/[这转询问当视现节轻触锋锐属边缘测试温质闭仪监为从发确认记录状态细详标围环参见续验证获长设仅报断体统网络灵气区门进观点线导级结构开关与动无处应术觉话资对轮]/g;
+const SAFE_TRADITIONAL_MAP=Object.freeze({"对":"對","轮":"輪"});
+const ENGLISH_PROSE_MARKER=/\b(?:previously|before|after|toward|towards|through|around|where|there|follow|trace|check|inspect|investigate|search|find|look|wall|area|point|direction)\b/i;
+export function normalizePlayerFacingLocale(value,max=1600){return clean(value,max).replace(/[对轮]/g,ch=>SAFE_TRADITIONAL_MAP[ch]||ch).replace(/\bpreviously\b/gi,"先前")}
 
 export function stripSystemLabels(value,max=1200){
  let s=clean(value,max);
@@ -15,18 +18,19 @@ export function stripSystemLabels(value,max=1200){
  return lines.join("\n").replace(SYSTEM_LINE,"").replace(ROLE_LINE,"").trim().slice(0,max)
 }
 export function isPlayerFacingLanguageSafe(value,{allowShortName=false}={}){
- const s=clean(value,1600);if(!s)return false;
+ const s=normalizePlayerFacingLocale(value,1600);if(!s)return false;
  const foreign=(s.match(FOREIGN)||[]).length;if(foreign>Math.max(1,Math.floor(s.length*.03)))return false;
  if((s.match(SIMPLIFIED_MARKER)||[]).length)return false;
  const han=(s.match(HAN)||[]).length,latin=(s.match(LATIN)||[]).length;
+ if(han>=2&&ENGLISH_PROSE_MARKER.test(s))return false;
  if(allowShortName&&s.length<=24)return foreign===0;
  if(s.length>=24&&han<4&&latin>12)return false;
  if(latin>Math.max(30,han*1.2))return false;
  return true
 }
 export function sanitizePlayerText(value,max=1200,fallback=""){
- const s=stripSystemLabels(value,max);
- return s&&isPlayerFacingLanguageSafe(s)?s:clean(fallback,max)
+ const s=normalizePlayerFacingLocale(stripSystemLabels(value,max),max);
+ return s&&isPlayerFacingLanguageSafe(s)?s:normalizePlayerFacingLocale(fallback,max)
 }
 export function sanitizeSuggestion(value,max=120){
  const s=sanitizePlayerText(value,max,"").replace(/^[\-•·\d.)、\s]+/,"").trim();
@@ -55,7 +59,7 @@ export function fallbackSuggestions(state={},context={}){
  return out.slice(0,4)
 }
 export function sanitizeLocationName(value){
- const s=clean(value,120).replace(/[\r\n\t]/g," ").replace(/[{}\[\]\"\\]/g,"").replace(/\s+/g," ").trim();
+ const s=normalizePlayerFacingLocale(value,120).replace(/[\r\n\t]/g," ").replace(/[{}\[\]\"\\]/g,"").replace(/\s+/g," ").trim();
  if(!s||!isPlayerFacingLanguageSafe(s,{allowShortName:true}))return "";
  return s
 }

@@ -1,70 +1,70 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=57018";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57018";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57018";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57018";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=57018";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57018";
-import {maintainSession} from "./src/session-maintenance.js?v=57018";
-import {performAction} from "./src/game-engine.js?v=57018";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57018";
-import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57018";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=57018";
-import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57018";
-import {playerVisibleLocationName} from "./src/player-location-visibility.js?v=57018";
-import {playerVisibleNpcName} from "./src/player-entity-visibility.js?v=57018";
-import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57018";
-import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57018";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57018";
-import {ensureFactionRuntime} from "./src/faction-engine.js?v=57018";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57018";
-import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57018";
-import {ensureCrisis} from "./src/crisis-engine.js?v=57018";
-import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57018";
-import {playerVisibleEvents} from "./src/event-visibility.js?v=57018";
-import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57018";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=57018";
-import {randomWorldSettings} from "./src/world-randomizer.js?v=57018";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=57018";
-import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57018";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57018";
-import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57018";
-import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57018";
-import {deriveSceneTitle} from "./src/runtime-guard.js?v=57018";
-import {worldCommunication} from "./src/communication-engine.js?v=57018";
-import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57018";
-import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57018";
-import {ensureMagicRuntime} from "./src/magic-engine.js?v=57018";
-import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57018";
-import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57018";
-import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57018";
-import {marketSnapshot} from "./src/economy-engine.js?v=57018";
-import {cultureSnapshot} from "./src/culture-engine.js?v=57018";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57018";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57018";
-import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57018";
-import {worldMapSnapshot} from "./src/world-map.js?v=57018";
-import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57018";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57018";
-import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57018";
-import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57018";
-import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57018";
-import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57018";
-import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57018";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57018";
-import {createStateSessionGuard} from "./src/state-session.js?v=57018";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57018";
-import {applyOriginRuntime} from "./src/origin-runtime.js?v=57018";
-import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57018";
-import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57018";
-import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57018";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=57018";
-import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57018";
-import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57018";
-import {copyAutotestText} from "./src/autotest-copy.js?v=57018";
-import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57018";
-import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57018";
-import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,ensureAutotestDownloadBridge} from "./src/autotest-download.js?v=57018";
+import {APP_VERSION} from "./src/version.js?v=57019";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57019";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57019";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57019";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=57019";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57019";
+import {maintainSession} from "./src/session-maintenance.js?v=57019";
+import {performAction} from "./src/game-engine.js?v=57019";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57019";
+import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57019";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=57019";
+import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57019";
+import {playerVisibleLocationName} from "./src/player-location-visibility.js?v=57019";
+import {playerVisibleNpcName} from "./src/player-entity-visibility.js?v=57019";
+import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57019";
+import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57019";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57019";
+import {ensureFactionRuntime} from "./src/faction-engine.js?v=57019";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57019";
+import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57019";
+import {ensureCrisis} from "./src/crisis-engine.js?v=57019";
+import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57019";
+import {playerVisibleEvents} from "./src/event-visibility.js?v=57019";
+import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57019";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=57019";
+import {randomWorldSettings} from "./src/world-randomizer.js?v=57019";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=57019";
+import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57019";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57019";
+import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57019";
+import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57019";
+import {deriveSceneTitle} from "./src/runtime-guard.js?v=57019";
+import {worldCommunication} from "./src/communication-engine.js?v=57019";
+import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57019";
+import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57019";
+import {ensureMagicRuntime} from "./src/magic-engine.js?v=57019";
+import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57019";
+import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57019";
+import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57019";
+import {marketSnapshot} from "./src/economy-engine.js?v=57019";
+import {cultureSnapshot} from "./src/culture-engine.js?v=57019";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57019";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57019";
+import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57019";
+import {worldMapSnapshot} from "./src/world-map.js?v=57019";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57019";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57019";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57019";
+import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57019";
+import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57019";
+import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57019";
+import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57019";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57019";
+import {createStateSessionGuard} from "./src/state-session.js?v=57019";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57019";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=57019";
+import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57019";
+import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57019";
+import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57019";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=57019";
+import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57019";
+import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57019";
+import {copyAutotestText} from "./src/autotest-copy.js?v=57019";
+import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57019";
+import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57019";
+import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,ensureAutotestDownloadBridge} from "./src/autotest-download.js?v=57019";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 const stateSession=createStateSessionGuard(null);
 function captureStateSession(){return stateSession.capture(gameState)}
@@ -194,7 +194,7 @@ function cancelStateBoundWork(reason="STATE_REPLACED"){
  if(playerActionFlight.active)finishPlayerActionFlight(playerActionFlight.label||"state","state_replaced");
  recordDebug("STATE_BOUND_WORK_CANCELLED",{reason})
 }
-function replaceGameState(next,reason="STATE_REPLACED"){cancelStateBoundWork(reason);gameState=next??null;stateSession.replace(gameState);gameplayDebugSnapshot=null;npcChatHistory=new Map();recordDebug("STATE_SESSION_REPLACED",{reason,epoch:stateSession.epoch,worldId:gameState?.world?.id||null});return gameState}
+function replaceGameState(next,reason="STATE_REPLACED"){cancelStateBoundWork(reason);const cacheBefore={helperHistory:helperHistory.length,rejected:suggestionRefresh.rejected.length,excluded:suggestionRefresh.exclude.length,npcChats:npcChatHistory.size};gameState=next??null;stateSession.replace(gameState);gameplayDebugSnapshot=null;helperHistory=[];npcChatHistory=new Map();suggestionRefresh.message="";suggestionRefresh.error=false;suggestionRefresh.rejected=[];suggestionRefresh.exclude=[];recordDebug("STATE_BOUND_UI_CACHE_RESET",{reason,...cacheBefore});recordDebug("STATE_SESSION_REPLACED",{reason,epoch:stateSession.epoch,worldId:gameState?.world?.id||null});return gameState}
 function commitStatePatch(state,patch,plan,context={}){
  const grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
  if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
@@ -532,7 +532,7 @@ function renderKnownNpcs(){const dock=$("#npcDock"),box=$("#knownNpcList");if(!d
 function openNpcPanel(npcId,answer=""){const npc=findNpc(gameState,npcId);if(!npc||npc.known!==true)return;const visibleName=playerVisibleNpcName(gameState,npc),status=npc.companion?.status||"NONE",mode=npcInteractionMode(gameState,npc),interactive=Boolean(mode),local=isNpcPresent(gameState,npc),comm=worldCommunication(gameState),actions=interactive?[`<button class="primary" data-npc-chat="${esc(npc.id)}">${mode==="REMOTE"?`透過 ${esc(comm.name)} 聯絡`:"對話"}</button>`]:[`<span class="muted">目前沒有可用的聯絡方式。</span>`];if(local&&status==="OFFERED")actions.push(`<button class="secondary" data-companion="accept" data-npc-id="${esc(npc.id)}">接受同行</button>`);else if(local&&status==="ACTIVE")actions.push(`<button class="ghost" data-companion="leave" data-npc-id="${esc(npc.id)}">請求暫時離隊</button>`);else if(local)actions.push(`<button class="secondary" data-companion="invite" data-npc-id="${esc(npc.id)}">邀請同行</button>`);openModal(`<div class="eyebrow">NPC · ${esc(companionLabel(npc)||"未同行")}</div><h2>${esc(visibleName)}</h2><p>${esc(answer||npc.description||npc.role||"")}</p><div class="settings-actions">${actions.join("")}</div>`);$("#modalContent [data-npc-chat]")?.addEventListener("click",()=>openNpcConversation(npc.id));$("#modalContent [data-companion]")?.addEventListener("click",async e=>{const action=e.currentTarget.dataset.companion;let message="";if(action==="invite"){const r=inviteCompanion(gameState,npc.id);message=r.accepted?visibleName+" 接受了同行邀請。":visibleName+" 暫時沒有接受同行邀請。"}else if(action==="accept"){message=acceptCompanionOffer(gameState,npc.id)?visibleName+" 正式加入旅程。":"這個同行提議已經失效。"}else if(action==="leave"){message=dismissCompanion(gameState,npc.id)?visibleName+" 暫時離開了隊伍。":"目前無法離隊。"}bumpStateRevision(gameState,"COMPANION_ACTION");await persist();await refresh();openNpcPanel(npc.id,message)})}
 function npcConversationMessages(npcId){if(!npcChatHistory.has(npcId))npcChatHistory.set(npcId,[]);return npcChatHistory.get(npcId)}
 function openNpcConversation(npcId){if(!gameState)return;const npc=findNpc(gameState,npcId),mode=npcInteractionMode(gameState,npc);if(!npc||!mode)return;const visibleName=playerVisibleNpcName(gameState,npc),messages=npcConversationMessages(npcId),comm=worldCommunication(gameState),where=mode==="REMOTE"?"遠距 · "+comm.name:"就在附近";openModal(`<div class="npc-chat"><div class="npc-chat-head"><div class="npc-chat-avatar">${esc((visibleName||"?").slice(0,1))}</div><div><strong>${esc(visibleName)}</strong><small>${esc(npc.role||"人物")} · ${esc(where)}</small></div></div><div id="npcChatLog" class="npc-chat-log">${messages.length?messages.map(m=>`<div class="chat-bubble ${m.role==="player"?"player":"npc"}">${esc(m.text)}</div>`).join(""):`<div class="chat-bubble npc">${esc(npc.description||npc.role||"對方正等待你開口。")}</div>`}</div><div><p id="npcChatStatus" class="muted"></p><form id="npcChatForm" class="npc-chat-form"><input id="npcChatInput" maxlength="240" autocomplete="off" placeholder="對${esc(visibleName)}說些甚麼……"><button class="primary" type="submit" aria-label="送出">➤</button></form></div></div>`);const log=$("#npcChatLog");if(log)log.scrollTop=log.scrollHeight;$("#npcChatInput")?.focus();$("#npcChatForm")?.addEventListener("submit",async e=>{e.preventDefault();const input=$("#npcChatInput"),q=input?.value.trim();if(q)await submitNpcConversation(npcId,q)})}
-async function submitNpcConversation(npcId,q){markForegroundActivity();preemptBackgroundAI();if(!gameState||!q)return;if(turnSyncBusy){recordDebug("PLAYER_NPC_ACTION_BLOCKED_STATE_SYNC",{npcId,q:String(q||"").slice(0,180)});return}if(aiBusy)return;const npc=findNpc(gameState,npcId),mode=npcInteractionMode(gameState,npc);if(!npc||!mode)return;const messages=npcConversationMessages(npcId);messages.push({role:"player",text:q});openNpcConversation(npcId);const visibleName=playerVisibleNpcName(gameState,npc);setAIThinking(true,`${mode==="REMOTE"?"正在建立遠距聯絡":"正在等待"} ${visibleName} 的回應…`);const status=$("#npcChatStatus");if(status)status.textContent="對方正在回應……";let answer=`${visibleName}沒有提供更多可以確認的資訊。`;try{if(aiStatus.aiConfigured)answer=await talkToDynamicNpc(gameState,npc,q,{mode,communication:worldCommunication(gameState)});const turn=applyNpcConversationTurn(gameState,npc,q,answer);bumpStateRevision(gameState,"NPC_CONVERSATION");const suffix=turn.progressed?.length?"\n\n你從這段對話中確認到可推進任務的新線索。":"";messages.push({role:"npc",text:answer+suffix});await persist();await refresh()}catch(e){console.warn("NPC fallback",e);messages.push({role:"npc",text:answer})}finally{setAIThinking(false);openNpcConversation(npcId)}}
+async function submitNpcConversation(npcId,q){markForegroundActivity();preemptBackgroundAI();if(!gameState||!q)return;if(turnSyncBusy){recordDebug("PLAYER_NPC_ACTION_BLOCKED_STATE_SYNC",{npcId,q:String(q||"").slice(0,180)});return}if(aiBusy)return;const conversationState=gameState,conversationSession=captureStateSession(),npc=findNpc(conversationState,npcId),mode=npcInteractionMode(conversationState,npc);if(!npc||!mode)return;const messages=npcConversationMessages(npcId);messages.push({role:"player",text:q});openNpcConversation(npcId);const visibleName=playerVisibleNpcName(conversationState,npc);setAIThinking(true,`${mode==="REMOTE"?"正在建立遠距聯絡":"正在等待"} ${visibleName} 的回應…`);const status=$("#npcChatStatus");if(status)status.textContent="對方正在回應……";let answer=`${visibleName}沒有提供更多可以確認的資訊。`;try{if(aiStatus.aiConfigured)answer=await talkToDynamicNpc(conversationState,npc,q,{mode,communication:worldCommunication(conversationState)});if(!isCurrentStateSession(conversationSession)){recordDebug("NPC_CONVERSATION_STALE_DISCARDED",{npcId,worldId:conversationState.world?.id||null});return}const turn=applyNpcConversationTurn(conversationState,npc,q,answer);bumpStateRevision(conversationState,"NPC_CONVERSATION");const suffix=turn.progressed?.length?"\n\n你從這段對話中確認到可推進任務的新線索。":"";messages.push({role:"npc",text:answer+suffix});await persist(conversationState,conversationSession);if(isCurrentStateSession(conversationSession))await refresh()}catch(e){console.warn("NPC fallback",e);if(isCurrentStateSession(conversationSession))messages.push({role:"npc",text:answer})}finally{setAIThinking(false);if(isCurrentStateSession(conversationSession))openNpcConversation(npcId)}}
 function bindNpcLinks(){document.querySelectorAll("#modalContent .npc-link[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
 async function runCombatAction(action){markForegroundActivity();preemptBackgroundAI();if(!gameState?.combat?.active)return;if(turnSyncBusy){recordDebug("PLAYER_COMBAT_ACTION_BLOCKED_STATE_SYNC",{action});return}if(aiBusy)return;const r=combatAction(gameState,action);bumpStateRevision(gameState,"COMBAT_ACTION");gameState.narrative=r.summary||"戰鬥局勢發生了變化。";gameState.sceneTitle=deriveSceneTitle(gameState,action);renderRoll(r.roll);if(!gameState.combat?.active){gameState.suggestions=fallbackActionButtons("戰鬥結束")}await persist();await refresh()}
 function signed(n){const x=Number(n)||0;return x>0?`+${x}`:String(x)}
@@ -1130,7 +1130,7 @@ function bindDeveloperAutotestDownload(){
 async function openDeveloperAutotestDownload(kind){
  const artifact=developerAutotestArtifact(kind);if(!artifact){appendDeveloperAutotestLog("找不到可下載的 AutoTest 匯出內容。");openDeveloperAutotestPanel();return}
  releaseDeveloperAutotestDownloadLease();
- try{const payload=await buildAutotestDownloadPayload(artifact),bridge=await ensureAutotestDownloadBridge({scriptUrl:"./autotest-export-sw.js?v=57018",scope:"./",timeoutMs:8000}),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false,bridgeStatus:bridge.status,bridgeControlled:bridge.controlled,leaseMethod:lease.method});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
+ try{const payload=await buildAutotestDownloadPayload(artifact),bridge=await ensureAutotestDownloadBridge({scriptUrl:"./autotest-export-sw.js?v=57019",scope:"./",timeoutMs:8000}),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false,bridgeStatus:bridge.status,bridgeControlled:bridge.controlled,leaseMethod:lease.method});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
  catch(error){appendDeveloperAutotestLog(`標準下載資料建立失敗：${error?.message||error}`);recordDebug("AUTOTEST_DOWNLOAD_PREPARE_FAILED",{kind,error:error?.message||String(error)});openDeveloperAutotestPanel()}
 }
 function developerAutotestTransferLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界檔":"Recovery JSON"}
@@ -1194,7 +1194,7 @@ async function startDeveloperAutotest(config){
     appendDeveloperAutotestLog(`世界 ${i}/${config.totalWorldCount} · ${DIFFICULTY_PRESETS[difficulty]?.label||difficulty}：隨機設定並開始生成。`);
     const raw=randomAutotestWorldRaw(Math.random,i);raw.difficulty=difficulty;const generated=await createDeveloperAutotestWorld(raw,i);
     result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
-    replaceGameState(generated.state,"AUTOTEST_WORLD_READY");const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);
+    replaceGameState(generated.state,"AUTOTEST_WORLD_READY");recordDebug("AUTOTEST_WORLD_SCOPE_READY",{index:i,worldId:gameState?.world?.id||null,eventCount:gameState?.events?.length||0,suggestionCount:gameState?.suggestions?.length||0,location:gameState?.player?.location||null});const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);
     if(config.mode==="worlds"){
      await finalizeDeveloperAutotestWorld(config);
      result.status="COMPLETED";result.phase="GENERATION";result.stopReason="WORLD_GENERATED";result.summary=autotestWorldSummary(gameState);result.world=structuredClone(gameState);developerAutotest.results.push(result);

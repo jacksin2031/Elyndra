@@ -1,25 +1,26 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57018";
-import {seedDirective} from "./seed-contract.js?v=57018";
-import {recognitionForNpc} from "./recognition-engine.js?v=57018";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57018";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57018";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57018";
-import {helperSnapshot} from "./helper-context.js?v=57018";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57018";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57018";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=57018";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57018";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=57018";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=57018";
-import {normalizeActionIntent} from "./action-intent.js?v=57018";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57018";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57018";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=57018";
-import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57018";
-import {historyDepthSnapshot} from "./history-depth.js?v=57018";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57018";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57018";
-import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57018";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57019";
+import {seedDirective} from "./seed-contract.js?v=57019";
+import {recognitionForNpc} from "./recognition-engine.js?v=57019";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57019";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57019";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57019";
+import {helperSnapshot} from "./helper-context.js?v=57019";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57019";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57019";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=57019";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57019";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=57019";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=57019";
+import {normalizeActionIntent} from "./action-intent.js?v=57019";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57019";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57019";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=57019";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57019";
+import {historyDepthSnapshot} from "./history-depth.js?v=57019";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57019";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57019";
+import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57019";
+import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57019";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -412,7 +413,14 @@ export async function runWorldQualityCritic(state,options={}){
 }
 
 export async function talkToNpc(state,key,message){const npc=state.npcs?.[key];if(!npc)throw new Error("NPC_NOT_FOUND");const knownFacts=npcKnownFacts(state,npc),payload={message,npc,knownFacts,memories:npc.memories||[],scene:{day:state.world.state.day,location:state.player.location}};if(hasDirectAI())return directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。只能使用提供的 knownFacts 與 memories，不知道就表現不知道。繁體中文1-4句。`,user:JSON.stringify(payload)});return (await post("/api/npc",payload)).text}
-export async function talkToDynamicNpc(state,npc,message,contact={}){const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),behavior=npcBehaviorSnapshot(npc),originContext=originNpcContext(state,npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,behavior},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,originContext,contact:{mode:contact.mode||"LOCAL",communication:contact.communication||null},scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location,weather:playerWeatherSnapshot(state)}};if(hasDirectAI()){const raw=await directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。保持 personality、goal、behavior 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。behavior 是玩家可感受到的一致人格：回答時自然體現其中一項 mannerism、speechPattern、habit、value、fear 或 contradiction，但不要每句都重複同一習慣，也不要把欄位名稱唸出來。若 memories 或 behavior.promises / grudges 與玩家本次說話有關，必須記得並以行為或措辭反映；不要說出 trust 數值或任何內部關係數值。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。originContext 是 Engine 根據玩家 Origin 計算的身份與語言邊界：reaction 只影響演出語氣，不能自行修改 trust；languageMode=GESTURE 時不可讓雙方突然流利理解語言，只能用姿勢、表情、指向與極少量可推斷意思；FRAGMENTED 時可表現詞彙／理解不完整。若 contact.mode=REMOTE，必須自然反映 payload.contact.communication 所定義的世界內通訊媒介與限制，但不要自行發明更高階技術。不知道的事不可捏造。只使用繁體中文1-5句；除既有專有名詞外不要切換其他語言，不要輸出系統標籤。`,user:JSON.stringify(payload)});return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}const raw=(await post("/api/npc",payload)).text;return sanitizePlayerText(raw,700,`${npc.name}暫時沒有再補充更多資訊。`)}
+export async function talkToDynamicNpc(state,npc,message,contact={}){
+ const knownFacts=npcKnownFacts(state,npc),recognition=recognitionForNpc(state,npc),behavior=npcBehaviorSnapshot(npc),originContext=originNpcContext(state,npc),visibleName=playerVisibleNpcName(state,npc),payload={message,npc:{id:npc.id,name:npc.name,role:npc.role,description:npc.description,personality:npc.personality,goal:npc.goal,behavior},knownFacts,memories:(npc.memories||[]).slice(-12),recognition,originContext,contact:{mode:contact.mode||"LOCAL",communication:contact.communication||null},scene:{day:state.world.state.day,clock:state.world.state.clock,location:state.player.location,weather:playerWeatherSnapshot(state)}};
+ const identityRule=`你的 canonical 姓名精確為「${npc.name}」。若回答內需要自稱或寫出自己的名字，必須逐字使用這個字串，不得音譯、近音改字或自行改拼法。`;
+ let raw="";
+ if(hasDirectAI())raw=await directChat({aiTask:"npc",timeoutMs:45000,system:`你扮演 Elyndra NPC「${npc.name}」。${identityRule} 保持 personality、goal、behavior 與既有 memories 一致。只能使用 knownFacts、memories 與 recognition.knownDeeds；public Canon 並不代表你自動知道。behavior 是玩家可感受到的一致人格：回答時自然體現其中一項 mannerism、speechPattern、habit、value、fear 或 contradiction，但不要每句都重複同一習慣，也不要把欄位名稱唸出來。若 memories 或 behavior.promises / grudges 與玩家本次說話有關，必須記得並以行為或措辭反映；不要說出 trust 數值或任何內部關係數值。recognition.knownDeeds 是這名 NPC 合理聽過的玩家事蹟，可以自然影響稱呼、語氣與態度；如果為空就不可突然認識玩家的名聲。originContext 是 Engine 根據玩家 Origin 計算的身份與語言邊界：reaction 只影響演出語氣，不能自行修改 trust；languageMode=GESTURE 時不可讓雙方突然流利理解語言，只能用姿勢、表情、指向與極少量可推斷意思；FRAGMENTED 時可表現詞彙／理解不完整。若 contact.mode=REMOTE，必須自然反映 payload.contact.communication 所定義的世界內通訊媒介與限制，但不要自行發明更高階技術。不知道的事不可捏造。只使用繁體中文1-5句；除既有專有名詞外不要切換其他語言，不要輸出系統標籤。`,user:JSON.stringify(payload)});
+ else raw=(await post("/api/npc",payload)).text;
+ const safe=sanitizePlayerText(raw,700,`${visibleName}暫時沒有再補充更多資訊。`);return canonicalizeNpcIdentityText(state,npc,safe)
+}
 export const turnDirectorMode=sharedTurnDirectorMode;
 
 export async function askTravelHelper(state,question){
