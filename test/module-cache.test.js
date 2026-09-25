@@ -10,7 +10,7 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  }
 });
 
-test("v0.57.6 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
+test("v0.57.7 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
  const [html,app,client,stateSync,actions,settings,contracts,adventure,turnOutcome,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8"),
@@ -33,7 +33,7 @@ test("v0.57.6 keeps structured AI and Developer Autotest cache graphs coherent",
  ]);
  assert.match(html,/app\.js\?v=57006/);
  const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
- assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="57006"),"all app browser imports must use the v0.57.6 cache generation");assert.ok(appImports.includes("57006"),"the runtime graph must expose the v0.57.6 cache token");
+ assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="57007"),"all app browser imports must use the v0.57.7 cache generation");assert.ok(appImports.includes("57007"),"the runtime graph must expose the v0.57.6 cache token");
  assert.match(actions,/\.\/action-intent\.js\?v=57006/);assert.match(contracts,/\.\/action-intent\.js\?v=57006/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=57006/);
  assert.match(client,/\.\/ai-settings\.js\?v=57006/);
  assert.match(client,/\.\/turn-compiler\.js\?v=57006/);assert.match(client,/\.\/turn-outcome\.js\?v=57006/);
