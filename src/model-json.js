@@ -1,3 +1,12 @@
+
+const HANT_CHAR_MAP=Object.freeze({"这":"這","转":"轉","询":"詢","问":"問","当":"當","视":"視","现":"現","节":"節","轻":"輕","触":"觸","锋":"鋒","锐":"銳","属":"屬","边":"邊","缘":"緣","测":"測","试":"試","温":"溫","质":"質","闭":"閉","仪":"儀","监":"監","为":"為","从":"從","确":"確","认":"認","记":"記","录":"錄","状":"狀","态":"態","细":"細","详":"詳","标":"標","围":"圍","环":"環","参":"參","见":"見","续":"續","验":"驗","证":"證","获":"獲","长":"長","设":"設","仅":"僅","报":"報","断":"斷","体":"體","统":"統","网":"網","络":"絡","灵":"靈","气":"氣","区":"區","门":"門","进":"進","观":"觀","点":"點","线":"線","导":"導","级":"級","结":"結","构":"構","开":"開","关":"關","与":"與","动":"動","无":"無","处":"處","应":"應","术":"術","觉":"覺","话":"話","资":"資","阶":"階"});
+function normalizeModelHant(value){
+ if(typeof value==="string")return [...value].map(ch=>HANT_CHAR_MAP[ch]||ch).join("");
+ if(Array.isArray(value))return value.map(normalizeModelHant);
+ if(value&&typeof value==="object"){for(const key of Object.keys(value))value[key]=normalizeModelHant(value[key]);return value}
+ return value
+}
+function parsedModelJSON(value){return normalizeModelHant(JSON.parse(value))}
 function stripTrailingModelCommas(value){
  let out="",inString=false,escaped=false;
  for(let i=0;i<value.length;i++){
@@ -84,16 +93,16 @@ export function parseModelJSON(raw){
  if(a>=0&&b>a&&(a!==0||b!==source.length-1))candidates.push(source.slice(a,b+1));
  let lastError=null;
  for(const candidate of [...new Set(candidates)]){
-  try{return JSON.parse(candidate)}
+  try{return parsedModelJSON(candidate)}
   catch(error){lastError=error}
   const repaired=stripTrailingModelCommas(candidate);
-  if(repaired!==candidate)try{return JSON.parse(repaired)}catch(error){lastError=error}
+  if(repaired!==candidate)try{return parsedModelJSON(repaired)}catch(error){lastError=error}
   const structural=insertMissingModelCommas(repaired);
-  if(structural!==repaired)try{return JSON.parse(structural)}catch(error){lastError=error}
+  if(structural!==repaired)try{return parsedModelJSON(structural)}catch(error){lastError=error}
   const properties=insertMissingPropertyCommas(structural);
-  if(properties!==structural)try{return JSON.parse(properties)}catch(error){lastError=error}
+  if(properties!==structural)try{return parsedModelJSON(properties)}catch(error){lastError=error}
   const closed=closeUnfinishedModelJSON(properties);
-  if(closed!==properties)try{return JSON.parse(closed)}catch(error){lastError=error}
+  if(closed!==properties)try{return parsedModelJSON(closed)}catch(error){lastError=error}
  }
  const detail=lastError?.message||"parse failed";
  throw new Error("INVALID_MODEL_JSON: "+detail)

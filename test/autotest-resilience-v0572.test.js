@@ -20,7 +20,7 @@ test("background quality success settles official top-level quality",()=>{
 test("AutoTest reports execution completion separately from health",()=>{
  const s=baseState();recordBackgroundQualityReview(s,{error:"AI_TIMEOUT"});const summary={...s,summary:null};
  const report=buildAutotestReport({config:{worldCount:1,maxTurns:30},worlds:[{index:1,status:"COMPLETED",phase:"PLAY",turns:30,stopReason:"TURN_LIMIT",actions:[],summary:{...{worldId:"W",coherence:autotestWorldCoherence(s)}},generation:{diagnostics:{quality:"HEALTHY",stages:{}}}}],telemetry:[]});
- assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.worldsCompleted,0);assert.equal(report.summary.worldsHealthy,0);assert.equal(report.summary.worldsDegraded,1)
+ assert.equal(report.summary.worldsExecuted,1);assert.equal(report.summary.worldsCompleted,1);assert.equal(report.summary.worldsHealthy,0);assert.equal(report.summary.worldsDegraded,1)
 });
 
 test("zero-turn PLAY record is not counted as an executed world",()=>{

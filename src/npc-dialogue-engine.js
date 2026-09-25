@@ -1,11 +1,11 @@
-import {advanceTime} from "./world-clock.js?v=57013";
-import {tickWorld} from "./world-simulation.js?v=57013";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=57013";
-import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57013";
-import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57013";
-import {npcInteractionMode} from "./world-registry.js?v=57013";
-import {npcConversationMinutes} from "./communication-engine.js?v=57013";
-import {sanitizePlayerText,deriveSceneTitle} from "./runtime-guard.js?v=57013";
+import {advanceTime} from "./world-clock.js?v=57014";
+import {tickWorld} from "./world-simulation.js?v=57014";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=57014";
+import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57014";
+import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57014";
+import {npcInteractionMode} from "./world-registry.js?v=57014";
+import {npcConversationMinutes} from "./communication-engine.js?v=57014";
+import {sanitizePlayerText,deriveSceneTitle} from "./runtime-guard.js?v=57014";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 
 export function applyNpcConversationTurn(state,npc,{question="",answer=""}={}){

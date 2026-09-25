@@ -1,7 +1,7 @@
-import {ensureFutureEngine,applyFuturePressure,recomputeFutureStage,mirrorLegacyCrisisToFuture} from "./future-engine.js?v=57013";
-import {ensureHistoryFutureLinks} from "./history-future.js?v=57013";
-import {appendWorldLedger,promoteLedgerEntryToHistory,ensureWorldLedger} from "./world-ledger.js?v=57013";
-import {seedHistoryLegacy} from "./history-legacy.js?v=57013";
+import {ensureFutureEngine,applyFuturePressure,recomputeFutureStage,mirrorLegacyCrisisToFuture} from "./future-engine.js?v=57014";
+import {ensureHistoryFutureLinks} from "./history-future.js?v=57014";
+import {appendWorldLedger,promoteLedgerEntryToHistory,ensureWorldLedger} from "./world-ledger.js?v=57014";
+import {seedHistoryLegacy} from "./history-legacy.js?v=57014";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uid=p=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));

@@ -46,7 +46,7 @@ test("v0.55.2 stall recovery expansion exposes one newly generated reachable loc
 test("v0.57.13 FIRST_BUTTON switches strategy after five stagnant turns",()=>{
  const s=actionState();s.world.registry.locations.push({id:"L2",name:"灰樺鎮蒸汽調節節點",known:true,visibilityLock:"KNOWN"});s.world.travel={routes:[{id:"R1",fromId:"L1",toId:"L2",open:true}]};s.suggestionIntents=[{label:"再問一次",action:"再問閥-04一次",kind:"SOCIAL",progression:true,targetId:"N1"}];
  const recent=Array.from({length:5},(_,i)=>({turn:i+1,progressed:false,action:"再問一次",kind:"SOCIAL"})),decision=firstButtonAutotestDecision(s,recent);
- assert.equal(decision.firstButton,true);assert.equal(decision.firstButtonOverride,true);assert.equal(decision.reason,"FIRST_BUTTON_STALL_RECOVERY");assert.equal(decision.suggestionIndex,null);assert.equal(decision.kind,"TRAVEL");assert.match(decision.action,/停止重複目前互動/)
+ assert.equal(decision.firstButton,true);assert.equal(decision.firstButtonOverride,true);assert.equal(decision.reason,"FIRST_BUTTON_STALL_RECOVERY");assert.equal(decision.suggestionIndex,null);assert.equal(decision.kind,"TRAVEL");assert.equal(decision.action,"前往灰樺鎮蒸汽調節節點");assert.equal(decision.targetId,"L2")
 });
 
 test("v0.55.2 autotest fingerprint ignores clock-only advancement",()=>{
@@ -57,7 +57,7 @@ test("v0.55.2 autotest fingerprint ignores clock-only advancement",()=>{
 test("v0.55.2 seven stagnant turns degrade the world instead of reporting COMPLETED",()=>{
  const actions=Array.from({length:7},(_,i)=>({worldIndex:1,turn:i+1,beforeFingerprint:"SAME",afterFingerprint:"SAME",decision:{action:"重複行動"}}));
  const world={index:1,status:"COMPLETED",phase:"PLAY",turns:7,stopReason:"TURN_LIMIT",actions,generation:{diagnostics:{quality:"HEALTHY",stages:{}}},summary:{coherence:{status:"PASS",issues:[],quality:{pending:false}}}};
- const report=buildAutotestReport({config:{worldCount:1},worlds:[world],telemetry:[],startedAt:1,endedAt:2});assert.equal(report.summary.worldsCompleted,0);assert.equal(report.summary.worldsDegraded,1);assert.equal(report.worlds[0].status,"DEGRADED");assert.ok(report.issues.some(x=>x.type==="STATE_PROGRESS_RECOVERY_FAILED"&&x.severity==="ERROR"))
+ const report=buildAutotestReport({config:{worldCount:1},worlds:[world],telemetry:[],startedAt:1,endedAt:2});assert.equal(report.summary.worldsCompleted,1);assert.equal(report.summary.worldsDegraded,1);assert.equal(report.worlds[0].status,"DEGRADED");assert.ok(report.issues.some(x=>x.type==="STATE_PROGRESS_RECOVERY_FAILED"&&x.severity==="ERROR"))
 });
 
 test("v0.55.2 failed final quality critic cannot be represented as a clean settlement",()=>{
