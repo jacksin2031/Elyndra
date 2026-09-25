@@ -20,7 +20,7 @@ export function buildAutotestExportSnapshot({appVersion="",report={},results=[],
 export function buildAutotestExportArtifacts(snapshot={}){
  const s=normalizeSnapshot(snapshot),debugEnabled=s.exportMode!=="world",worldEnabled=s.exportMode!=="debug",artifacts={debug:null,world:null,recovery:null};
  if(debugEnabled)artifacts.debug={kind:"debug",filename:`Elyndra-autotest-debug-v${s.appVersion}-${s.stamp}.json`,mime:"application/json;charset=utf-8",body:JSON.stringify(s.debugPayload,null,2)};
- if(worldEnabled&&s.worlds.length===1)artifacts.world={kind:"world",filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/json;charset=utf-8",body:JSON.stringify(s.worlds[0].world,null,2)};
+ if(worldEnabled&&s.worlds.length===1)artifacts.world={kind:"world",filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/octet-stream",body:JSON.stringify(s.worlds[0].world,null,2)};
  else if(worldEnabled&&s.worlds.length)artifacts.world={kind:"world",filename:`Elyndra-autotest-worlds-v${s.appVersion}-${s.stamp}.json`,mime:"application/json;charset=utf-8",body:JSON.stringify({schema:"elyndra-autotest-worlds-v1",appVersion:s.appVersion,createdAt:s.createdAt,worlds:s.worlds},null,2)};
  if(artifacts.debug&&artifacts.world)artifacts.recovery={kind:"recovery",filename:`Elyndra-autotest-recovery-v${s.appVersion}-${s.stamp}.json`,mime:"application/json;charset=utf-8",body:JSON.stringify({schema:"elyndra-autotest-recovery-v1",appVersion:s.appVersion,createdAt:s.createdAt,debug:s.debugPayload,worlds:s.worlds},null,2)};
  return artifacts
