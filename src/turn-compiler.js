@@ -1,4 +1,4 @@
-import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=57006";
+import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=57011";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>text(x,maxLen)).filter(Boolean))].slice(0,max):[];
 const SUGGESTION_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);

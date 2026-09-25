@@ -1,4 +1,4 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57006";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57011";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -89,10 +89,10 @@ export function normalizeContextualSuggestion(row={}){
  }
 }
 function progressionSuggestion(state){
- const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],event=recentVisibleEvent(state),loc=currentLocation(state);
- if(npc&&objective)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}目前目標最直接的線索`,action:`向${clean(npc.name,50)}詢問怎樣才能確認「${objective}」，只追問對方親眼知道或能指出的具體線索`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
- if(event?.summary)return normalizeContextualSuggestion({label:`追查「${clean(event.summary,44)}」留下的下一條線索`,action:`沿著最近事件「${clean(event.summary,100)}」造成的可見影響，找出一項能繼續追查的具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"最近玩家已知事件可被繼續調查",requirementsSatisfied:true,source:"ENGINE"});
- if(objective)return normalizeContextualSuggestion({label:`找出能推進「${objective.slice(0,38)}」的證據`,action:`在${loc}針對目前目標「${objective}」尋找一項可以直接驗證、並能指出下一步去向的線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"目前主線目標仍未完成",requirementsSatisfied:true,source:"ENGINE"});
+ const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),sameNpcAttempts=npc?.name?(recentText.split(String(npc.name)).length-1):0;
+ if(npc&&objective&&sameNpcAttempts<2)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}目前目標最直接的線索`,action:`向${clean(npc.name,50)}詢問目前目標下一個可親眼確認的具體線索，只問對方親身知道或能指出的位置、人物或事件`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
+ if(event?.summary)return normalizeContextualSuggestion({label:`追查「${clean(event.summary,44)}」留下的下一條線索`,action:`沿著最近事件「${clean(event.summary,100)}」造成的可見影響，找出一項能繼續追查的具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"連續詢問同一人物後切換到可觀察證據":"最近玩家已知事件可被繼續調查",requirementsSatisfied:true,source:"ENGINE"});
+ if(objective)return normalizeContextualSuggestion({label:"找出能推進目前目標的具體證據",action:`在${loc}尋找一項可以直接驗證、並能指出下一步去向的具體線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"避免連續向同一 NPC 重複追問":"目前主線目標仍未完成",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`在${loc}找出最值得繼續追查的新線索`,action:`在${loc}檢查最近出現的異常、痕跡或人物反應，找出一項可以實際追查的下一步線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"目前場景允許建立下一個可驗證目標",requirementsSatisfied:true,source:"ENGINE"})
 }
 function personalizedSuggestion(state){
