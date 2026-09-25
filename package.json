@@ -1,12 +1,13 @@
 {
   "name": "elyndra",
-  "version": "0.57.12",
+  "version": "0.57.13",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "npm run version:check && npm run cache:check && node scripts/check-js.mjs && node --test",
     "cache:check": "node scripts/check-cache-bust.mjs",
-    "version:check": "node scripts/check-version.mjs"
+    "version:check": "node scripts/check-version.mjs",
+    "test:nondownload": "npm run version:check && npm run cache:check && node scripts/check-js.mjs && node scripts/run-nondownload-tests.mjs"
   },
   "engines": {
     "node": ">=20"

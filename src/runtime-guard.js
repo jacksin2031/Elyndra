@@ -1,10 +1,11 @@
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=57012";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=57013";
 const clean=(v,max=1200)=>String(v??"").normalize("NFC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").replace(/\uFFFD/g,"").trim().slice(0,max);
 const SYSTEM_LINE=/^\s*(?:\[|【)\s*(?:世界動向|世界改變|世界開始記住你|系統|SYSTEM|WORLD\s*(?:EVENT|UPDATE)|DEBUG|STATE)\s*(?:\]|】)\s*[:：-]?\s*/i;
 const ROLE_LINE=/^\s*(?:narrative|scene|assistant|system|敘事|旁白)\s*[:：]\s*/i;
 const FOREIGN=/[\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/g;
 const HAN=/[\u3400-\u9fff]/g;
 const LATIN=/[A-Za-z]/g;
+const SIMPLIFIED_MARKER=/[这转询问当视现节轻触锋锐属边缘测试温质闭仪监为从发]/g;
 
 export function stripSystemLabels(value,max=1200){
  let s=clean(value,max);
@@ -15,6 +16,7 @@ export function stripSystemLabels(value,max=1200){
 export function isPlayerFacingLanguageSafe(value,{allowShortName=false}={}){
  const s=clean(value,1600);if(!s)return false;
  const foreign=(s.match(FOREIGN)||[]).length;if(foreign>Math.max(1,Math.floor(s.length*.03)))return false;
+ if((s.match(SIMPLIFIED_MARKER)||[]).length)return false;
  const han=(s.match(HAN)||[]).length,latin=(s.match(LATIN)||[]).length;
  if(allowShortName&&s.length<=24)return foreign===0;
  if(s.length>=24&&han<4&&latin>12)return false;

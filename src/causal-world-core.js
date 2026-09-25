@@ -1,15 +1,15 @@
-import {ensureWorldLedger,seedLedgerFromEvents,appendWorldLedger} from "./world-ledger.js?v=57012";
-import {ensureGenerationClaims,syncGenerationClaimsFromCausalStructure,reconcileGenerationClaims} from "./generation-claims.js?v=57012";
-import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.js?v=57012";
-import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=57012";
-import {ensureItemHeritage} from "./item-heritage.js?v=57012";
-import {ensureDocumentRuntime} from "./document-engine.js?v=57012";
-import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=57012";
-import {ensureHistoryDepth,historyDepthSnapshot} from "./history-depth.js?v=57012";
-import {syncHistoryLegacy,historyLegacySnapshot} from "./history-legacy.js?v=57012";
-import {ensureVisibilityLocks,visibilityLockSnapshot} from "./visibility-lock.js?v=57012";
-import {ensureWorldCatalog,worldCatalogSnapshot} from "./world-catalog.js?v=57012";
-import {repairCausalIntegrity,auditCausalIntegrity} from "./causal-integrity.js?v=57012";
+import {ensureWorldLedger,seedLedgerFromEvents,appendWorldLedger} from "./world-ledger.js?v=57013";
+import {ensureGenerationClaims,syncGenerationClaimsFromCausalStructure,reconcileGenerationClaims} from "./generation-claims.js?v=57013";
+import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.js?v=57013";
+import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=57013";
+import {ensureItemHeritage} from "./item-heritage.js?v=57013";
+import {ensureDocumentRuntime} from "./document-engine.js?v=57013";
+import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=57013";
+import {ensureHistoryDepth,historyDepthSnapshot} from "./history-depth.js?v=57013";
+import {syncHistoryLegacy,historyLegacySnapshot} from "./history-legacy.js?v=57013";
+import {ensureVisibilityLocks,visibilityLockSnapshot} from "./visibility-lock.js?v=57013";
+import {ensureWorldCatalog,worldCatalogSnapshot} from "./world-catalog.js?v=57013";
+import {repairCausalIntegrity,auditCausalIntegrity} from "./causal-integrity.js?v=57013";
 
 export function ensureCausalWorldCore(state){
  if(!state?.world)throw new Error("CAUSAL_WORLD_STATE_REQUIRED");

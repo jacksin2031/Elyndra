@@ -1,18 +1,19 @@
-import {d20} from "./world-engine.js?v=57012";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=57012";
-import {advanceTime,ensureClock} from "./world-clock.js?v=57012";
-import {tickWorld} from "./world-simulation.js?v=57012";
-import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=57012";
-import {applyCultureAction} from "./culture-engine.js?v=57012";
-import {resolveEconomyAction} from "./economy-engine.js?v=57012";
-import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=57012";
-import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=57012";
-import {exploreDungeon} from "./dungeon-engine.js?v=57012";
-import {resolveTalentAction} from "./talent-engine.js?v=57012";
-import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=57012";
-import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=57012";
-import {isNpcPresent} from "./world-registry.js?v=57012";
-import {markEntityObserved} from "./visibility-lock.js?v=57012";
+import {d20} from "./world-engine.js?v=57013";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=57013";
+import {advanceTime,ensureClock} from "./world-clock.js?v=57013";
+import {tickWorld} from "./world-simulation.js?v=57013";
+import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=57013";
+import {applyCultureAction} from "./culture-engine.js?v=57013";
+import {resolveEconomyAction} from "./economy-engine.js?v=57013";
+import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=57013";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=57013";
+import {exploreDungeon} from "./dungeon-engine.js?v=57013";
+import {resolveTalentAction} from "./talent-engine.js?v=57013";
+import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=57013";
+import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=57013";
+import {isNpcPresent} from "./world-registry.js?v=57013";
+import {markEntityObserved} from "./visibility-lock.js?v=57013";
+import {adjustNpcRelationship} from "./npc-cognition.js?v=57013";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const AMBIGUOUS_MUTATION=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意|如果|假如|若果|若|除非|是否|能否|可否|要不要|[?？]|[「」『』])/i;
@@ -62,6 +63,17 @@ function markLocalNpcInteraction(state,label,assessment=null){
  npc.memories.push({id:id(),type:"interaction",summary,day:state?.world?.state?.day||1,minute,mode:"LOCAL",grounded:true});npc.memories=npc.memories.slice(-12);npc.lastActionMinute=minute;
  state.events??=[];state.events.push({id:id(),type:"NPC_INTERACTION",visibility:"PLAYER_KNOWN",npcId:npc.id,firstEncounter,summary,day:state?.world?.state?.day||1,minute,at:Date.now()});
  return {npcId:npc.id,firstEncounter}
+}
+function applyLocalNpcRelationshipOutcome(state,interaction,roll,kind,label){
+ if(!interaction?.npcId||String(kind||"").toUpperCase()!=="SOCIAL"||!roll)return null;
+ const npc=(state.world?.registry?.npcs||[]).find(x=>x?.id===interaction.npcId);if(!npc)return null;
+ const grade=String(roll.grade||"").toUpperCase();let changes=null;
+ if(grade==="CRITICAL_SUCCESS")changes={trust:6,respect:4,fear:-1};
+ else if(grade==="SUCCESS")changes={trust:2,respect:1};
+ else if(grade==="CRITICAL_FAILURE")changes={trust:-2,respect:-1,fear:2};
+ if(!changes)return null;
+ const relationship=adjustNpcRelationship(state,npc,{changes,reason:`玩家社交行動「${clean(label,100)}」由 Engine 判定為 ${grade}。`});
+ return {npcId:npc.id,grade,changes,relationship}
 }
 export function resolveEngineFeasibility(state,label,assessment=null){
  const q=clean(label,180),intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=String(assessment?.actionIntent?.targetId||assessment?.targetId||"");
@@ -142,6 +154,7 @@ export function performAction(state,action="free",customText="",assessment=null)
  if(!gate.ok){state.narrative=gate.message;state.events.push({id:id(),type:"PLAYER_ACTION_BLOCKED",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,reason:gate.reason,day:state.world.state.day,at:Date.now()});return {blocked:true,roll:null,text:gate.message,minutes:0,actionKind:profile.kind,check:null,training:null,ruleEffects:{gate,npcInteraction}}}
  const check=buildActionCheck(state,label,profile),roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
+ const npcRelationship=applyLocalNpcRelationshipOutcome(state,npcInteraction,roll,profile.kind,label);
  advanceTime(state,profile.minutes);
  const economy=resolveEconomyAction(state,label,roll),paidLodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),restGranted=profile.rest===true&&roll.success&&(!paidLodging||economy?.ok===true);
  const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
@@ -150,5 +163,5 @@ export function performAction(state,action="free",customText="",assessment=null)
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,originalAction:originalLabel,actionAssessment:assessment?{verdict:assessment.verdict,kind:assessment.kind,reason:assessment.reason,confidence:assessment.confidence}:null,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress,npcInteraction,engineFeasibility}}
+ return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress,npcInteraction,npcRelationship,engineFeasibility}}
 }
