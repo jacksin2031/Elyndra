@@ -38,8 +38,30 @@ jobs:
                   stale.append(str(p))
           if stale:
               raise SystemExit('CACHE_CLOSURE_STALE_REMAINS:'+','.join(stale))
+
+          # The failing assertions captured in run 36113806247 are stale
+          # cache-generation contracts. Keep the repair scoped to those four
+          # proven failing test files and advance only their cache token.
+          contract_files=[
+              Path('test/module-cache.test.js'),
+              Path('test/staged-world-compiler.test.js'),
+              Path('test/v05412-regressions.test.js'),
+              Path('test/v05414-regressions.test.js'),
+          ]
+          contract_updates=[]
+          for p in contract_files:
+              s=p.read_text(encoding='utf-8')
+              n=s.count('57006')
+              if not n:
+                  raise SystemExit('CACHE_CONTRACT_NO_57006_EXPECTATION:'+str(p))
+              p.write_text(s.replace('57006','57011'),encoding='utf-8')
+              contract_updates.append((str(p),n))
+
           print(f'Updated {replacements} import tokens across {len(changed)} source files')
           for name,count in changed:
+              print(f' - {name}: {count}')
+          print(f'Updated diagnosed cache expectations across {len(contract_updates)} test files')
+          for name,count in contract_updates:
               print(f' - {name}: {count}')
           PY
       - name: Full PR-equivalent unit regression and cache contract
