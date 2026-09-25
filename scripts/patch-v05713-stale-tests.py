@@ -40,6 +40,25 @@ rewrite_block(
     "V0552_STALL_RECOVERY",
 )
 
+# A successful SOCIAL action now records both the grounded interaction and a relationship-change memory.
+# The compatibility contract is that the interaction memory persists, not that it must remain the last row.
+interaction_test = r'''test("generic local TALK action persists encounter and grounded interaction memory",()=>{
+ const state=localNpcState(),npc=state.world.registry.npcs[0];
+ performAction(state,"free","向轉生官·阿爾卑斯詢問壁爐的運作方法",{verdict:"ALLOW",kind:"SOCIAL",intent:"TALK",targetId:"NPC-ALP",actionIntent:{intent:"TALK",targetId:"NPC-ALP"}});
+ assert.equal(npc.encountered,true);
+ assert.ok(npc.memories.length>=1);
+ const interaction=npc.memories.find(x=>x.type==="interaction");
+ assert.ok(interaction);
+ assert.equal(interaction.grounded,true);
+ assert.ok(state.events.some(e=>e.type==="NPC_INTERACTION"&&e.npcId==="NPC-ALP"));
+});'''
+rewrite_block(
+    "test/runtime-progression-grounding-v05418.test.js",
+    r'test\("generic local TALK action persists encounter and grounded interaction memory",\(\)=>\{.*?\n\}\);',
+    interaction_test,
+    "NPC_INTERACTION_MEMORY_COMPAT",
+)
+
 version_ui = ROOT / "test/version-ui.test.js"
 source = version_ui.read_text(encoding="utf-8")
 source = source.replace("// v0.57.12 release contract", "// v0.57.13 release contract")
