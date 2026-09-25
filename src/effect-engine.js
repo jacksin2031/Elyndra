@@ -1,4 +1,4 @@
-import {EFFECT_RUNTIME_VERSION,EFFECT_CATEGORIES,EFFECT_SCOPES,EFFECT_DURATIONS,EFFECT_VISIBILITY,EFFECT_STATES,EFFECT_DEFINITIONS,SEMANTIC_SEVERITY,severityFromIntensity,intensityForSeverity,validateEffectProposal} from "./effect-schema.js?v=57021";
+import {EFFECT_RUNTIME_VERSION,EFFECT_CATEGORIES,EFFECT_SCOPES,EFFECT_DURATIONS,EFFECT_VISIBILITY,EFFECT_STATES,EFFECT_DEFINITIONS,SEMANTIC_SEVERITY,severityFromIntensity,intensityForSeverity,validateEffectProposal} from "./effect-schema.js?v=57022";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const clean=(v,max=160)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=v=>Array.isArray(v)?v:[];

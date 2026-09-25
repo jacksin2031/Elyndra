@@ -16,14 +16,14 @@ const scope={
  visibleEventTexts:["藍色晶體粉末在裂隙邊緣緩慢漂動。"]
 };
 
-test("v0.57.21 rejects stale NPC and foreign room baseline in player-visible scene",()=>{
+test("v0.57.22 rejects stale NPC and foreign room baseline in player-visible scene",()=>{
  const result=validateSceneProvenance({sceneTitle:"眼前的裂隙",narrative:"阿洛：一名渾身晶塵傷痕的少年，剛從崩裂的牆外跌入石室。"},scope);
  assert.equal(result.valid,false);
  assert.ok(result.issues.some(x=>x.type==="NPC_NOT_PRESENT"&&x.value==="阿洛"));
  assert.ok(result.issues.some(x=>x.type==="SCENE_CONTAINER_UNGROUNDED"&&x.value==="石室"));
 });
 
-test("v0.57.21 rejects suggestion targets from a foreign scene but accepts current-location targets",()=>{
+test("v0.57.22 rejects suggestion targets from a foreign scene but accepts current-location targets",()=>{
  const bad=validateSuggestionProvenance({kind:"OBSERVE",action:"移步至石室東側牆壁，仔細檢查晶塵滲入路徑。"},scope);
  assert.equal(bad.valid,false);
  assert.ok(bad.issues.some(x=>x.type==="SCENE_CONTAINER_UNGROUNDED"&&x.value==="石室"));
@@ -31,7 +31,7 @@ test("v0.57.21 rejects suggestion targets from a foreign scene but accepts curre
  assert.equal(good.valid,true);
 });
 
-test("v0.57.21 deterministic AutoTest recovery rotates grounded hard-stall travel actions",()=>{
+test("v0.57.22 deterministic AutoTest recovery rotates grounded hard-stall travel actions",()=>{
  const snapshot={world:{location:"眼前的裂隙"},quest:{objectives:["理解目前異常"]},suggestions:[],combat:{active:false}};
  const recent=Array.from({length:7},()=>({action:"停止重複目前互動，沿眼前的裂隙尋找新人物或可驗證線索",kind:"GENERAL",progressed:false,targetId:null}));
  const first=deterministicAutotestDecision(snapshot,recent,"test fallback");
@@ -45,7 +45,7 @@ test("v0.57.21 deterministic AutoTest recovery rotates grounded hard-stall trave
  assert.match(second.action,/出口|通道/);
 });
 
-test("v0.57.21 Codex bridge reconstructs retained artifact without picker/download/clipboard",async()=>{
+test("v0.57.22 Codex bridge reconstructs retained artifact without picker/download/clipboard",async()=>{
  const artifact={filename:"Elyndra-autotest-debug-v0.57.17-proof.json",mime:"application/json;charset=utf-8",body:JSON.stringify({hello:"世界",rows:Array.from({length:9000},(_,i)=>`row-${i}`)},null,2)};
  const transfer=await buildAutotestCodexTransfer(artifact,{chunkChars:16384,cryptoImpl:webcrypto});
  assert.ok(transfer.totalChunks>1);
@@ -63,7 +63,7 @@ test("v0.57.21 Codex bridge reconstructs retained artifact without picker/downlo
  assert.equal(verified.bytes,manifest.bytes);
 });
 
-test("v0.57.21 telemetry exposes error type task provider and class distribution",()=>{
+test("v0.57.22 telemetry exposes error type task provider and class distribution",()=>{
  const summary=telemetrySummary([
   {at:1,type:"AI_CALL_FAILED",data:{task:"action",provider:"openai",error:"AI_TIMEOUT: Provider timeout"}},
   {at:2,type:"AI_CALL_FAILED",data:{task:"runtime_expansion",provider:"openai",error:"AI_HTTP_429: rate limited"}},
@@ -78,7 +78,7 @@ test("v0.57.21 telemetry exposes error type task provider and class distribution
  assert.equal(summary.errorBreakdown.byClass.INVALID_JSON,1);
 });
 
-test("v0.57.21 bounds action assessment latency and avoids blocking per-turn expansion",async()=>{
+test("v0.57.22 bounds action assessment latency and avoids blocking per-turn expansion",async()=>{
  const ai=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),app=await readFile(new URL("../app.js",import.meta.url),"utf8"),settings=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8");
  assert.match(ai,/ACTION_ASSESSMENT_CIRCUIT_OPEN_MS=60000/);
  assert.match(ai,/timeoutMs:compact\?10000:18000/);
@@ -89,7 +89,7 @@ test("v0.57.21 bounds action assessment latency and avoids blocking per-turn exp
  assert.match(app,/AUTOTEST_RUNTIME_EXPANSION_DEFERRED/);
 });
 
-test("v0.57.21 shows visible AI progress/recovery and enforces scene/suggestion provenance",async()=>{
+test("v0.57.22 shows visible AI progress/recovery and enforces scene/suggestion provenance",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8"),contextual=await readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8"),css=await readFile(new URL("../styles.css",import.meta.url),"utf8");
  assert.match(app,/AI 回應較慢，必要時會自動切換 Engine 備援/);
  assert.match(app,/ACTION_ASSESSMENT_DEGRADED_VISIBLE/);
@@ -99,7 +99,7 @@ test("v0.57.21 shows visible AI progress/recovery and enforces scene/suggestion 
  assert.match(css,/data-recovery/);
 });
 
-test("v0.57.21 exposes a machine-readable retained-snapshot Codex bridge",async()=>{
+test("v0.57.22 exposes a machine-readable retained-snapshot Codex bridge",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/installAutotestCodexBridge/);
  assert.match(app,/__ELYNDRA_AUTOTEST_CODEX__/);

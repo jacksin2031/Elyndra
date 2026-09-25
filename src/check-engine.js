@@ -1,9 +1,9 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=57021";
-import {weatherActionModifier} from "./weather-engine.js?v=57021";
-import {survivalModifier} from "./survival-engine.js?v=57021";
-import {cultureActionModifier} from "./culture-engine.js?v=57021";
-import {magicActionModifier} from "./magic-engine.js?v=57021";
-import {talentActionModifier,specializedSkillGain} from "./talent-engine.js?v=57021";
+import {ensureWorldRegistry} from "./world-registry.js?v=57022";
+import {weatherActionModifier} from "./weather-engine.js?v=57022";
+import {survivalModifier} from "./survival-engine.js?v=57022";
+import {cultureActionModifier} from "./culture-engine.js?v=57022";
+import {magicActionModifier} from "./magic-engine.js?v=57022";
+import {talentActionModifier,specializedSkillGain} from "./talent-engine.js?v=57022";
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const KINDS=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"];
