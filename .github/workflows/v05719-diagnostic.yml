@@ -21,6 +21,8 @@ jobs:
           node-version: 20
       - name: Apply v0.57.19 patch
         run: python scripts/v05719_patch.py
+      - name: Apply v0.57.19 regression alignment
+        run: python scripts/v05719_refine.py
       - name: Capture non-download stdout and stderr
         id: nondownload
         shell: bash
