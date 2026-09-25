@@ -1,4 +1,4 @@
-import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=57016";
+import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=57017";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>text(x,maxLen)).filter(Boolean))].slice(0,max):[];
 const SUGGESTION_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
@@ -54,9 +54,9 @@ export function sceneTurnSnapshot(snapshot={}){
 }
 
 function guardedSceneNarrative(scene,roll={},action=""){
- const fallback=fallbackNarrative(action,roll),candidate=sanitizePlayerText(scene?.narrative,1200,"");
- if(roll?.success===false)return {narrative:fallback,outcome:"FAILURE",narrativeRejected:Boolean(candidate)};
- if(roll?.success===true&&String(scene?.outcome||"SUCCESS").toUpperCase()!=="SUCCESS")return {narrative:fallback,outcome:"SUCCESS",narrativeRejected:Boolean(candidate)};
+ const fallback=fallbackNarrative(action,roll),candidate=sanitizePlayerText(scene?.narrative,1200,""),declared=String(scene?.outcome||"").toUpperCase();
+ if(roll?.success===false){const consistent=!declared||declared==="FAILURE"||declared==="CRITICAL_FAILURE";return {narrative:consistent&&candidate?candidate:fallback,outcome:"FAILURE",narrativeRejected:Boolean(candidate&&!consistent)}}
+ if(roll?.success===true&&declared&&declared!=="SUCCESS"&&declared!=="CRITICAL_SUCCESS")return {narrative:fallback,outcome:"SUCCESS",narrativeRejected:Boolean(candidate)};
  return {narrative:candidate||fallback,outcome:roll?.success===true?"SUCCESS":null,narrativeRejected:false}
 }
 export function sceneTurnPreview(scene,roll={},context={}){
@@ -92,7 +92,7 @@ export function mergeTurnCandidates(scene,state,roll={},context={}){
  if(!state||typeof state!=="object"||Array.isArray(state))throw new Error("TURN_STATE_REQUIRED");
  const fallback=fallbackNarrative(context.action,roll),sceneText=sanitizePlayerText(scene?.narrative,1200,""),stateText=sanitizePlayerText(state.outcomeSummary,1200,"");
  const guarded=guardedSceneNarrative(scene,roll,context.action);
- const narrative=roll?.success===false?fallback:(state?.encounter?.type==="combat"?(stateText||guarded.narrative||fallback):(guarded.narrative||stateText||fallback));
+ const narrative=state?.encounter?.type==="combat"?(stateText||guarded.narrative||fallback):(guarded.narrative||stateText||fallback);
  const suggestionIntents=normalizeSuggestionIntents(scene?.suggestions,context.priorSuggestionIntents||context.priorSuggestions||[]);
  const suggestions=suggestionIntents.length?suggestionIntents.map(x=>x.label):sanitizeSuggestions(scene?.suggestions,context.priorSuggestions||[]),sceneTitle=sanitizePlayerText(scene?.sceneTitle,60,"");
  return {

@@ -28,7 +28,7 @@ test("v0.55.2 Engine rejects AI suggestions that invent inventory or unowned pow
 });
 
 test("v0.55.2 social suggestions infer the canonical present NPC and gain grounded fail-forward evidence",()=>{
- const s=actionState(),input={label:"詢問觀測者",action:"向閥-04-靜默觀測者詢問剛才最值得注意的變化，只說能確認的部分",kind:"SOCIAL",risk:"LOW",progression:true,causalBasis:"NPC 在場",requirementsSatisfied:true};
+ const s=actionState();s.world.registry.npcs[0].nameKnown=true;const input={label:"詢問觀測者",action:"向閥-04-靜默觀測者詢問剛才最值得注意的變化，只說能確認的部分",kind:"SOCIAL",risk:"LOW",progression:true,causalBasis:"NPC 在場",requirementsSatisfied:true};
  const set=buildContextualActionSet(s,[input]),row=set.all.find(x=>x.action.includes("閥-04-靜默觀測者"));
  assert.ok(row);assert.equal(row.targetId,"N1");assert.equal(row.affordance?.sourceKind,"NPC");
  const fact=groundedSuggestionFailForward(s,row,{success:true});assert.ok(fact);assert.equal(fact.sourceId,"N1");assert.equal(fact.evidenceType,"HEARD")

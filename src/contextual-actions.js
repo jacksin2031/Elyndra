@@ -1,5 +1,6 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57016";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57016";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57017";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57017";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57017";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -20,6 +21,7 @@ function uniq(rows,max=8){
  return out
 }
 function currentLocation(state){return clean(playerVisibleLocationName(state),80)||"眼前這個地方"}
+function visibleNpcName(state,npc){return clean(playerVisibleNpcName(state,npc),80)||"眼前的陌生人"}
 function presentNpcs(state){
  const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),locId=loc?.id;
  return (state.world?.registry?.npcs||[]).filter(n=>n?.known===true&&n?.alive!==false&&(n?.companion?.status==="ACTIVE"||n?.locationId===locId)).slice(0,5)
@@ -32,7 +34,7 @@ function inferSuggestionTarget(state,row){
  if(row?.targetId)return row.targetId;
  if(String(row?.kind||"").toUpperCase()!=="SOCIAL")return null;
  const action=String(row?.action||row?.label||"");
- const matches=presentNpcs(state).filter(n=>n?.name&&action.includes(String(n.name))).sort((a,b)=>String(b.name).length-String(a.name).length);
+ const matches=presentNpcs(state).filter(n=>action.includes(visibleNpcName(state,n))).sort((a,b)=>visibleNpcName(state,b).length-visibleNpcName(state,a).length);
  return matches.length===1?String(matches[0].id):null
 }
 function observableAffordance(state,row){
@@ -40,7 +42,7 @@ function observableAffordance(state,row){
  if(kind==="OBSERVE"&&event?.id)return {sourceKind:"EVENT",sourceId:String(event.id),evidenceType:"OBSERVED",title:"已知事件仍可追查",text:clean(event.summary||event.action,300)};
  if(kind==="OBSERVE"&&loc){const visible=currentLocation(state);return {sourceKind:"LOCATION",sourceId:String(loc.id||loc.name),evidenceType:"OBSERVED",title:`${visible||"目前位置"}的可觀察環境`,text:clean(loc.description,300).split(String(loc.name||"")).join("")||`你確認${visible||"目前位置"}仍提供可直接觀察的地形、出入口或活動基準，可用來縮窄下一步調查範圍。`}};
  if(kind==="SOCIAL"&&row?.targetId){
-  const npc=presentNpcs(state).find(n=>n.id===row.targetId);if(npc)return {sourceKind:"NPC",sourceId:String(npc.id),evidenceType:"HEARD",title:`${clean(npc.name,60)}可被直接詢問`,text:`你確認「${clean(npc.name,80)}」目前就在可互動範圍內，可作為後續詢問的既有來源。`}
+  const npc=presentNpcs(state).find(n=>n.id===row.targetId);if(npc)return {sourceKind:"NPC",sourceId:String(npc.id),evidenceType:"HEARD",title:`${clean(visibleNpcName(state,npc),60)}可被直接詢問`,text:`你確認「${clean(visibleNpcName(state,npc),80)}」目前就在可互動範圍內，可作為後續詢問的既有來源。`}
  }
  return null
 }
@@ -90,8 +92,8 @@ export function normalizeContextualSuggestion(row={}){
  }
 }
 function progressionSuggestion(state){
- const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),sameNpcAttempts=npc?.name?(recentText.split(String(npc.name)).length-1):0;
- if(npc&&objective&&sameNpcAttempts<2)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}目前目標最直接的線索`,action:`向${clean(npc.name,50)}詢問目前目標下一個可親眼確認的具體線索，只問對方親身知道或能指出的位置、人物或事件`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
+ const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),npcLabel=npc?visibleNpcName(state,npc):"",sameNpcAttempts=npcLabel?(recentText.split(npcLabel).length-1):0;
+ if(npc&&objective&&sameNpcAttempts<2)return normalizeContextualSuggestion({label:`問${clean(visibleNpcName(state,npc),50)}目前目標最直接的線索`,action:`向${clean(visibleNpcName(state,npc),50)}詢問目前目標下一個可親眼確認的具體線索，只問對方親身知道或能指出的位置、人物或事件`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
  if(event?.summary)return normalizeContextualSuggestion({label:`追查「${clean(event.summary,44)}」留下的下一條線索`,action:`沿著最近事件「${clean(event.summary,100)}」造成的可見影響，找出一項能繼續追查的具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"連續詢問同一人物後切換到可觀察證據":"最近玩家已知事件可被繼續調查",requirementsSatisfied:true,source:"ENGINE"});
  if(objective)return normalizeContextualSuggestion({label:"找出能推進目前目標的具體證據",action:`在${loc}尋找一項可以直接驗證、並能指出下一步去向的具體線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"避免連續向同一 NPC 重複追問":"目前主線目標仍未完成",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`在${loc}找出最值得繼續追查的新線索`,action:`在${loc}檢查最近出現的異常、痕跡或人物反應，找出一項可以實際追查的下一步線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"目前場景允許建立下一個可驗證目標",requirementsSatisfied:true,source:"ENGINE"})
@@ -103,7 +105,7 @@ function personalizedSuggestion(state){
  if(!top||Number(top[1])<3)return null;
  const [kind]=top,npc=presentNpcs(state)[0];
  if(kind==="OBSERVE")return normalizeContextualSuggestion({label:`用熟練觀察比對${loc}的新痕跡`,action:`運用已累積的觀察經驗，在${loc}比對痕跡的新舊、方向與不自然之處`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"OBSERVE 技能已達熟練等級",requirementsSatisfied:true,source:"ENGINE"});
- if(kind==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`試探${clean(npc.name,50)}略過的細節`,action:`用較熟練的交涉方式向${clean(npc.name,50)}追問前後不一致或刻意略過的細節，但不預設對方正在說謊`,kind:"SOCIAL",risk:"MEDIUM",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",causalBasis:"SOCIAL 技能已達熟練等級且 NPC 在場",requirementsSatisfied:true,source:"ENGINE"});
+ if(kind==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`試探${clean(visibleNpcName(state,npc),50)}略過的細節`,action:`用較熟練的交涉方式向${clean(visibleNpcName(state,npc),50)}追問前後不一致或刻意略過的細節，但不預設對方正在說謊`,kind:"SOCIAL",risk:"MEDIUM",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",causalBasis:"SOCIAL 技能已達熟練等級且 NPC 在場",requirementsSatisfied:true,source:"ENGINE"});
  if(kind==="TRAVEL")return normalizeContextualSuggestion({label:`先找出${loc}最安全有效的進退路線`,action:`利用熟練的旅行判斷，在${loc}比較可見通道、地形與人流，找出一條能繼續前進又保留退路的路線`,kind:"TRAVEL",risk:"LOW",skillHint:"生存 / 移動",approach:"STEADY",causalBasis:"TRAVEL 技能已達熟練等級",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:"用熟練的危境判斷測試眼前阻礙",action:`在${loc}選擇一個可以撤退的位置，先用最小代價測試眼前最明顯的危險或阻礙`,kind:"RISKY",risk:"MEDIUM",skillHint:"敏捷 / 體能",approach:"BOLD",causalBasis:"RISKY 技能已達熟練等級",requirementsSatisfied:true,source:"ENGINE"})
 }

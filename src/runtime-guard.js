@@ -1,4 +1,5 @@
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=57016";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=57017";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57017";
 const clean=(v,max=1200)=>String(v??"").normalize("NFC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"").replace(/\uFFFD/g,"").trim().slice(0,max);
 const SYSTEM_LINE=/^\s*(?:\[|【)\s*(?:世界動向|世界改變|世界開始記住你|系統|SYSTEM|WORLD\s*(?:EVENT|UPDATE)|DEBUG|STATE)\s*(?:\]|】)\s*[:：-]?\s*/i;
 const ROLE_LINE=/^\s*(?:narrative|scene|assistant|system|敘事|旁白)\s*[:：]\s*/i;
@@ -38,11 +39,11 @@ export function sanitizeSuggestions(input,previous=[]){
  return same?[]:out
 }
 export function fallbackNarrative(action="",roll={}){
- const label=clean(action,100)||"這次行動";
- if(roll?.grade==="CRITICAL_SUCCESS")return `「${label}」取得了非常明確的成果，眼前局勢亦因此出現新的可利用變化。`;
- if(roll?.grade==="CRITICAL_FAILURE")return `「${label}」沒有達成目的，而且局勢因此向前惡化：你暴露了自己的意圖、位置或弱點，但同時也看清了原本無法確認的限制。`;
- if(roll?.success)return `「${label}」取得了可確認的進展。你可以根據眼前的新變化繼續行動。`;
- return `「${label}」沒有達成預期目的，但失敗已經令一項限制、代價或對方的底線變得清楚；局面不是回到原點，而是出現了新的處理方向。`
+ const label=clean(action,100)||"這次嘗試";
+ if(roll?.grade==="CRITICAL_SUCCESS")return `這次「${label}」明確奏效。後續只依眼前實際出現的變化判斷，不額外補寫未確認資訊。`;
+ if(roll?.grade==="CRITICAL_FAILURE")return `這次「${label}」不但沒有奏效，現場還出現了可觀察的負面後果；下一步應以眼前實際變化為準。`;
+ if(roll?.success)return `這次「${label}」奏效。若現場沒有新的可觀察變化，就不額外推斷資訊、信任或任務進展。`;
+ return `這次「${label}」沒有奏效。現場不會因此憑空出現新線索；你仍可從眼前可見的人、物或路徑改換做法。`
 }
 export function fallbackSuggestions(state={},context={}){
  if(state.combat?.active)return ["攻擊","防禦","撤退"];
@@ -63,7 +64,7 @@ export function deriveSceneTitle(state={},action=""){
  if(state.combat?.active&&state.combat.enemy?.name)return `應對${sanitizePlayerText(state.combat.enemy.name,32,"眼前敵人")}`;
  const objective=sanitizePlayerText(state.quests?.main?.objectives?.[0],60,"").replace(/[。！？!?]+$/,"").trim();
  if(objective)return objective;
- const crisis=state.world?.state?.crisis?.stage,loc=sanitizeLocationName(state.player?.location||state.world?.state?.location)||"目前地點";
+ const crisis=state.world?.state?.crisis?.stage,loc=sanitizeLocationName(playerVisibleLocationName(state))||"目前地點";
  if(crisis==="ENDGAME")return `處理${loc}的最後危機`.slice(0,60);
  if(crisis==="CRISIS")return `調查${loc}正在逼近的危機`.slice(0,60);
  const a=sanitizeSuggestion(action,40);if(a)return a;

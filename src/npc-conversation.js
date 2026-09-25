@@ -1,21 +1,22 @@
-import {advanceTime} from "./world-clock.js?v=57016";
-import {tickWorld} from "./world-simulation.js?v=57016";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=57016";
-import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57016";
-import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57016";
-import {npcInteractionMode} from "./world-registry.js?v=57016";
-import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=57016";
-import {deriveSceneTitle} from "./runtime-guard.js?v=57016";
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=57016";
-import {markEntityObserved} from "./visibility-lock.js?v=57016";
+import {advanceTime} from "./world-clock.js?v=57017";
+import {tickWorld} from "./world-simulation.js?v=57017";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=57017";
+import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57017";
+import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57017";
+import {npcInteractionMode} from "./world-registry.js?v=57017";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=57017";
+import {deriveSceneTitle} from "./runtime-guard.js?v=57017";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=57017";
+import {markEntityObserved} from "./visibility-lock.js?v=57017";
+import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57017";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
  const mode=npcInteractionMode(state,npc);if(!mode)throw new Error("NPC_CONTACT_UNAVAILABLE");ensureNpcCognition(state,npc);
  const firstEncounter=mode==="LOCAL"&&npc.encountered!==true;if(mode==="LOCAL"){npc.known=true;npc.encountered=true;markEntityObserved(state,"npc",npc.id,{reason:"NPC_LOCAL_CONVERSATION"})}
- const minutes=npcConversationMinutes(state,mode),before=state.world.state.clock?.totalMinutes||0;
+ const minutes=npcConversationMinutes(state,mode),before=state.world.state.clock?.totalMinutes||0;revealNpcNameFromEvidence(state,npc,{answer,reason:"NPC_CONVERSATION_EVIDENCE"});const visibleName=playerVisibleNpcName(state,npc);
  advanceTime(state,minutes);
- const summary="玩家："+String(message||"").slice(0,180)+" / "+npc.name+"："+String(answer||"").slice(0,360);
+ const summary="玩家："+String(message||"").slice(0,180)+" / "+visibleName+"："+String(answer||"").slice(0,360);
  const memory=recordNpcMemory(state,npc,{type:"CONVERSATION",summary,importance:firstEncounter?3:1,entityRefs:[npc.id],source:"CONVERSATION",day:state.world.state.day,minute:state.world.state.clock.totalMinutes});
  const progressed=evaluateQuestEvidence(state,String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
  const questInteractions=evaluateNpcQuestInteraction(state,npc.id,{type:"TALK",text:String(message||"")+"\n"+String(answer||"")});
@@ -24,10 +25,10 @@ export function applyNpcConversationTurn(state,npc,message,answer){
  if(mode==="LOCAL")establishNpcRemoteContact(state,npc);
  const worldEvent=tickWorld(state);
  state.narrative=String(answer||"").slice(0,900);
- state.sceneTitle=deriveSceneTitle(state,"與"+npc.name+"交談");
- const comm=worldCommunication(state),contactLabel=mode==="REMOTE"?"透過"+comm.name+"追問剛才沒有說清楚的細節":"追問"+npc.name+"剛才刻意略過的細節";
+ state.sceneTitle=deriveSceneTitle(state,"與"+visibleName+"交談");
+ const comm=worldCommunication(state),contactLabel=mode==="REMOTE"?"透過"+comm.name+"追問剛才沒有說清楚的細節":"追問"+visibleName+"剛才刻意略過的細節";
  const offered=questInteractions.find(x=>x.action==="OFFERED"),questSuggestion=offered?"回應「"+(state.world?.registry?.sideQuests||[]).find(q=>q.id===offered.questId)?.title+"」的委託":"";
- const contextual=roleplayFallbackSuggestions(state,{action:"與"+npc.name+"交談"}).filter(x=>!x.includes("整理")&&!x.includes("確認目前"));
+ const contextual=roleplayFallbackSuggestions(state,{action:"與"+visibleName+"交談"}).filter(x=>!x.includes("整理")&&!x.includes("確認目前"));
  state.suggestions=[questSuggestion,contactLabel,...contextual].filter((x,i,a)=>x&&a.indexOf(x)===i&&!x.includes("undefined")).slice(0,4);
  return {mode,minutes,elapsed:(state.world.state.clock?.totalMinutes||0)-before,progressed,questInteractions,worldEvent,event,cognition:npcCognitionSnapshot(state,npc)};
 }

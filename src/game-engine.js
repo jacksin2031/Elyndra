@@ -1,19 +1,21 @@
-import {d20} from "./world-engine.js?v=57016";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=57016";
-import {advanceTime,ensureClock} from "./world-clock.js?v=57016";
-import {tickWorld} from "./world-simulation.js?v=57016";
-import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=57016";
-import {applyCultureAction} from "./culture-engine.js?v=57016";
-import {resolveEconomyAction} from "./economy-engine.js?v=57016";
-import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=57016";
-import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=57016";
-import {exploreDungeon} from "./dungeon-engine.js?v=57016";
-import {resolveTalentAction} from "./talent-engine.js?v=57016";
-import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=57016";
-import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=57016";
-import {isNpcPresent} from "./world-registry.js?v=57016";
-import {markEntityObserved} from "./visibility-lock.js?v=57016";
-import {adjustNpcRelationship} from "./npc-cognition.js?v=57016";
+import {d20} from "./world-engine.js?v=57017";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=57017";
+import {advanceTime,ensureClock} from "./world-clock.js?v=57017";
+import {tickWorld} from "./world-simulation.js?v=57017";
+import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=57017";
+import {applyCultureAction} from "./culture-engine.js?v=57017";
+import {resolveEconomyAction} from "./economy-engine.js?v=57017";
+import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=57017";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=57017";
+import {exploreDungeon} from "./dungeon-engine.js?v=57017";
+import {resolveTalentAction} from "./talent-engine.js?v=57017";
+import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=57017";
+import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=57017";
+import {isNpcPresent} from "./world-registry.js?v=57017";
+import {markEntityObserved} from "./visibility-lock.js?v=57017";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57017";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57017";
+import {adjustNpcRelationship} from "./npc-cognition.js?v=57017";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const AMBIGUOUS_MUTATION=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意|如果|假如|若果|若|除非|是否|能否|可否|要不要|[?？]|[「」『』])/i;
@@ -43,11 +45,17 @@ function ensure(state){
  state.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};
  state.discoveries??=0;ensureCheckProfile(state);ensureItemRuntime(state)
 }
-function localNarrative(label,roll,profile){
- if(roll.grade==="CRITICAL_SUCCESS")return `你嘗試「${label}」。行動本身非常順利，並為後續判斷取得更有利的條件。`;
- if(roll.grade==="CRITICAL_FAILURE")return `你嘗試「${label}」，但結果比預期更差，眼前局勢因此變得更棘手。`;
- if(roll.success)return `你完成了「${label}」，行動本身成功；是否出現新的可確認資訊，仍以實際觀察與世界狀態為準。`;
- return `你嘗試「${label}」，但這次沒有達成預期目的。從眼前反應看來，換一個方法會更有機會。`
+function localNarrative(state,label,roll,profile,effects={}){
+ const loc=playerVisibleLocationName(state)||"目前位置",rel=effects.npcRelationship,npc=rel?.npcId?(state.world?.registry?.npcs||[]).find(x=>x.id===rel.npcId):null,who=npc?playerVisibleNpcName(state,npc):"對方",changes=rel?.changes||{};
+ if(profile?.kind==="SOCIAL"&&rel){
+  const trust=Number(changes.trust)||0,respect=Number(changes.respect)||0;
+  if(trust>0||respect>0)return `${who}沒有避開這次交涉，態度出現了可確認的正向變化。是否得到新資訊或推進任務，仍只以實際對話與世界狀態為準。`;
+  if(trust<0||respect<0)return `${who}讓你把事情做完，但態度明顯變得更差。行動判定成功不代表關係改善。`;
+ }
+ if(roll.grade==="CRITICAL_SUCCESS")return `你在${loc}完成了「${label}」，結果十分順利。只有眼前實際出現的變化才算作後續資訊。`;
+ if(roll.grade==="CRITICAL_FAILURE")return `你在${loc}嘗試「${label}」時出了明顯差錯，現場局勢變得更不利。`;
+ if(roll.success)return `你在${loc}完成了「${label}」。現場若沒有新的可觀察變化，就不額外推斷線索、信任或任務進展。是否出現新的可確認資訊，仍以實際觀察與世界狀態為準。`;
+ return `你在${loc}嘗試「${label}」，但沒有達到目標。眼前沒有憑空出現新線索，你仍可以改用其他可行做法。`
 }
 function localNpcActionTarget(state,label,assessment=null){
  const intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=clean(assessment?.actionIntent?.targetId||assessment?.targetId,120),rows=state?.world?.registry?.npcs||[];
@@ -59,7 +67,7 @@ function localNpcActionTarget(state,label,assessment=null){
 function markLocalNpcInteraction(state,label,assessment=null){
  const npc=localNpcActionTarget(state,label,assessment);if(!npc)return null;
  const firstEncounter=npc.encountered!==true;npc.known=true;npc.encountered=true;markEntityObserved(state,"npc",npc.id,{reason:"PLAYER_LOCAL_SOCIAL_ACTION"});
- npc.memories??=[];const minute=Number(state?.world?.state?.clock?.totalMinutes)||0,summary=`玩家在當前場景主動嘗試與${npc.name}互動：「${clean(label,140)}」`;
+ npc.memories??=[];const minute=Number(state?.world?.state?.clock?.totalMinutes)||0,summary=`玩家在當前場景主動嘗試與${playerVisibleNpcName(state,npc)}互動：「${clean(label,140)}」`;
  npc.memories.push({id:id(),type:"interaction",summary,day:state?.world?.state?.day||1,minute,mode:"LOCAL",grounded:true});npc.memories=npc.memories.slice(-12);npc.lastActionMinute=minute;
  state.events??=[];state.events.push({id:id(),type:"NPC_INTERACTION",visibility:"PLAYER_KNOWN",npcId:npc.id,firstEncounter,summary,day:state?.world?.state?.day||1,minute,at:Date.now()});
  return {npcId:npc.id,firstEncounter}
@@ -73,7 +81,7 @@ function applyLocalNpcRelationshipOutcome(state,interaction,roll,kind,label){
  else if(grade==="CRITICAL_FAILURE")changes={trust:-2,respect:-1,fear:2};
  if(!changes)return null;
  const relationship=adjustNpcRelationship(state,npc,{changes,reason:`玩家社交行動「${clean(label,100)}」由 Engine 判定為 ${grade}。`});
- return {npcId:npc.id,grade,changes,relationship}
+ return {npcId:npc.id,grade,changes,relationship,reason:`玩家社交行動「${clean(label,100)}」由 Engine 判定為 ${grade}。`,source:"ENGINE_LOCAL_SOCIAL"}
 }
 export function resolveEngineFeasibility(state,label,assessment=null){
  const q=clean(label,180),intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=String(assessment?.actionIntent?.targetId||assessment?.targetId||"");
@@ -159,7 +167,7 @@ export function performAction(state,action="free",customText="",assessment=null)
  const economy=resolveEconomyAction(state,label,roll),paidLodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),restGranted=profile.rest===true&&roll.success&&(!paidLodging||economy?.ok===true);
  const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
  const culture=applyCultureAction(state,label,roll),magic=resolveMagicAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
- const text=localNarrative(label,roll,profile);
+ const text=localNarrative(state,label,roll,profile,{npcRelationship});
  state.narrative=text;
  state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,originalAction:originalLabel,actionAssessment:assessment?{verdict:assessment.verdict,kind:assessment.kind,reason:assessment.reason,confidence:assessment.confidence}:null,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
