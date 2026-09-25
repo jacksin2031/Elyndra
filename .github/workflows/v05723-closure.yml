@@ -1,0 +1,40 @@
+name: v0.57.23 exact retained artifact bytes closure
+on:
+  push:
+    branches: [fix/v0.57.23-exact-retained-artifact-bytes]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  closure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply v0.57.23 patch
+        run: python scripts/v05723_patch.py
+      - name: Focused exact retained artifact regressions
+        run: node --test test/v05722-native-artifact-handoff.test.js test/v05723-exact-retained-artifact-bytes.test.js
+      - name: Run non-download regression suite
+        env:
+          CACHE_BASE_REF: main
+        run: npm run test:nondownload
+      - name: Check diff
+        run: git diff --check
+      - name: Commit validated v0.57.23 product
+        shell: bash
+        run: |
+          git config user.name "Elyndra CI"
+          git config user.email "actions@users.noreply.github.com"
+          git rm scripts/v05723_patch.py .github/workflows/v05723-closure.yml
+          git add app.js index.html package.json src test
+          if git diff --cached --quiet; then
+            echo "No validated product changes to commit"
+            exit 1
+          fi
+          git commit -m "v0.57.23: preserve retained artifact bytes exactly"
+          git push origin HEAD:fix/v0.57.23-exact-retained-artifact-bytes
