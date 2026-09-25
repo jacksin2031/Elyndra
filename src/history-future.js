@@ -1,6 +1,6 @@
-import {ensureFutureEngine,applyFuturePressure} from "./future-engine.js?v=57019";
-import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=57019";
-import {signalHistoryResearch} from "./history-depth.js?v=57019";
+import {ensureFutureEngine,applyFuturePressure} from "./future-engine.js?v=57020";
+import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=57020";
+import {signalHistoryResearch} from "./history-depth.js?v=57020";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(rows,max=12)=>[...new Set((Array.isArray(rows)?rows:[]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
