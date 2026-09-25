@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Apply v0.57.7 patch, payload correction, and canonical test refresh
+      - name: Apply v0.57.7 patch, payload correction, and canonical test refresh 2
         run: |
           python scripts/land-v0577.py
           python scripts/fix-v0577-drag.py
