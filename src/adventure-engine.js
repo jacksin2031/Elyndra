@@ -52,13 +52,26 @@ function relationShapeValid(row,key,legacyKey,max){
  if(row?.[legacyKey]!=null)return Number.isInteger(row[legacyKey])&&row[legacyKey]>=-max&&row[legacyKey]<=max;
  return true
 }
+function unownedPossessionClaim(state,value=""){
+ const text=String(value||"");if((state.inventory||[]).some(x=>(Number(x?.quantity)||1)>0))return false;
+ return /(?:隨身|自己的|手上的|從(?:口袋|背包|行囊)|透過|使用|拿出|翻開|記在|記錄在).{0,14}(?:筆記本|記事本|手帳|地圖|羅盤|手機|望遠鏡|紙筆)/i.test(text)
+}
+function groundedDiscoverySource(state,sourceKind,sourceId,evidenceType,context={}){
+ if(context.roll?.success===false||!EVIDENCE_TYPES.has(evidenceType))return false;
+ if(evidenceType==="OBSERVED"&&!sourceKind)return true;
+ const r=state.world?.registry||{};
+ if(sourceKind==="NPC")return (r.npcs||[]).some(x=>String(x.id)===sourceId&&x.known===true&&x.encountered===true);
+ if(sourceKind==="LOCATION")return (r.locations||[]).some(x=>String(x.id||x.name)===sourceId&&(x.known===true||String(x.name)===String(state.player?.location)));
+ if(sourceKind==="EVENT")return (state.events||[]).some(x=>String(x.id)===sourceId&&x.visibility!=="INTERNAL");
+ return false
+}
 function registerDiscovery(state,d,context={}){
- const title=sanitizePlayerText(d?.title,100,""),body=sanitizePlayerText(d?.text,500,"");if(!title||!body||state.knowledge.some(k=>k.title===title))return null;
+ const title=sanitizePlayerText(d?.title,100,""),body=sanitizePlayerText(d?.text,500,"");if(!title||!body||unownedPossessionClaim(state,body)||state.knowledge.some(k=>k.title===title))return null;
  const factId=typeof d?.factId==="string"?d.factId:"",fact=(state.world?.canon?.facts||[]).find(f=>f.id===factId),evidenceType=String(d?.evidenceType||"").toUpperCase();
  const verified=Boolean(fact&&String(fact.visibility||"").toLowerCase()==="public"&&EVIDENCE_TYPES.has(evidenceType)&&context.roll?.success!==false);
- const sourceKind=String(d?.sourceKind||"").toUpperCase(),sourceId=sanitizePlayerText(d?.sourceId,120,""),sourceRef=sourceKind&&sourceId?{kind:sourceKind,id:sourceId}:null,knowledgeEvidence=KNOWLEDGE_EVIDENCE[evidenceType]||"OBSERVATION";
- const entry={id:id(),title,status:verified?"VERIFIED":"UNCONFIRMED",beliefState:verified?"VERIFIED":"UNCONFIRMED",text:verified?fact.text:body,factId:verified?fact.id:null,evidenceType:knowledgeEvidence,evidenceTypeHint:evidenceType||null,sourceRef,sources:[verified?"CANON_EVIDENCE":sourceRef?`ENGINE_GROUNDED_${sourceKind}`:"AI_OBSERVATION"],score:verified?2:0};
- state.knowledge.push(entry);if(verified)state.player.knowledgeScore=Math.min(100,state.player.knowledgeScore+entry.score);return entry
+ const sourceKind=String(d?.sourceKind||"").toUpperCase(),sourceId=sanitizePlayerText(d?.sourceId,120,""),sourceRef=sourceKind&&sourceId?{kind:sourceKind,id:sourceId}:null,confirmed=!verified&&!factId&&groundedDiscoverySource(state,sourceKind,sourceId,evidenceType,context),knowledgeEvidence=KNOWLEDGE_EVIDENCE[evidenceType]||"OBSERVATION";
+ const trusted=verified||confirmed,entry={id:id(),title,status:verified?"VERIFIED":confirmed?"CONFIRMED":"UNCONFIRMED",beliefState:verified?"VERIFIED":confirmed?"SOURCE_CONFIRMED":"UNCONFIRMED",text:verified?fact.text:body,factId:verified?fact.id:null,evidenceType:knowledgeEvidence,evidenceTypeHint:evidenceType||null,sourceRef,sources:[verified?"CANON_EVIDENCE":confirmed?(sourceRef?`ENGINE_GROUNDED_${sourceKind}`:"DIRECT_OBSERVATION"):sourceRef?`ENGINE_GROUNDED_${sourceKind}`:"AI_OBSERVATION"],score:verified?2:confirmed?1:0};
+ state.knowledge.push(entry);state.discoveries=Math.max(0,Number(state.discoveries)||0)+1;if(trusted)state.player.knowledgeScore=Math.min(100,(Number(state.player.knowledgeScore)||0)+entry.score);return entry
 }
 export function buildSnapshot(state){
  const recentEvents=playerVisibleEvents(state,12).map(e=>({day:e.day,action:e.customText||e.action,type:e.type,summary:text(e.summary,220)}));
@@ -121,7 +134,7 @@ export function applyDeferredTurnEffects(state,c,context={}){
 export function applyTurnCandidate(state,c,context={}){
  const v=validateTurnCandidate(c);if(!v.valid)throw new Error(v.errors.join(","));
  const previousSuggestions=[...(state.suggestions||[])],rollSucceeded=context.roll?.success!==false;
- const safeNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll));state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);
+ const rawNarrative=sanitizePlayerText(c.narrative,1200,fallbackNarrative(context.action,context.roll)),safeNarrative=unownedPossessionClaim(state,rawNarrative)?fallbackNarrative(context.action,context.roll):rawNarrative;state.narrative=safeNarrative||fallbackNarrative(context.action,context.roll);
  if(rollSucceeded&&c.worldNameKnown===true)state.player.worldNameKnown=true;if(rollSucceeded&&c.calendarKnown===true)state.player.calendarKnown=true;
  const verifiedDiscoveries=[];for(const d of (c.discoveries||[]).slice(0,2)){const entry=registerDiscovery(state,d,context);if(entry?.status==="VERIFIED")verifiedDiscoveries.push(entry)}
  const acquiredItems=[];for(const item of (rollSucceeded?(c.items||[]):[]).slice(0,2)){const name=sanitizePlayerText(item.name,100,""),evidenceFactId=verifiedDiscoveries.some(d=>d.factId===item.evidenceFactId)?item.evidenceFactId:null;if(name){const stored=addInventoryItem(state,{...item,name,description:sanitizePlayerText(item.description,300,""),identified:item.identified!==false,lore:normalizeLore(item.lore),checkBonuses:normalizeCheckBonuses(item.checkBonuses),equipped:false,source:"AI_TURN",evidenceFactId},{source:"AI_TURN"});if(stored)acquiredItems.push(stored)}}

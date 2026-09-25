@@ -1,0 +1,18 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {ensureWorldCatalog,canonizeWorldDefinitions} from "../src/world-catalog.js";
+import {newGame} from "../src/world-engine.js";
+import {applyTurnCandidate} from "../src/adventure-engine.js";
+import {tickMainQuest} from "../src/quest-engine.js";
+import {buildContextualActionSet} from "../src/contextual-actions.js";
+import {createAutotestDownloadLease,autotestDownloadHttpUrl} from "../src/autotest-download.js";
+
+test("v0.57.11 materializes constitution count slots immediately and real definitions replace slots",()=>{const s={world:{id:"W",version:1,constitution:[{kind:"COUNT_REQUIREMENT",target:"CIVILIZATION",minimum:4},{kind:"COUNT_REQUIREMENT",target:"SPECIES",minimum:3},{kind:"COUNT_REQUIREMENT",target:"LANGUAGE",minimum:2}]}};const c=ensureWorldCatalog(s);assert.equal(c.civilizations.length,4);assert.equal(c.species.length,3);assert.equal(c.languages.length,2);assert.equal(c.civilizations.filter(x=>x.placeholder).length,4);canonizeWorldDefinitions(s,[{kind:"CIVILIZATION",name:"潮岸聯盟",description:"沿海定居聯盟"}]);assert.equal(c.civilizations.length,4);assert.equal(c.civilizations.filter(x=>x.placeholder).length,3);assert.ok(c.civilizations.some(x=>x.name==="潮岸聯盟"&&!x.placeholder))});
+
+test("v0.57.11 direct successful observation creates visible progress without claiming global canon truth",()=>{const seed={genre:"王道奇幻",scale:"小型",danger:2,magic:2,politics:2,playHours:5,prompt:""},s=newGame(seed);s.world.registry.locations=[{id:"LOC-1",name:"石室",known:true,canonical:true}];s.player.location="石室";s.world.state.location="石室";applyTurnCandidate(s,{narrative:"你確認地面有一串新鮮腳印。",discoveries:[{title:"新鮮腳印",text:"腳印朝出口延伸。",evidenceType:"OBSERVED"}],suggestions:[]},{roll:{success:true,profile:{kind:"OBSERVE"}},action:"觀察地面"});assert.equal(s.knowledge.at(-1).status,"CONFIRMED");assert.equal(s.knowledge.at(-1).factId,null);assert.equal(s.discoveries,1);assert.equal(s.player.knowledgeScore,1)});
+
+test("v0.57.11 three discoveries can move CONTACT into INVESTIGATE",()=>{const seed={genre:"王道奇幻",scale:"小型",danger:2,magic:2,politics:2,playHours:5,prompt:""},s=newGame(seed);s.world.registry.locations=[{id:"LOC-1",name:"石室",known:true,canonical:true}];s.world.registry.npcs=[{id:"NPC-1",name:"守門人",known:true,encountered:true,alive:true,locationId:"LOC-1"}];s.player.location="石室";s.discoveries=3;s.quests.main.stage=2;assert.equal(tickMainQuest(s).stage,3)});
+
+test("v0.57.11 progression action avoids quoted quest text and stops pinning the same NPC",()=>{const s={world:{id:"W",state:{day:1},registry:{locations:[{id:"L",name:"門廳",known:true}],npcs:[{id:"N",name:"守門人",known:true,alive:true,locationId:"L"}]}},player:{location:"門廳",skills:{}},quests:{main:{objectives:["理解自己身處何地，先確保能夠行動。"]}},events:[],inventory:[]};let rows=buildContextualActionSet(s,[]).all;assert.equal(rows[0].kind,"SOCIAL");assert.equal(rows[0].action.includes("「理解自己"),false);s.events.push({type:"PLAYER_ACTION",customText:"向守門人詢問線索"},{type:"PLAYER_ACTION",customText:"再次向守門人詢問線索"});rows=buildContextualActionSet(s,[]).all;assert.notEqual(rows[0].kind,"SOCIAL")});
+
+test("v0.57.11 controlled retry lease is same-origin HTTP rather than blob",()=>{const payload={filename:"debug.json",body:"{}",mime:"application/json",bytes:2,sha256:"x"},navigatorImpl={serviceWorker:{controller:{}}},locationImpl={href:"https://example.test/Elyndra/"};const lease=createAutotestDownloadLease(payload,{navigatorImpl,locationImpl,nowImpl:()=>7});assert.equal(lease.method,"service-worker-http");assert.match(lease.url,/\/Elyndra\/__elyndra_autotest_download__/);assert.equal(lease.url.startsWith("blob:"),false);assert.equal(autotestDownloadHttpUrl(payload,{baseHref:locationImpl.href,nonce:7}),lease.url)});
