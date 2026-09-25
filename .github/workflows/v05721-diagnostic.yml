@@ -19,6 +19,8 @@ jobs:
         run: python scripts/v05721_ai_patch.py
       - name: Apply UI provenance and Codex bridge patch
         run: python scripts/v05721_app_patch.py
+      - name: Apply regression compatibility fix
+        run: python scripts/v05721_regression_fix.py
       - name: Run non-download suite and capture output
         id: nondownload
         shell: bash
