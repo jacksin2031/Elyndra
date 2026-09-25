@@ -188,16 +188,33 @@ function presentNpc(state){
  return (state.world?.registry?.npcs||[]).find(n=>n.known===true&&n.alive!==false&&(n.companion?.status==="ACTIVE"||n.locationId===id))||null
 }
 
+const SUGGESTION_TEMPLATE_TEXT=/(?:回頭檢查|沿著)[「『].*(?:之後現場多了甚麼變化|留下的影響追查下去)|(?:最近事件|造成的可見影響|建議按鈕|下一步建議)/;
+function suggestionText(value){return clean(typeof value==="string"?value:(value?.action||value?.label),180)}
+function hasNestedSuggestionQuotes(value){const text=clean(value,240),opens=(text.match(/[「『]/g)||[]).length,closes=(text.match(/[」』]/g)||[]).length;return opens>=2||closes>=2}
+function isSuggestionRecursion(state,value){
+ const text=clean(value,240);if(!text)return false;if(hasNestedSuggestionQuotes(text)||SUGGESTION_TEMPLATE_TEXT.test(text))return true;
+ const previous=(state.suggestions||[]).map(suggestionText).filter(x=>x.length>=8);
+ return previous.some(x=>text===x||text.includes(x)||x.includes(text))
+}
+function currentSceneObservableEvent(state){
+ const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),allowedLoc=new Set([String(state.player?.location||""),String(loc?.id||""),String(loc?.name||"")].filter(Boolean)),worldId=String(state.world?.id||"");
+ return (state.events||[]).filter(e=>{
+  if(e?.visibility==="INTERNAL"||!OBSERVABLE_EVENT_TYPES.has(String(e?.type||"")))return false;
+  const summary=clean(e.summary,220),eventWorld=String(e.worldId||""),scope=String(e.locationId||e.location||"");
+  if(!summary||isSuggestionRecursion(state,summary))return false;if(eventWorld&&worldId&&eventWorld!==worldId)return false;
+  return Boolean(scope&&allowedLoc.has(scope))
+ }).slice(-6).reverse()[0]||null
+}
+
 export function roleplayFallbackSuggestions(state={},context={}){
- const out=[],npc=presentNpc(state),loc=clean(state.player?.location,80),action=clean(context.action,100);
- const recent=(state.events||[]).filter(e=>e.visibility!=="INTERNAL"&&clean(e.summary,220)).slice(-6).reverse()[0];
+ const out=[],npc=presentNpc(state),loc=clean(state.player?.location,80),action=clean(context.action,120),previous=(state.suggestions||[]).map(suggestionText).filter(Boolean);
+ const recent=currentSceneObservableEvent(state);
  if(npc)out.push(`問${clean(npc.name,60)}剛才最在意的是哪件事`);
  if(recent?.summary)out.push(`沿著「${clean(recent.summary,48)}」留下的影響追查下去`);
- if(action)out.push(`回頭檢查「${action.slice(0,42)}」之後現場多了甚麼變化`);
+ if(action&&!isSuggestionRecursion(state,action))out.push(`檢查剛才行動涉及的可見位置或物件，確認現場有沒有新的具體變化`);
  if(loc)out.push(`在${loc}找一個能看清人流與出入口的位置觀察`);
  out.push("檢查地面與附近物件上最新留下的痕跡","找一個正在避開人群的人，問他剛才看見了甚麼","沿著最明顯的新鮮痕跡走一小段，確認它通往哪裡");
- const previous=(state.suggestions||[]).map(x=>clean(x,120));
- return uniq(out.filter(x=>!previous.includes(x)),4)
+ return uniq(out.filter(x=>!previous.includes(x)&&!hasNestedSuggestionQuotes(x)),4)
 }
 
 export function projectObservableWorldChanges(state,narrative=""){
