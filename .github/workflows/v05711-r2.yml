@@ -34,7 +34,7 @@ jobs:
           script=script.replace("Path('.github/workflows/v05711-patch.yml').unlink()","pass")
           exec(compile(script,'v05711-product-patch.py','exec'),{})
 
-          # Evidence-based corrections from run 36112040565 regression diagnostics.
+          # Evidence-based corrections from CI regression diagnostics.
           p=Path('src/world-catalog.js')
           s=p.read_text(encoding='utf-8')
           old='export function worldCatalogDefinitions(state){const c=ensureWorldCatalog(state);return [...c.civilizations,...c.species,...c.languages]}'
@@ -69,7 +69,7 @@ jobs:
             p=Path(name); s=p.read_text(encoding='utf-8')
             if '57010' not in s and '0.57.10' not in s:
               raise SystemExit(f'stale release anchor missing: {name}')
-            s=s.replace('57010','57011').replace('0.57.10','0.57.11')
+            s=s.replace('57010','57011').replace('0.57.10','0.57.11').replace(r'0\.57\.10',r'0\.57\.11')
             if name=='test/autotest-download-v05710.test.js':
               old='assert.equal(result.method,"service-worker-http")'
               if old not in s: raise SystemExit('download method expectation anchor missing')
