@@ -1,14 +1,14 @@
-import {advanceTime} from "./world-clock.js?v=57017";
-import {tickWorld} from "./world-simulation.js?v=57017";
-import {evaluateQuestEvidence} from "./quest-engine.js?v=57017";
-import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57017";
-import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57017";
-import {npcInteractionMode} from "./world-registry.js?v=57017";
-import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=57017";
-import {deriveSceneTitle} from "./runtime-guard.js?v=57017";
-import {roleplayFallbackSuggestions} from "./player-experience.js?v=57017";
-import {markEntityObserved} from "./visibility-lock.js?v=57017";
-import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57017";
+import {advanceTime} from "./world-clock.js?v=57018";
+import {tickWorld} from "./world-simulation.js?v=57018";
+import {evaluateQuestEvidence} from "./quest-engine.js?v=57018";
+import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=57018";
+import {ensureNpcCognition,npcCognitionSnapshot,recordNpcMemory} from "./npc-cognition.js?v=57018";
+import {npcInteractionMode} from "./world-registry.js?v=57018";
+import {npcConversationMinutes,worldCommunication,establishNpcRemoteContact} from "./communication-engine.js?v=57018";
+import {deriveSceneTitle} from "./runtime-guard.js?v=57018";
+import {roleplayFallbackSuggestions} from "./player-experience.js?v=57018";
+import {markEntityObserved} from "./visibility-lock.js?v=57018";
+import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57018";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 export function applyNpcConversationTurn(state,npc,message,answer){
