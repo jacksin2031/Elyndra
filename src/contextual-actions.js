@@ -1,4 +1,4 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57014";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57015";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -177,8 +177,43 @@ function seal(state,row){
  const affordance=observableAffordance(state,x);
  return {...x,requirementsSatisfied:true,affordance,prevalidated:true,validatedContext:{worldId:String(state.world?.id||""),location:String(state.player?.location||""),day:Number(state.world?.state?.day)||1,eventCount:sceneEventCount(state),targetId:x.targetId||null,inventorySeal:inventorySeal(state)}}
 }
-export function buildContextualActionSet(state,input=[]){
- const recent=recentPlayerActions(state),isFresh=x=>freshSuggestion(recent,x);
+function suggestionExclusionSet(rows=[]){
+ const out=new Set();
+ for(const row of Array.isArray(rows)?rows:[]){
+  if(typeof row==="string"){const v=clean(row,180);if(v)out.add(v);continue}
+  if(!row||typeof row!=="object")continue;
+  for(const value of [row.action,row.label,row.originalAction,row.customText]){const v=clean(value,180);if(v)out.add(v)}
+ }
+ return out
+}
+function reachableKnownLocations(state){
+ const locations=Array.isArray(state?.world?.registry?.locations)?state.world.registry.locations:[],currentName=String(state?.player?.location||state?.world?.state?.location||""),current=locations.find(x=>x?.name===currentName||x?.id===currentName);
+ if(!current)return [];
+ const byId=new Map(locations.filter(x=>x?.known===true).map(x=>[String(x.id||""),x])),routes=Array.isArray(state?.world?.travel?.routes)?state.world.travel.routes:[],out=[];
+ for(const route of routes){
+  if(!route||route.open===false)continue;let id="";
+  if(String(route.fromId||"")===String(current.id||""))id=String(route.toId||"");else if(String(route.toId||"")===String(current.id||""))id=String(route.fromId||"");else continue;
+  const target=byId.get(id);if(!target||target===current||Array.isArray(target.accessRequirements)&&target.accessRequirements.length)continue;
+  if(!out.some(x=>String(x.id||"")===String(target.id||"")))out.push(target)
+ }
+ return out.slice(0,5)
+}
+function suggestionRefreshCandidates(state){
+ const rows=[],loc=currentLocation(state),objective=clean(state.quests?.main?.aiHint||state.quests?.main?.objectives?.[0],100),event=recentVisibleEvent(state);
+ if(event?.summary)rows.push(normalizeContextualSuggestion({label:`換一條線索追查「${clean(event.summary,40)}」`,action:`停止沿用上一批建議，從最近已知事件「${clean(event.summary,100)}」的另一個可觀察影響重新追查一項具體證據`,kind:"OBSERVE",risk:"LOW",approach:"STEADY",progression:true,causalBasis:"最近玩家已知事件仍有不同角度可直接追查",requirementsSatisfied:true,source:"ENGINE"}));
+ else if(objective)rows.push(normalizeContextualSuggestion({label:"從另一個可驗證角度推進目前目標",action:`在${loc}避開剛才的做法，改從另一個可直接觀察的跡象驗證「${objective}」下一步`,kind:"OBSERVE",risk:"LOW",approach:"STEADY",progression:true,causalBasis:"目前主線目標仍未完成且當前場景可觀察",requirementsSatisfied:true,source:"ENGINE"}));
+ for(const target of reachableKnownLocations(state))rows.push(normalizeContextualSuggestion({label:`改往「${clean(target.name,50)}」尋找新線索`,action:`沿已確認可通行路線前往「${clean(target.name,70)}」，到達後先確認當地與目前目標直接相關的可見變化`,kind:"TRAVEL",risk:"LOW",approach:"STEADY",targetId:String(target.id||""),progression:Boolean(objective),causalBasis:"該地點已知且與目前位置之間存在開放路線",requirementsSatisfied:true,source:"ENGINE"}));
+ for(const npc of presentNpcs(state))rows.push(normalizeContextualSuggestion({label:`換個問題詢問${clean(npc.name,50)}`,action:`向${clean(npc.name,50)}改問一項尚未重複、而且對方可憑親身觀察回答的具體細節`,kind:"SOCIAL",risk:"LOW",approach:"SOCIAL",targetId:String(npc.id||""),progression:Boolean(objective),causalBasis:"NPC 目前在可互動範圍內",requirementsSatisfied:true,source:"ENGINE"}));
+ for(const item of inventoryRows(state).slice(0,4)){
+  const name=clean(item?.name||item?.id,50),id=clean(item?.id||item?.name,100);if(!name||!id)continue;
+  rows.push(normalizeContextualSuggestion({label:`重新檢查「${name}」能提供甚麼線索`,action:`取出「${name}」，只根據目前已知用途與可見特徵檢查它是否能協助判斷眼前局勢，不消耗或交出物品`,kind:"OBSERVE",risk:"LOW",approach:"CREATIVE",requiredItemIds:[id],causalBasis:"物品目前確實在玩家持有清單內",requirementsSatisfied:true,source:"ENGINE"}))
+ }
+ rows.push(normalizeContextualSuggestion({label:"改查場景中先前忽略的細節",action:`在${loc}刻意避開上一批建議所指向的位置與對象，檢查另一處可直接看到的出入口、痕跡或環境變化`,kind:"OBSERVE",risk:"LOW",approach:"STEADY",progression:Boolean(objective),causalBasis:"當前場景仍可直接觀察",requirementsSatisfied:true,source:"ENGINE"}));
+ rows.push(normalizeContextualSuggestion({label:"用不同方式測試現場反應",action:`只利用${loc}目前可見的人流、聲音或遮蔽物，以不消耗未知資源的另一種方式測試環境反應`,kind:"GENERAL",risk:"MEDIUM",approach:"CREATIVE",causalBasis:"只使用玩家目前可直接感知的環境",requirementsSatisfied:true,source:"ENGINE"}));
+ return uniq(rows.filter(Boolean),20)
+}
+export function buildContextualActionSet(state,input=[],options={}){
+ const recent=recentPlayerActions(state),excluded=suggestionExclusionSet(options?.exclude),isFresh=x=>freshSuggestion(recent,x)&&!excluded.has(clean(x?.action,180))&&!excluded.has(clean(x?.label,180));
  const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk));
  if(!progression){const candidate=progressionSuggestion(state);if(isFresh(candidate))progression=candidate}
@@ -205,6 +240,10 @@ export function buildContextualActionSet(state,input=[]){
  const high=raw.find(x=>["HIGH","EXTREME"].includes(x.risk))||(()=>{const x=fallbackByApproach(state,"BOLD");return isFresh(x)?x:null})();
  const selected=uniq([...main.slice(0,3),high],4).map(x=>seal(state,x)).filter(Boolean);
  return {primary:selected.filter(x=>!["HIGH","EXTREME"].includes(x.risk)).slice(0,3),highRisk:selected.filter(x=>["HIGH","EXTREME"].includes(x.risk)).slice(0,1),all:selected}
+}
+export function regenerateContextualActionSet(state,{exclude=[]}={}){
+ const set=buildContextualActionSet(state,suggestionRefreshCandidates(state),{exclude}),primary=set.primary.filter(x=>x?.prevalidated===true&&evaluateSuggestionRequirements(state,x).ok).slice(0,3);
+ return {primary,highRisk:[],all:primary}
 }
 function trustedSuggestionHasKnownDestination(state,action){
  const current=String(state.player?.location||"");

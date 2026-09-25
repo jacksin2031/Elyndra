@@ -33,7 +33,7 @@ test("v0.54.12 StatePatch rejects MOVE_PLAYER to current or non-canonical locati
 
 test("v0.54.12 ai-client release edges and runtime prompt remain parse-safe",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/\.\/turn-outcome\.js\?v=57014/);
- assert.match(client,/\.\/ai-runtime-contracts\.js\?v=57014/);
+ assert.match(client,/\.\/turn-outcome\.js\?v=57015/);
+ assert.match(client,/\.\/ai-runtime-contracts\.js\?v=57015/);
  assert.match(client,/accessRequirements 只能是空陣列/)
 });
