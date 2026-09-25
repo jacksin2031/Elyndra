@@ -1,6 +1,6 @@
-import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=57013";
-import {ensureHistoryFutureLinks,recordHistoryClueEvidence} from "./history-future.js?v=57013";
-import {signalHistoryResearch} from "./history-depth.js?v=57013";
+import {recordKnowledgeEvidence,recomputeCorroboration,ensureKnowledgeMetadata} from "./knowledge-model.js?v=57014";
+import {ensureHistoryFutureLinks,recordHistoryClueEvidence} from "./history-future.js?v=57014";
+import {signalHistoryResearch} from "./history-depth.js?v=57014";
 
 const clean=(v,max=500)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);

@@ -1,68 +1,68 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=57013";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57013";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57013";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57013";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=57013";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57013";
-import {maintainSession} from "./src/session-maintenance.js?v=57013";
-import {performAction} from "./src/game-engine.js?v=57013";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57013";
-import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57013";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=57013";
-import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57013";
-import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57013";
-import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57013";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57013";
-import {ensureFactionRuntime} from "./src/faction-engine.js?v=57013";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57013";
-import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57013";
-import {ensureCrisis} from "./src/crisis-engine.js?v=57013";
-import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57013";
-import {playerVisibleEvents} from "./src/event-visibility.js?v=57013";
-import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57013";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=57013";
-import {randomWorldSettings} from "./src/world-randomizer.js?v=57013";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=57013";
-import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57013";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57013";
-import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57013";
-import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57013";
-import {deriveSceneTitle} from "./src/runtime-guard.js?v=57013";
-import {worldCommunication} from "./src/communication-engine.js?v=57013";
-import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57013";
-import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57013";
-import {ensureMagicRuntime} from "./src/magic-engine.js?v=57013";
-import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57013";
-import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57013";
-import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57013";
-import {marketSnapshot} from "./src/economy-engine.js?v=57013";
-import {cultureSnapshot} from "./src/culture-engine.js?v=57013";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57013";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57013";
-import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57013";
-import {worldMapSnapshot} from "./src/world-map.js?v=57013";
-import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57013";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57013";
-import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57013";
-import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57013";
-import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57013";
-import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57013";
-import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57013";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57013";
-import {createStateSessionGuard} from "./src/state-session.js?v=57013";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57013";
-import {applyOriginRuntime} from "./src/origin-runtime.js?v=57013";
-import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57013";
-import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57013";
-import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57013";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=57013";
-import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57013";
-import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57013";
-import {copyAutotestText} from "./src/autotest-copy.js?v=57013";
-import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57013";
-import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57013";
-import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,requestAutotestBrowserDownload} from "./src/autotest-download.js?v=57013";
+import {APP_VERSION} from "./src/version.js?v=57014";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57014";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57014";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57014";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=57014";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57014";
+import {maintainSession} from "./src/session-maintenance.js?v=57014";
+import {performAction} from "./src/game-engine.js?v=57014";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57014";
+import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57014";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=57014";
+import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57014";
+import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57014";
+import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57014";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57014";
+import {ensureFactionRuntime} from "./src/faction-engine.js?v=57014";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57014";
+import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57014";
+import {ensureCrisis} from "./src/crisis-engine.js?v=57014";
+import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57014";
+import {playerVisibleEvents} from "./src/event-visibility.js?v=57014";
+import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57014";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=57014";
+import {randomWorldSettings} from "./src/world-randomizer.js?v=57014";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=57014";
+import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57014";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57014";
+import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57014";
+import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57014";
+import {deriveSceneTitle} from "./src/runtime-guard.js?v=57014";
+import {worldCommunication} from "./src/communication-engine.js?v=57014";
+import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57014";
+import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57014";
+import {ensureMagicRuntime} from "./src/magic-engine.js?v=57014";
+import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57014";
+import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57014";
+import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57014";
+import {marketSnapshot} from "./src/economy-engine.js?v=57014";
+import {cultureSnapshot} from "./src/culture-engine.js?v=57014";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57014";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57014";
+import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57014";
+import {worldMapSnapshot} from "./src/world-map.js?v=57014";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57014";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57014";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57014";
+import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57014";
+import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57014";
+import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57014";
+import {buildContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57014";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57014";
+import {createStateSessionGuard} from "./src/state-session.js?v=57014";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57014";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=57014";
+import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57014";
+import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57014";
+import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57014";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=57014";
+import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57014";
+import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57014";
+import {copyAutotestText} from "./src/autotest-copy.js?v=57014";
+import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57014";
+import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57014";
+import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,requestAutotestBrowserDownload} from "./src/autotest-download.js?v=57014";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 const stateSession=createStateSessionGuard(null);
 function captureStateSession(){return stateSession.capture(gameState)}
@@ -83,7 +83,7 @@ const developerAutotestTransfer={kind:"",transfer:null,index:0,full:false};
 const developerAutotestDrag={kind:"",payload:null,selfTest:null,lastDrag:null};
 const developerAutotestDownload={kind:"",payload:null,lease:null,request:null,verification:null};
 void loadLastAutotestExportSnapshot().then(snapshot=>{if(!snapshot)return;developerAutotest.exportSnapshot=snapshot;developerAutotest.exportPersistence={backend:"indexeddb-or-fallback",persisted:true,restored:true};if(!developerAutotest.lastReport&&snapshot.debugPayload?.summary)developerAutotest.lastReport=snapshot.debugPayload;recordDebug("AUTOTEST_EXPORT_CACHE_RESTORED",{createdAt:snapshot.createdAt,worlds:snapshot.worlds?.length||0})}).catch(error=>recordDebug("AUTOTEST_EXPORT_CACHE_RESTORE_FAILED",{error:error?.message||String(error)}));
-const autotestRuntimeExpansion={running:false,controller:null,reason:"",turn:0};
+const autotestRuntimeExpansion={running:false,controller:null,reason:"",turn:0,cooldownUntil:0};
 const AUTOTEST_BACKGROUND_GRACE_MS=15000;
 function autotestNetworkError(error){return /Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|AI_TIMEOUT/i.test(String(error?.message||error||""))}
 function autotestBackgroundAffected(error){return developerAutotest.running&&autotestNetworkError(error)&&(document.hidden||developerAutotest.hiddenAt>0||(developerAutotest.lastVisibleAt&&Date.now()-developerAutotest.lastVisibleAt<=AUTOTEST_BACKGROUND_GRACE_MS))}
@@ -1002,9 +1002,9 @@ async function finalizeDeveloperAutotestWorld(config={}){
   recordDebug("AUTOTEST_FINAL_QUALITY_STARTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});
   await runBackgroundWorldQualityCritic({allowAutotest:true})
  }
- const finalQuality=gameState?.world?.quality||{},qualitySettled=!backgroundQualityNeed(gameState).required&&finalQuality.pending!==true&&finalQuality.backgroundPending!==true&&String(finalQuality.status||"").toUpperCase()!=="PENDING";
- const finalQualitySettleKey=[gameState?.world?.id||"",developerAutotest.turn,qualitySettled].join(":");if(developerAutotest.finalQualitySettleKey!==finalQualitySettleKey){developerAutotest.finalQualitySettleKey=finalQualitySettleKey;recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled})}
- return qualitySettled
+ const finalQuality=gameState?.world?.quality||{},qualityStatus=String(finalQuality.status||"").toUpperCase(),qualityUnavailable=qualityStatus==="UNAVAILABLE",qualitySettled=!backgroundQualityNeed(gameState).required&&finalQuality.pending!==true&&finalQuality.backgroundPending!==true&&qualityStatus!=="PENDING"&&!qualityUnavailable,qualityTerminal=qualitySettled||qualityUnavailable;
+ const finalQualitySettleKey=[gameState?.world?.id||"",developerAutotest.turn,qualitySettled,qualityUnavailable].join(":");if(developerAutotest.finalQualitySettleKey!==finalQualitySettleKey){developerAutotest.finalQualitySettleKey=finalQualitySettleKey;recordDebug("AUTOTEST_FINAL_QUALITY_SETTLED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn,qualitySettled,qualityUnavailable})}
+ return qualityTerminal
 }
 async function waitForAutotestActionReady(timeoutMs=38000){
  const started=Date.now();
@@ -1054,11 +1054,11 @@ async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED",opt
 function autotestRecentStallCount(rows=[]){let count=0;for(const row of rows.slice().reverse()){if(row?.progressed!==false)break;count++}return count}
 function scheduleDeveloperAutotestExpansion(reason="FIRST_BUTTON_STALL_RECOVERY",turn=0){
  const forcedRecovery=reason==="FIRST_BUTTON_STALL_RECOVERY";
- if(!developerAutotestActive||!developerAutotest.running||!gameState||!aiStatus.aiConfigured||autotestRuntimeExpansion.running||(!forcedRecovery&&!needsExpansion(gameState)))return false;
+ if(!developerAutotestActive||!developerAutotest.running||!gameState||!aiStatus.aiConfigured||autotestRuntimeExpansion.running||Date.now()<Number(autotestRuntimeExpansion.cooldownUntil||0)||(!forcedRecovery&&!needsExpansion(gameState)))return false;
  const stateToken=captureStateSession(),batchSignal=developerAutotest.batchController?.signal;if(batchSignal?.aborted)return false;
  const ctrl=new AbortController(),worldId=gameState.world?.id,relay=()=>{if(!ctrl.signal.aborted)ctrl.abort(batchSignal?.reason||new DOMException("AutoTest batch stopped","AbortError"))};if(batchSignal)batchSignal.addEventListener("abort",relay,{once:true});
  autotestRuntimeExpansion.running=true;autotestRuntimeExpansion.controller=ctrl;autotestRuntimeExpansion.reason=reason;autotestRuntimeExpansion.turn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_STARTED",{reason,turn,worldId,forcedRecovery});
- void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal,force:forcedRecovery}).then(ok=>{if(isCurrentStateSession(stateToken))recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok})}).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl){autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0}});
+ void expandDeveloperAutotestWorld(reason,{background:true,signal:ctrl.signal,force:forcedRecovery}).then(ok=>{autotestRuntimeExpansion.cooldownUntil=ok?0:Date.now()+15000;if(isCurrentStateSession(stateToken))recordDebug("AUTOTEST_RUNTIME_EXPANSION_BACKGROUND_COMPLETED",{reason,turn,worldId,ok,cooldownUntil:autotestRuntimeExpansion.cooldownUntil})}).finally(()=>{if(batchSignal)batchSignal.removeEventListener("abort",relay);if(autotestRuntimeExpansion.controller===ctrl){autotestRuntimeExpansion.controller=null;autotestRuntimeExpansion.running=false;autotestRuntimeExpansion.reason="";autotestRuntimeExpansion.turn=0}});
  return true
 }
 async function executeDeveloperAutotestDecision(decision){
@@ -1194,7 +1194,7 @@ async function startDeveloperAutotest(config){
       if(firstButtonFast&&firstButtonExpansionReason){const scheduled=scheduleDeveloperAutotestExpansion(firstButtonExpansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:firstButtonExpansionReason,turn,scheduled})}
       if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
       await executeDeveloperAutotestDecision(decision);if(firstButtonFast)await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);
-      row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push({action:decision.action||decision.combatAction||"",mode:decision.mode,kind:decision.kind||"",progression:decision.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
+      row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push({action:decision.action||decision.combatAction||"",mode:decision.mode,kind:decision.kind||"",progression:decision.progression===true,targetId:decision.targetId||null,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
      }catch(e){
@@ -1206,7 +1206,7 @@ async function startDeveloperAutotest(config){
        appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 因背景切換中斷 AI 決策；回到前景後重試同一回合。`);
        await waitForAutotestVisible();turn--;continue
       }
-      row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;recentActions.push({action:row.decision?.action||row.decision?.combatAction||"",mode:row.decision?.mode||"",kind:row.decision?.kind||"",progression:row.decision?.progression===true,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
+      row.error=e?.message||String(e);row.durationMs=Date.now()-turnStartedAt;row.afterFingerprint=autotestStateFingerprint(gameState);result.actions.push(row);result.turns=turn;recentActions.push({action:row.decision?.action||row.decision?.combatAction||"",mode:row.decision?.mode||"",kind:row.decision?.kind||"",progression:row.decision?.progression===true,targetId:row.decision?.targetId||null,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_FAILED",{worldIndex:i,turn,error:row.error,durationMs:row.durationMs});appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn} 發生錯誤：${row.error}`);
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:false},config,{});if(stop){result.stopReason=stop;break}
      }
