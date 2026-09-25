@@ -1,68 +1,69 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=57015";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57015";
-import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57015";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57015";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=57015";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57015";
-import {maintainSession} from "./src/session-maintenance.js?v=57015";
-import {performAction} from "./src/game-engine.js?v=57015";
-import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57015";
-import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57015";
-import {ensureWorldSimulation} from "./src/world-simulation.js?v=57015";
-import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57015";
-import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57015";
-import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57015";
-import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57015";
-import {ensureFactionRuntime} from "./src/faction-engine.js?v=57015";
-import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57015";
-import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57015";
-import {ensureCrisis} from "./src/crisis-engine.js?v=57015";
-import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57015";
-import {playerVisibleEvents} from "./src/event-visibility.js?v=57015";
-import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57015";
-import {getWorldStylePreset} from "./src/world-style-presets.js?v=57015";
-import {randomWorldSettings} from "./src/world-randomizer.js?v=57015";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml} from "./src/world-creation.js?v=57015";
-import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57015";
-import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57015";
-import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57015";
-import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57015";
-import {deriveSceneTitle} from "./src/runtime-guard.js?v=57015";
-import {worldCommunication} from "./src/communication-engine.js?v=57015";
-import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57015";
-import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57015";
-import {ensureMagicRuntime} from "./src/magic-engine.js?v=57015";
-import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57015";
-import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57015";
-import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57015";
-import {marketSnapshot} from "./src/economy-engine.js?v=57015";
-import {cultureSnapshot} from "./src/culture-engine.js?v=57015";
-import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57015";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57015";
-import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57015";
-import {worldMapSnapshot} from "./src/world-map.js?v=57015";
-import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57015";
-import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57015";
-import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57015";
-import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57015";
-import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57015";
-import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57015";
-import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57015";
-import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57015";
-import {createStateSessionGuard} from "./src/state-session.js?v=57015";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57015";
-import {applyOriginRuntime} from "./src/origin-runtime.js?v=57015";
-import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57015";
-import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57015";
-import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57015";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy} from "./src/ai-autotest.js?v=57015";
-import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57015";
-import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57015";
-import {copyAutotestText} from "./src/autotest-copy.js?v=57015";
-import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57015";
-import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57015";
-import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,requestAutotestBrowserDownload} from "./src/autotest-download.js?v=57015";
+import {APP_VERSION} from "./src/version.js?v=57016";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=57016";
+import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57016";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment} from "./src/ai-client.js?v=57016";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=57016";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57016";
+import {maintainSession} from "./src/session-maintenance.js?v=57016";
+import {performAction} from "./src/game-engine.js?v=57016";
+import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=57016";
+import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57016";
+import {ensureWorldSimulation} from "./src/world-simulation.js?v=57016";
+import {ensureWorldRegistry,canonizeGeneration,enrichGeneratedLocations,canInteractWithNpc,npcInteractionMode,isNpcPresent,repairPlayerLocation} from "./src/world-registry.js?v=57016";
+import {playerVisibleLocationName} from "./src/player-location-visibility.js?v=57016";
+import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/knowledge-graph.js?v=57016";
+import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57016";
+import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=57016";
+import {ensureFactionRuntime} from "./src/faction-engine.js?v=57016";
+import {ensureCharacter,combatAction,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=57016";
+import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=57016";
+import {ensureCrisis} from "./src/crisis-engine.js?v=57016";
+import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57016";
+import {playerVisibleEvents} from "./src/event-visibility.js?v=57016";
+import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57016";
+import {getWorldStylePreset} from "./src/world-style-presets.js?v=57016";
+import {randomWorldSettings} from "./src/world-randomizer.js?v=57016";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=57016";
+import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57016";
+import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57016";
+import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57016";
+import {ensureCheckProfile,checkProfileSnapshot} from "./src/check-engine.js?v=57016";
+import {deriveSceneTitle} from "./src/runtime-guard.js?v=57016";
+import {worldCommunication} from "./src/communication-engine.js?v=57016";
+import {initializeWeather,weatherUiSnapshot} from "./src/weather-engine.js?v=57016";
+import {ensureSurvival,survivalSnapshot} from "./src/survival-engine.js?v=57016";
+import {ensureMagicRuntime} from "./src/magic-engine.js?v=57016";
+import {ensureTravelNetwork,travelSnapshot} from "./src/travel-engine.js?v=57016";
+import {ensureDungeonSites,dungeonSnapshot} from "./src/dungeon-engine.js?v=57016";
+import {ensureTalents,talentSnapshot,learnTalent} from "./src/talent-engine.js?v=57016";
+import {marketSnapshot} from "./src/economy-engine.js?v=57016";
+import {cultureSnapshot} from "./src/culture-engine.js?v=57016";
+import {worldEvolutionNeed,markWorldEvolution,worldHealthSnapshot,backgroundQualityNeed,applyUnseenWorldRepair,recordBackgroundQualityReview} from "./src/world-quality.js?v=57016";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,presentItemToNpc,craftingSnapshot} from "./src/item-engine.js?v=57016";
+import {ensureNotes,addNote,updateNote,deleteNote,notesSnapshot} from "./src/notes-engine.js?v=57016";
+import {worldMapSnapshot} from "./src/world-map.js?v=57016";
+import {ensurePlayerOrigin,playerOriginSnapshot} from "./src/player-origin.js?v=57016";
+import {openJournalUI,openInventoryUI,openSaveManagerUI} from "./src/progression-ui.js?v=57016";
+import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleText,clearDebugTelemetry,installDebugConsoleCapture} from "./src/debug-telemetry.js?v=57016";
+import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=57016";
+import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57016";
+import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57016";
+import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57016";
+import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57016";
+import {createStateSessionGuard} from "./src/state-session.js?v=57016";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=57016";
+import {applyOriginRuntime} from "./src/origin-runtime.js?v=57016";
+import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57016";
+import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57016";
+import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57016";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=57016";
+import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot} from "./src/autotest-export.js?v=57016";
+import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory} from "./src/autotest-save.js?v=57016";
+import {copyAutotestText} from "./src/autotest-copy.js?v=57016";
+import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57016";
+import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57016";
+import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile} from "./src/autotest-download.js?v=57016";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 const stateSession=createStateSessionGuard(null);
 function captureStateSession(){return stateSession.capture(gameState)}
@@ -480,17 +481,12 @@ async function refresh(){const exists=await hasWorld().catch(()=>false);$("#cont
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
  if($("#fatigueStat"))$("#fatigueStat").textContent=`${Math.round(survivalInfo.fatigue)} / 100`;
- if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=gameState.player.location;const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||turnSyncBusy||playerActionFlight.active||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":playerActionFlight.active?"正在處理：「"+playerActionFlight.label+"」":turnSyncBusy?"STATE SYNC：同步完成後即可繼續行動":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy&&!turnSyncBusy){scheduleWorldEvolution("gameplay_idle",1600);scheduleHistoryDeepening("knowledge_refresh",2100)}}
+ if($("#magicStat"))$("#magicStat").textContent=gameState.player.magic?`${Math.round(gameState.player.magic.strain||0)} / ${gameState.player.magic.capacity||100}`:"—";$("#location").textContent=playerVisibleLocationName(gameState);const weather=weatherUiSnapshot(gameState),weatherEl=$("#weather");if(weatherEl){weatherEl.textContent=weather.observableName;weatherEl.title=weather.sensoryCue||weather.observableName;weatherEl.dataset.danger=String(weather.danger||0)}document.body.dataset.weatherDanger=String(weather.danger||0);$("#sceneTitle").textContent=gameState.sceneTitle||deriveSceneTitle(gameState);$("#narrative").textContent=gameState.narrative;$("#questTitle").textContent=gameState.quests.main.title;$("#questText").textContent=gameState.quests.main.objectives[0]||"";renderKnownNpcs();renderSuggestions();const free=$("#freeAction");if(free){free.disabled=aiBusy||turnSyncBusy||playerActionFlight.active||Boolean(gameState.combat?.active);free.placeholder=gameState.combat?.active?"戰鬥中請使用下方戰鬥行動按鈕":playerActionFlight.active?"正在處理：「"+playerActionFlight.label+"」":turnSyncBusy?"STATE SYNC：同步完成後即可繼續行動":"自由行動：例如「我想仔細檢查眼前可見的物件」"}if(document.body.dataset.screen==="game"&&!aiBusy&&!turnSyncBusy){scheduleWorldEvolution("gameplay_idle",1600);scheduleHistoryDeepening("knowledge_refresh",2100)}}
 async function persist(state=gameState,sessionToken=null){if(state){
  if(sessionToken&&!isCurrentStateSession(sessionToken))return false;
  const day=Number(state.world?.state?.day)||1;ensurePlayerExperience(state);
  const projected=projectObservableWorldChanges(state,state.narrative);if(projected.projected.length){state.narrative=projected.narrative;recordDebug("WORLD_IMPACT_PROJECTED",{events:projected.projected,day,location:state.player?.location||""})}
  const recap=maybeJourneyCheckpoint(state);if(recap){
-  const lines=["旅程小結："+recap.summary];
-  if(recap.discoveries.length)lines.push("記住的線索："+recap.discoveries.join("；"));
-  if(recap.worldChanges.length)lines.push("世界留下的變化："+recap.worldChanges.join("；"));
-  if(recap.unresolved.length)lines.push("仍放不下的事："+recap.unresolved.slice(0,2).join("；"));
-  state.narrative=(state.narrative?state.narrative+"\n\n":"")+lines.join("\n");
   recordDebug("SESSION_CHECKPOINT",{reason:recap.reason,day:recap.day,location:recap.location,worldChanges:recap.worldChanges,discoveries:recap.discoveries,unresolved:recap.unresolved})
  }
  maintainSession(state);if(!developerAutotestActive)await saveWorld(state)
@@ -933,16 +929,17 @@ function appendDeveloperAutotestLog(message){
  const line=String(message||"").slice(0,500);developerAutotest.lastMessage=line;developerAutotest.logs.push({at:Date.now(),message:line});developerAutotest.logs=developerAutotest.logs.slice(-80);
  const status=$("#autotestLiveStatus");if(status)status.textContent=line;
  const log=$("#autotestLiveLog");if(log)log.textContent=developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n");
- const progress=$("#autotestProgressText");if(progress){const total=Number(developerAutotest.config?.worldCount)||0,maxTurns=Number(developerAutotest.config?.maxTurns)||0;progress.textContent=developerAutotest.running?`世界 ${developerAutotest.worldIndex}/${total} · 回合 ${developerAutotest.turn}/${maxTurns}`:"未執行"}
+ const progress=$("#autotestProgressText");if(progress){const total=Number(developerAutotest.config?.totalWorldCount||developerAutotest.config?.worldCount)||0,maxTurns=Number(developerAutotest.config?.maxTurns)||0;progress.textContent=developerAutotest.running?`世界 ${developerAutotest.worldIndex}/${total} · 回合 ${developerAutotest.turn}/${maxTurns}`:"未執行"}
 }
 function developerAutotestPanelHtml(){
- const c=developerAutotest.config||{mode:"play",worldCount:1,maxTurns:30,stopCondition:"TURN_LIMIT",conditionTarget:10,customCondition:"",exportMode:"both",disableTimeout:false};
- const running=developerAutotest.running,report=developerAutotest.lastReport,summary=report?.summary,exportSnapshot=developerAutotest.exportSnapshot,exportArtifacts=exportSnapshot?buildAutotestExportArtifacts(exportSnapshot):{},saveCapability=autotestSaveCapability(window);
+ const c=developerAutotest.config||{mode:"play",worldCount:1,maxTurns:30,stopCondition:"TURN_LIMIT",conditionTarget:10,customCondition:"",exportMode:"both",disableTimeout:false,difficultyMode:"CURRENT"};
+ const running=developerAutotest.running,report=developerAutotest.lastReport,summary=report?.summary,exportSnapshot=developerAutotest.exportSnapshot,exportArtifacts=exportSnapshot?buildAutotestExportArtifacts(exportSnapshot):{},saveCapability=autotestSaveCapability(window),difficultyRows=summary?.byDifficulty?Object.entries(summary.byDifficulty).map(([id,row])=>`<div><strong>${esc(DIFFICULTY_PRESETS[id]?.label||id)}</strong> · ${row.worldsCompleted} 完成 / ${row.worldsFailed} 失敗 · ${row.turns} 回合 · ${row.issues} Issues</div>`).join(""):"";
  const exportPanel=exportSnapshot?`<div class="lore-item"><small>EXPORT READY · ${esc(exportSnapshot.createdAt||"")} · v${esc(exportSnapshot.appVersion||"?")}</small><h3>AutoTest snapshot 已保存，不需重跑</h3><p>${developerAutotest.exportPersistence?.persisted?"結果已保存於瀏覽器 IndexedDB；重新整理後仍可載入。":"結果目前保留在本頁記憶體。"}</p><p><strong>主要交付路徑：</strong>同源 Service Worker HTTP attachment 導航；只有 Service Worker 未受控時才退回 Blob/object URL + &lt;a download&gt;。點擊只代表瀏覽器收到下載要求；只有把實際檔案重新選回並通過檔名、bytes、SHA-256 三項驗證才算 PASS。原生 drag 保留為進階 fallback。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestDownloadDebug" class="primary">下載並驗證 Debug JSON</button><button id="autotestDragDebug" class="secondary">進階拖出 Debug</button>':""}${exportArtifacts.world?'<button id="autotestDownloadWorld" class="primary">下載並驗證世界檔</button><button id="autotestDragWorld" class="secondary">進階拖出世界檔</button>':""}${exportArtifacts.recovery?'<button id="autotestDownloadRecovery" class="primary">下載並驗證 Recovery JSON</button><button id="autotestDragRecovery" class="secondary">進階拖出 Recovery</button>':""}${exportArtifacts.debug?'<button id="autotestTransferDebug" class="primary">頁面取回 Debug JSON</button>':""}${exportArtifacts.world?'<button id="autotestTransferWorld" class="primary">頁面取回世界檔</button>':""}${exportArtifacts.recovery?'<button id="autotestTransferRecovery" class="primary">頁面取回 Recovery JSON</button>':""}<button id="autotestReloadExport" class="secondary">重新載入已保存結果</button></div><details><summary>文字分段救援 / Browser API fallback</summary><p class="muted">以下只保留兼容性，不作為成功交付判定。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestSaveDebug" class="ghost">Save Picker：Debug</button><button id="autotestCopyDebug" class="ghost">Browser Clipboard：Debug</button>':""}${exportArtifacts.world?'<button id="autotestSaveWorld" class="ghost">Save Picker：世界</button><button id="autotestCopyWorld" class="ghost">Browser Clipboard：世界</button>':""}${exportArtifacts.recovery?'<button id="autotestSaveRecovery" class="ghost">Save Picker：Recovery</button>':""}${saveCapability.directoryPicker?'<button id="autotestSaveAll" class="ghost">Directory Picker：全部</button>':""}${exportArtifacts.debug?'<button id="autotestFallbackDebug" class="ghost">傳統下載 Debug</button>':""}${exportArtifacts.world?'<button id="autotestFallbackWorld" class="ghost">傳統下載世界</button>':""}${exportArtifacts.recovery?'<button id="autotestFallbackRecovery" class="ghost">傳統下載 Recovery</button>':""}</div></details></div>`:`<div class="lore-item"><small>EXPORT RECOVERY</small><p>若之前已完成測試，可從瀏覽器保存區載入後使用 IAB 頁面取回，不需再跑回合。</p><button id="autotestReloadExport" class="secondary">載入上次匯出資料</button></div>`;
  return `<div class="eyebrow">DEVELOPER · AI AUTOTEST</div><h2>AI 自動測試</h2><p class="muted">使用目前已設定的 Elyndra AI Provider/API。測試世界不會覆蓋正式存檔；AI 玩家只會收到真實玩家此刻能看見或已知的情報，不會取得 hidden Canon。</p>
  <div class="settings-grid">
  <label>測試模式<select id="autotestMode" ${running?"disabled":""}><option value="play">AI 遊玩測試</option><option value="worlds">隨機世界生成測試</option></select></label>
- <label>隨機世界數量<input id="autotestWorldCount" type="number" min="1" max="20" value="${Math.max(1,Number(c.worldCount)||1)}" ${running?"disabled":""}></label>
+ <label>隨機世界數量<input id="autotestWorldCount" type="number" min="1" max="20" value="${Math.max(1,Number(c.worldsPerDifficulty||c.worldCount)||1)}" ${running?"disabled":""}></label>
+ <label>遊玩難度<select id="autotestDifficultyMode" ${running?"disabled":""}><option value="CURRENT">維持目前難度</option><option value="easy">簡單</option><option value="normal">普通</option><option value="hard">困難</option><option value="realistic">現實</option><option value="ALL">難度矩陣：全部逐一測試</option></select></label>
  <label>每個世界最多回合<input id="autotestMaxTurns" type="number" min="1" max="500" value="${Math.max(1,Number(c.maxTurns)||30)}" ${running?"disabled":""}></label>
  <label>停止條件<select id="autotestStopCondition" ${running?"disabled":""}><option value="TURN_LIMIT">只按回合上限</option><option value="PLAYER_DOWNED">玩家倒下</option><option value="MAIN_QUEST_COMPLETE">主線完成</option><option value="KNOWLEDGE_SCORE">知識分數達標</option><option value="PLAYER_LEVEL">玩家等級達標</option><option value="DISCOVERIES">發現數達標</option><option value="ERROR_COUNT">錯誤數達標</option><option value="CUSTOM_AI">自訂可觀察條件</option></select></label>
  <label>條件目標值<input id="autotestConditionTarget" type="number" min="1" max="9999" value="${Math.max(1,Number(c.conditionTarget)||10)}" ${running?"disabled":""}></label>
@@ -952,8 +949,8 @@ function developerAutotestPanelHtml(){
  <label class="full">自訂停止條件<input id="autotestCustomCondition" maxlength="500" value="${esc(c.customCondition||"")}" placeholder="例如：加入任一勢力並取得一項新知識" ${running?"disabled":""}></label>
  <p class="muted">AI 每回合可以直接選擇現有行動按鈕，亦可以自行輸入自由行動。無論設定任何停止條件，回合上限仍會作為安全上限。「取消 AI Timeout」只移除 Provider request 的時間上限；仍可隨時按「停止測試」Abort 當前請求。</p>
  <div class="settings-actions"><button id="autotestStart" class="primary" ${running?"disabled":""}>開始自動測試</button><button id="autotestStop" class="secondary" ${running?"":"disabled"}>停止測試</button></div>
- <div class="lore-list"><div class="lore-item"><small>PROGRESS</small><h3 id="autotestProgressText">${running?`世界 ${developerAutotest.worldIndex}/${c.worldCount} · 回合 ${developerAutotest.turn}/${c.maxTurns}`:"未執行"}</h3><p id="autotestLiveStatus">${esc(developerAutotest.lastMessage||"設定完成後按「開始自動測試」。")}</p><pre id="autotestLiveLog" class="debug-log">${esc(developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n"))}</pre></div>
- ${summary?`<div class="lore-item"><small>LAST REPORT</small><h3>${summary.worldsCompleted} 完成 · ${summary.worldsFailed} 失敗 · ${summary.totalTurns} 回合</h3><p>Issues ${summary.issues} · AI Requests ${summary.aiRequests} · Tokens ${Number(summary.tokenTotals?.total||0).toLocaleString()} · 平均 AI latency ${summary.aiLatencyAverageMs}ms</p></div>`:""}${exportPanel}</div>
+ <div class="lore-list"><div class="lore-item"><small>PROGRESS</small><h3 id="autotestProgressText">${running?`世界 ${developerAutotest.worldIndex}/${c.totalWorldCount||c.worldCount} · 回合 ${developerAutotest.turn}/${c.maxTurns}`:"未執行"}</h3><p id="autotestLiveStatus">${esc(developerAutotest.lastMessage||"設定完成後按「開始自動測試」。")}</p><pre id="autotestLiveLog" class="debug-log">${esc(developerAutotest.logs.slice(-12).map(x=>new Date(x.at).toLocaleTimeString()+" · "+x.message).join("\n"))}</pre></div>
+ ${summary?`<div class="lore-item"><small>LAST REPORT</small><h3>${summary.worldsCompleted} 完成 · ${summary.worldsFailed} 失敗 · ${summary.totalTurns} 回合</h3><p>Issues ${summary.issues} · AI Requests ${summary.aiRequests} · Tokens ${Number(summary.tokenTotals?.total||0).toLocaleString()} · 平均 AI latency ${summary.aiLatencyAverageMs}ms</p>${difficultyRows?`<div class="autotest-difficulty-summary">${difficultyRows}</div>`:""}</div>`:""}${exportPanel}</div>
  <p class="muted">AutoTest 完成後先把結果保存到瀏覽器，再由你按按鈕下載；不再於背景連續觸發多檔自動下載。單一世界為 .elyndra，多世界為 JSON bundle；「單一復原包」同時包含 Debug 與全部世界。</p>`;
 }
 function readDeveloperAutotestConfig(){
@@ -966,11 +963,12 @@ function readDeveloperAutotestConfig(){
   customCondition:String($("#autotestCustomCondition")?.value||"").trim().slice(0,500),
   exportMode:["debug","world"].includes($("#autotestExportMode")?.value)?$("#autotestExportMode").value:"both",
   disableTimeout:$("#autotestDisableTimeout")?.checked===true,
+  difficultyMode:String($("#autotestDifficultyMode")?.value||"CURRENT"),
   playStrategy:autotestPlayStrategy()
  }
 }
 function bindDeveloperAutotestPanel(){
- const c=developerAutotest.config||{mode:"play",stopCondition:"TURN_LIMIT",exportMode:"both"};if($("#autotestMode"))$("#autotestMode").value=c.mode||"play";if($("#autotestStopCondition"))$("#autotestStopCondition").value=c.stopCondition||"TURN_LIMIT";if($("#autotestExportMode"))$("#autotestExportMode").value=["debug","world"].includes(c.exportMode)?c.exportMode:"both";
+ const c=developerAutotest.config||{mode:"play",stopCondition:"TURN_LIMIT",exportMode:"both"};if($("#autotestMode"))$("#autotestMode").value=c.mode||"play";if($("#autotestDifficultyMode"))$("#autotestDifficultyMode").value=c.difficultyMode||"CURRENT";if($("#autotestStopCondition"))$("#autotestStopCondition").value=c.stopCondition||"TURN_LIMIT";if($("#autotestExportMode"))$("#autotestExportMode").value=["debug","world"].includes(c.exportMode)?c.exportMode:"both";
  $("#autotestStart")?.addEventListener("click",()=>{if(developerAutotest.running)return;developerAutotest.config=readDeveloperAutotestConfig();void startDeveloperAutotest(developerAutotest.config)});
  $("#autotestStop")?.addEventListener("click",()=>{developerAutotest.stopRequested=true;const reason=new DOMException("Developer autotest stopped","AbortError");developerAutotest.controller?.abort(reason);developerAutotest.batchController?.abort(reason);appendDeveloperAutotestLog("已要求停止；正在 Abort 當前 AI request，之後於安全點結束。");recordDebug("AUTOTEST_STOP_REQUESTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn})});
  $("#autotestDownloadDebug")?.addEventListener("click",()=>void openDeveloperAutotestDownload("debug"));$("#autotestDownloadWorld")?.addEventListener("click",()=>void openDeveloperAutotestDownload("world"));$("#autotestDownloadRecovery")?.addEventListener("click",()=>void openDeveloperAutotestDownload("recovery"));
@@ -996,7 +994,7 @@ async function waitForAutotestIdle(timeoutMs=12000){
 }
 async function finalizeDeveloperAutotestWorld(config={}){
  if(!gameState||developerAutotest.stopRequested||developerAutotest.batchController?.signal?.aborted)return false;
- const fastTransition=developerAutotest.worldIndex<Math.max(1,Number(config.worldCount)||1),transitionFrom=developerAutotest.worldIndex,transitionTo=transitionFrom+1;
+ const fastTransition=developerAutotest.worldIndex<Math.max(1,Number(config.totalWorldCount||config.worldCount)||1),transitionFrom=developerAutotest.worldIndex,transitionTo=transitionFrom+1;
  if(fastTransition){
   recordDebug("AUTOTEST_WORLD_TRANSITION_STARTED",{fromIndex:transitionFrom,toIndex:transitionTo,turn:developerAutotest.turn});
   const qualityWaitStarted=Date.now();while((worldQualityBackground.running||worldQualityBackground.timer)&&Date.now()-qualityWaitStarted<20000){await new Promise(r=>setTimeout(r,120))}
@@ -1053,13 +1051,13 @@ function cancelAutotestBackgroundWork(options={}){
 }
 async function createDeveloperAutotestWorld(raw,index){
  const draft=createWorldCreationDraft(raw),seed=compileWorldCreation(draft),state=newGame(seed);applyWorldCreationState(state,seed);
- recordDebug("AUTOTEST_WORLD_GENERATION_STARTED",{index,masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale});
+ recordDebug("AUTOTEST_WORLD_GENERATION_STARTED",{index,masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale,difficulty:raw.difficulty});
  const candidate=await generateWorldCandidate(seed,state.world.constitution,p=>appendDeveloperAutotestLog(`世界 ${index} · ${p.label||"World Compiler"} ${p.progress||0}%`));
  const creationValidation=validateWorldCreationCandidate(seed,candidate);if(!creationValidation.valid)throw new Error("AUTOTEST_WORLD_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
  applyWorldCandidate(state,candidate);canonizeGeneration(state,candidate.generation);applyOriginRuntime(state,{phase:"POST_CANON"});
  const migrated=migrate(state),validation=validateWorld(migrated.world);if(!validation.valid)throw new Error("AUTOTEST_WORLD_INVALID:"+validation.errors.join(","));
  recordDebug("AUTOTEST_WORLD_GENERATION_COMPLETED",{index,worldId:migrated.world?.id,name:migrated.world?.name,genre:migrated.world?.seedContract?.genre||raw.worldStyle});
- return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale},validation,generationDiagnostics:structuredClone(candidate?.generationDiagnostics||migrated.world?.generationDiagnostics||null)}
+ return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale,difficulty:raw.difficulty},validation,generationDiagnostics:structuredClone(candidate?.generationDiagnostics||migrated.world?.generationDiagnostics||null)}
 }
 async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED",options={}){
  const state=gameState,sessionToken=captureStateSession(),pending=pendingRuntimeGenerationPlan(state),force=options?.force===true;if(!developerAutotestActive||!state||!aiStatus.aiConfigured||(!force&&!needsExpansion(state)&&!pending))return false;
@@ -1120,7 +1118,7 @@ function developerAutotestDownloadHtml(){
  const p=developerAutotestDownload.payload;if(!p)return `<div class="eyebrow">AUTOTEST · VERIFIED DOWNLOAD</div><h2>沒有可下載資料</h2><button id="autotestDownloadBack" class="secondary">返回 AutoTest</button>`;
  const label=developerAutotestDownloadLabel(developerAutotestDownload.kind),request=developerAutotestDownload.request,verification=developerAutotestDownload.verification;
  const proof=verification?(verification.ok?`<p class="success"><strong>PASS · 實際檔案已驗證</strong><br>${esc(verification.filename)} · ${Number(verification.bytes).toLocaleString()} bytes<br>SHA-256 <code>${esc(verification.sha256)}</code></p>`:`<p class="error"><strong>FAIL · 實際檔案不一致</strong><br>實際：${esc(verification.filename||"")} · ${Number(verification.bytes||0).toLocaleString()} bytes · <code>${esc(verification.sha256||"")}</code><br>預期：${esc(p.filename)} · ${Number(p.bytes).toLocaleString()} bytes · <code>${esc(p.sha256)}</code></p>`):request?.status==="requested"?`<p class="muted"><strong>DOWNLOAD REQUESTED · NOT VERIFIED</strong><br>瀏覽器已收到標準下載點擊，但 Elyndra 不會把這一步當成保存成功。請在下載完成後用下方檔案選擇器重新選回檔案。</p>`:`<p class="muted"><strong>尚未要求下載。</strong> 點擊後仍不會宣稱成功，直到實際檔案通過驗證。</p>`;
- return `<div class="eyebrow">AUTOTEST · VERIFIED DOWNLOAD</div><h2>${esc(label)} 標準下載</h2><div class="lore-item"><p><strong>檔名：</strong><code>${esc(p.filename)}</code></p><p><strong>大小：</strong>${Number(p.bytes).toLocaleString()} bytes · ${Number(p.chars).toLocaleString()} 字元</p><p><strong>SHA-256：</strong><code>${esc(p.sha256)}</code></p><p class="muted">下載實作：優先走同源 Service Worker HTTP attachment（Content-Disposition），避免受限制 IAB 吞掉 blob: 下載；只有 bridge 未受控時才退回 Blob。此頁仍只把「重新選回的檔案」驗證成功視為完成。</p></div>${proof}<div class="settings-actions"><a id="autotestDownloadAnchor" class="primary" href="#">重新下載檔案</a><label class="secondary" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer">驗證已下載檔案<input id="autotestDownloadVerifyFile" type="file" style="display:none"></label><button id="autotestDownloadBack" class="ghost">返回 AutoTest</button></div><p id="autotestDownloadStatus" class="muted">若此 IAB 點擊後沒有產生可保存的下載檔，停止重試 drag；唯一有效驗證是取得實際檔案後在此選回，並讓檔名、bytes、SHA-256 全部一致。</p>`
+ return `<div class="eyebrow">AUTOTEST · VERIFIED DOWNLOAD</div><h2>${esc(label)} 標準下載</h2><div class="lore-item"><p><strong>檔名：</strong><code>${esc(p.filename)}</code></p><p><strong>大小：</strong>${Number(p.bytes).toLocaleString()} bytes · ${Number(p.chars).toLocaleString()} 字元</p><p><strong>SHA-256：</strong><code>${esc(p.sha256)}</code></p><p class="muted">開啟此驗證頁不會自動觸發下載。請在頁內明確按一次「下載檔案」；受控環境使用同源 Service Worker HTTP attachment + 原生 download 連結，未受控時才退回 Blob。只有把實際檔案重新選回並通過驗證才算完成。</p></div>${proof}<div class="settings-actions"><a id="autotestDownloadAnchor" class="primary" href="#">${request?.status==="requested"?"重新下載檔案":"下載檔案"}</a><label class="secondary" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer">驗證已下載檔案<input id="autotestDownloadVerifyFile" type="file" style="display:none"></label><button id="autotestDownloadBack" class="ghost">返回 AutoTest</button></div><p id="autotestDownloadStatus" class="muted">若此 IAB 點擊後沒有產生可保存的下載檔，停止重試 drag；唯一有效驗證是取得實際檔案後在此選回，並讓檔名、bytes、SHA-256 全部一致。</p>`
 }
 function bindDeveloperAutotestDownload(){
  const p=developerAutotestDownload.payload,lease=developerAutotestDownload.lease,anchor=$("#autotestDownloadAnchor"),input=$("#autotestDownloadVerifyFile"),status=$("#autotestDownloadStatus");
@@ -1130,10 +1128,8 @@ function bindDeveloperAutotestDownload(){
 }
 async function openDeveloperAutotestDownload(kind){
  const artifact=developerAutotestArtifact(kind);if(!artifact){appendDeveloperAutotestLog("找不到可下載的 AutoTest 匯出內容。");openDeveloperAutotestPanel();return}
- releaseDeveloperAutotestDownloadLease();let immediateRequest=null;
- try{immediateRequest=requestAutotestBrowserDownload(artifact);recordDebug("AUTOTEST_DOWNLOAD_REQUESTED",{kind,filename:immediateRequest.filename,bytes:immediateRequest.bytes,method:immediateRequest.method,bridgeControlled:immediateRequest.bridgeControlled,userActivation:Boolean(navigator.userActivation?.isActive),stage:"primary-click"})}
- catch(error){recordDebug("AUTOTEST_DOWNLOAD_REQUEST_FAILED",{kind,filename:artifact.filename,error:error?.message||String(error),userActivation:Boolean(navigator.userActivation?.isActive),stage:"primary-click"})}
- try{const payload=await buildAutotestDownloadPayload(artifact),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=immediateRequest?{...immediateRequest,sha256:payload.sha256}:null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:Boolean(immediateRequest)});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
+ releaseDeveloperAutotestDownloadLease();
+ try{const payload=await buildAutotestDownloadPayload(artifact),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
  catch(error){appendDeveloperAutotestLog(`標準下載資料建立失敗：${error?.message||error}`);recordDebug("AUTOTEST_DOWNLOAD_PREPARE_FAILED",{kind,error:error?.message||String(error)});openDeveloperAutotestPanel()}
 }
 function developerAutotestTransferLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界檔":"Recovery JSON"}
@@ -1183,18 +1179,19 @@ async function reloadDeveloperAutotestExport(){
 async function startDeveloperAutotest(config){
  if(developerAutotest.running)return;
  aiStatus=await aiHealth();if(!aiStatus.aiConfigured){appendDeveloperAutotestLog("需要先在 AI 設定連接 Provider/API。");openDeveloperAutotestPanel();return}
- const originalState=gameState?structuredClone(gameState):null,originalScreen=document.body.dataset.screen||"landing";
+ const originalState=gameState?structuredClone(gameState):null,originalScreen=document.body.dataset.screen||"landing",currentDifficulty=String(originalState?.player?.difficulty||originalState?.world?.creation?.blueprint?.difficulty||originalState?.world?.creation?.difficultyRules?.id||"normal"),difficultyPlan=autotestDifficultyPlan({worldCount:config.worldCount,difficultyMode:config.difficultyMode,currentDifficulty});
+ config={...config,worldsPerDifficulty:config.worldCount,totalWorldCount:difficultyPlan.length,difficulties:[...new Set(difficultyPlan.map(x=>x.difficulty))]};
  developerAutotest.running=true;developerAutotestActive=true;developerAutotest.stopRequested=false;developerAutotest.results=[];developerAutotest.startedAt=Date.now();developerAutotest.endedAt=0;developerAutotest.worldIndex=0;developerAutotest.turn=0;developerAutotest.logs=[];developerAutotest.lastReport=null;developerAutotest.hiddenAt=document.hidden?Date.now():0;developerAutotest.lastVisibleAt=document.hidden?0:Date.now();developerAutotest.backgroundInterruptions=0;developerAutotest.backgroundDurationMs=0;developerAutotest.config=structuredClone(config);developerAutotest.batchController=new AbortController();setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal});
- cancelAutotestBackgroundWork();recordDebug("AUTOTEST_BATCH_STARTED",{config});openDeveloperAutotestPanel();appendDeveloperAutotestLog(`開始 ${config.worldCount} 個世界的 ${config.mode==="worlds"?"World Fuzz":"AI Playthrough"} 測試。`);
+ cancelAutotestBackgroundWork();recordDebug("AUTOTEST_BATCH_STARTED",{config});openDeveloperAutotestPanel();appendDeveloperAutotestLog(`開始 ${config.totalWorldCount} 個世界的 ${config.mode==="worlds"?"World Fuzz":"AI Playthrough"} 測試；難度 ${config.difficulties.map(x=>DIFFICULTY_PRESETS[x]?.label||x).join(" / ")}。`);
  try{
-  for(let i=1;i<=config.worldCount;i++){
-   if(developerAutotest.stopRequested)break;
-   if(i>1)recordDebug("AUTOTEST_NEXT_WORLD_STARTED",{index:i,worldsRequested:config.worldCount});
+  for(const planned of difficultyPlan){
+   const i=planned.index,difficulty=planned.difficulty;if(developerAutotest.stopRequested)break;
+   if(i>1)recordDebug("AUTOTEST_NEXT_WORLD_STARTED",{index:i,worldsRequested:config.totalWorldCount,difficulty});
    developerAutotest.worldIndex=i;developerAutotest.turn=0;cancelAutotestBackgroundWork();replaceGameState(null,"AUTOTEST_WORLD_RESET");
-   const worldStartedAt=Date.now(),result={index:i,status:"RUNNING",phase:"GENERATION",turns:0,stopReason:"",error:"",actions:[],generation:null,summary:null,world:null};
+   const worldStartedAt=Date.now(),result={index:i,difficulty,status:"RUNNING",phase:"GENERATION",turns:0,stopReason:"",error:"",actions:[],generation:null,summary:null,world:null};
    try{
-    appendDeveloperAutotestLog(`世界 ${i}/${config.worldCount}：隨機設定並開始生成。`);
-    const generated=await createDeveloperAutotestWorld(randomAutotestWorldRaw(Math.random,i),i);
+    appendDeveloperAutotestLog(`世界 ${i}/${config.totalWorldCount} · ${DIFFICULTY_PRESETS[difficulty]?.label||difficulty}：隨機設定並開始生成。`);
+    const raw=randomAutotestWorldRaw(Math.random,i);raw.difficulty=difficulty;const generated=await createDeveloperAutotestWorld(raw,i);
     result.generation={durationMs:Date.now()-worldStartedAt,seed:generated.seed,validation:generated.validation,diagnostics:generated.generationDiagnostics};
     replaceGameState(generated.state,"AUTOTEST_WORLD_READY");const firstButtonFast=config.playStrategy==="FIRST_BUTTON";if(config.mode!=="worlds"&&!firstButtonFast&&needsExpansion(gameState))await expandDeveloperAutotestWorld("WORLD_EDGE_UNDERDEFINED");else if(config.mode!=="worlds"&&firstButtonFast&&needsExpansion(gameState))recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:"FIRST_BUTTON_FAST_PATH",phase:"INITIAL"});await refresh();show("game");if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle(3000);
     if(config.mode==="worlds"){

@@ -1,17 +1,18 @@
-import {playerVisibleEvents} from "./event-visibility.js?v=57015";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57015";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=57015";
-import {survivalSnapshot} from "./survival-engine.js?v=57015";
-import {travelSnapshot} from "./travel-engine.js?v=57015";
-import {marketSnapshot} from "./economy-engine.js?v=57015";
-import {dungeonSnapshot} from "./dungeon-engine.js?v=57015";
+import {playerVisibleEvents} from "./event-visibility.js?v=57016";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57016";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=57016";
+import {survivalSnapshot} from "./survival-engine.js?v=57016";
+import {travelSnapshot} from "./travel-engine.js?v=57016";
+import {marketSnapshot} from "./economy-engine.js?v=57016";
+import {dungeonSnapshot} from "./dungeon-engine.js?v=57016";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57016";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
 export function helperSnapshot(state){
  state=structuredClone(state);
  const r=state.world?.registry||{locations:[],npcs:[],factions:[],sideQuests:[]},locations=Array.isArray(r.locations)?r.locations:[],npcs=Array.isArray(r.npcs)?r.npcs:[],factions=Array.isArray(r.factions)?r.factions:[],sideQuests=Array.isArray(r.sideQuests)?r.sideQuests:[];
- const locName=String(state.player?.location||state.world?.state?.location||""),loc=locations.find(x=>x.name===locName)||null;
+ const locName=String(state.player?.location||state.world?.state?.location||""),loc=locations.find(x=>x.name===locName)||null,visibleLocation=playerVisibleLocationName(state);
  const present=n=>n?.alive!==false&&(n?.companion?.status==="ACTIVE"||Boolean(loc&&n?.locationId===loc.id));
  const nearbyNpcs=npcs.filter(n=>n?.known===true&&n?.encountered===true&&present(n)).slice(-8).map(n=>({name:n.name,role:n.role,description:safe(n.description,180),trust:Number.isFinite(n.trust)?n.trust:null,companionStatus:n.companion?.status||"NONE"}));
  const knownLocations=locations.filter(x=>x.known===true).slice(-12).map(x=>({name:x.name,type:x.type,region:x.region,description:safe(x.description,180)}));
@@ -25,7 +26,7 @@ export function helperSnapshot(state){
   rule:"ONLY_PLAYER_KNOWN",
   player:{
    name:state.player?.name||"無名者",
-   location:state.player?.location||"未知地點",
+   location:visibleLocation||"未知地點",
    hp:state.player?.hp,
    maxHp:state.player?.maxHp,
    level:state.player?.level,
@@ -37,7 +38,7 @@ export function helperSnapshot(state){
   world:{
    name:state.player?.worldNameKnown?state.world?.name:"UNKNOWN",
    time:state.player?.calendarKnown?state.world?.state?.clock:null,
-   currentLocation:loc?{name:loc.name,type:loc.type,region:loc.region,description:safe(loc.description,220)}:{name:state.player?.location||"未知地點"},
+   currentLocation:loc?{name:visibleLocation,type:loc.type,region:loc.known===true?loc.region:"",description:safe(loc.description,220).split(String(loc.name||"")).join("")}:{name:visibleLocation||"未知地點"},
    currentNarrative:safe(state.narrative,500),
    sceneTitle:safe(state.sceneTitle,80),
    weather:playerWeatherSnapshot(state),
