@@ -1,0 +1,66 @@
+name: Fix v0.57.11 cache closure
+on:
+  push:
+    branches: [fix/v0.57.11-iab-core-experience-r2]
+permissions:
+  contents: write
+jobs:
+  cache-closure-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[v05711-cache-closure]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Propagate v0.57.11 cache token through source import graph
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          changed=[]
+          replacements=0
+          for p in sorted(Path('src').rglob('*.js')):
+              s=p.read_text(encoding='utf-8')
+              n=s.count('.js?v=57006')
+              if not n:
+                  continue
+              p.write_text(s.replace('.js?v=57006','.js?v=57011'),encoding='utf-8')
+              changed.append((str(p),n))
+              replacements += n
+          if not replacements:
+              raise SystemExit('CACHE_CLOSURE_NO_57006_IMPORTS_FOUND')
+          stale=[]
+          for p in sorted(Path('src').rglob('*.js')):
+              if '.js?v=57006' in p.read_text(encoding='utf-8'):
+                  stale.append(str(p))
+          if stale:
+              raise SystemExit('CACHE_CLOSURE_STALE_REMAINS:'+','.join(stale))
+          print(f'Updated {replacements} import tokens across {len(changed)} source files')
+          for name,count in changed:
+              print(f' - {name}: {count}')
+          PY
+      - name: Full PR-equivalent unit regression and cache contract
+        shell: bash
+        env:
+          CACHE_BASE_REF: 31990ed4dbdea68157bdf993d4d907f8139729f8
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee /tmp/v05711-cache-test-output.txt
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Reprove native download pipeline
+        run: node scripts/prove-autotest-iab-download-v05711.mjs
+      - name: Commit validated cache closure
+        shell: bash
+        run: |
+          rm .github/workflows/v05711-cache-closure.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v0.57.11: propagate module cache identity [v05711-cache-closure]"
+          git push origin HEAD
