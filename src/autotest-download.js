@@ -11,7 +11,7 @@ export async function buildAutotestDownloadPayload(artifact,{cryptoImpl=globalTh
 export function autotestDownloadHttpUrl(artifact,{baseHref=globalThis.location?.href,nonce=Date.now()}={}){
  if(!artifact?.filename)throw new Error("AUTOTEST_DOWNLOAD_ARTIFACT_INVALID");
  if(!baseHref)throw new Error("AUTOTEST_DOWNLOAD_BASE_URL_UNAVAILABLE");
- const url=new URL(BRIDGE_ENDPOINT,String(baseHref));url.searchParams.set("filename",String(artifact.filename));url.searchParams.set("v","57011");url.searchParams.set("n",String(nonce));return url.href
+ const url=new URL(BRIDGE_ENDPOINT,String(baseHref));url.searchParams.set("filename",String(artifact.filename));url.searchParams.set("v","57012");url.searchParams.set("n",String(nonce));return url.href
 }
 export function createAutotestDownloadLease(payload,{BlobImpl=globalThis.Blob,URLImpl=globalThis.URL,navigatorImpl=globalThis.navigator,locationImpl=globalThis.location,nowImpl=Date.now}={}){
  const controlled=Boolean(navigatorImpl?.serviceWorker?.controller&&locationImpl?.href);
@@ -25,7 +25,7 @@ export async function verifyAutotestDownloadedFile(file,payload,{cryptoImpl=glob
  return {ok:String(file.name||"")===filename&&Number(file.size)===Number(payload?.bytes)&&actual===expected,filename:String(file.name||""),expectedFilename:filename,bytes:Number(file.size)||0,expectedBytes:Number(payload?.bytes)||0,sha256:actual,expectedSha256:expected}
 }
 function waitForController(sw,timeoutMs=8000){if(sw?.controller)return Promise.resolve(true);return new Promise(resolve=>{let done=false;const finish=value=>{if(done)return;done=true;clearTimeout(timer);sw?.removeEventListener?.("controllerchange",onchange);resolve(value)},onchange=()=>finish(Boolean(sw?.controller)),timer=setTimeout(()=>finish(Boolean(sw?.controller)),Math.max(0,Number(timeoutMs)||0));sw?.addEventListener?.("controllerchange",onchange)})}
-export async function ensureAutotestDownloadBridge({navigatorImpl=globalThis.navigator,scriptUrl="./autotest-export-sw.js?v=57011",scope="./",timeoutMs=8000}={}){
+export async function ensureAutotestDownloadBridge({navigatorImpl=globalThis.navigator,scriptUrl="./autotest-export-sw.js?v=57012",scope="./",timeoutMs=8000}={}){
  const sw=navigatorImpl?.serviceWorker;if(!sw?.register){Object.assign(bridgeState,{status:"unsupported",controlled:false,scriptUrl,scope,error:"SERVICE_WORKER_UNAVAILABLE"});return {...bridgeState}}
  Object.assign(bridgeState,{status:"registering",controlled:Boolean(sw.controller),scriptUrl,scope,error:""});
  try{const registration=await sw.register(scriptUrl,{scope,updateViaCache:"none"});await sw.ready;const controlled=Boolean(sw.controller)||await waitForController(sw,timeoutMs);Object.assign(bridgeState,{status:controlled?"ready":"waiting-control",controlled,scriptUrl,scope:registration?.scope||scope,error:""});return {...bridgeState}}
@@ -43,6 +43,6 @@ export function requestAutotestBrowserDownload(artifact,{BlobImpl=globalThis.Blo
  return {status:"requested",method,requestedAt:Number(typeof nowImpl==="function"?nowImpl():Date.now()),filename,mime,bytes:blob?Number(blob.size)||encoder.encode(body).length:encoder.encode(body).length,chars:body.length,bridgeControlled:controlled}
 }
 function installTrustedRetryUpgrade(documentImpl=globalThis.document,navigatorImpl=globalThis.navigator,locationImpl=globalThis.location){
- if(!documentImpl?.addEventListener)return;documentImpl.addEventListener("click",event=>{const anchor=event.target?.closest?.("#autotestDownloadAnchor");if(!anchor||!navigatorImpl?.serviceWorker?.controller||!locationImpl?.href)return;const filename=String(anchor.getAttribute("download")||anchor.download||"");if(!filename)return;anchor.href=autotestDownloadHttpUrl({filename},{baseHref:locationImpl.href});anchor.removeAttribute("download");anchor.dataset.elyndraNativeDownload="service-worker-http"},true)
+ if(!documentImpl?.addEventListener)return;documentImpl.addEventListener("click",event=>{const anchor=event.target?.closest?.("#autotestDownloadAnchor");if(!anchor||!navigatorImpl?.serviceWorker?.controller||!locationImpl?.href)return;const filename=String(anchor.getAttribute("download")||anchor.download||"");if(!filename)return;anchor.href=autotestDownloadHttpUrl({filename},{baseHref:locationImpl.href});anchor.removeAttribute?.("download");anchor.target="_blank";anchor.rel="noopener";anchor.dataset.elyndraNativeDownload="service-worker-http-isolated-navigation"},true)
 }
 if(typeof window!=="undefined"&&globalThis.navigator?.serviceWorker){installTrustedRetryUpgrade();Promise.resolve().then(()=>ensureAutotestDownloadBridge()).catch(()=>{})}
