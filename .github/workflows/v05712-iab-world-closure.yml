@@ -20,21 +20,17 @@ jobs:
           import json
           pkg=Path('package.json'); d=json.loads(pkg.read_text()); d['version']='0.57.12'; pkg.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
           Path('src/version.js').write_text('export const APP_VERSION="0.57.12";\n')
-          # A browser release uses one coherent cache generation across the full module graph.
           for p in [Path('app.js'),*Path('src').rglob('*.js')]:
               s=p.read_text(encoding='utf-8'); p.write_text(s.replace('57011','57012'),encoding='utf-8')
           p=Path('index.html'); p.write_text(p.read_text(encoding='utf-8').replace('app.js?v=57011','app.js?v=57012'),encoding='utf-8')
-          # Cache-contract tests track the active release generation.
           for p in Path('test').rglob('*.test.js'):
-              s=p.read_text(encoding='utf-8');
+              s=p.read_text(encoding='utf-8')
               if '57011' in s: p.write_text(s.replace('57011','57012'),encoding='utf-8')
           p=Path('test/version-0551-release.test.js'); s=p.read_text(encoding='utf-8').replace('0.57.11','0.57.12').replace('0\\.57\\.11','0\\.57\\.12'); p.write_text(s,encoding='utf-8')
-          # Single-world .elyndra should be treated as an opaque downloadable file.
           p=Path('src/autotest-export.js'); s=p.read_text(encoding='utf-8')
           old='filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/json;charset=utf-8"'
           if old not in s: raise SystemExit('MISSING_ELYNDRA_EXPORT_MIME')
           p.write_text(s.replace(old,'filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/octet-stream"'),encoding='utf-8')
-          # Service worker serves the exact persisted artifact as bytes with an explicit length.
           p=Path('autotest-export-sw.js'); s=p.read_text(encoding='utf-8')
           if 'const encoder=new TextEncoder();' not in s:
               s=s.replace('const DB_NAME="elyndra-autotest-exports-v1",STORE_NAME="snapshots",SLOT="last",ENDPOINT="__elyndra_autotest_download__";','const DB_NAME="elyndra-autotest-exports-v1",STORE_NAME="snapshots",SLOT="last",ENDPOINT="__elyndra_autotest_download__";\nconst encoder=new TextEncoder();')
@@ -43,8 +39,7 @@ jobs:
           s=s.replace(old,'function artifact(snapshot,requested){const persisted=snapshot?.downloadArtifacts?.[requested];if(persisted&&persisted.filename===requested&&typeof persisted.body==="string")return persisted;const appVersion=String(snapshot?.appVersion||"")')
           s=s.replace('mime:"application/json;charset=utf-8",body:JSON.stringify(worlds[0].world,null,2)','mime:"application/octet-stream",body:JSON.stringify(worlds[0].world,null,2)')
           old='return new Response(row.body,{status:200,headers:{"Content-Type":row.mime,"Content-Disposition":disposition(row.filename),"Cache-Control":"no-store, max-age=0","X-Content-Type-Options":"nosniff","X-Elyndra-Autotest-Delivery":"service-worker-http-v05711"}})'
-          if old not in s:
-              old=old.replace('v05711','v05712')
+          if old not in s: old=old.replace('v05711','v05712')
           if old not in s: raise SystemExit('MISSING_SW_RESPONSE')
           new='const raw=encoder.encode(String(row.body??"")),mime=String(row.filename||"").endsWith(".elyndra")?"application/octet-stream":String(row.mime||"application/octet-stream");if(Number(row.bytes)>0&&Number(row.bytes)!==raw.byteLength)throw new Error(`AUTOTEST_DOWNLOAD_PERSISTED_SIZE_MISMATCH:${row.bytes}:${raw.byteLength}`);return new Response(raw,{status:200,headers:{"Content-Type":mime,"Content-Length":String(raw.byteLength),"Content-Disposition":disposition(row.filename),"Cache-Control":"no-store, max-age=0","X-Content-Type-Options":"nosniff","X-Elyndra-Autotest-Bytes":String(raw.byteLength),"X-Elyndra-Autotest-Delivery":"service-worker-http-v05712"}})'
           p.write_text(s.replace(old,new),encoding='utf-8')
@@ -80,7 +75,17 @@ jobs:
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
       - name: Prove large single-world native downloads
-        run: node scripts/prove-autotest-iab-world-large-v05712.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/prove-autotest-iab-world-large-v05712.mjs 2>&1 | tee /tmp/v05712-browser-proof.txt
+      - name: Preserve browser proof diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05712-browser-proof
+          path: /tmp/v05712-browser-proof.txt
+          if-no-files-found: warn
       - name: Commit validated v0.57.12 closure
         shell: bash
         run: |
