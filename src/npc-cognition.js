@@ -1,4 +1,4 @@
-import {applyEffect,getEffect,getEffects,setEffectIntensity} from "./effect-engine.js?v=57006";
+import {applyEffect,getEffect,getEffects,setEffectIntensity} from "./effect-engine.js?v=57011";
 
 const uid=p=>p+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
