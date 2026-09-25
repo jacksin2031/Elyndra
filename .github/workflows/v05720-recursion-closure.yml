@@ -20,6 +20,8 @@ jobs:
           node-version: 20
       - name: Apply suggestion recursion hardening
         run: python scripts/v05720_recursion_patch.py
+      - name: Refine first-level grounded event handling
+        run: python scripts/v05720_recursion_refine.py
       - name: Run focused v0.57.20 player-facing regressions
         run: node --test test/v05720-observable-progression.test.js test/v05720-suggestion-recursion.test.js
       - name: Run non-download regression suite
@@ -28,7 +30,7 @@ jobs:
         run: git diff --check
       - name: Commit validated recursion hardening
         run: |
-          rm scripts/v05720_recursion_patch.py .github/workflows/v05720-recursion-closure.yml
+          rm scripts/v05720_recursion_patch.py scripts/v05720_recursion_refine.py .github/workflows/v05720-recursion-closure.yml
           git config user.name "elyndra-ci"
           git config user.email "actions@users.noreply.github.com"
           git add -A
