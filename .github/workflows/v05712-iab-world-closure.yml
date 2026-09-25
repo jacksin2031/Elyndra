@@ -9,99 +9,77 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: {fetch-depth: 0}
       - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Apply v0.57.12 transport hardening
+        with: {node-version: 20}
+      - name: Apply v0.57.12 release and IAB hardening
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           import json
-
-          def replace(path, old, new, count=None):
-              p=Path(path); s=p.read_text(encoding='utf-8')
-              if old not in s:
-                  raise SystemExit(f'MISSING_PATTERN:{path}:{old[:80]}')
-              s=s.replace(old,new) if count is None else s.replace(old,new,count)
-              p.write_text(s,encoding='utf-8')
-
-          p=Path('package.json'); pkg=json.loads(p.read_text(encoding='utf-8')); pkg['version']='0.57.12'; p.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          Path('src/version.js').write_text('export const APP_VERSION="0.57.12";\n',encoding='utf-8')
-
-          for path in ['src/autotest-download.js']:
-              p=Path(path); s=p.read_text(encoding='utf-8').replace('57011','57012'); p.write_text(s,encoding='utf-8')
-
-          p=Path('app.js'); s=p.read_text(encoding='utf-8')
-          for module in ['version','autotest-export','autotest-download']:
-              old=f'./src/{module}.js?v=57011'; new=f'./src/{module}.js?v=57012'
-              if old not in s: raise SystemExit(f'MISSING_APP_EDGE:{old}')
-              s=s.replace(old,new)
-          p.write_text(s,encoding='utf-8')
-
-          replace('index.html','app.js?v=57011','app.js?v=57012')
-
+          pkg=Path('package.json'); d=json.loads(pkg.read_text()); d['version']='0.57.12'; pkg.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+          Path('src/version.js').write_text('export const APP_VERSION="0.57.12";\n')
+          # A browser release uses one coherent cache generation across the full module graph.
+          for p in [Path('app.js'),*Path('src').rglob('*.js')]:
+              s=p.read_text(encoding='utf-8'); p.write_text(s.replace('57011','57012'),encoding='utf-8')
+          p=Path('index.html'); p.write_text(p.read_text(encoding='utf-8').replace('app.js?v=57011','app.js?v=57012'),encoding='utf-8')
+          # Cache-contract tests track the active release generation.
+          for p in Path('test').rglob('*.test.js'):
+              s=p.read_text(encoding='utf-8');
+              if '57011' in s: p.write_text(s.replace('57011','57012'),encoding='utf-8')
+          p=Path('test/version-0551-release.test.js'); s=p.read_text(encoding='utf-8').replace('0.57.11','0.57.12').replace('0\\.57\\.11','0\\.57\\.12'); p.write_text(s,encoding='utf-8')
+          # Single-world .elyndra should be treated as an opaque downloadable file.
           p=Path('src/autotest-export.js'); s=p.read_text(encoding='utf-8')
           old='filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/json;charset=utf-8"'
-          new='filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/octet-stream"'
-          if old not in s: raise SystemExit('MISSING_ELYNDRA_MIME_EXPORT')
-          p.write_text(s.replace(old,new),encoding='utf-8')
-
+          if old not in s: raise SystemExit('MISSING_ELYNDRA_EXPORT_MIME')
+          p.write_text(s.replace(old,'filename:`Elyndra-autotest-world-v${s.appVersion}-${s.stamp}.elyndra`,mime:"application/octet-stream"'),encoding='utf-8')
+          # Service worker serves the exact persisted artifact as bytes with an explicit length.
           p=Path('autotest-export-sw.js'); s=p.read_text(encoding='utf-8')
           if 'const encoder=new TextEncoder();' not in s:
-              s=s.replace('const DB_NAME="elyndra-autotest-exports-v1",STORE_NAME="snapshots",SLOT="last",ENDPOINT="__elyndra_autotest_download__";', 'const DB_NAME="elyndra-autotest-exports-v1",STORE_NAME="snapshots",SLOT="last",ENDPOINT="__elyndra_autotest_download__";\nconst encoder=new TextEncoder();')
+              s=s.replace('const DB_NAME="elyndra-autotest-exports-v1",STORE_NAME="snapshots",SLOT="last",ENDPOINT="__elyndra_autotest_download__";','const DB_NAME="elyndra-autotest-exports-v1",STORE_NAME="snapshots",SLOT="last",ENDPOINT="__elyndra_autotest_download__";\nconst encoder=new TextEncoder();')
           old='function artifact(snapshot,requested){const appVersion=String(snapshot?.appVersion||"")'
-          new='function artifact(snapshot,requested){const persisted=snapshot?.downloadArtifacts?.[requested];if(persisted&&persisted.filename===requested&&typeof persisted.body==="string")return persisted;const appVersion=String(snapshot?.appVersion||"")'
-          if old not in s: raise SystemExit('MISSING_SW_ARTIFACT_ENTRY')
-          s=s.replace(old,new)
-          s=s.replace('mime:"application/json;charset=utf-8",body:JSON.stringify(worlds[0].world,null,2)', 'mime:"application/octet-stream",body:JSON.stringify(worlds[0].world,null,2)')
+          if old not in s: raise SystemExit('MISSING_SW_ARTIFACT_FUNCTION')
+          s=s.replace(old,'function artifact(snapshot,requested){const persisted=snapshot?.downloadArtifacts?.[requested];if(persisted&&persisted.filename===requested&&typeof persisted.body==="string")return persisted;const appVersion=String(snapshot?.appVersion||"")')
+          s=s.replace('mime:"application/json;charset=utf-8",body:JSON.stringify(worlds[0].world,null,2)','mime:"application/octet-stream",body:JSON.stringify(worlds[0].world,null,2)')
           old='return new Response(row.body,{status:200,headers:{"Content-Type":row.mime,"Content-Disposition":disposition(row.filename),"Cache-Control":"no-store, max-age=0","X-Content-Type-Options":"nosniff","X-Elyndra-Autotest-Delivery":"service-worker-http-v05711"}})'
+          if old not in s:
+              old=old.replace('v05711','v05712')
+          if old not in s: raise SystemExit('MISSING_SW_RESPONSE')
           new='const raw=encoder.encode(String(row.body??"")),mime=String(row.filename||"").endsWith(".elyndra")?"application/octet-stream":String(row.mime||"application/octet-stream");if(Number(row.bytes)>0&&Number(row.bytes)!==raw.byteLength)throw new Error(`AUTOTEST_DOWNLOAD_PERSISTED_SIZE_MISMATCH:${row.bytes}:${raw.byteLength}`);return new Response(raw,{status:200,headers:{"Content-Type":mime,"Content-Length":String(raw.byteLength),"Content-Disposition":disposition(row.filename),"Cache-Control":"no-store, max-age=0","X-Content-Type-Options":"nosniff","X-Elyndra-Autotest-Bytes":String(raw.byteLength),"X-Elyndra-Autotest-Delivery":"service-worker-http-v05712"}})'
-          if old not in s: raise SystemExit('MISSING_SW_RESPONSE_BLOCK')
           p.write_text(s.replace(old,new),encoding='utf-8')
           PY
       - name: Add large single-world regression
         shell: bash
         run: |
           cat > test/autotest-download-v05712.test.js <<'JS'
-          import test from "node:test";
-          import assert from "node:assert/strict";
-          import {readFile} from "node:fs/promises";
+          import test from "node:test";import assert from "node:assert/strict";import {readFile} from "node:fs/promises";
           import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,buildPersistedAutotestDownloadArtifacts} from "../src/autotest-export.js";
           import {buildAutotestDownloadPayload,autotestDownloadHttpUrl} from "../src/autotest-download.js";
-
-          test("v0.57.12 persists an exact >142092-byte single-world .elyndra artifact",async()=>{
-            const world={formatVersion:1,id:"W-LARGE",world:{id:"W-LARGE",name:"大型回歸世界",lore:"界".repeat(60000)},player:{name:"Probe"}};
-            const snapshot=buildAutotestExportSnapshot({appVersion:"0.57.12",results:[{index:1,status:"COMPLETED",stopReason:"TURN_LIMIT",world}],exportMode:"both",createdAt:"2026-09-25T09:30:00.000Z"});
-            const artifacts=buildAutotestExportArtifacts(snapshot),persisted=buildPersistedAutotestDownloadArtifacts(snapshot),payload=await buildAutotestDownloadPayload(artifacts.world);
-            assert.match(artifacts.world.filename,/\.elyndra$/);assert.equal(artifacts.world.mime,"application/octet-stream");assert.ok(payload.bytes>142092,`expected >142092 bytes, got ${payload.bytes}`);
-            const saved=persisted[artifacts.world.filename];assert.ok(saved);assert.equal(saved.body,artifacts.world.body);assert.equal(saved.bytes,payload.bytes);assert.equal(saved.mime,"application/octet-stream");
-            const url=new URL(autotestDownloadHttpUrl(artifacts.world,{baseHref:"https://example.test/Elyndra/",nonce:12}));assert.equal(url.searchParams.get("v"),"57012");
-          });
-
-          test("v0.57.12 service worker serves byte-exact .elyndra attachments with explicit length",async()=>{
-            const sw=await readFile(new URL("../autotest-export-sw.js",import.meta.url),"utf8");
-            assert.match(sw,/downloadArtifacts\?\.\[requested\]/);assert.match(sw,/new TextEncoder\(\)/);assert.match(sw,/new Response\(raw/);assert.match(sw,/"Content-Length":String\(raw\.byteLength\)/);assert.match(sw,/application\/octet-stream/);assert.match(sw,/AUTOTEST_DOWNLOAD_PERSISTED_SIZE_MISMATCH/);assert.match(sw,/service-worker-http-v05712/);
-          });
+          test("v0.57.12 persists exact large single-world artifact",async()=>{const world={formatVersion:1,id:"W-LARGE",world:{id:"W-LARGE",name:"大型回歸世界",lore:"界".repeat(60000)},player:{name:"Probe"}};const snapshot=buildAutotestExportSnapshot({appVersion:"0.57.12",results:[{index:1,status:"COMPLETED",stopReason:"TURN_LIMIT",world}],exportMode:"both",createdAt:"2026-09-25T09:30:00.000Z"});const artifacts=buildAutotestExportArtifacts(snapshot),persisted=buildPersistedAutotestDownloadArtifacts(snapshot),payload=await buildAutotestDownloadPayload(artifacts.world);assert.match(artifacts.world.filename,/\.elyndra$/);assert.equal(artifacts.world.mime,"application/octet-stream");assert.ok(payload.bytes>142092);const saved=persisted[artifacts.world.filename];assert.equal(saved.body,artifacts.world.body);assert.equal(saved.bytes,payload.bytes);assert.equal(saved.mime,"application/octet-stream");assert.equal(new URL(autotestDownloadHttpUrl(artifacts.world,{baseHref:"https://example.test/Elyndra/",nonce:12})).searchParams.get("v"),"57012")});
+          test("v0.57.12 SW serves byte-exact attachment with explicit length",async()=>{const sw=await readFile(new URL("../autotest-export-sw.js",import.meta.url),"utf8");assert.match(sw,/downloadArtifacts\?\.\[requested\]/);assert.match(sw,/new TextEncoder\(\)/);assert.match(sw,/new Response\(raw/);assert.match(sw,/"Content-Length":String\(raw\.byteLength\)/);assert.match(sw,/application\/octet-stream/);assert.match(sw,/AUTOTEST_DOWNLOAD_PERSISTED_SIZE_MISMATCH/);assert.match(sw,/service-worker-http-v05712/)})
           JS
-
           cat > scripts/prove-autotest-iab-world-large-v05712.mjs <<'JS'
           import http from "node:http";import {readFile,writeFile,unlink} from "node:fs/promises";import {createReadStream} from "node:fs";import {resolve,extname} from "node:path";import crypto from "node:crypto";import {chromium} from "playwright";
-          const root=process.cwd(),proof=resolve(root,"proof-v05712-large.html"),port=41732;
-          const html=`<!doctype html><meta charset="utf-8"><button id="primary">primary world</button><a id="retry">retry world</a><script type="module">import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot} from './src/autotest-export.js?v=57012';import {buildAutotestDownloadPayload,createAutotestDownloadLease,requestAutotestBrowserDownload} from './src/autotest-download.js?v=57012';const world={formatVersion:1,id:'W-LARGE',world:{id:'W-LARGE',name:'大型回歸世界',lore:'界'.repeat(60000)},player:{name:'Probe'}};const snapshot=buildAutotestExportSnapshot({appVersion:'0.57.12',report:{schema:'elyndra-autotest-report-v1',summary:{totalTurns:1}},results:[{index:1,status:'COMPLETED',stopReason:'TURN_LIMIT',world}],telemetry:[],startedAt:1,exportMode:'both',createdAt:'2026-09-25T09:30:00.000Z'});await saveLastAutotestExportSnapshot(snapshot);const artifact=buildAutotestExportArtifacts(snapshot).world,payload=await buildAutotestDownloadPayload(artifact);if(payload.bytes<=142092)throw new Error('PROOF_WORLD_TOO_SMALL:'+payload.bytes);const deadline=Date.now()+8000;while(!navigator.serviceWorker.controller&&Date.now()<deadline)await new Promise(r=>setTimeout(r,50));if(!navigator.serviceWorker.controller)throw new Error('BRIDGE_NOT_CONTROLLED');const lease=createAutotestDownloadLease(payload),retry=document.querySelector('#retry');retry.href=lease.url;retry.download=payload.filename;document.querySelector('#primary').onclick=()=>{window.primaryResult=requestAutotestBrowserDownload(artifact)};window.expected={filename:payload.filename,bytes:payload.bytes,sha256:payload.sha256,body:payload.body};window.retryHref=lease.url;window.ready=true;</script>`;await writeFile(proof,html);
-          const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json'};const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://x'),path=resolve(root,'.'+decodeURIComponent(u.pathname));if(!path.startsWith(root)){res.writeHead(403);res.end();return}res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type',mime[extname(path)]||'application/octet-stream');createReadStream(path).on('error',()=>{res.writeHead(404);res.end()}).pipe(res)});await new Promise(r=>server.listen(port,'127.0.0.1',r));const browser=await chromium.launch({headless:true});try{const context=await browser.newContext({acceptDownloads:true});const page=await context.newPage();await page.goto(`http://127.0.0.1:${port}/proof-v05712-large.html`);await page.waitForFunction(()=>window.ready===true);const expected=await page.evaluate(()=>window.expected);for(const [label,selector] of [['primary','#primary'],['retry','#retry']]){const wait=page.waitForEvent('download',{timeout:30000});await page.click(selector);const d=await wait,fail=await d.failure();if(fail)throw new Error(label+':DOWNLOAD_FAILURE:'+fail);const disk=await d.path(),bytes=await readFile(disk),sha=crypto.createHash('sha256').update(bytes).digest('hex');if(d.suggestedFilename()!==expected.filename||bytes.length!==expected.bytes||sha!==expected.sha256||bytes.toString('utf8')!==expected.body)throw new Error(label+`:READBACK_MISMATCH filename=${d.suggestedFilename()} bytes=${bytes.length} sha=${sha}`);console.log(`PASS ${label} ${d.suggestedFilename()} ${bytes.length} ${sha}`)}const method=await page.evaluate(()=>window.primaryResult?.method);if(method!=='service-worker-http-navigation')throw new Error('PRIMARY_METHOD:'+method);console.log('PASS large single-world IAB pipeline bytes='+expected.bytes+' retry='+await page.evaluate(()=>window.retryHref));}finally{await browser.close();server.close();await unlink(proof).catch(()=>{})}
+          const root=process.cwd(),proof=resolve(root,"proof-v05712-large.html"),port=41732;const html=`<!doctype html><meta charset="utf-8"><button id="primary">primary</button><a id="retry">retry</a><script type="module">import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot} from './src/autotest-export.js?v=57012';import {buildAutotestDownloadPayload,createAutotestDownloadLease,requestAutotestBrowserDownload} from './src/autotest-download.js?v=57012';const world={formatVersion:1,id:'W-LARGE',world:{id:'W-LARGE',name:'大型回歸世界',lore:'界'.repeat(60000)},player:{name:'Probe'}};const snapshot=buildAutotestExportSnapshot({appVersion:'0.57.12',report:{schema:'elyndra-autotest-report-v1'},results:[{index:1,status:'COMPLETED',stopReason:'TURN_LIMIT',world}],telemetry:[],startedAt:1,exportMode:'both',createdAt:'2026-09-25T09:30:00.000Z'});await saveLastAutotestExportSnapshot(snapshot);const artifact=buildAutotestExportArtifacts(snapshot).world,payload=await buildAutotestDownloadPayload(artifact);if(payload.bytes<=142092)throw new Error('WORLD_TOO_SMALL:'+payload.bytes);const deadline=Date.now()+8000;while(!navigator.serviceWorker.controller&&Date.now()<deadline)await new Promise(r=>setTimeout(r,50));if(!navigator.serviceWorker.controller)throw new Error('BRIDGE_NOT_CONTROLLED');const lease=createAutotestDownloadLease(payload),retry=document.querySelector('#retry');retry.href=lease.url;retry.download=payload.filename;document.querySelector('#primary').onclick=()=>window.primaryResult=requestAutotestBrowserDownload(artifact);window.expected={filename:payload.filename,bytes:payload.bytes,sha256:payload.sha256,body:payload.body};window.ready=true;</script>`;await writeFile(proof,html);const mime={'.html':'text/html','.js':'text/javascript'};const server=http.createServer((req,res)=>{const u=new URL(req.url,'http://x'),p=resolve(root,'.'+decodeURIComponent(u.pathname));res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type',mime[extname(p)]||'application/octet-stream');createReadStream(p).on('error',()=>{res.writeHead(404);res.end()}).pipe(res)});await new Promise(r=>server.listen(port,'127.0.0.1',r));const browser=await chromium.launch({headless:true});try{const page=await browser.newPage({acceptDownloads:true});await page.goto(`http://127.0.0.1:${port}/proof-v05712-large.html`);await page.waitForFunction(()=>window.ready===true);const expected=await page.evaluate(()=>window.expected);for(const [label,selector] of [['primary','#primary'],['retry','#retry']]){const wait=page.waitForEvent('download',{timeout:30000});await page.click(selector);const d=await wait,fail=await d.failure();if(fail)throw new Error(label+':'+fail);const bytes=await readFile(await d.path()),sha=crypto.createHash('sha256').update(bytes).digest('hex');if(d.suggestedFilename()!==expected.filename||bytes.length!==expected.bytes||sha!==expected.sha256||bytes.toString('utf8')!==expected.body)throw new Error(label+':READBACK_MISMATCH');console.log(`PASS ${label} ${d.suggestedFilename()} ${bytes.length} ${sha}`)}if(await page.evaluate(()=>window.primaryResult?.method)!=='service-worker-http-navigation')throw new Error('PRIMARY_METHOD');console.log('PASS large IAB bytes='+expected.bytes)}finally{await browser.close();server.close();await unlink(proof).catch(()=>{})}
           JS
       - name: Run full regression suite
         shell: bash
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee /tmp/v05712-npm-test-output.txt
+      - name: Preserve npm test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05712-npm-test-output
+          path: /tmp/v05712-npm-test-output.txt
+          if-no-files-found: warn
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
       - name: Prove large single-world native downloads
-        shell: bash
         run: node scripts/prove-autotest-iab-world-large-v05712.mjs
       - name: Commit validated v0.57.12 closure
         shell: bash
@@ -109,6 +87,6 @@ jobs:
           rm .github/workflows/v05712-iab-world-closure.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json src/version.js src/autotest-export.js src/autotest-download.js autotest-export-sw.js app.js index.html test/autotest-download-v05712.test.js scripts/prove-autotest-iab-world-large-v05712.mjs .github/workflows/v05712-iab-world-closure.yml
+          git add -A
           git commit -m "v0.57.12: harden IAB world downloads"
           git push origin HEAD:fix/v0.57.12-iab-world-download
