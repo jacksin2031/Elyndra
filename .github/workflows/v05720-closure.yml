@@ -20,6 +20,8 @@ jobs:
           node-version: 20
       - name: Apply v0.57.20 patch
         run: python scripts/v05720_patch.py
+      - name: Apply v0.57.20 regression refinements
+        run: python scripts/v05720_refine.py
       - name: Run focused observable progression regressions
         run: node --test test/v05720-observable-progression.test.js
       - name: Run non-download regression suite
@@ -28,7 +30,7 @@ jobs:
         run: git diff --check
       - name: Commit validated v0.57.20 product
         run: |
-          rm scripts/v05720_patch.py .github/workflows/v05720-closure.yml
+          rm scripts/v05720_patch.py scripts/v05720_refine.py .github/workflows/v05720-closure.yml
           git config user.name "elyndra-ci"
           git config user.email "actions@users.noreply.github.com"
           git add -A
