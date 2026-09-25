@@ -1,11 +1,11 @@
-import {normalizeLore} from "./lore-engine.js?v=57015";
-import {normalizeCultureProfile,normalizeTradeProfile,reconcileWorldEconomy} from "./world-locality.js?v=57015";
-import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=57015";
-import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=57015";
-import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=57015";
-import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=57015";
-import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=57015";
-import {forbiddenTermMatch} from "./generation-claims.js?v=57015";
+import {normalizeLore} from "./lore-engine.js?v=57016";
+import {normalizeCultureProfile,normalizeTradeProfile,reconcileWorldEconomy} from "./world-locality.js?v=57016";
+import {ensureNpcRemoteContact,canRemoteContactNpc} from "./communication-engine.js?v=57016";
+import {normalizeWeatherProfile,retargetWeather} from "./weather-engine.js?v=57016";
+import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=57016";
+import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=57016";
+import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=57016";
+import {forbiddenTermMatch} from "./generation-claims.js?v=57016";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
@@ -74,7 +74,7 @@ function revealAuthorized(state,kind,entity,context={}){
  const actionKind=String(context.actionKind||context.roll?.profile?.kind||"").toUpperCase(),hasEvidence=Number(context.verifiedEvidenceCount)||0,socialSource=actionKind==="SOCIAL"&&ensureWorldRegistry(state).npcs.some(n=>canInteractWithNpc(state,n));
  if(kind==="npc")return isNpcPresent(state,entity);
  if(kind==="location"){
-  if(entity.name===state.player?.location)return true;
+  if(entity.name===state.player?.location)return socialSource||hasEvidence>0;
   return socialSource||(actionKind==="OBSERVE"&&hasEvidence>0)
  }
  if(kind==="faction"){

@@ -1,5 +1,5 @@
-import {normalizeActionIntent} from "./action-intent.js?v=57015";
-import {deriveDirtyFlags,planStateSync} from "./state-sync.js?v=57015";
+import {normalizeActionIntent} from "./action-intent.js?v=57016";
+import {deriveDirtyFlags,planStateSync} from "./state-sync.js?v=57016";
 const clean=(v,max=220)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(rows,max=20)=>[...new Set((Array.isArray(rows)?rows:[]).map(x=>clean(x,220)).filter(Boolean))].slice(0,max);
 export function turnDirectorMode(action,roll={},snapshot={}){

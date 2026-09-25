@@ -1,4 +1,4 @@
-import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=57015";
+import {sanitizePlayerText,sanitizeSuggestion,sanitizeSuggestions,fallbackNarrative} from "./runtime-guard.js?v=57016";
 const text=(v,max=1200)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>text(x,maxLen)).filter(Boolean))].slice(0,max):[];
 const SUGGESTION_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
@@ -37,6 +37,7 @@ export function sceneTurnSnapshot(snapshot={}){
   crafting:snapshot.crafting||null,
   survival:snapshot.survival||null,
   quest:snapshot.quest,
+  priorNarrative:text(snapshot.priorNarrative,500),
   recentEvents:snapshot.recentEvents,
   factions,
   registry:{locations,npcs,factions:[],sideQuests},

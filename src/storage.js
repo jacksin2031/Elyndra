@@ -1,8 +1,8 @@
-import {assertSaveState} from "./state-validator.js?v=57015";
-import {ensureItemRuntime} from "./item-engine.js?v=57015";
-import {ensureNotes} from "./notes-engine.js?v=57015";
-import {ensurePlayerOrigin} from "./player-origin.js?v=57015";
-import {ensureCausalWorldCore} from "./causal-world-core.js?v=57015";
+import {assertSaveState} from "./state-validator.js?v=57016";
+import {ensureItemRuntime} from "./item-engine.js?v=57016";
+import {ensureNotes} from "./notes-engine.js?v=57016";
+import {ensurePlayerOrigin} from "./player-origin.js?v=57016";
+import {ensureCausalWorldCore} from "./causal-world-core.js?v=57016";
 const DB_NAME="elyndra",DB_VERSION=1,STORE="saves",FORMAT_VERSION=12;
 const INTERNAL_TYPES=new Set(["NPC_AUTONOMOUS_ACTION","FACTION_ACTION","WORLD_CANON_EXPANDED","AI_TURN_APPLIED"]);const MIGRATION_RENOWN={PERSONAL:1,LOCAL:4,REGIONAL:10,FACTION:15,WORLD:25};const LEGACY_SUGGESTIONS=["觀察目前環境","確認自己的狀態","尋找可以安全前進的方向"];
 function inferVisibility(e){if(e?.visibility)return e.visibility;if(INTERNAL_TYPES.has(e?.type))return "INTERNAL";if(e?.type==="WORLD_EVENT")return "OBSERVABLE";return "PLAYER_KNOWN"}

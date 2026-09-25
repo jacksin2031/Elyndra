@@ -6,7 +6,7 @@ test("multi-world AutoTest transitions to every requested world without turning 
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  const finalizeStart=app.indexOf("async function finalizeDeveloperAutotestWorld"),finalizeEnd=app.indexOf("async function waitForAutotestActionReady",finalizeStart),finalize=app.slice(finalizeStart,finalizeEnd);
  assert.match(finalize,/async function finalizeDeveloperAutotestWorld\(config=\{\}\)/);
- assert.match(finalize,/fastTransition=developerAutotest\.worldIndex<Math\.max\(1,Number\(config\.worldCount\)\|\|1\)/);
+ assert.match(finalize,/fastTransition=developerAutotest\.worldIndex<Math\.max\(1,Number\(config\.totalWorldCount\|\|config\.worldCount\)\|\|1\)/);
  assert.match(finalize,/cancelAutotestBackgroundWork\(\{transition:true\}\)/);
  assert.match(finalize,/timeoutMs=fastTransition\?2500:/);
  assert.match(finalize,/AUTOTEST_FINAL_QUALITY_DEFERRED/);

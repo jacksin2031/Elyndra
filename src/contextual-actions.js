@@ -1,4 +1,5 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57015";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57016";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57016";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -18,7 +19,7 @@ function uniq(rows,max=8){
  for(const x of rows||[]){if(!x?.action||out.some(y=>y.action===x.action||y.label===x.label))continue;out.push(x);if(out.length>=max)break}
  return out
 }
-function currentLocation(state){return clean(state.player?.location,80)||"眼前這個地方"}
+function currentLocation(state){return clean(playerVisibleLocationName(state),80)||"眼前這個地方"}
 function presentNpcs(state){
  const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),locId=loc?.id;
  return (state.world?.registry?.npcs||[]).filter(n=>n?.known===true&&n?.alive!==false&&(n?.companion?.status==="ACTIVE"||n?.locationId===locId)).slice(0,5)
@@ -37,7 +38,7 @@ function inferSuggestionTarget(state,row){
 function observableAffordance(state,row){
  const kind=inferActionKind(row?.action||row?.label||""),event=recentVisibleEvent(state),loc=currentLocationRecord(state);
  if(kind==="OBSERVE"&&event?.id)return {sourceKind:"EVENT",sourceId:String(event.id),evidenceType:"OBSERVED",title:"已知事件仍可追查",text:clean(event.summary||event.action,300)};
- if(kind==="OBSERVE"&&loc)return {sourceKind:"LOCATION",sourceId:String(loc.id||loc.name),evidenceType:"OBSERVED",title:`${clean(loc.name,60)||"目前位置"}的可觀察環境`,text:clean(loc.description,300)||`你確認目前位置「${clean(loc.name,80)}」本身仍提供可直接觀察的地形、出入口或活動基準，可用來縮窄下一步調查範圍。`};
+ if(kind==="OBSERVE"&&loc){const visible=currentLocation(state);return {sourceKind:"LOCATION",sourceId:String(loc.id||loc.name),evidenceType:"OBSERVED",title:`${visible||"目前位置"}的可觀察環境`,text:clean(loc.description,300).split(String(loc.name||"")).join("")||`你確認${visible||"目前位置"}仍提供可直接觀察的地形、出入口或活動基準，可用來縮窄下一步調查範圍。`}};
  if(kind==="SOCIAL"&&row?.targetId){
   const npc=presentNpcs(state).find(n=>n.id===row.targetId);if(npc)return {sourceKind:"NPC",sourceId:String(npc.id),evidenceType:"HEARD",title:`${clean(npc.name,60)}可被直接詢問`,text:`你確認「${clean(npc.name,80)}」目前就在可互動範圍內，可作為後續詢問的既有來源。`}
  }
