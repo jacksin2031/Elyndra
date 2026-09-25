@@ -6,6 +6,7 @@ on:
       - fix/v0.57.14-autotest-progression-r3
     paths:
       - scripts/apply-v05714-gameplay.py
+      - scripts/refine-v05714-gameplay.py
       - .github/workflows/v05714-gameplay-closure.yml
   workflow_dispatch:
 
@@ -28,7 +29,9 @@ jobs:
           node-version: 20
 
       - name: Apply v0.57.14 gameplay patch
-        run: python3 scripts/apply-v05714-gameplay.py
+        run: |
+          python3 scripts/apply-v05714-gameplay.py
+          python3 scripts/refine-v05714-gameplay.py
 
       - name: Run non-download regression suite
         shell: bash
@@ -39,7 +42,7 @@ jobs:
       - name: Commit validated v0.57.14 closure
         shell: bash
         run: |
-          rm -f scripts/apply-v05714-gameplay.py .github/workflows/v05714-gameplay-closure.yml
+          rm -f scripts/apply-v05714-gameplay.py scripts/refine-v05714-gameplay.py .github/workflows/v05714-gameplay-closure.yml
           git add -A
           if git diff --cached --quiet; then
             echo "No validated changes to commit"
