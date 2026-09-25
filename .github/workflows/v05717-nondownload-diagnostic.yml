@@ -1,0 +1,106 @@
+name: v0.57.17 non-download diagnostic
+
+on:
+  push:
+    branches:
+      - diag/v05717-nondownload-403919db
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact failing source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: 403919dbb0048426128f68c29ef9059c7a2b1dab
+          fetch-depth: 0
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Apply same v0.57.17 hotfix prelude
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p diagnostics
+          set +e
+          {
+            echo '$ python scripts/v05717_patch.py'
+            python scripts/v05717_patch.py
+            patch_status=$?
+            echo "patch_exit=$patch_status"
+            if [ "$patch_status" -ne 0 ]; then
+              exit "$patch_status"
+            fi
+            echo '$ python scripts/v05717_refine.py'
+            python scripts/v05717_refine.py
+            refine_status=$?
+            echo "refine_exit=$refine_status"
+            exit "$refine_status"
+          } > >(tee diagnostics/00-prelude.stdout.txt) 2> >(tee diagnostics/00-prelude.stderr.txt >&2)
+          status=$?
+          set -e
+          echo "$status" > diagnostics/00-prelude.exit.txt
+          exit "$status"
+
+      - name: Focused v0.57.17 regressions (same workflow precondition)
+        run: node --test test/v05717-visibility-narrator-trace.test.js
+
+      - name: Reproduce exact non-download chain with captured stdout stderr
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p diagnostics
+
+          run_stage() {
+            key="$1"
+            shift
+            printf '%s\n' "$*" > "diagnostics/${key}.command.txt"
+            set +e
+            "$@" > >(tee "diagnostics/${key}.stdout.txt") 2> >(tee "diagnostics/${key}.stderr.txt" >&2)
+            status=$?
+            set -e
+            echo "$status" > "diagnostics/${key}.exit.txt"
+            if [ "$status" -ne 0 ]; then
+              echo "$key" > diagnostics/failing-stage.txt
+              return "$status"
+            fi
+          }
+
+          set -e
+          run_stage 01-version-check npm run version:check
+          run_stage 02-cache-check npm run cache:check
+          run_stage 03-check-js node scripts/check-js.mjs
+          run_stage 04-nondownload-tests node scripts/run-nondownload-tests.mjs
+          echo PASS > diagnostics/result.txt
+
+      - name: Write diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## v0.57.17 non-download diagnostic'
+            echo
+            echo '- source SHA: `403919dbb0048426128f68c29ef9059c7a2b1dab`'
+            if [ -f diagnostics/failing-stage.txt ]; then
+              echo "- failing stage: \`$(cat diagnostics/failing-stage.txt)\`"
+            elif [ -f diagnostics/result.txt ]; then
+              echo '- result: `PASS`'
+            else
+              echo '- result: `prelude/focused stage failed before four-stage chain completed`'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diagnostic stdout stderr
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05717-nondownload-403919db-diagnostics
+          path: diagnostics/
+          if-no-files-found: error
+          retention-days: 1
