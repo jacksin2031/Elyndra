@@ -1,0 +1,47 @@
+name: v0.57.19 diagnostic
+
+on:
+  push:
+    branches:
+      - feat/v0.57.19-player-facing-consistency
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply v0.57.19 patch
+        run: python scripts/v05719_patch.py
+      - name: Capture non-download stdout and stderr
+        id: nondownload
+        shell: bash
+        run: |
+          mkdir -p diagnostic
+          set +e
+          npm run test:nondownload > diagnostic/stdout.txt 2> diagnostic/stderr.txt
+          code=$?
+          echo "$code" > diagnostic/exit-code.txt
+          grep -nE "not ok|FAIL|AssertionError|ERR_ASSERTION|expected|actual|tests |pass |fail " diagnostic/stdout.txt > diagnostic/fail-lines.txt || true
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: v05719-nondownload-diagnostic
+          path: diagnostic
+          if-no-files-found: error
+          retention-days: 1
+      - name: Preserve test conclusion
+        if: always()
+        shell: bash
+        run: exit "${{ steps.nondownload.outputs.exit_code }}"
