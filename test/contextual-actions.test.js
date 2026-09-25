@@ -139,7 +139,7 @@ test("Engine reclassifies misleading GENERAL suggestion metadata before prevalid
 });
 
 test("successful progression fail-forward is bound only to an existing observable source",()=>{
- const s=state({events:[{id:"EV-1",type:"WORLD_EVENT",visibility:"OBSERVABLE",summary:"遠近聲音次序出現異常"}]});
+ const s=state({events:[{id:"EV-1",type:"WORLD_EVENT",visibility:"OBSERVABLE",worldId:"WORLD-1",location:"舊城",summary:"遠近聲音次序出現異常"}]});
  const row=buildContextualActionSet(s,[{label:"追查聲音異常",action:"沿著聲音異常留下的痕跡繼續觀察",kind:"OBSERVE",risk:"LOW",approach:"STEADY",progression:true,requirementsSatisfied:true,causalBasis:"異常事件已被玩家看到"}]).all.find(x=>x.label==="追查聲音異常");
  assert.ok(row?.affordance);const d=groundedSuggestionFailForward(s,row,{success:true});
  assert.equal(d.sourceKind,"EVENT");assert.equal(d.sourceId,"EV-1");assert.match(d.text,/聲音次序/);

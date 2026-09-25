@@ -1,7 +1,7 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57019";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57019";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57019";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57019";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57020";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57020";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57020";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57020";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -11,7 +11,9 @@ const VALID_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
 const VALID_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 const VALID_APPROACHES=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
 const DECISION_WORDS=/原諒(?:他|她|對方)?|相信(?:他|她|對方)|愛上|憎恨|效忠|宣誓忠誠|決定信任|決定原諒/;
-const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED","NPC_CLUE_CONFIRMED"]);
+const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","NPC_CLUE_CONFIRMED"]);
+const OBSERVABLE_PROGRESS_CUE=/(?:看見|看到|聽見|聽到|傳來|響起|發出|散發|留下|出現|消失|停止|恢復|打開|關閉|封鎖|開放|移動|離開|靠近|遠去|倒下|破損|坍塌|燃燒|閃爍|震動|逐漸|變得|嗡鳴|敲擊|腳步|痕跡|足跡|裂痕|血跡|煙|火光|霧|雨|雪|符號|輪廓)/;
+const QUEST_PROGRESS_META=/(?:任務|主線|支線|目標|階段|委託|進度|建立第一段關係|完成條件)/;
 const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\s*([^，。；、,.;!?！？]{2,36})/i;
 const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;
 const GENERIC_MAGIC_USE=/(?:運用|使用|施展|釋放|凝聚|抽取|引導|操控|催動|調動|注入|集中|感知).{0,14}(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic)|(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic).{0,14}(?:施展|釋放|凝聚|抽取|操控|催動|調動|注入)/i;
@@ -50,8 +52,12 @@ function observableAffordance(state,row){
  return null
 }
 function eventMatchesCurrentScope(state,event){const currentWorld=String(state.world?.id||""),eventWorld=String(event?.worldId||"");if(eventWorld&&currentWorld&&eventWorld!==currentWorld)return false;const worldCreated=Number(state.world?.createdAt)||0,eventAt=Number(event?.at)||0;if(!eventWorld&&worldCreated&&eventAt&&eventAt<worldCreated)return false;const loc=currentLocationRecord(state),scope=String(event?.locationId||event?.location||"");if(scope){const allowed=new Set([String(state.player?.location||""),String(loc?.id||""),String(loc?.name||"")].filter(Boolean));if(!allowed.has(scope))return false}return true}
-function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&PROGRESSION_EVENT_TYPES.has(String(e.type||""))&&eventMatchesCurrentScope(state,e)).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary).slice(-8).reverse()[0]||null}
-function recentNpcClue(state){return (state.events||[]).filter(e=>String(e?.type||"")==="NPC_CLUE_CONFIRMED"&&e?.visibility!=="INTERNAL"&&eventMatchesCurrentScope(state,e)).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary).slice(-6).reverse()[0]||null}
+function eventHasCurrentSceneProvenance(state,event){const loc=currentLocationRecord(state),scope=String(event?.locationId||event?.location||"");if(!scope)return false;const allowed=new Set([String(state.player?.location||""),String(loc?.id||""),String(loc?.name||"")].filter(Boolean));return allowed.has(scope)}
+function questReferenceTexts(state){const main=state.quests?.main||{},side=state.world?.registry?.sideQuests||[];return [main.title,main.aiHint,...(main.objectives||[]),...side.flatMap(q=>[q?.title,q?.objective])].map(x=>clean(x,180)).filter(x=>x.length>=6)}
+function summaryLooksLikeQuestProgress(state,summary){const text=clean(summary,220);if(!text)return true;if(QUEST_PROGRESS_META.test(text))return true;return questReferenceTexts(state).some(ref=>text===ref||text.startsWith(ref+"：")||text.startsWith(ref+":")||text.startsWith(ref+"。"))}
+function eventHasConcreteObservableContent(state,event,summary){if(!eventHasCurrentSceneProvenance(state,event))return false;if(String(event?.type||"")==="NPC_CLUE_CONFIRMED")return Boolean(summary);if(summaryLooksLikeQuestProgress(state,summary))return false;return OBSERVABLE_PROGRESS_CUE.test(summary)}
+function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&PROGRESSION_EVENT_TYPES.has(String(e.type||""))&&eventMatchesCurrentScope(state,e)).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary&&eventHasConcreteObservableContent(state,e,e.summary)).slice(-8).reverse()[0]||null}
+function recentNpcClue(state){return (state.events||[]).filter(e=>String(e?.type||"")==="NPC_CLUE_CONFIRMED"&&e?.visibility!=="INTERNAL"&&eventMatchesCurrentScope(state,e)&&eventHasCurrentSceneProvenance(state,e)).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary).slice(-6).reverse()[0]||null}
 function recentPlayerActions(state,limit=8){
  const rows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-Math.max(1,limit));
  return new Set(rows.flatMap(e=>[clean(e.customText||e.action,180),clean(e.originalAction,180)]).filter(Boolean))
