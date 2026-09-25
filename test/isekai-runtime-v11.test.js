@@ -90,9 +90,10 @@ test("factions choose strategy from goals and can change territory prosperity",(
 });
 
 test("main quest advances through engine states instead of AI title rewrites",()=>{
- const s=game();canonizeGeneration(s,{locations:[{name:"起點鎮",type:"城鎮",region:"中央",description:"起點",known:true}],npcs:[{name:"米亞",role:"居民",description:"第一個接觸者",known:true,locationName:"起點鎮"}]});s.player.location="起點鎮";s.world.state.location="起點鎮";s.world.registry.npcs[0].encountered=true;assert.equal(tickMainQuest(s).stage,2);
+ const s=game();canonizeGeneration(s,{locations:[{name:"起點鎮",type:"城鎮",region:"中央",description:"起點",known:true}],npcs:[{name:"米亞",role:"居民",description:"第一個接觸者",known:true,locationName:"起點鎮"}]});s.player.location="起點鎮";s.world.state.location="起點鎮";s.world.registry.npcs[0].encountered=true;assert.equal(tickMainQuest(s).stage,1);
+ s.world.state.clock.totalMinutes=20;assert.equal(tickMainQuest(s).stage,2);
  for(let i=1;i<=3;i++){const id="FACT-Q"+i;s.world.canon.facts.push({id,type:"public",visibility:"public",text:"已驗證世界規則 "+i+" 的完整說明。",canonical:true});s.knowledge.push({id:"KQ"+i,title:"規則"+i,text:"已驗證世界規則 "+i+" 的完整說明。",factId:id,status:"VERIFIED",score:4})}
- assert.equal(tickMainQuest(s).stage,3);s.world.state.crisis={stage:"CRISIS",pressure:70,history:[]};assert.equal(tickMainQuest(s).stage,4);s.world.state.crisis.stage="ENDGAME";assert.equal(tickMainQuest(s).stage,5);assert.equal(s.quests.main.status,"CLIMAX")
+ s.world.state.clock.totalMinutes=40;assert.equal(tickMainQuest(s).stage,3);s.world.state.crisis={stage:"CRISIS",pressure:70,history:[]};s.world.state.clock.totalMinutes=60;assert.equal(tickMainQuest(s).stage,4);s.world.state.crisis.stage="ENDGAME";s.world.state.clock.totalMinutes=80;assert.equal(tickMainQuest(s).stage,5);assert.equal(s.quests.main.status,"CLIMAX")
 });
 
 test("ruins persist as a room graph and cleared rooms do not reset",()=>{

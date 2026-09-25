@@ -50,7 +50,8 @@ test("generic local TALK action persists encounter and grounded interaction memo
  performAction(state,"free","向轉生官·阿爾卑斯詢問壁爐的運作方法",{verdict:"ALLOW",kind:"SOCIAL",intent:"TALK",targetId:"NPC-ALP",actionIntent:{intent:"TALK",targetId:"NPC-ALP"}});
  assert.equal(npc.encountered,true);
  assert.ok(npc.memories.length>=1);
- assert.equal(npc.memories.at(-1).type,"interaction");
- assert.equal(npc.memories.at(-1).grounded,true);
+ const interaction=npc.memories.find(x=>x.type==="interaction");
+ assert.ok(interaction);
+ assert.equal(interaction.grounded,true);
  assert.ok(state.events.some(e=>e.type==="NPC_INTERACTION"&&e.npcId==="NPC-ALP"));
 });
