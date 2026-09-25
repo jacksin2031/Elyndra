@@ -11,7 +11,7 @@ const VALID_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
 const VALID_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 const VALID_APPROACHES=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
 const DECISION_WORDS=/原諒(?:他|她|對方)?|相信(?:他|她|對方)|愛上|憎恨|效忠|宣誓忠誠|決定信任|決定原諒/;
-const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED"]);
+const PROGRESSION_EVENT_TYPES=new Set(["WORLD_EVENT","WORLD_CONSEQUENCE","WORLD_CONSEQUENCE_DISCOVERED","RUMOR_SPREAD","PLAYER_RECOGNITION","FACTION_PLAYER_REACTION","WEATHER_CHANGED","FUTURE_EVENT_TRIGGERED","MAIN_QUEST_STAGE_CHANGED","NPC_CLUE_CONFIRMED"]);
 const POSSESSION_ITEM=/從(?:口袋|背包|行囊|隨身物品|身上).{0,18}?(?:取出|拿出|掏出|抽出)\s*([^，。；、,.;!?！？]{2,36})/i;
 const SPECIAL_POWER=/(?:利用|使用|施展|啟動|釋放|透過|以)\s*(靈能感知|靈能操控|魔力感知|魔法感知|精神感知|心靈感應|透視|讀心|念動|telepathy|clairvoyance|psychic sense)/i;
 const GENERIC_MAGIC_USE=/(?:運用|使用|施展|釋放|凝聚|抽取|引導|操控|催動|調動|注入|集中|感知).{0,14}(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic)|(?:靈息|靈能|魔力|魔法|法術|咒力|mana|magic|spell|psychic).{0,14}(?:施展|釋放|凝聚|抽取|操控|催動|調動|注入)/i;
@@ -49,7 +49,9 @@ function observableAffordance(state,row){
  }
  return null
 }
-function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&PROGRESSION_EVENT_TYPES.has(String(e.type||""))).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary).slice(-8).reverse()[0]||null}
+function eventMatchesCurrentScope(state,event){const currentWorld=String(state.world?.id||""),eventWorld=String(event?.worldId||"");if(eventWorld&&currentWorld&&eventWorld!==currentWorld)return false;const worldCreated=Number(state.world?.createdAt)||0,eventAt=Number(event?.at)||0;if(!eventWorld&&worldCreated&&eventAt&&eventAt<worldCreated)return false;const loc=currentLocationRecord(state),scope=String(event?.locationId||event?.location||"");if(scope){const allowed=new Set([String(state.player?.location||""),String(loc?.id||""),String(loc?.name||"")].filter(Boolean));if(!allowed.has(scope))return false}return true}
+function recentVisibleEvent(state){return (state.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&PROGRESSION_EVENT_TYPES.has(String(e.type||""))&&eventMatchesCurrentScope(state,e)).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary).slice(-8).reverse()[0]||null}
+function recentNpcClue(state){return (state.events||[]).filter(e=>String(e?.type||"")==="NPC_CLUE_CONFIRMED"&&e?.visibility!=="INTERNAL"&&eventMatchesCurrentScope(state,e)).map(e=>({...e,summary:playerFacingEventSummary(e)})).filter(e=>e.summary).slice(-6).reverse()[0]||null}
 function recentPlayerActions(state,limit=8){
  const rows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-Math.max(1,limit));
  return new Set(rows.flatMap(e=>[clean(e.customText||e.action,180),clean(e.originalAction,180)]).filter(Boolean))
@@ -95,7 +97,8 @@ export function normalizeContextualSuggestion(row={}){
  }
 }
 function progressionSuggestion(state){
- const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),npcLabel=npc?visibleNpcName(state,npc):"",sameNpcAttempts=npcLabel?(recentText.split(npcLabel).length-1):0;
+ const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],clue=recentNpcClue(state),event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),npcLabel=npc?visibleNpcName(state,npc):"",sameNpcAttempts=npcLabel?(recentText.split(npcLabel).length-1):0;
+ if(clue?.summary)return normalizeContextualSuggestion({label:"沿著剛取得的線索繼續查證",action:`在${loc}沿著「${clean(clue.summary,100)}」指向的可見方向、聲音、痕跡或符號查證下一個具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"當前世界與當前場景中剛確認的 NPC 線索",requirementsSatisfied:true,source:"ENGINE"});
  if(npc&&objective&&sameNpcAttempts<2)return normalizeContextualSuggestion({label:`問${clean(visibleNpcName(state,npc),50)}目前目標最直接的線索`,action:`向${clean(visibleNpcName(state,npc),50)}詢問目前目標下一個可親眼確認的具體線索，只問對方親身知道或能指出的位置、人物或事件`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
  if(event?.summary)return normalizeContextualSuggestion({label:`追查「${clean(event.summary,44)}」留下的下一條線索`,action:`沿著最近事件「${clean(event.summary,100)}」造成的可見影響，找出一項能繼續追查的具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"連續詢問同一人物後切換到可觀察證據":"最近玩家已知事件可被繼續調查",requirementsSatisfied:true,source:"ENGINE"});
  if(objective)return normalizeContextualSuggestion({label:"找出能推進目前目標的具體證據",action:`在${loc}尋找一項可以直接驗證、並能指出下一步去向的具體線索`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"避免連續向同一 NPC 重複追問":"目前主線目標仍未完成",requirementsSatisfied:true,source:"ENGINE"});

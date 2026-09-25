@@ -8,7 +8,8 @@ const HAN=/[\u3400-\u9fff]/g;
 const LATIN=/[A-Za-z]/g;
 const SIMPLIFIED_MARKER=/[这转询问当视现节轻触锋锐属边缘测试温质闭仪监为从发确认记录状态细详标围环参见续验证获长设仅报断体统网络灵气区门进观点线导级结构开关与动无处应术觉话资对轮]/g;
 const SAFE_TRADITIONAL_MAP=Object.freeze({"对":"對","轮":"輪"});
-export function normalizePlayerFacingLocale(value,max=1600){return clean(value,max).replace(/[对轮]/g,ch=>SAFE_TRADITIONAL_MAP[ch]||ch)}
+const ENGLISH_PROSE_MARKER=/\b(?:previously|before|after|toward|towards|through|around|where|there|follow|trace|check|inspect|investigate|search|find|look|wall|area|point|direction)\b/i;
+export function normalizePlayerFacingLocale(value,max=1600){return clean(value,max).replace(/[对轮]/g,ch=>SAFE_TRADITIONAL_MAP[ch]||ch).replace(/\bpreviously\b/gi,"先前")}
 
 export function stripSystemLabels(value,max=1200){
  let s=clean(value,max);
@@ -21,6 +22,7 @@ export function isPlayerFacingLanguageSafe(value,{allowShortName=false}={}){
  const foreign=(s.match(FOREIGN)||[]).length;if(foreign>Math.max(1,Math.floor(s.length*.03)))return false;
  if((s.match(SIMPLIFIED_MARKER)||[]).length)return false;
  const han=(s.match(HAN)||[]).length,latin=(s.match(LATIN)||[]).length;
+ if(han>=2&&ENGLISH_PROSE_MARKER.test(s))return false;
  if(allowShortName&&s.length<=24)return foreign===0;
  if(s.length>=24&&han<4&&latin>12)return false;
  if(latin>Math.max(30,han*1.2))return false;
