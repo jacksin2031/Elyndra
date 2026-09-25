@@ -11,6 +11,7 @@ function normalizeSnapshot(snapshot={}){
  out.downloadArtifacts=out.downloadArtifacts&&typeof out.downloadArtifacts==="object"&&!Array.isArray(out.downloadArtifacts)?out.downloadArtifacts:{};
  return out
 }
+const archiveSlotFor=snapshot=>`run:${String(snapshot?.appVersion||"unknown")}:${safeStamp(snapshot?.stamp||snapshot?.createdAt)}`;
 export function buildAutotestExportSnapshot({appVersion="",report={},results=[],telemetry=[],startedAt=0,exportMode="both",createdAt=new Date().toISOString()}={}){
  const rows=Array.isArray(results)?results:[],runTelemetry=(Array.isArray(telemetry)?telemetry:[]).filter(e=>Number(e?.at)>=Number(startedAt||0));
  const debugPayload={...clone(report),telemetry:clone(runTelemetry),actions:rows.map(r=>({index:r.index,status:r.status,stopReason:r.stopReason,actions:clone(r.actions||[])}))};
@@ -34,15 +35,28 @@ function openDb(indexedDBImpl){
  return new Promise((resolve,reject)=>{const req=indexedDBImpl.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE_NAME))db.createObjectStore(STORE_NAME,{keyPath:"slot"})};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error("AUTOTEST_EXPORT_DB_OPEN_FAILED"))})
 }
 function idbPut(db,value){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE_NAME,"readwrite");tx.objectStore(STORE_NAME).put(value);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error("AUTOTEST_EXPORT_DB_WRITE_FAILED"));tx.onabort=()=>reject(tx.error||new Error("AUTOTEST_EXPORT_DB_WRITE_ABORTED"))})}
-function idbGet(db){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE_NAME,"readonly"),req=tx.objectStore(STORE_NAME).get(SLOT);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error||new Error("AUTOTEST_EXPORT_DB_READ_FAILED"))})}
+function idbGet(db,slot=SLOT){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE_NAME,"readonly"),req=tx.objectStore(STORE_NAME).get(slot);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error||new Error("AUTOTEST_EXPORT_DB_READ_FAILED"))})}
+function idbGetAll(db){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE_NAME,"readonly"),req=tx.objectStore(STORE_NAME).getAll();req.onsuccess=()=>resolve(Array.isArray(req.result)?req.result:[]);req.onerror=()=>reject(req.error||new Error("AUTOTEST_EXPORT_DB_LIST_FAILED"))})}
+export async function archiveAutotestExportSnapshot(snapshot,{indexedDBImpl=globalThis.indexedDB}={}){
+ if(!indexedDBImpl)return {archived:false,reason:"INDEXEDDB_UNAVAILABLE"};
+ const normalized=normalizeSnapshot(snapshot),slot=archiveSlotFor(normalized),db=await openDb(indexedDBImpl);try{await idbPut(db,{slot,...normalized});return {archived:true,slot,appVersion:normalized.appVersion,createdAt:normalized.createdAt,worlds:normalized.worlds.length}}finally{db.close?.()}
+}
+export async function listAutotestExportSnapshots({indexedDBImpl=globalThis.indexedDB}={}){
+ if(!indexedDBImpl)return [];
+ try{const db=await openDb(indexedDBImpl);try{return (await idbGetAll(db)).filter(row=>String(row?.slot||"").startsWith("run:")).map(row=>({slot:String(row.slot),appVersion:String(row.appVersion||""),createdAt:String(row.createdAt||""),stamp:String(row.stamp||""),exportMode:cleanMode(row.exportMode),worlds:Array.isArray(row.worlds)?row.worlds.length:0,hasDebug:Boolean(row.debugPayload&&Object.keys(row.debugPayload).length)})).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))}finally{db.close?.()}}catch{return []}
+}
+export async function loadAutotestExportSnapshot(slot,{indexedDBImpl=globalThis.indexedDB}={}){
+ if(!indexedDBImpl||!slot)return null;
+ try{const db=await openDb(indexedDBImpl);try{const row=await idbGet(db,String(slot));if(!row)return null;const {slot:ignored,...snapshot}=row;return normalizeSnapshot(snapshot)}finally{db.close?.()}}catch{return null}
+}
 export async function saveLastAutotestExportSnapshot(snapshot,{indexedDBImpl=globalThis.indexedDB,storage=safeStorage()}={}){
  const normalized=normalizeSnapshot(snapshot);normalized.downloadArtifacts=buildPersistedAutotestDownloadArtifacts(normalized);let indexedError="";
- if(indexedDBImpl){try{const db=await openDb(indexedDBImpl);try{await idbPut(db,{slot:SLOT,...normalized})}finally{db.close?.()}return {backend:"indexeddb",persisted:true,downloadArtifacts:Object.keys(normalized.downloadArtifacts).length}}catch(error){indexedError=String(error?.message||error||"INDEXEDDB_FAILED")}}
+ if(indexedDBImpl){try{const db=await openDb(indexedDBImpl);try{const archiveSlot=archiveSlotFor(normalized);await idbPut(db,{slot:archiveSlot,...normalized});await idbPut(db,{slot:SLOT,...normalized});return {backend:"indexeddb",persisted:true,archived:true,archiveSlot,downloadArtifacts:Object.keys(normalized.downloadArtifacts).length}}finally{db.close?.()}}catch(error){indexedError=String(error?.message||error||"INDEXEDDB_FAILED")}}
  const fallback=clone(normalized);fallback.downloadArtifacts={};const text=JSON.stringify(fallback);
- if(storage&&text.length<=LOCAL_LIMIT){storage.setItem(LOCAL_KEY,text);return {backend:"localStorage",persisted:true,warning:indexedError||null,downloadArtifacts:0}}
+ if(storage&&text.length<=LOCAL_LIMIT){storage.setItem(LOCAL_KEY,text);return {backend:"localStorage",persisted:true,archived:false,warning:indexedError||null,downloadArtifacts:0}}
  throw new Error(indexedError?`AUTOTEST_EXPORT_PERSIST_FAILED: ${indexedError}`:"AUTOTEST_EXPORT_PERSIST_FAILED")
 }
 export async function loadLastAutotestExportSnapshot({indexedDBImpl=globalThis.indexedDB,storage=safeStorage()}={}){
- if(indexedDBImpl){try{const db=await openDb(indexedDBImpl);try{const row=await idbGet(db);if(row){const {slot,...snapshot}=row;return normalizeSnapshot(snapshot)}}finally{db.close?.()}}catch{}}
+ if(indexedDBImpl){try{const db=await openDb(indexedDBImpl);try{const row=await idbGet(db,SLOT);if(row){const {slot,...snapshot}=row;return normalizeSnapshot(snapshot)}}finally{db.close?.()}}catch{}}
  try{const raw=storage?.getItem(LOCAL_KEY);return raw?normalizeSnapshot(JSON.parse(raw)):null}catch{return null}
 }

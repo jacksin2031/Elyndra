@@ -24,5 +24,5 @@ test("FIRST_BUTTON initial and per-turn expansion paths are nonblocking",async()
  assert.match(source,/config\.mode!==\"worlds\"&&!firstButtonFast&&needsExpansion\(gameState\)\)await expandDeveloperAutotestWorld/);
  assert.match(source,/!firstButtonFast&&needsExpansion\(gameState\)\)await expandDeveloperAutotestWorld/);
  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
- assert.match(html,/app\.js\?v=57021/);
+ assert.match(html,/app\.js\?v=57022/);
 });
