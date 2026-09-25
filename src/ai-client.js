@@ -1,26 +1,26 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57020";
-import {seedDirective} from "./seed-contract.js?v=57020";
-import {recognitionForNpc} from "./recognition-engine.js?v=57020";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57020";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57020";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57020";
-import {helperSnapshot} from "./helper-context.js?v=57020";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57020";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57020";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=57020";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57020";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=57020";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=57020";
-import {normalizeActionIntent} from "./action-intent.js?v=57020";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57020";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57020";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=57020";
-import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57020";
-import {historyDepthSnapshot} from "./history-depth.js?v=57020";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57020";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57020";
-import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57020";
-import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57020";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57021";
+import {seedDirective} from "./seed-contract.js?v=57021";
+import {recognitionForNpc} from "./recognition-engine.js?v=57021";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57021";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57021";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57021";
+import {helperSnapshot} from "./helper-context.js?v=57021";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57021";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57021";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=57021";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57021";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=57021";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=57021";
+import {normalizeActionIntent} from "./action-intent.js?v=57021";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57021";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57021";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=57021";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57021";
+import {historyDepthSnapshot} from "./history-depth.js?v=57021";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57021";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57021";
+import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57021";
+import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57021";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -466,21 +466,29 @@ function degradedActionAssessment(state,label,error){
  if(/飛上天空|直接飛行|瞬間移動|teleport|fly into the sky/i.test(q)&&!(state.player?.magic?.knownSpells||[]).some(s=>/飛|傳送|移動|teleport|flight/i.test(String(s?.name||"")+" "+String(s?.effect||""))))return {verdict:"BLOCK",kind:"RISKY",normalizedAction:q,reason:"你目前沒有已知能力支持這種超常移動。",requirements:["需要相應能力、魔法或工具"],confidence:90,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")};
  return {verdict:"ALLOW",kind,normalizedAction:q,reason:"AI 可行性判定暫時不可用；已改用保守 Engine 條件檢查，成功與否仍由正常判定處理。",requirements:[],confidence:35,source:"ENGINE_DEGRADED",aiError:String(error?.message||error||"")}
 }
+const ACTION_ASSESSMENT_CIRCUIT_FAILURES=2;
+const ACTION_ASSESSMENT_CIRCUIT_OPEN_MS=60000;
+const actionAssessmentCircuit={worldId:"",failures:0,openUntil:0,lastError:""};
+export function actionAssessmentRuntimeSnapshot(){return {...actionAssessmentCircuit}}
+function resetActionAssessmentCircuit(worldId=actionAssessmentCircuit.worldId){actionAssessmentCircuit.worldId=String(worldId||"");actionAssessmentCircuit.failures=0;actionAssessmentCircuit.openUntil=0;actionAssessmentCircuit.lastError=""}
+function noteActionAssessmentFailure(worldId,error){if(actionAssessmentCircuit.worldId!==String(worldId||""))resetActionAssessmentCircuit(worldId);actionAssessmentCircuit.failures+=1;actionAssessmentCircuit.lastError=String(error?.message||error||"").slice(0,500);if(actionAssessmentCircuit.failures>=ACTION_ASSESSMENT_CIRCUIT_FAILURES)actionAssessmentCircuit.openUntil=Date.now()+ACTION_ASSESSMENT_CIRCUIT_OPEN_MS}
 async function directActionAssessment(payload,label,compact=false){
- const raw=await directChat({aiTask:"action",disableOptimization:compact,timeoutMs:compact?35000:28000,maxOutputTokens:compact?700:650,temperature:0,system:compact?SHARED_ACTION_ASSESS_SYSTEM+" 不要解釋，只回 JSON。":SHARED_ACTION_ASSESS_SYSTEM,user:JSON.stringify(payload)});
+ const raw=await directChat({aiTask:"action",disableOptimization:compact,retryOnTimeout:false,timeoutMs:compact?10000:18000,maxOutputTokens:compact?700:650,temperature:0,system:compact?SHARED_ACTION_ASSESS_SYSTEM+" 不要解釋，只回 JSON。":SHARED_ACTION_ASSESS_SYSTEM,user:JSON.stringify(payload)});
  return {...normalizeActionAssessment(parseJSON(raw),label,payload?.snapshot||{}),source:compact?"AI_RETRY":"AI"}
 }
 export async function assessPlayerAction(state,action){
  const label=String(action||"").trim().slice(0,180);if(!label)throw new Error("ACTION_REQUIRED");
  const fast=fastLocalActionAssessment(state,label);if(fast)return fast;
- const snapshot=actionFeasibilitySnapshot(state),payload={action:label,snapshot};
- if(!hasDirectAI()){
-  try{const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label,snapshot),source:"SERVER_AI"}}catch(e){return degradedActionAssessment(state,label,e)}
- }
- try{return await directActionAssessment(payload,label,false)}
+ const snapshot=actionFeasibilitySnapshot(state),payload={action:label,snapshot},worldId=String(state?.world?.id||"");
+ if(actionAssessmentCircuit.worldId!==worldId)resetActionAssessmentCircuit(worldId);
+ if(!hasDirectAI()){try{const server=await post("/api/action",{action:label,snapshot});return {...normalizeActionAssessment(server.assessment,label,snapshot),source:"SERVER_AI"}}catch(e){return degradedActionAssessment(state,label,e)}}
+ if(actionAssessmentCircuit.openUntil>Date.now())return degradedActionAssessment(state,label,new Error(`ACTION_ASSESSMENT_CIRCUIT_OPEN: ${actionAssessmentCircuit.lastError||"provider degraded"}`));
+ if(actionAssessmentCircuit.openUntil)resetActionAssessmentCircuit(worldId);
+ try{const value=await directActionAssessment(payload,label,false);resetActionAssessmentCircuit(worldId);return value}
  catch(firstError){
-  try{return await directActionAssessment({action:label,snapshot},label,true)}
-  catch(secondError){const e=new Error((firstError?.message||String(firstError))+" | RETRY: "+(secondError?.message||String(secondError)));return degradedActionAssessment(state,label,e)}
+  if(/AI_RATE_LIMIT_BACKPRESSURE|AI_HTTP_429/.test(String(firstError?.message||firstError))){noteActionAssessmentFailure(worldId,firstError);return degradedActionAssessment(state,label,firstError)}
+  try{const value=await directActionAssessment({action:label,snapshot},label,true);resetActionAssessmentCircuit(worldId);return value}
+  catch(secondError){const e=new Error((firstError?.message||String(firstError))+" | RETRY: "+(secondError?.message||String(secondError)));noteActionAssessmentFailure(worldId,e);return degradedActionAssessment(state,label,e)}
  }
 }
 

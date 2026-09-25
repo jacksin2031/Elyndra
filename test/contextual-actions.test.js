@@ -56,7 +56,7 @@ test("legacy string suggestions are not trusted as AI causal validation",()=>{
 });
 
 test("prevalidated suggested action skips AI feasibility while its scene seal remains current",()=>{
- const s=state(),row=buildContextualActionSet(s,[{label:"問守衛昨晚發生甚麼",action:"向守衛詢問昨晚巷子發生的異常",kind:"SOCIAL",risk:"LOW",approach:"SOCIAL",requirementsSatisfied:true,causalBasis:"守衛就在現場"}]).all.find(x=>x.label==="問守衛昨晚發生甚麼");
+ const s=state();s.world.registry.npcs[0].nameKnown=true;const row=buildContextualActionSet(s,[{label:"問守衛昨晚發生甚麼",action:"向守衛詢問昨晚巷子發生的異常",kind:"SOCIAL",risk:"LOW",approach:"SOCIAL",requirementsSatisfied:true,causalBasis:"守衛就在現場"}]).all.find(x=>x.label==="問守衛昨晚發生甚麼");
  const assessment=trustedSuggestionAssessment(s,row);
  assert.equal(assessment.verdict,"ALLOW");
  assert.equal(assessment.source,"AI_SUGGESTION_PREVALIDATED");

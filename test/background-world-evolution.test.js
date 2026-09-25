@@ -25,7 +25,7 @@ test("foreground AI preempts low-priority background world work",async()=>{
   readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/if\(on\)preemptBackgroundAI\(\)/);
+ assert.match(app,/if\(on\)\{?preemptBackgroundAI\(\)/);
  assert.match(settings,/parentSignals=\[args\?\.signal,runtime\.signal\]/);
  assert.match(settings,/AI_ABORTED: request cancelled by higher-priority gameplay/);
  assert.match(client,/generateRegionExpansion\(state,reason="player_exploration",options=\{\}\)/);

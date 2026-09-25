@@ -1,7 +1,8 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57020";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57020";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57020";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57020";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57021";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57021";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57021";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57021";
+import {validateSuggestionProvenance} from "./scene-provenance.js?v=57021";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
@@ -227,9 +228,11 @@ function suggestionRefreshCandidates(state){
  rows.push(normalizeContextualSuggestion({label:"用不同方式測試現場反應",action:`只利用${loc}目前可見的人流、聲音或遮蔽物，以不消耗未知資源的另一種方式測試環境反應`,kind:"GENERAL",risk:"MEDIUM",approach:"CREATIVE",causalBasis:"只使用玩家目前可直接感知的環境",requirementsSatisfied:true,source:"ENGINE"}));
  return uniq(rows.filter(Boolean),20)
 }
+function contextualSuggestionProvenanceScope(state){const registry=state?.world?.registry||{},locations=Array.isArray(registry.locations)?registry.locations:[],npcs=Array.isArray(registry.npcs)?registry.npcs:[],raw=String(state?.player?.location||state?.world?.state?.location||""),location=locations.find(x=>String(x?.id||"")===raw||String(x?.name||"")===raw)||null,locId=String(location?.id||""),present=npcs.filter(n=>n?.alive!==false&&(n?.companion?.status==="ACTIVE"||(locId&&String(n?.locationId||"")===locId))),worldId=String(state?.world?.id||""),allowed=new Set([raw,locId,String(location?.name||"")].filter(Boolean));return {worldId,currentLocation:String(playerVisibleLocationName(state)||raw||""),locationDescription:String(location?.description||""),presentNpcNames:present.map(n=>String(playerVisibleNpcName(state,n)||"")).filter(Boolean),allNpcNames:npcs.map(n=>String(n?.name||"")).filter(Boolean),knownLocations:locations.filter(x=>x?.known===true||x===location).map(x=>String(x?.name||"")).filter(Boolean),visibleEventTexts:(state?.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&(!e?.worldId||String(e.worldId)===worldId)&&(!e?.locationId&&!e?.location||allowed.has(String(e.locationId||e.location)))).slice(-8).map(e=>String(e?.playerSummary||e?.visibleSummary||e?.summary||e?.text||"")).filter(Boolean)}}
+function suggestionMatchesCurrentScene(state,row){const inferred=inferActionKind(row?.action||row?.label||"");const effective=inferred==="TRAVEL"&&String(row?.kind||"").toUpperCase()!=="TRAVEL"?{...row,kind:"TRAVEL"}:row;return validateSuggestionProvenance(effective,contextualSuggestionProvenanceScope(state)).valid}
 export function buildContextualActionSet(state,input=[],options={}){
  const recent=recentPlayerActions(state),excluded=suggestionExclusionSet(options?.exclude),isFresh=x=>freshSuggestion(recent,x)&&!excluded.has(clean(x?.action,180))&&!excluded.has(clean(x?.label,180));
- const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
+ const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&suggestionMatchesCurrentScene(state,x)&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk));
  if(!progression){const candidate=progressionSuggestion(state);if(isFresh(candidate))progression=candidate}
  const personalized=personalizedSuggestion(state);
