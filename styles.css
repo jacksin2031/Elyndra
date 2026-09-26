@@ -1004,3 +1004,33 @@ body[data-world-genre="末日異世界"]{
 .gain-toast-copy{display:flex;min-width:0;flex-direction:column;gap:1px}.gain-toast-copy small{font-size:11px;letter-spacing:.08em;opacity:.68}.gain-toast-copy strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gain-toast-copy span{font-size:12px;opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:720px){.gain-toast-stack{top:auto;right:12px;bottom:112px;width:min(360px,calc(100vw - 24px))}.gain-toast{padding:10px 12px}}
 @media(prefers-reduced-motion:reduce){.gain-toast{transition:none}}
+
+
+/* v0.58.0 narrator layout stabilization */
+@media(min-width:901px){
+  #game .scene-copy{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:flex-start!important;
+    justify-content:flex-start!important;
+    gap:0!important;
+    height:auto!important;
+  }
+  #game .scene-copy .scene-meta{
+    position:static!important;
+    margin:0!important;
+  }
+  #game .scene-copy h2{
+    position:static!important;
+    margin:13px 0 12px!important;
+  }
+  #game .scene-copy #narrative{
+    position:static!important;
+    inset:auto!important;
+    transform:none!important;
+    align-self:flex-start!important;
+    width:min(760px,100%)!important;
+    max-width:760px!important;
+    margin:0!important;
+  }
+}

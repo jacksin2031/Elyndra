@@ -155,6 +155,6 @@ Repository 只保留正式的 GitHub Pages workflow：`.github/workflows/pages.y
 
 ## v0.58.0 重點
 
-v0.58.0 整合 NPC 玩家可見身份隱私與條件式場景對白：未知 NPC 的 canonical 名稱／職業在取得證據前保持隱藏；Scene Narrator 只在玩家明確說話或有可見 NPC 回應證據時使用簡短對白，並禁止替玩家發明台詞或讓 NPC 洩漏不可知資訊。
+v0.58.0 整合 NPC 玩家可見身份隱私與條件式場景對白：未知 NPC 的 canonical 名稱／職業在取得證據前保持隱藏；Scene Narrator 只在玩家明確說話或有可見 NPC 回應證據時使用簡短對白，並禁止替玩家發明台詞或讓 NPC 洩漏不可知資訊。同時修正桌面版旁白文字框與場景標題分離的版面問題。
 
 完整歷史請查看 `docs/releases/`、Pull Requests 與 commit history。

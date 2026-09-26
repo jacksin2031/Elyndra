@@ -14,6 +14,7 @@ test("v0.58.0 is the canonical app and browser cache release",async()=>{
  assert.equal(pkg.version,"0.58.0");
  assert.match(versionSource,/APP_VERSION="0\.58\.0"/);
  assert.match(html,/app\.js\?v=58000/);
+ assert.match(html,/styles\.css\?v=58000/);
  const tokens=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
  assert.ok(tokens.length>20);
  assert.ok(tokens.every(x=>["57025","57026","57028","57029","58000"].includes(x)));
