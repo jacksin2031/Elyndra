@@ -1,0 +1,74 @@
+name: v0.59.3 Combined Release Validation
+on:
+  push:
+    branches: [ui/readability-responsive-polish]
+    paths:
+      - .github/workflows/v0593-combine.yml
+permissions:
+  contents: write
+jobs:
+  integrate-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Integrate validated locale source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set +e
+          git cherry-pick 25ff93f7a6deb47f41b1209767830927dd3c578a
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            unresolved="$(git diff --name-only --diff-filter=U)"
+            echo "Resolving expected v0.59.3 release-contract overlaps:"
+            printf '%s\n' "$unresolved"
+            for f in $unresolved; do
+              case "$f" in
+                README.md|index.html)
+                  git checkout --ours -- "$f"
+                  ;;
+                app.js|package.json|src/version.js|test/v05901-i18n-coverage.test.js|test/version-0551-release.test.js|test/version-ui.test.js)
+                  git checkout --theirs -- "$f"
+                  ;;
+                *)
+                  echo "Unexpected conflict: $f"
+                  git cherry-pick --abort
+                  exit 1
+                  ;;
+              esac
+              git add "$f"
+            done
+            GIT_EDITOR=true git cherry-pick --continue
+          fi
+      - name: Preserve UI release assets and cache graph
+        run: |
+          grep -q 'styles.css?v=59003' index.html
+          grep -q 'creator.css?v=59003' index.html
+          grep -q 'app.js?v=59003' index.html
+          grep -q 'world-creation.js?v=59003' app.js
+          grep -q 'ai-client.js?v=59003' app.js
+          grep -q 'ai-autotest.js?v=59003' app.js
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: Combined v0.59.3 regressions
+        run: node --test test/v05903-locale-completeness.test.js test/v05902-world-compile-i18n-notes.test.js test/v05901-i18n-coverage.test.js test/v05900-multilingual-runtime.test.js test/version-0551-release.test.js test/version-ui.test.js test/mobile-responsive-layout.test.js test/ui-live-boundaries.test.js test/asset-ui-contract.test.js
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        env:
+          CACHE_BASE_REF: main
+        run: npm run cache:check
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Diff check
+        run: git diff --check HEAD~1 HEAD
+      - name: Push combined v0.59.3 source
+        run: git push origin HEAD:ui/readability-responsive-polish
