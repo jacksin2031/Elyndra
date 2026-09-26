@@ -20,7 +20,7 @@ test("v0.59.0 keeps four locale channels isolated",()=>{
 test("v0.59.0 normalizes deterministic volatile gameplay text in non-default locales",()=>{
  const state={world:{name:"English World",registry:{npcs:[],locations:[]}},sceneTitle:"理解眼前狀況",narrative:"戰鬥局勢發生了變化。",quests:{main:{title:"Main Quest",objectives:["Survive"]}},suggestions:["觀察四周"],inventory:[],localization:{sourceLocale:"en",displayLocale:"en",translations:{en:{}}}};
  const missing=missingVisibleTranslations(state,"en").strings;assert.ok(missing.includes("戰鬥局勢發生了變化。"));assert.ok(missing.includes("理解眼前狀況"));assert.ok(missing.includes("觀察四周"));
- applyTranslationBundle(state,"en",{translations:missing.map(source=>({source,translated:`EN:${source}`}))});assert.equal(translatedText(state,"戰鬥局勢發生了變化。","en"),"EN:戰鬥局勢發生了變化。");
+ applyTranslationBundle(state,"en",{translations:missing.map(source=>({source,translated:"English translation"}))});assert.equal(translatedText(state,"戰鬥局勢發生了變化。","en"),"English translation");
  const traditional={...state,localization:{sourceLocale:"zh-Hant",displayLocale:"zh-Hant",translations:{"zh-Hant":{}}}};assert.equal(missingVisibleTranslations(traditional,"zh-Hant").strings.length,0);
 });
 
