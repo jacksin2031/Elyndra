@@ -1,0 +1,91 @@
+/* Shared world artwork. Geometry stays in styles.css; images never set layout size. */
+:root{--ely-surface-etching:url("./assets/ui/frames/surface-etching.svg")}
+#worldBackdrop{display:none}
+body[data-screen="game"]{isolation:isolate;background:transparent!important}
+body[data-screen="game"] #worldBackdrop{
+  display:block;position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-color:#080d16;
+  background-image:linear-gradient(180deg,rgba(5,9,16,.36),rgba(5,8,14,.72)),var(--ely-scene-raster),var(--ely-scene-fallback);
+  background-size:100% 100%,cover,cover;
+  background-position:center,var(--ely-scene-position,center),var(--ely-scene-position,center);
+  background-repeat:no-repeat;
+}
+#game .game-shell,#game .scene{background:transparent!important}
+
+/* Etching is above the dark material, so it remains visible without lightening text. */
+body[data-screen="game"] .topbar,#game .sidebar{
+  background-color:rgba(7,12,21,.88)!important;
+  background-image:var(--ely-surface-etching),linear-gradient(180deg,rgba(10,16,27,.86),rgba(6,10,18,.92))!important;
+  background-size:208px 208px,100% 100%!important;
+  background-position:left top,center!important;background-repeat:repeat,no-repeat!important;
+}
+#game .player-summary,#game .compact-stats,#game .quest-card,#game .npc-dock,
+#game .action-zone,#game .dice-box,#game .narrative-panel #narrative,
+#game .free-action,#game .mobile-bottom-nav,
+.modal-card .lore-item,.modal-card .stat-card,.modal-card .settings-grid,.modal-card .faction-row,
+.modal-card .npc-chat-head,.modal-card .npc-chat-log,.modal-card .npc-chat-form{
+  background-image:var(--ely-surface-etching),linear-gradient(145deg,rgba(12,18,29,.90),rgba(6,10,17,.86))!important;
+  background-size:192px 192px,100% 100%!important;
+  background-position:left top,center!important;background-repeat:repeat,no-repeat!important;
+  border-color:rgba(215,179,106,.22)!important;
+}
+#game .narrative-panel #narrative{color:#eee5d4!important;border-left-color:var(--gold)!important}
+#game .dice-box.roll-success{border-color:rgba(128,215,166,.62)!important}
+#game .dice-box.roll-fail{border-color:rgba(217,107,107,.62)!important}
+#game .dice-box.roll-critical{border-color:rgba(240,200,117,.75)!important}
+
+/* Existing nine-slice corners stay attached to their own panel at every size. */
+#game .sidebar::after,#game .player-summary::after,#game .quest-card::after,
+#game .npc-dock::after,#game .action-zone::after,#game .dice-box::after,
+.modal-card::after,.npc-chat-form::after{opacity:.14!important;pointer-events:none!important}
+.modal-card{
+  background-color:#09111d!important;
+  background-image:var(--ely-surface-etching),linear-gradient(180deg,rgba(7,12,20,.76),rgba(5,9,16,.94)),var(--ely-scene-raster),var(--ely-scene-fallback)!important;
+  background-size:192px 192px,100% 100%,cover,cover!important;
+  background-position:left top,center,var(--ely-scene-position,center),var(--ely-scene-position,center)!important;
+  background-repeat:repeat,no-repeat,no-repeat,no-repeat!important;
+}
+.modal-card::before{content:none!important;display:none!important}
+/* A shared fade avoids restarting a translated entry when breakpoints change. */
+#modal .modal-card{animation:surfaceReveal .18s ease-out both}
+@keyframes surfaceReveal{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){#modal .modal-card{animation:none}}
+.modal-card h2::before,#game .world-title .eyebrow::before,#game .quest-card>small::before,
+#game .action-heading .eyebrow::before,#game .dice-copy>.eyebrow::before{
+  content:"";display:inline-block;width:7px;height:7px;margin:0 8px 1px 0;
+  border:1px solid var(--gold);transform:rotate(45deg);vertical-align:middle;opacity:.82;
+}
+
+/* More uses the same crisp artwork in the HUD, top bar and free-action entry. */
+#game #moreBtn>span{
+  color:transparent!important;font-size:0!important;
+  background:transparent url("./assets/ui/icons/more.svg") center/contain no-repeat!important;
+  mask:none!important;-webkit-mask:none!important;filter:none;
+}
+#gameMenuBtn{font-size:0!important;color:transparent!important}
+#gameMenuBtn::before{
+  content:"";display:block;width:22px;height:22px;
+  background:url("./assets/ui/icons/more.svg") center/contain no-repeat;
+}
+#game #otherActionBtn::before{
+  content:""!important;display:inline-block;width:16px;height:16px;margin:0 8px 0 0;
+  background:url("./assets/ui/icons/more.svg") center/contain no-repeat;vertical-align:-3px;
+}
+#modal [data-system-open]{display:flex;align-items:center;gap:10px;text-align:left}
+#modal [data-system-open]::before,.system-actions>button::before{
+  content:"";display:inline-block;flex:0 0 20px;width:20px;height:20px;vertical-align:-4px;
+  background:#dfc48e;mask:var(--system-icon) center/contain no-repeat;pointer-events:none;
+}
+.system-actions>button::before{margin-right:7px}
+#aiSettingsBtn,[data-system-open="aiSettingsBtn"],#developerBtn,[data-system-open="developerBtn"]{--system-icon:url("./assets/ui/icons/settings.svg")}
+#saveToolsBtn,[data-system-open="saveToolsBtn"]{--system-icon:url("./assets/ui/icons/save.svg")}
+#resetBtn,[data-system-open="resetBtn"]{--system-icon:url("./assets/ui/icons/restore.svg")}
+[data-system-open="helperBtn"]{--system-icon:url("./assets/ui/icons/person.svg")}
+[data-system-open="runtimeBtn"]{--system-icon:url("./assets/ui/icons/world.svg")}
+[data-system-open="historyBtn"],[data-system-open="debugBtn"]{--system-icon:url("./assets/ui/icons/journal.svg")}
+[data-system-open="impactBtn"]{--system-icon:url("./assets/ui/icons/compass.svg")}
+@media(max-width:1200px){.system-actions>button::before{display:none}}
+@media(max-width:720px){
+  #game .mobile-bottom-nav{background-color:rgba(6,10,18,.97)!important}
+  .modal-card::after{opacity:.10!important}
+}

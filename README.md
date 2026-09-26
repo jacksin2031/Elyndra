@@ -2,7 +2,7 @@
 
 **Elyndra** 是一款以瀏覽器運行的 **AI × TRPG × World Discovery** 異世界 RPG。
 
-目前版本：**v0.59.3**
+目前版本：**v0.59.4**
 
 > 每一個世界，都有自己的真相。
 
@@ -25,7 +25,7 @@ Elyndra 的核心設計是把 AI 放在「提案與敘事」的位置，而把�
 
 ## 多國語言 / Multilingual
 
-Elyndra v0.59.0 目前支援四種顯示與 AI 輸出語言：
+Elyndra v0.59.4 目前支援四種顯示與 AI 輸出語言：
 
 | Locale | 語言 |
 | --- | --- |
@@ -39,6 +39,8 @@ Elyndra v0.59.0 目前支援四種顯示與 AI 輸出語言：
 ### 跨語言世界與存檔
 
 - 新世界會使用目前選擇的語言建立玩家可見內容。
+- 世界建立流程中的 World Constitution 分類、預設元素標籤與 Engine fallback 行動使用 deterministic locale mapping；切換顯示語言不會改寫其 canonical 值。
+- 新世界第一次顯示 gameplay，以及 Continue 載入既有世界時，都會在 game screen 顯示前完成目前語言的可見內容翻譯／正規化，避免先顯示中文再異步切換。
 - 載入其他語言建立的 autosave、手動存檔或 `.elyndra` 世界時，Elyndra 會在進入遊戲畫面前先完成 AI 翻譯／語言正規化。
 - `sourceLocale` 只代表世界原始語言來源；每一段文字會獨立判斷實際語言，因此可以連續進行 `繁中 → English → 日本語` 等切換。
 - 翻譯必須保留 Canon、數字、名稱、遊戲狀態、不確定性與玩家知識邊界，不可新增 lore、劇透 hidden Canon 或修改世界事實。
@@ -126,11 +128,12 @@ npm test
 1. 版本一致性檢查
 2. Browser cache-bust dependency graph 檢查
 3. JavaScript syntax gate
-4. v0.59.0 multilingual focused regressions
-5. NPC identity privacy / scene dialogue regressions
-6. Node 20 / Node 24 compatibility
+4. Static i18n coverage
+5. v0.59.4 creator / multilingual / viewport / dice focused regressions
+6. NPC identity privacy / scene dialogue regressions
+7. Node 20 / Node 24 compatibility
 
-v0.59.0 multilingual regression 會檢查四個 locale channel 的隔離、runtime language contract、跨語言 world-entry gate，以及旁白固定在「你的行動」區域正上方的 UI 結構。
+v0.59.4 release regression 會檢查四個 locale channel 的隔離、runtime language contract、跨語言 world-entry gate、世界元素標籤 canonical selector 穩定性、creator/action deterministic translation、首次 game screen 的 pre-reveal locale gate，以及既有 viewport／D20／旁白與行動區 UI contract。
 
 ## 重要目錄
 
@@ -153,6 +156,7 @@ Elyndra/
 - `src/game-engine.js` — deterministic gameplay mutation
 - `src/storage.js` — IndexedDB + `.elyndra` import/export
 - `src/locale-runtime.js` — locale normalization、UI strings、runtime language contract、localized output tracking
+- `src/v0594-static-i18n.js` — World Creation canonical tags 與 Engine fallback action 的 deterministic locale mapping
 - `src/ai-settings.js` — Provider profiles、Direct AI transport、optimization / timeout / backpressure
 - `src/ai-client.js` — Action / Scene / NPC / State / Runtime Expansion / translation AI boundary
 - `src/travel-engine.js` — Canon 路網、距離與旅行耗時
@@ -182,6 +186,16 @@ Repository 正式部署 workflow：`.github/workflows/pages.yml`。
 - Push 到 `main` → Node 20 / Node 24 focused release validation
 - `main` 測試成功 → 部署 GitHub Pages
 - GitHub Actions 使用 immutable commit SHA pin
+
+## v0.59.4 重點
+
+首頁標題調整欄寬、字級及日文斷行，並與介紹卡片對齊。加入原創星門載入插畫、向量導航圖示、實際行動處理狀態，以及使用 Engine 判定的 D20 翻滾與結果動畫；支援減少動態效果設定。
+
+遊玩介面使用隨世界風格切換的全畫面背景；狀態、任務、旁白、行動、骰仔、導航與彈出視窗共用固定尺寸刻紋。「更多／其他行動」、系統選單及設定按鈕補齊向量圖示。背景層不參與版面尺寸計算，桌面保留固定舞台等比例縮放，窄視窗使用可捲動版面。
+
+World Creation 的世界元素標籤改用 stable canonical value，顯示文字與資料值分離，修正選擇標籤後其他標籤消失的問題；分類、預設標籤及部分 Engine fallback／戰鬥行動加入四語 deterministic translation。新世界與 Continue 進入 gameplay 前會先完成目標語言的可見內容正規化，避免第一次打開世界時先顯示中文。
+
+驗證範圍與素材來源見 [UI 視覺回饋記錄](docs/ui-visual-feedback-v0.59.4.md)。
 
 ## v0.59.3 重點
 

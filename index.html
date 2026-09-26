@@ -1,5 +1,5 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=59003"><link rel="stylesheet" href="creator.css?v=59003"></head>
-<body data-screen="landing"><div class="noise"></div><header class="topbar">
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=59004"><link rel="stylesheet" href="creator.css?v=59004"><link rel="stylesheet" href="world-surfaces.css?v=59004"></head>
+<body data-screen="landing"><div id="worldBackdrop" aria-hidden="true"></div><div class="noise"></div><header class="topbar">
 <div class="brand-wrap"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div></div>
 <div class="topbar-context" aria-live="polite"><span id="topLocation">未知之地</span><span class="topbar-dot">◆</span><span id="topTime">時序未知</span></div>
 <label class="language-control"><span>語言</span><select id="languageSelect" aria-label="語言"><option value="zh-Hant">繁體中文</option><option value="zh-Hans">簡體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>
@@ -88,7 +88,7 @@
   <div class="creator-step-head"><small>STEP 05</small><h3>準備編譯世界</h3><p>系統會先建立 World Blueprint → World Constitution → World Seed，再交給現有分階段 World Compiler。完整世界不會一次生成，未探索部分繼續使用 Lazy Generation。</p></div>
   <div id="creatorReview" class="creator-review"></div>
   <button id="generateBtn" class="primary big">生成世界契約</button>
-  <div id="worldGenProgress" class="world-gen-progress hidden" aria-live="polite"><div class="world-gen-head"><strong id="worldGenText">準備生成世界</strong><span id="worldGenPct">0%</span></div><div class="world-gen-track"><div id="worldGenBar" class="world-gen-bar"></div></div><small id="worldGenDetail">等待開始</small></div>
+  <div id="worldGenProgress" class="world-gen-progress hidden" aria-live="polite"><div class="world-gen-scene" aria-hidden="true"><span class="loading-sigil"></span></div><div class="world-gen-body"><div class="world-gen-head"><strong id="worldGenText">準備生成世界</strong><span id="worldGenPct">0%</span></div><div class="world-gen-track" id="worldGenTrack" role="progressbar" aria-labelledby="worldGenText" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="worldGenBar" class="world-gen-bar"></div></div><small id="worldGenDetail">等待開始</small></div></div>
   <div class="creator-nav"><button type="button" class="ghost" data-step-prev="4">返回修改</button><span></span></div>
  </section>
 </div>
@@ -122,11 +122,11 @@
 <div class="scene-art"><div class="scene-atmosphere" aria-hidden="true"></div><div class="scene-copy">
 <div class="scene-meta"><span id="location" class="location"></span><span id="weather" class="weather-chip" data-danger="0"></span></div>
 <h2 id="sceneTitle">理解眼前狀況</h2></div></div>
-<div class="narrative-panel" aria-live="polite"><p id="narrative" tabindex="0"></p></div>
+<div class="narrative-panel" aria-live="polite"><div id="activityStatus" class="activity-status" hidden><span class="loading-sigil" aria-hidden="true"></span><strong id="activityLabel"></strong><span id="activityElapsed" aria-hidden="true"></span></div><p id="narrative" tabindex="0"></p></div>
 <div class="decision-panel">
 <div class="action-zone"><div class="action-heading"><span class="eyebrow">你的行動</span><small>這些是此刻真正可做的事，不是功能選單</small></div><div id="choices" class="choices" aria-label="情境化建議行動"></div>
 <form id="freeActionForm" class="free-action hidden"><input id="freeAction" maxlength="180" placeholder="自由行動：描述你想做的事……"><button class="primary action-send" type="submit" aria-label="執行行動">➤</button></form></div>
-<div class="dice-box" id="diceBox" aria-live="polite"><div class="d20" id="d20">20</div><div class="dice-copy"><span class="eyebrow">命運判定</span><strong id="rollLabel">等待你的行動</strong><p id="rollResult">世界會記住重要結果。</p></div></div>
+<div class="dice-box" id="diceBox" aria-live="polite"><div class="dice-stage" aria-hidden="true"><div class="d20" id="d20">20</div></div><div class="dice-copy"><span class="eyebrow">命運判定</span><strong id="rollLabel">等待你的行動</strong><p id="rollResult">世界會記住重要結果。</p></div></div>
 </div></section></div>
 <nav class="mobile-bottom-nav" aria-label="手機主要功能">
 <button type="button" data-mobile-target="home" class="active"><span>✦</span><small>冒險</small></button>
@@ -139,4 +139,4 @@
 <input id="importFile" type="file" accept=".elyndra,application/json" hidden><script>
 window.addEventListener("error",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=e.message||"JavaScript failed"}});
 window.addEventListener("unhandledrejection",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=String(e.reason?.message||e.reason||"Promise failed")}});
-</script><script type="module" src="app.js?v=59003"></script></body></html>
+</script><script type="module" src="app.js?v=59004"></script></body></html>

@@ -82,9 +82,11 @@ if(impacted.has("app.js")){
  const m=html.match(/<script\b[^>]*\bsrc=["']app\.js\?v=(\d+)["']/i);
  if(!m||m[1]!==expected)violations.push(`index.html -> app.js uses v=${m?.[1]||"MISSING"}, expected v=${expected}`)
 }
-if(changed.includes("styles.css")){
- const m=html.match(/<link\b[^>]*\bhref=["']styles\.css\?v=(\d+)["']/i);
- if(!m||m[1]!==expected)violations.push(`index.html -> styles.css uses v=${m?.[1]||"MISSING"}, expected v=${expected}`)
+const linkedStyles=[...html.matchAll(/<link\b[^>]*\bhref=["']([^"'?]+\.css)(?:\?v=(\d+))?["']/gi)];
+for(const stylesheet of ["styles.css","creator.css","world-surfaces.css"]){
+ if(!changed.includes(stylesheet))continue;
+ const link=linkedStyles.find(m=>m[1]===stylesheet);
+ if(!link||link[2]!==expected)violations.push(`index.html -> ${stylesheet} uses v=${link?.[2]||"MISSING"}, expected v=${expected}`)
 }
 
 if(violations.length){
