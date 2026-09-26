@@ -1,11 +1,12 @@
-import {playerVisibleEvents} from "./event-visibility.js?v=57024";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57024";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=57024";
-import {survivalSnapshot} from "./survival-engine.js?v=57024";
-import {travelSnapshot} from "./travel-engine.js?v=57024";
-import {marketSnapshot} from "./economy-engine.js?v=57024";
-import {dungeonSnapshot} from "./dungeon-engine.js?v=57024";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57024";
+import {playerVisibleEvents} from "./event-visibility.js?v=57025";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57025";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=57025";
+import {survivalSnapshot} from "./survival-engine.js?v=57025";
+import {travelSnapshot} from "./travel-engine.js?v=57025";
+import {marketSnapshot} from "./economy-engine.js?v=57025";
+import {dungeonSnapshot} from "./dungeon-engine.js?v=57025";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57025";
 
 const safe=(v,max=300)=>sanitizePlayerText(v,max,"");
 
@@ -14,7 +15,7 @@ export function helperSnapshot(state){
  const r=state.world?.registry||{locations:[],npcs:[],factions:[],sideQuests:[]},locations=Array.isArray(r.locations)?r.locations:[],npcs=Array.isArray(r.npcs)?r.npcs:[],factions=Array.isArray(r.factions)?r.factions:[],sideQuests=Array.isArray(r.sideQuests)?r.sideQuests:[];
  const locName=String(state.player?.location||state.world?.state?.location||""),loc=locations.find(x=>x.name===locName)||null,visibleLocation=playerVisibleLocationName(state);
  const present=n=>n?.alive!==false&&(n?.companion?.status==="ACTIVE"||Boolean(loc&&n?.locationId===loc.id));
- const nearbyNpcs=npcs.filter(n=>n?.known===true&&n?.encountered===true&&present(n)).slice(-8).map(n=>({name:n.name,role:n.role,description:safe(n.description,180),trust:Number.isFinite(n.trust)?n.trust:null,companionStatus:n.companion?.status||"NONE"}));
+ const nearbyNpcs=npcs.filter(n=>n?.known===true&&n?.encountered===true&&present(n)).slice(-8).map(n=>({name:playerVisibleNpcName(state,n),role:n.role,description:safe(n.description,180),trust:Number.isFinite(n.trust)?n.trust:null,companionStatus:n.companion?.status||"NONE"}));
  const knownLocations=locations.filter(x=>x.known===true).slice(-12).map(x=>({name:x.name,type:x.type,region:x.region,description:safe(x.description,180)}));
  const knownFactions=factions.filter(x=>x.known===true).slice(-8).map(x=>({name:x.name,goal:safe(x.goal,160),reputation:x.playerReputation??0}));
  const knownSideQuests=sideQuests.filter(x=>x.known===true&&x.status!=="COMPLETED").slice(-8).map(x=>({title:x.title,objective:x.objective,progress:x.progress??0,target:x.target??3}));
