@@ -1,11 +1,11 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59005";
+import {APP_VERSION} from "./src/version.js?v=59006";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
-import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59005";
+import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59006";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59004";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59005";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59006";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57029";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59005";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59006";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57029";
 import {maintainSession} from "./src/session-maintenance.js?v=57025";
@@ -61,7 +61,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=57025";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57025";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57025";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57025";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59005";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59006";
 import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot,archiveAutotestExportSnapshot,listAutotestExportSnapshots,loadAutotestExportSnapshot} from "./src/autotest-export.js?v=57025";
 import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory,shareAutotestArtifact} from "./src/autotest-save.js?v=57025";
 import {copyAutotestText} from "./src/autotest-copy.js?v=57025";
@@ -446,7 +446,7 @@ async function runBackgroundWorldEvolution(){
  }
 }
 function beginPlayerActionFlight(label){
- playerActionFlight.active=true;playerActionFlight.label=String(label||"").trim().slice(0,240)||"處理目前行動";playerActionFlight.startedAt=Date.now();
+ playerActionFlight.active=true;playerActionFlight.label=localizedStaticText(lt(String(label||"").trim().slice(0,240)),activeLocale)||uiText("處理目前行動",activeLocale);playerActionFlight.startedAt=Date.now();
  recordDebug("PLAYER_ACTION_UI_LOCKED",{action:playerActionFlight.label});renderSuggestions();setPlayerActionControlsLocked(true,"正在處理已選行動…");updateAIStatusBadge()
 }
 function finishPlayerActionFlight(action="",reason="completed"){
@@ -497,10 +497,10 @@ function setAIThinking(on,label=uiText("AI 正在思考…",activeLocale)){
 }
 
 async function ensureGameplayLocale(reason="runtime"){
- if(!gameState)return true;const pending=missingVisibleTranslations(gameState,activeLocale),loc=ensureWorldLocale(gameState,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;return true}
+ if(!gameState)return true;const state=gameState,sessionToken=captureStateSession(),pending=missingVisibleTranslations(state,activeLocale),loc=ensureWorldLocale(state,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;return true}
  if(localeTransitionBusy)return false;if(!aiStatus.aiConfigured){recordDebug("LOCALE_TRANSLATION_BLOCKED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,pending:pending.strings.length});return false}
  localeTransitionBusy=true;document.body.classList.add("locale-transition");setAIThinking(true,uiText("正在翻譯世界…",activeLocale));
- try{const bundle=await translateVisibleWorld(pending,activeLocale);applyTranslationBundle(gameState,activeLocale,bundle);const left=missingVisibleTranslations(gameState,activeLocale);if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(gameState);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
+ try{const bundle=await translateVisibleWorld(pending,activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,bundle);const left=missingVisibleTranslations(state,activeLocale);if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(state);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
  catch(error){recordDebug("LOCALE_TRANSLATION_FAILED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,error:error?.message||String(error)});return false}
  finally{localeTransitionBusy=false;document.body.classList.remove("locale-transition");setAIThinking(false)}
 }
@@ -1280,7 +1280,7 @@ async function startDeveloperAutotest(config){
      if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
      developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON",stall=autotestRecentStallCount(recentActions),expansionNeeded=needsExpansion(gameState),sparseWorld=(gameState.world?.registry?.locations||[]).length<=1&&turn>=5;let expansionReason="";
      if(stall>=3)expansionReason=firstButtonFast?"FIRST_BUTTON_STALL_RECOVERY":"AUTOTEST_STALL_RECOVERY";else if(expansionNeeded&&(firstButtonFast?sparseWorld:true))expansionReason=firstButtonFast?"FIRST_BUTTON_SPARSE_WORLD":"WORLD_EDGE_UNDERDEFINED";
-     if(expansionReason){if(firstButtonFast&&stall>=3&&sparseWorld&&!autotestRuntimeExpansion.running&&turn-Number(autotestRuntimeExpansion.lastStartedTurn||0)>=3&&Date.now()>=Number(autotestRuntimeExpansion.cooldownUntil||0)){autotestRuntimeExpansion.lastStartedTurn=turn;const expanded=await expandDeveloperAutotestWorld(expansionReason,{force:true});autotestRuntimeExpansion.cooldownUntil=Date.now()+(expanded?20000:15000);if(expanded)autotestRuntimeExpansion.lastCompletedTurn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_STALL_SETTLED",{reason:expansionReason,turn,expanded,stall})}else{const scheduled=scheduleDeveloperAutotestExpansion(expansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:expansionReason,turn,scheduled,stall,expansionNeeded})}}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:firstButtonFast?"FIRST_BUTTON_FAST_PATH":"AI_DECISION_NO_EXPANSION",phase:"TURN",turn,stall,expansionNeeded});
+     if(expansionReason){if(firstButtonFast&&sparseWorld){const last=Number(autotestRuntimeExpansion.lastStartedTurn)||0;if(!autotestRuntimeExpansion.running&&(!last||turn-last>=3)){autotestRuntimeExpansion.lastStartedTurn=turn;const expanded=await expandDeveloperAutotestWorld(expansionReason,{force:true});if(expanded)autotestRuntimeExpansion.lastCompletedTurn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_STALL_SETTLED",{reason:expansionReason,turn,expanded,stall})}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_THROTTLED",{reason:expansionReason,turn,lastStartedTurn:last,minTurnGap:3})}else{const scheduled=scheduleDeveloperAutotestExpansion(expansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:expansionReason,turn,scheduled,stall,expansionNeeded})}}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:firstButtonFast?"FIRST_BUTTON_FAST_PATH":"AI_DECISION_NO_EXPANSION",phase:"TURN",turn,stall,expansionNeeded});
      if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();
      const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
      try{

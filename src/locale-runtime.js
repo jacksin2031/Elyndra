@@ -136,6 +136,9 @@ const UI={
  "AI 正在思考…":row("AI 正在思考…","AI 正在思考…","AI is thinking…","AIが思考中…"),
  "AI 正在處理你的行動…":row("AI 正在處理你的行動…","AI 正在处理你的行动…","AI is processing your action…","AIが行動を処理中…"),
  "STATE SYNC：完成後即可繼續行動":row("STATE SYNC：完成後即可繼續行動","STATE SYNC：完成后即可继续行动","STATE SYNC: actions resume when synchronization finishes","STATE SYNC：同期完了後に行動できます"),
+ "已選行動 · AI 處理中":row("已選行動 · AI 處理中","已选行动 · AI 处理中","Selected action · AI processing","選択した行動 · AI処理中"),
+ "正在鎖定這次行動，完成後才會更新下一批可選行動":row("正在鎖定這次行動，完成後才會更新下一批可選行動","正在锁定本次行动，完成后才会更新下一批可选行动","Locking this action; new choices appear when it finishes.","この行動を確定中です。完了後に次の選択肢を更新します。"),
+ "處理目前行動":row("處理目前行動","处理当前行动","Processing current action","現在の行動を処理中"),
  "正在處理已選行動…":row("正在處理已選行動…","正在处理已选行动…","Processing selected action…","選択した行動を処理中…"),
  "AI 回應較慢，必要時會自動切換 Engine 備援":row("AI 回應較慢，必要時會自動切換 Engine 備援","AI 响应较慢，必要时会自动切换 Engine 备用","AI is responding slowly; Engine fallback will be used if needed","AIの応答が遅いため、必要ならEngineフォールバックへ切り替えます"),
  "仍在等待 AI 回應":row("仍在等待 AI 回應","仍在等待 AI 响应","Still waiting for AI","AIの応答を待っています"),
@@ -187,7 +190,7 @@ const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
 const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
 const RUNTIME_LOCALIZED=new Map();
-const JA_CHINESE_LEAK=/(?:具體的|附近|已選行動|位置、人物或事件|眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改)/u;
+const JA_CHINESE_LEAK=/(?:[這詢剛牆從讓與對說處覺為應們]|內容|當地|暫無|具體的|附近|已選行動|位置、人物或事件|眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改)/u;
 const HANT_SIMPLIFIED_LEAK=/[这与为从对会让还开启关闭选择难险饿劳态语种实预设应无]/u;
 const HANS_TRADITIONAL_LEAK=/[這與為從對會讓還開啟關閉選擇難險餓勞態語種實預設應無]/u;
 export function hasLocaleLeak(value,locale=loadLocale()){
@@ -233,18 +236,18 @@ export function translationKey(value){let h=2166136261;for(const ch of String(va
 const SESSION_TRANSLATIONS=new Map();
 function sessionLocale(locale=loadLocale()){const id=normalizeLocale(locale);let row=SESSION_TRANSLATIONS.get(id);if(!row){row={table:{},sources:{}};SESSION_TRANSLATIONS.set(id,row)}return row}
 export function applySessionTranslationBundle(targetLocale,bundle){const id=normalizeLocale(targetLocale),row=sessionLocale(id),items=Array.isArray(bundle?.translations)?bundle.translations:[];for(const item of items){const source=String(item?.source??"").trim(),translated=String(item?.translated??"").trim();if(!source||!translated)continue;const key=translationKey(source);row.table[key]=translated;row.sources[key]=source;registerLocalizedOutput(translated,id)}return items.length}
-export function sessionTranslatedText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),mapped=sessionLocale(id).table[translationKey(text)];if(mapped&&(mapped!==text||!hasLocaleLeak(mapped,id)))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text}
+export function sessionTranslatedText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),mapped=sessionLocale(id).table[translationKey(text)];if(mapped&&!hasLocaleLeak(mapped,id))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text}
 function sessionCompositeText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const exact=sessionTranslatedText(text,locale);if(exact!==text)return exact;const row=sessionLocale(locale);let out=text;const entries=Object.entries(row.sources).map(([key,source])=>[source,row.table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out}
 export function hasTranslation(state,value,locale=loadLocale()){
- const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped)return mapped!==text||!hasLocaleLeak(mapped,id);if(hasLocaleLeak(text,id))return false;return isRuntimeLocalized(text,id)
+ const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped)return !hasLocaleLeak(mapped,id);if(hasLocaleLeak(text,id))return false;return isRuntimeLocalized(text,id)
 }
 export function translatedText(state,value,locale=loadLocale()){
- const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped&&(mapped!==text||!hasLocaleLeak(mapped,id)))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text
+ const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped&&!hasLocaleLeak(mapped,id))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text
 }
 export function visibleTranslationPayload(state,locale=loadLocale()){
  if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[],volatileStrings:[]};const registry=state.world?.registry||{},rows=[],volatile=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text);return text};const addVolatile=v=>{const text=add(v);if(text&&!volatile.includes(text))volatile.push(text)};
- add(state.world?.name);addVolatile(state.sceneTitle);addVolatile(state.narrative);add(state.quests?.main?.title);for(const x of state.quests?.main?.objectives||[])add(x);for(const x of state.suggestions||[])addVolatile(typeof x==="string"?x:x?.label);
- for(const npc of registry.npcs||[]){if(npc?.known===true){add(npc.name);add(npc.role);add(npc.description)}}
+ add(state.world?.name);add(state.player?.location);addVolatile(state.sceneTitle);addVolatile(state.narrative);add(state.quests?.main?.title);for(const x of state.quests?.main?.objectives||[])add(x);for(const x of state.suggestions||[])addVolatile(typeof x==="string"?x:x?.label);for(const x of state.suggestionIntents||[]){addVolatile(x?.label);addVolatile(x?.action)}
+ for(const key of ["label","background","worldKnowledgeBoundary","legalStatus","languagePolicy","knowledgePolicy","openingBias"])add(state.player?.origin?.[key]);for(const npc of registry.npcs||[]){if(npc?.known===true){add(npc.name);add(npc.role);add(npc.description)}}
  for(const loc of registry.locations||[]){if(loc?.known===true){add(loc.name);add(loc.description)}}
  for(const item of state.inventory||[]){add(item.name);add(item.description)}
  const noteRows=Array.isArray(state.notes)?state.notes:(Array.isArray(state.notes?.entries)?state.notes.entries:[]);for(const note of noteRows){add(note?.title);add(note?.text||note?.content)}

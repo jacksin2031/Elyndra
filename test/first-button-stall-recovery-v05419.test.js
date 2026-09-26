@@ -26,6 +26,15 @@ test("sparse stalled worlds settle generation before selecting the next action",
  const decision=app.indexOf('const decision=await decideAutotestAction(gameState',start);
  const recovery=app.indexOf('await expandDeveloperAutotestWorld(expansionReason,{force:true})',start);
  assert.ok(start>=0&&recovery>start&&decision>recovery);
- assert.match(app.slice(start,decision),/stall>=3&&sparseWorld/);
- assert.match(app.slice(start,decision),/cooldownUntil/);
+ assert.match(app.slice(start,decision),/firstButtonFast&&sparseWorld/);
+ assert.equal(app.slice(start,decision).includes("Date.now()>=Number(autotestRuntimeExpansion.cooldownUntil"),false);
+});
+
+
+test("high-politics opening recovers missing Society faction before world validation",async()=>{
+ const ai=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
+ const fallback=ai.indexOf('if(politics>=4&&!String(society?.faction?.name||"").trim())');
+ const merge=ai.indexOf('let region=mergeOpeningRegion(anchor,geography,society)',fallback);
+ assert.ok(fallback>=0&&merge>fallback);
+ assert.ok(ai.slice(fallback,merge).includes("society=societyFallback(anchor,history,geography)"));
 });
