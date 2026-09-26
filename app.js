@@ -1,5 +1,5 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59004";
+import {APP_VERSION} from "./src/version.js?v=59005";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
 import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59003";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59004";
