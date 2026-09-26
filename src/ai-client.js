@@ -361,6 +361,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
 
   let society=societyRaw;
   if(!society||typeof society!=="object"||Array.isArray(society)||generatedTemplateLeak(society)){markWorldFallback("SOCIETY",generatedTemplateLeak(society)?"SEMANTIC_INVALID:TEMPLATE_LEAK":"STRUCTURE_INVALID");society=societyFallback(anchor,history,geography)};
+  const politics=Number(core?.seedCompliance?.politics?.value??expected.politics);
+  if(politics>=4&&!String(society?.faction?.name||"").trim()){markWorldFallback("SOCIETY","SEED_POLITICS_STRUCTURE_MISSING");society=societyFallback(anchor,history,geography)}
   let region=mergeOpeningRegion(anchor,geography,society);
   const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
   if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));
