@@ -49,7 +49,7 @@ test("v0.53.0 hardens Knowledge, background races, Claims and Ledger causality",
   readFile(new URL("../src/world-ledger.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),
   readFile(new URL("../src/causal-integrity.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-client\.js\?v=59003/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=59005/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
  assert.match(lazy,/LAZY_STALE_WORLD_VERSION/);assert.match(lazy,/LAZY_STALE_GENERATION_REVISION/);
  assert.match(claims,/MATERIALIZATION_DRIFT/);assert.match(ledger,/compactLedgerEntries/);assert.match(ledger,/HISTORIC/);
  assert.match(integrity,/auditCausalIntegrity/);assert.match(integrity,/VERIFIED_KNOWLEDGE_ORPHAN/);assert.match(integrity,/CLAIM_RESERVATION_ORPHAN/);assert.match(integrity,/FUTURE_HISTORY_REF_ORPHAN/);
@@ -61,7 +61,7 @@ test("v0.54 Developer AI autotest remains available after v0.57.30 player-facing
   readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/ai-autotest\.js\?v=59003/);
+ assert.match(app,/\.\/src\/ai-autotest\.js\?v=59005/);
  assert.match(app,/startDeveloperAutotest/);
  assert.match(autotest,/playerVisibleAutotestSnapshot/);
  assert.match(autotest,/buildAutotestReport/)
