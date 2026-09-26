@@ -33,14 +33,14 @@ test("v0.57.29 keeps structured AI and Developer Autotest cache graphs coherent"
  ]);
  assert.match(html,/app\.js\?v=57029/);
  const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
- assert.ok(appImports.length>20);assert.ok(appImports.every(x=>["57025","57026","57029"].includes(x)),"app browser imports must use tracked cache generations");assert.match(app,/\.\/src\/version\.js\?v=57029/);assert.match(app,/\.\/src\/npc-conversation\.js\?v=57029/);assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=57026/);assert.match(app,/\.\/src\/contextual-actions\.js\?v=57029/);
+ assert.ok(appImports.length>20);assert.ok(appImports.every(x=>["57025","57026","57028","57029"].includes(x)),"app browser imports must use tracked cache generations");assert.match(app,/\.\/src\/version\.js\?v=57029/);assert.match(app,/\.\/src\/npc-conversation\.js\?v=57029/);assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=57026/);assert.match(app,/\.\/src\/contextual-actions\.js\?v=57029/);
  assert.match(actions,/\.\/action-intent\.js\?v=57025/);assert.match(contracts,/\.\/action-intent\.js\?v=57025/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=57025/);
  assert.match(client,/\.\/ai-settings\.js\?v=57025/);
  assert.match(client,/\.\/turn-compiler\.js\?v=57029/);assert.match(client,/\.\/turn-outcome\.js\?v=57025/);
  assert.match(client,/\.\/action-intent\.js\?v=57025/);assert.match(client,/\.\/state-sync\.js\?v=57025/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=57025/);assert.match(contracts,/\.\/state-sync\.js\?v=57025/);
  assert.match(client,/\.\/knowledge-model\.js\?v=57025/);assert.match(client,/\.\/lazy-generation\.js\?v=57025/);
  for(const [source,label] of [[adventure,"adventure"],[worldEngine,"world-engine"],[causal,"causal-world-core"],[integrity,"causal-integrity"],[simulation,"world-simulation"],[storage,"storage"],[progression,"progression-ui"]]){
-  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>["54018","540181","57025","57029"].includes(x)),label+" imports must use tracked release tokens")
+  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>["54018","540181","57025","57028","57029"].includes(x)),label+" imports must use tracked release tokens")
  }
  assert.match(actions,/groundedSuggestionFailForward/);
  assert.match(stateSync,/groundStatePatch/);
