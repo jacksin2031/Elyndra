@@ -6,6 +6,7 @@ on:
       - feat/v0.59.0-multilingual-runtime
     paths:
       - scripts/v05900_hardening.py
+      - scripts/v05900_hardening_fix.py
       - .github/workflows/v05900-multilingual-hardening.yml
 
 permissions:
@@ -24,7 +25,9 @@ jobs:
         with:
           node-version: 20
       - name: Apply multilingual hardening
-        run: python3 scripts/v05900_hardening.py
+        run: |
+          python3 scripts/v05900_hardening.py
+          python3 scripts/v05900_hardening_fix.py
       - name: Focused multilingual regressions
         run: node --test test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
       - name: Version contract
@@ -44,6 +47,7 @@ jobs:
           git add -A \
             ':!.github/workflows/v05900-multilingual-hardening.yml' \
             ':!scripts/v05900_hardening.py' \
+            ':!scripts/v05900_hardening_fix.py' \
             ':!.github/workflows/v05900-multilingual-integration.yml' \
             ':!scripts/v05900_multilang.py'
           if git diff --cached --quiet; then
