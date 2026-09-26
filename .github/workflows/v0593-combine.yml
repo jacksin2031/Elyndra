@@ -4,6 +4,7 @@ on:
     branches: [ui/readability-responsive-polish]
     paths:
       - .github/workflows/v0593-combine.yml
+      - test/version-0551-release.test.js
 permissions:
   contents: write
 jobs:
