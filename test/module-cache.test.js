@@ -31,9 +31,9 @@ test("v0.57.11 keeps structured AI and Developer Autotest cache graphs coherent"
   readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
   readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
  ]);
- assert.match(html,/app\.js\?v=57025/);
+ assert.match(html,/app\.js\?v=57026/);
  const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
- assert.ok(appImports.length>20);assert.ok(appImports.every(x=>x==="57025"),"all app browser imports must use the v0.57.11 cache generation");assert.ok(appImports.includes("57025"),"the runtime graph must expose the v0.57.11 cache token");
+ assert.ok(appImports.length>20);assert.ok(appImports.every(x=>["57025","57026"].includes(x)),"app browser imports must use tracked cache generations");assert.match(app,/\.\/src\/version\.js\?v=57026/);assert.match(app,/\.\/src\/npc-conversation\.js\?v=57026/);assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=57026/);
  assert.match(actions,/\.\/action-intent\.js\?v=57025/);assert.match(contracts,/\.\/action-intent\.js\?v=57025/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=57025/);
  assert.match(client,/\.\/ai-settings\.js\?v=57025/);
  assert.match(client,/\.\/turn-compiler\.js\?v=57025/);assert.match(client,/\.\/turn-outcome\.js\?v=57025/);

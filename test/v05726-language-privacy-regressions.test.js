@@ -19,7 +19,7 @@ test("v0.57.26 real resolver keeps Hard + AMNESIA + HIGH at GESTURE",()=>{
 });
 
 test("v0.57.26 real resolver keeps Realistic + PARTIAL_LOCAL + HIGH at FRAGMENTED",()=>{
- const state=make("native","realistic");
+ const state=make("reincarnation","realistic");
  assert.equal(state.world.creation.difficultyRules.languageBarrier,"HIGH");
  assert.equal(state.player.originRuntime.knowledgePolicy,"PARTIAL_LOCAL");
  assert.equal(originNpcContext(state,{id:"NPC-N",languages:["COMMON"]}).languageMode,"FRAGMENTED")
