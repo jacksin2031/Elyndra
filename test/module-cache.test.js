@@ -40,7 +40,7 @@ test("v0.57.11 keeps structured AI and Developer Autotest cache graphs coherent"
  assert.match(client,/\.\/action-intent\.js\?v=57025/);assert.match(client,/\.\/state-sync\.js\?v=57025/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=57025/);assert.match(contracts,/\.\/state-sync\.js\?v=57025/);
  assert.match(client,/\.\/knowledge-model\.js\?v=57025/);assert.match(client,/\.\/lazy-generation\.js\?v=57025/);
  for(const [source,label] of [[adventure,"adventure"],[worldEngine,"world-engine"],[causal,"causal-world-core"],[integrity,"causal-integrity"],[simulation,"world-simulation"],[storage,"storage"],[progression,"progression-ui"]]){
-  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>["54018","540181","57025","57025"].includes(x)),label+" imports must use tracked release tokens")
+  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>["54018","540181","57025","57027"].includes(x)),label+" imports must use tracked release tokens")
  }
  assert.match(actions,/groundedSuggestionFailForward/);
  assert.match(stateSync,/groundStatePatch/);
