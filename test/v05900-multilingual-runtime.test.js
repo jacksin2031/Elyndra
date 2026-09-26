@@ -34,3 +34,34 @@ test("v0.59.0 narrator is structurally above the action panel",async()=>{
  assert.match(html,/id="languageSelect"/);assert.match(app,/ensureGameplayLocale/);assert.match(app,/uiFormat\("npcWait"/);assert.match(app,/uiText\("能力"/);assert.match(app,/missingVisibleTranslations/);assert.match(app,/translation\.sourceLocale=activeLocale|localization\.sourceLocale=activeLocale/);
  assert.match(settings,/languageContract\(locale\)/);assert.match(settings,/registerLocalizedOutput\(result,locale\)/);assert.match(client,/export async function translateVisibleWorld/);assert.match(server,/languageContract\(normalizeLocale\(locale\)\)/);
 });
+
+
+test("multilingual hardening removes language locks and gates every world entry",async()=>{
+ const [client,contracts,app,narrate,translate]=await Promise.all([
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-runtime-contracts.js",import.meta.url),"utf8"),
+  readFile(new URL("../app.js",import.meta.url),"utf8"),
+  readFile(new URL("../api/narrate.js",import.meta.url),"utf8"),
+  readFile(new URL("../api/translate.js",import.meta.url),"utf8")
+ ]);
+ assert.match(client,/const locale=normalizeLocale\(args\?\.locale\|\|loadLocale\(\)\)/);
+ assert.match(client,/if\(locale==="zh-Hant"\)/);
+ assert.doesNotMatch(client,/system:\"你是 Elyndra 的繁體中文敘事者/);
+ assert.doesNotMatch(contracts,/4-18字繁體中文|40-180字繁體中文|簡短繁體中文理由|全程使用自然繁體中文|只使用繁體中文/);
+ assert.match(contracts,/目前 runtime 選擇語言/);
+ assert.match(app,/LOAD_SLOT[\s\S]{0,260}const ready=await refresh\(\)[\s\S]{0,180}if\(!ready\)/);
+ assert.match(app,/IMPORT_WORLD[\s\S]{0,260}const ready=await refresh\(\)[\s\S]{0,180}if\(!ready\)/);
+ assert.match(narrate,/locale:req\.elyndraLocale/);
+ assert.doesNotMatch(narrate,/繁體中文敘事者/);
+ assert.match(translate,/actual source language of each string independently/);
+});
+
+test("narrator row is an invariant immediately above player actions",async()=>{
+ const [html,css]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../styles.css",import.meta.url),"utf8")]);
+ const n=html.indexOf('<div class="narrative-panel"'),d=html.indexOf('<div class="decision-panel"');
+ assert.ok(n>0&&d>n,"narrative-panel must precede decision-panel in the same scene flow");
+ assert.ok(d-n<220,"nothing substantial may be inserted between narrator and action panel");
+ assert.match(css,/#game \.narrative-panel\{grid-row:2!important/);
+ assert.match(css,/#game \.decision-panel\{grid-row:3!important/);
+ assert.match(css,/#game \.scene\{display:grid!important;grid-template-rows:minmax\(0,1fr\) auto auto!important/);
+});

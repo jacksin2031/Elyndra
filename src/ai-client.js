@@ -31,14 +31,14 @@ export async function aiHealth(){if(hasDirectAI())return {ok:true,aiConfigured:t
 export async function translateVisibleWorld(payload,targetLocale=loadLocale()){
  const target=normalizeLocale(targetLocale),source=normalizeLocale(payload?.sourceLocale),strings=Array.isArray(payload?.strings)?payload.strings.map(x=>String(x??"").trim()).filter(Boolean).slice(0,220):[];
  if(!strings.length)return {translations:[]};
- const request={sourceLocale:source,targetLocale:target,strings},system=`You are Elyndra's lossless runtime translator. Translate or normalize each input string into the target language. If a string is already in the target language, preserve its wording whenever possible. Preserve facts, names, numbers, uncertainty, gameplay state, and knowledge boundaries. Do not add lore, answer the text, summarize, or expose hidden information. Keep output aligned by input index. Return JSON only as {"translations":["..."]}. ${languageContract(target)}`;
+ const request={sourceLocale:source,targetLocale:target,strings},system=`You are Elyndra's lossless runtime translator. Translate or normalize each input string into the target language. sourceLocale is only the world's original language provenance; individual strings may already be in a different previously selected runtime language, so detect the actual source language of each string independently. If a string is already in the target language, preserve its wording whenever possible. Preserve facts, names, numbers, uncertainty, gameplay state, and knowledge boundaries. Do not add lore, answer the text, summarize, or expose hidden information. Keep output aligned by input index. Return JSON only as {"translations":["..."]}. ${languageContract(target)}`;
  if(!hasDirectAI())return post("/api/translate",request);
  const raw=await directChat({aiTask:"translation",locale:target,timeoutMs:60000,maxOutputTokens:4096,temperature:.05,system,user:JSON.stringify(request)}),parsed=parseJSON(raw),rows=Array.isArray(parsed?.translations)?parsed.translations:[];
  if(rows.length!==strings.length)throw new Error("TRANSLATION_COUNT_MISMATCH");const bundle={translations:strings.map((source,i)=>({source,translated:String(rows[i]??"").trim()||source}))};registerLocalizedOutput(bundle,target);return bundle
 }
 export function visibleFacts(state){return state.world.canon.facts.filter(f=>state.knowledge.some(k=>k.factId===f.id&&knowledgeCanRevealCanon(state,k))).map(f=>f.text)}
 export function npcKnownFacts(state,npc){const scope=new Set(Array.isArray(npc?.knowledgeScope)?npc.knowledgeScope:[]);return state.world.canon.facts.filter(f=>scope.has(f.id)).map(f=>f.text)}
-export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){const raw=await directChat({aiTask:"narration",timeoutMs:45000,system:"你是 Elyndra 的繁體中文敘事者。玩家只知道 payload 中 visibleFacts、playerLocation 與這次行動能直接感知到的結果。world/Canon 可能存在更多真相，但不可提前說出任何未學會的世界名稱、地名、國家、勢力、歷史或規則。只能描述已由遊戲引擎決定的結果，不可改骰子、Canon、HP、物品。回答80-180字。只使用繁體中文；除既有專有名詞外不要切換成英文、日文、韓文或其他語言，也不要輸出 [世界動向]、【世界動向】、SYSTEM 等系統標籤。",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})});return sanitizePlayerText(raw,700,"")}const raw=(await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})).text;return sanitizePlayerText(raw,700,"")}
+export async function narrate(state,action,roll){const playerWorldName=state.player?.worldNameKnown?state.world.name:"UNKNOWN";if(hasDirectAI()){const raw=await directChat({aiTask:"narration",timeoutMs:45000,system:"You are Elyndra's player-facing narrator. The player only knows visibleFacts, playerLocation, and results directly perceived from this action. Never reveal unknown world names, locations, nations, factions, history, rules, hidden Canon, or secrets. Describe only Engine-confirmed results; never alter dice, Canon, HP, items, or state. Keep the narration concise (roughly 80-180 CJK characters or equivalent length). Do not emit system labels such as [世界動向], 【世界動向】, or SYSTEM. The runtime language contract appended by directChat is the sole authority for output language.",user:JSON.stringify({action,roll,player:{name:state.player?.name||"無名者",worldName:playerWorldName,playerLocation:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})});return sanitizePlayerText(raw,700,"")}const raw=(await post("/api/narrate",{action,roll,world:{name:playerWorldName,day:state.world.state.day,location:state.player.location},weather:playerWeatherSnapshot(state),visibleFacts:visibleFacts(state)})).text;return sanitizePlayerText(raw,700,"")}
 function emitWorldProgress(cb,progress,label,detail){try{cb?.({progress,label,detail})}catch{}}
 const WORLD_AI_CONCURRENCY=2;
 let worldAiActive=0;const worldAiWaiters=[];
@@ -73,7 +73,15 @@ function weatherProfileConflict(location){
  const profile=location?.weatherProfile||{},a=new Set(Array.isArray(profile.affinities)?profile.affinities.map(String):[]),s=new Set(Array.isArray(profile.suppressions)?profile.suppressions.map(String):[]);return [...a].some(id=>s.has(id))
 }
 async function worldStage(stage,args){
- try{return await withWorldAiSlot(async()=>{const system=[String(args?.system||""),WORLD_TRADITIONAL_CHINESE_CONTRACT].filter(Boolean).join("\n"),value=parseJSON(await directChat({...args,system,aiTask:args?.aiTask||worldStageTask(stage)})),leak=simplifiedChineseLeak(value);if(leak)throw new Error(`NON_TRADITIONAL_CHINESE:${leak.character}:${leak.path}`);return value}) }
+ const locale=normalizeLocale(args?.locale||loadLocale());
+ try{return await withWorldAiSlot(async()=>{
+  const system=[String(args?.system||""),languageContract(locale)].filter(Boolean).join("\n");
+  const value=parseJSON(await directChat({...args,locale,system,aiTask:args?.aiTask||worldStageTask(stage)}));
+  if(locale==="zh-Hant"){
+   const leak=simplifiedChineseLeak(value);if(leak)throw new Error(`NON_TRADITIONAL_CHINESE:${leak.character}:${leak.path}`)
+  }
+  return value
+ })}
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
 function generationTransportFailure(reason){return /Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(reason||""))}
@@ -86,7 +94,7 @@ function compactRetryArgs(args={},reason=""){
  const base=Math.max(350,Number(args.maxOutputTokens)||900),empty=/EMPTY_AI_RESPONSE|INVALID_MODEL_JSON:\s*empty response/i.test(String(reason)),timedOut=/AI_TIMEOUT/i.test(String(reason));
  const timeoutMs=empty?Math.max(45000,Math.min(70000,Number(args.timeoutMs)||50000)):timedOut?Math.max(25000,Math.min(35000,Number(args.timeoutMs)||35000)):Math.max(30000,Math.min(50000,Number(args.timeoutMs)||45000));
  const maxOutputTokens=empty?Math.min(3200,Math.max(1200,Math.round(base*1.6))):timedOut?Math.max(500,Math.min(1600,Math.round(base*.85))):Math.min(2200,Math.max(base,Math.round(base*1.15)));
- const languageRetry=/NON_TRADITIONAL_CHINESE/.test(String(reason))?"\n上一次輸出含有簡體字；這次所有中文值必須重寫為繁體中文正體字，JSON key、ID 與 enum 不變。":"";return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"+languageRetry}
+ const languageRetry=/NON_TRADITIONAL_CHINESE/.test(String(reason))&&normalizeLocale(args?.locale||loadLocale())==="zh-Hant"?"\n上一次輸出含有簡體字；繁體中文模式下所有中文值必須使用正體字，JSON key、ID 與 enum 不變。":"";return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"+languageRetry}
 }
 function generationCircuit(diagnostics=activeGenerationDiagnostics){
  if(!diagnostics)return {timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};

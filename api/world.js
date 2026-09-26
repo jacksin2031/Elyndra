@@ -18,7 +18,7 @@ async function stageJSON(req,diagnostics,stage,{system,user,temperature=.4,timeo
  for(let attempt=1;attempt<=2;attempt++){
   const started=Date.now();
   try{
-   const raw=await callModel({signal:req.elyndraSignal,
+   const raw=await callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,
     system:system+(attempt>1?"\n上一個輸出未通過這一階段的 schema／因果驗證。只修正本階段，保持已鎖定輸入不變，只輸出必要 JSON。":""),
     user:typeof user==="function"?user():user,temperature:attempt>1?Math.min(.25,temperature):temperature,timeoutMs,maxOutputTokens
    });
