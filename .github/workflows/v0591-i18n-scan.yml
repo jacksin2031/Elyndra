@@ -4,6 +4,7 @@ on:
     branches: [fix/v0.59.1-i18n-coverage]
     paths:
       - scripts/v0591_i18n_hardening.py
+      - scripts/v0591_i18n_fix.py
       - src/ui-translations-extra.js
       - .github/workflows/v0591-i18n-scan.yml
 permissions:
@@ -19,7 +20,9 @@ jobs:
         with:
           node-version: 20
       - name: Apply v0.59.1 i18n hardening
-        run: python3 scripts/v0591_i18n_hardening.py
+        run: |
+          python3 scripts/v0591_i18n_hardening.py
+          python3 scripts/v0591_i18n_fix.py
       - name: Static i18n coverage
         run: python3 scripts/scan-i18n-coverage.py
       - name: Focused multilingual regressions
@@ -38,7 +41,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A ':!.github/workflows/v0591-i18n-scan.yml' ':!scripts/v0591_i18n_hardening.py'
+          git add -A ':!.github/workflows/v0591-i18n-scan.yml' ':!scripts/v0591_i18n_hardening.py' ':!scripts/v0591_i18n_fix.py'
           if git diff --cached --quiet; then
             echo "No source changes to commit"
           else
