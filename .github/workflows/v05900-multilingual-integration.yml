@@ -6,6 +6,7 @@ on:
       - feat/v0.59.0-multilingual-runtime
     paths:
       - scripts/v05900_multilang.py
+      - .github/workflows/v05900-multilingual-integration.yml
 
 permissions:
   contents: write
