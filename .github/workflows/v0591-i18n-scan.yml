@@ -1,0 +1,16 @@
+name: v0.59.1 i18n Scan
+on:
+  push:
+    branches: [fix/v0.59.1-i18n-coverage]
+    paths:
+      - scripts/scan-i18n-coverage.py
+      - .github/workflows/v0591-i18n-scan.yml
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Scan i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
