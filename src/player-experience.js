@@ -1,4 +1,4 @@
-const clean=(v,max=320)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
+const clean=(v,max=320)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u0009\u000B-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const uniq=(xs,max=8)=>[...new Set((Array.isArray(xs)?xs:[]).map(x=>clean(String(x||""),180)).filter(Boolean))].slice(0,max);
 const uid=p=>p+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const hashText=s=>{let h=2166136261;for(const ch of String(s||"")){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
