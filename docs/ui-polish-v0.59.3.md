@@ -43,3 +43,12 @@ Local evidence is retained in `output/ui/` (test logs/comparison and synthetic f
 Long desktop action lists have their own scrollbar. The final action remains reachable and the input/send controls accept focus. The send-button hit test intercepts the click before submission; no game action or paid AI request is submitted. AI-settings and inventory drawers close through real pointer clicks at 820 and 1440 pixels, without forced clicks. No uncaught browser errors or external requests were recorded in the final rendering matrix.
 
 Evidence: `after-final-summary.json` for phone/tablet rendering, `after-desktop-actions.json` for the final desktop correction, and `after-modal-close.json` for modal hit testing. Earlier screenshots and measurements remain available as baseline/intermediate evidence and must not be mistaken for final results.
+
+The final short checks also confirm:
+
+- At 320 pixels, all five creation-step labels remain visible at 12px. Steps 1–4 have readable labels and native controls; their static navigation rows do not overlap controls.
+- Screen/creator entry, scene atmosphere and choice-entry animations run in normal mode. All four report `animation-name: none` and duration `0s` with reduced motion enabled.
+- Keyboard Tab reaches the new-world button with a visible 2px focus outline. Action hover/press feedback works without submitting a turn.
+- PR-mode version and base-relative cache checks pass for v0.59.3.
+
+Final CSS SHA-256: `865574BAFA24859C36C0C5ACAE737DD04E8727E1F9BD444CED7FB9C805FABC13`. Short-check evidence: `after-final-shortchecks.json`.
