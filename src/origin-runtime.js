@@ -1,4 +1,4 @@
-import {recordKnowledgeEvidence} from "./knowledge-model.js?v=57023";
+import {recordKnowledgeEvidence} from "./knowledge-model.js?v=57024";
 
 const clean=(v,max=300)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(rows,max=16)=>[...new Set((Array.isArray(rows)?rows:[]).map(x=>clean(x,120)).filter(Boolean))].slice(0,max);
@@ -14,8 +14,8 @@ const KNOWLEDGE_RULES=Object.freeze({
 
 function profile(state){return state.player?.origin||{}}
 function policy(state){
- const p=profile(state),key=String(p.knowledgePolicy||"CUSTOM").toUpperCase(),base=KNOWLEDGE_RULES[key]||KNOWLEDGE_RULES.CUSTOM,difficulty=String(state.world?.creation?.difficultyRules?.languageBarrier||"STANDARD").toUpperCase();
- return {...base,knowledgePolicy:key,languagePolicy:String(p.languagePolicy||"CUSTOM").toUpperCase(),legalStatus:String(p.legalStatus||"CUSTOM").toUpperCase(),openingBias:String(p.openingBias||"CUSTOM").toUpperCase(),readCommon:base.readCommon&&difficulty!=="HIGH"}
+ const p=profile(state),key=String(p.knowledgePolicy||"CUSTOM").toUpperCase(),base=KNOWLEDGE_RULES[key]||KNOWLEDGE_RULES.CUSTOM,languageBarrier=String(state.world?.creation?.difficultyRules?.languageBarrier||"STANDARD").toUpperCase();
+ return {...base,knowledgePolicy:key,languagePolicy:String(p.languagePolicy||"CUSTOM").toUpperCase(),legalStatus:String(p.legalStatus||"CUSTOM").toUpperCase(),openingBias:String(p.openingBias||"CUSTOM").toUpperCase(),languageBarrier,readCommon:base.readCommon&&languageBarrier!=="HIGH"}
 }
 function publicFacts(state){
  return (state.world?.canon?.facts||[]).filter(x=>String(x.visibility||"").toLowerCase()==="public"&&x.id&&x.text)
@@ -39,7 +39,7 @@ export function ensureOriginRuntime(state){
  state.player??={};const p=profile(state),rules=policy(state),existing=state.player.originRuntime&&typeof state.player.originRuntime==="object"?state.player.originRuntime:{};
  state.player.originRuntime={
   version:1,originId:clean(p.id,120)||"UNKNOWN",label:clean(p.label,120)||"未知起源",
-  knowledgePolicy:rules.knowledgePolicy,languagePolicy:rules.languagePolicy,legalStatus:rules.legalStatus,openingBias:rules.openingBias,
+  knowledgePolicy:rules.knowledgePolicy,languagePolicy:rules.languagePolicy,languageBarrier:rules.languageBarrier,legalStatus:rules.legalStatus,openingBias:rules.openingBias,
   identitySignal:rules.identitySignal,equipmentPolicy:rules.equipmentPolicy,spawnPolicy:rules.spawnPolicy,openingMode:rules.openingMode,
   spokenLanguages:uniq(existing.spokenLanguages),readLanguages:uniq(existing.readLanguages),grantedFactIds:uniq(existing.grantedFactIds),
   phase:clean(existing.phase,40)||"UNAPPLIED",appliedRevision:Number(existing.appliedRevision)||null
@@ -48,7 +48,7 @@ export function ensureOriginRuntime(state){
 }
 export function applyOriginRuntime(state,{phase="POST_CANON"}={}){
  const rt=ensureOriginRuntime(state),rules=policy(state),post=String(phase).toUpperCase()==="POST_CANON";
- rt.phase=post?"POST_CANON":"PRE_WORLD";rt.identitySignal=rules.identitySignal;rt.equipmentPolicy=rules.equipmentPolicy;rt.spawnPolicy=rules.spawnPolicy;rt.openingMode=rules.openingMode;
+ rt.phase=post?"POST_CANON":"PRE_WORLD";rt.languageBarrier=rules.languageBarrier;rt.identitySignal=rules.identitySignal;rt.equipmentPolicy=rules.equipmentPolicy;rt.spawnPolicy=rules.spawnPolicy;rt.openingMode=rules.openingMode;
  const spoken=[],read=[];
  if(rules.spokenCommon)spoken.push("COMMON");if(rules.readCommon)read.push("COMMON");
  rt.spokenLanguages=uniq(spoken);rt.readLanguages=uniq(read);state.player.spokenLanguages=[...rt.spokenLanguages];state.player.languages=[...rt.readLanguages];
@@ -65,14 +65,15 @@ export function applyOriginRuntime(state,{phase="POST_CANON"}={}){
  return rt
 }
 export function originLanguageMode(state,npc=null){
- const rt=ensureOriginRuntime(state),npcLanguages=uniq(npc?.languages?.length?npc.languages:["COMMON"]),spoken=new Set(rt.spokenLanguages);
- if(npcLanguages.some(x=>spoken.has(x)))return rt.knowledgePolicy==="AMNESIA"?"FRAGMENTED":"FLUENT";
- return "GESTURE"
+ const rt=ensureOriginRuntime(state),rules=policy(state),npcLanguages=uniq(npc?.languages?.length?npc.languages:["COMMON"]),spoken=new Set(rt.spokenLanguages),shared=npcLanguages.some(x=>spoken.has(x));
+ if(!shared)return "GESTURE";
+ if(rules.languageBarrier==="HIGH")return rt.knowledgePolicy==="AMNESIA"?"GESTURE":"FRAGMENTED";
+ return rt.knowledgePolicy==="AMNESIA"?"FRAGMENTED":"FLUENT"
 }
 export function originNpcContext(state,npc=null){
  const rt=ensureOriginRuntime(state),languageMode=originLanguageMode(state,npc),signal=rt.identitySignal;
  return {
-  originId:rt.originId,legalStatus:rt.legalStatus,identitySignal:signal,languageMode,
+  originId:rt.originId,legalStatus:rt.legalStatus,identitySignal:signal,languageBarrier:rt.languageBarrier,languageMode,
   reaction:signal==="LOCAL"?"FAMILIAR_BASELINE":signal==="HOST_IDENTITY"?"HOST_RECOGNITION_POSSIBLE":signal==="SPONSORED_OUTSIDER"?"SPONSOR_RECOGNITION_POSSIBLE":signal==="OUTSIDER"?"UNREGISTERED_OUTSIDER":"UNCERTAIN_IDENTITY",
   constraints:languageMode==="GESTURE"?["不可假裝雙方語言互通","只可依賴姿勢、表情、指向與極少量可推斷意思"]:languageMode==="FRAGMENTED"?["玩家可能能說話，但詞彙、閱讀或背景理解不完整"]:["可以正常交談，但 NPC 仍只知道自己的 knowledgeScope 與 memories"]
  }
@@ -82,7 +83,7 @@ export function originOpeningContract(state){
  return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true||rules.worldName===true,calendarKnown:state.player?.calendarKnown===true||rules.calendar===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy}
 }
 export function originRuntimeSnapshot(state,{director=false}={}){
- const rt=ensureOriginRuntime(state),base={originId:rt.originId,label:rt.label,knowledgePolicy:rt.knowledgePolicy,legalStatus:rt.legalStatus,identitySignal:rt.identitySignal,spokenLanguages:[...rt.spokenLanguages],readLanguages:[...rt.readLanguages],openingMode:rt.openingMode};
+ const rt=ensureOriginRuntime(state),base={originId:rt.originId,label:rt.label,knowledgePolicy:rt.knowledgePolicy,languageBarrier:rt.languageBarrier,legalStatus:rt.legalStatus,identitySignal:rt.identitySignal,spokenLanguages:[...rt.spokenLanguages],readLanguages:[...rt.readLanguages],openingMode:rt.openingMode};
  if(director)return {...base,languagePolicy:rt.languagePolicy,equipmentPolicy:rt.equipmentPolicy,spawnPolicy:rt.spawnPolicy,grantedFactIds:[...rt.grantedFactIds],phase:rt.phase,appliedRevision:rt.appliedRevision};
  return base
 }

@@ -44,10 +44,10 @@ test("native Origin grants bounded local knowledge, local identity and language"
  const ctx=originNpcContext(s,{id:"NPC-1",name:"鄰居",role:"居民"});assert.equal(ctx.languageMode,"FLUENT");assert.equal(ctx.reaction,"FAMILIAR_BASELINE")
 });
 
-test("difficulty can preserve spoken language while making native literacy harder",()=>{
+test("HIGH difficulty preserves spoken language knowledge but degrades native conversation fluency",()=>{
  const s=make("native","hard");applyOriginRuntime(s,{phase:"POST_CANON"});
  assert.ok(s.player.spokenLanguages.includes("COMMON"));assert.equal(s.player.languages.includes("COMMON"),false);
- const ctx=originNpcContext(s,{id:"NPC-1",name:"店員",role:"商人"});assert.equal(ctx.languageMode,"FLUENT");
+ const ctx=originNpcContext(s,{id:"NPC-1",name:"店員",role:"商人"});assert.equal(ctx.languageMode,"FRAGMENTED");
  const doc=registerDocument(s,{title:"稅務冊",language:"COMMON",claims:[{text:"稅額。"}]});assert.equal(canReadDocument(s,doc.id).reason,"LANGUAGE_UNKNOWN")
 });
 
