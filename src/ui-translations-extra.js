@@ -350,5 +350,31 @@ export const EXTRA_UI=Object.freeze({
  "AI 世界生成失敗":r("AI 世界生成失敗","AI 世界生成失败","AI world generation failed","AI世界生成失敗"),
  "保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon":r("保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon","保存 Blueprint、Constitution、Origin、Difficulty 与世界 Canon","Saving Blueprint, Constitution, Origin, Difficulty, and world Canon","Blueprint、Constitution、Origin、Difficulty、世界Canonを保存中")
 ,
+
+ // AutoTest and recovery notices
+ "遊玩策略":r("遊玩策略","游玩策略","Play strategy","プレイ方針"),
+ "AI 自主決策":r("AI 自主決策","AI 自主决策","AI decides","AIが行動を選択"),
+ "固定第一個行動按鈕":r("固定第一個行動按鈕","固定第一个行动按钮","Always select the first action","最初の行動ボタンを固定"),
+ "AI 行動判定暫時不可用；已切換 Engine 備援並繼續本回合。":r("AI 行動判定暫時不可用；已切換 Engine 備援並繼續本回合。","AI 行动判定暂时不可用；已切换引擎备用并继续本回合。","AI action assessment is unavailable; Engine is resolving this turn.","AIの行動判定を利用できません。エンジンの判定でこのターンを続けます。"),
+ "AI 場景敘述未完成；已保留 Engine 的可見結果。":r("AI 場景敘述未完成；已保留 Engine 的可見結果。","AI 场景叙述未完成；已保留引擎的可见结果。","AI scene narration did not finish; Engine results remain.","AIの場面描写は完了しませんでした。エンジンが確定した結果は保持されています。"),
+ "測試模式":r("測試模式","测试模式","Test mode","テストモード"),
+ "AI 遊玩測試":r("AI 遊玩測試","AI 游玩测试","AI playthrough","AIプレイテスト"),
+ "隨機世界生成測試":r("隨機世界生成測試","随机世界生成测试","Random world generation","ランダム世界生成テスト"),
+ "隨機世界數量":r("隨機世界數量","随机世界数量","World count","世界数"),
+ "遊玩難度":r("遊玩難度","游玩难度","Difficulty","難易度"),
+ "每個世界最多回合":r("每個世界最多回合","每个世界最多回合","Maximum turns per world","世界ごとの最大ターン数"),
+ "停止條件":r("停止條件","停止条件","Stop condition","終了条件"),
+ "只按回合上限":r("只按回合上限","只按回合上限","Turn limit only","ターン上限のみ"),
+ "玩家倒下":r("玩家倒下","玩家倒下","Player downed","プレイヤーが倒れる"),
+ "主線完成":r("主線完成","主线完成","Main quest complete","メインクエスト完了"),
+ "條件目標值":r("條件目標值","条件目标值","Condition target","条件の目標値"),
+ "輸出內容":r("輸出內容","输出内容","Export contents","出力内容"),
+ "開始自動測試":r("開始自動測試","开始自动测试","Start AutoTest","自動テストを開始"),
+ "停止測試":r("停止測試","停止测试","Stop test","テストを停止"),
+ "未執行":r("未執行","未执行","Not run","未実行"),
+ "設定完成後按「開始自動測試」。":r("設定完成後按「開始自動測試」。","设置完成后按「开始自动测试」。","After setup, select Start AutoTest.","設定後に「自動テストを開始」を押してください。"),
+ "載入保留 Run":r("載入保留 Run","载入保留 Run","Load retained run","保存済みの実行結果を読み込む"),
+ "載入上次匯出資料":r("載入上次匯出資料","载入上次导出资料","Load last export","前回の出力を読み込む"),
+ "標準瀏覽器下載（相容性）":r("標準瀏覽器下載（相容性）","标准浏览器下载（兼容性）","Standard browser download","標準ブラウザでダウンロード"),
  "情境化建議行動":r("情境化建議行動","情境化建议行动","Contextual action suggestions","状況に応じた行動提案")
 });
