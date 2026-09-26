@@ -32,10 +32,10 @@ jobs:
             printf '%s\n' "$unresolved"
             for f in $unresolved; do
               case "$f" in
-                README.md|index.html)
+                README.md|index.html|test/version-0551-release.test.js)
                   git checkout --ours -- "$f"
                   ;;
-                app.js|package.json|src/version.js|test/v05901-i18n-coverage.test.js|test/version-0551-release.test.js|test/version-ui.test.js)
+                app.js|package.json|src/version.js|test/v05901-i18n-coverage.test.js|test/version-ui.test.js)
                   git checkout --theirs -- "$f"
                   ;;
                 *)
