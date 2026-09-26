@@ -1,9 +1,9 @@
 import {directChat} from "./ai-settings.js?v=57025";
 import {recordDebug} from "./debug-telemetry.js?v=57025";
-import {helperSnapshot} from "./helper-context.js?v=57025";
+import {helperSnapshot} from "./helper-context.js?v=57028";
 import {ensureTravelNetwork} from "./travel-engine.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57025";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57028";
 
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(value))?Number(value):min));
 const pick=(items,random=Math.random)=>items[Math.min(items.length-1,Math.floor(clamp(random(),0,.999999999999)*items.length))];

@@ -18,11 +18,12 @@ function baseState(){
  }
 }
 
-test("weak opening is upgraded into an actionable sensory hook",()=>{
+test("weak opening is upgraded into a grounded sensory hook without invented actors or events",()=>{
  const state=baseState();
  const out=applyOpeningExperience(state,"你在陌生地方醒來。",["觀察四周"]);
- assert.equal(out.quality.strong,true);
- assert.match(out.narrative,/腳步|逃離|轉角/);
+ assert.equal(out.quality.sensory,true);
+ assert.match(out.narrative,/塵埃忽然逆著風向滑過地面|視線之外|聲音/);
+ assert.doesNotMatch(out.narrative,/逃離|急促腳步|轉角後/);
  assert.ok(out.suggestions.length>=3);
  assert.doesNotMatch(out.suggestions.join("|"),/觀察四周|繼續探索|確認自己/);
  assert.equal(state.world.experience.opening.hookPresented,true);
@@ -44,7 +45,7 @@ test("world impact projection enters normal narrative exactly once",()=>{
  state.events.push({id:"E1",type:"WORLD_CONSEQUENCE_DISCOVERED",visibility:"PLAYER_KNOWN",summary:"市場重新開張，原本封住的攤檔再次亮起燈火。",day:1,at:2});
  const first=projectObservableWorldChanges(state,"你回到街上。");
  assert.equal(first.projected.length,1);
- assert.match(first.narrative,/市場重新開張/);
+ assert.match(first.narrative,/你回到街上。\n\n你很快察覺到先前的選擇已留下具體痕跡：市場重新開張/);
  const second=projectObservableWorldChanges(state,first.narrative);
  assert.equal(second.projected.length,0);
  assert.equal(second.narrative,first.narrative)

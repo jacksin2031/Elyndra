@@ -1,38 +1,15 @@
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const uid=()=>globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2);
-function unknownAlias(npc){
- const explicit=clean(npc?.observableAlias||npc?.playerAlias,80);if(explicit)return explicit;
- return "眼前的陌生人"
-}
-export function npcNameKnown(state,npc){
- if(!npc)return false;
- if(npc.nameKnown===true||npc.companion?.status==="ACTIVE")return true;
- return (state?.events||[]).some(e=>e?.type==="NPC_NAME_REVEALED"&&String(e.npcId||"")===String(npc.id||""))
-}
-export function playerVisibleNpcName(state,npc){
- if(!npc)return "陌生人";
- return npcNameKnown(state,npc)?(clean(npc.name,80)||"熟悉的人"):unknownAlias(npc)
-}
-export function revealNpcNameFromEvidence(state,npc,{answer="",reason="NPC_SELF_IDENTIFICATION"}={}){
- const name=clean(npc?.name,80);if(!state||!npc||!name||npcNameKnown(state,npc))return false;
- if(!String(answer||"").includes(name))return false;
- npc.nameKnown=true;state.events??=[];
- state.events.push({id:"EV-"+uid(),type:"NPC_NAME_REVEALED",visibility:"PLAYER_KNOWN",npcId:npc.id,reason,summary:`你確認對方的稱呼是「${name}」。`,day:Number(state.world?.state?.day)||1,at:Date.now()});
- return true
-}
-
+const KIND_LABEL=Object.freeze({OBSERVE:"觀察",SOCIAL:"交流",TRAVEL:"移動",RISKY:"冒險",GENERAL:"行動"});
+function unknownAlias(npc){const explicit=clean(npc?.observableAlias||npc?.playerAlias,80);if(explicit)return explicit;return "眼前的陌生人"}
+export function npcNameKnown(state,npc){if(!npc)return false;if(npc.nameKnown===true||npc.companion?.status==="ACTIVE")return true;return (state?.events||[]).some(e=>e?.type==="NPC_NAME_REVEALED"&&String(e.npcId||"")===String(npc.id||""))}
+export function playerVisibleNpcName(state,npc){if(!npc)return "陌生人";return npcNameKnown(state,npc)?(clean(npc.name,80)||"熟悉的人"):unknownAlias(npc)}
+export function playerVisibleNpcRole(state,npc){if(!npc)return "身份未明";if(npcNameKnown(state,npc)||npc.roleKnown===true)return clean(npc.role,100)||"人物";const explicit=clean(npc.observableRole||npc.playerRole,100);return explicit||"身份未明"}
+export function playerVisibleActionKind(kind=""){return KIND_LABEL[String(kind||"").toUpperCase()]||"行動"}
+export function revealNpcNameFromEvidence(state,npc,{answer="",reason="NPC_SELF_IDENTIFICATION"}={}){const name=clean(npc?.name,80);if(!state||!npc||!name||npcNameKnown(state,npc))return false;if(!String(answer||"").includes(name))return false;npc.nameKnown=true;state.events??=[];state.events.push({id:"EV-"+uid(),type:"NPC_NAME_REVEALED",visibility:"PLAYER_KNOWN",npcId:npc.id,reason,summary:`你確認對方的稱呼是「${name}」。`,day:Number(state.world?.state?.day)||1,at:Date.now()});return true}
 function nearCanonicalName(candidate,canonical){const a=[...clean(candidate,24)],b=[...clean(canonical,24)];if(a.length!==b.length||a.length<2||a.length>8)return false;let diff=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i]&&++diff>1)return false;return diff===1}
-export function canonicalizeNpcIdentityText(state,npc,value=""){
- let out=String(value||""),canonical=clean(npc?.name,80);if(!canonical)return out;
- const known=npcNameKnown(state,npc);
- out=out.replace(/((?:我叫|我是|叫我|稱呼我(?:為)?|我的名字是|名字是)\s*[「『"“]?)([\u3400-\u9fff·・\-]{2,12})/g,(all,prefix,candidate)=>nearCanonicalName(candidate,canonical)?prefix+canonical:all);
- if(known)out=out.replace(/^([\u3400-\u9fff·・\-]{2,12})(?=[：:])/,(all,candidate)=>nearCanonicalName(candidate,canonical)?canonical:all);
- return out
-}
-export function redactUnknownNpcNames(state,value=""){
- let out=String(value||"");for(const npc of state?.world?.registry?.npcs||[]){const name=clean(npc?.name,80);if(name&&!npcNameKnown(state,npc))out=out.split(name).join(playerVisibleNpcName(state,npc))}return out
-}
-export function projectPlayerVisibleRegistry(state,registry={}){
- const canonical=state?.world?.registry?.npcs||[];
- return {...registry,npcs:(registry?.npcs||[]).map(row=>{const npc=canonical.find(x=>String(x.id||"")===String(row.id||""))||row;return {...row,name:playerVisibleNpcName(state,npc),description:redactUnknownNpcNames(state,row.description||"")}})}
-}
+export function canonicalizeNpcIdentityText(state,npc,value=""){let out=String(value||""),canonical=clean(npc?.name,80);if(!canonical)return out;const known=npcNameKnown(state,npc);out=out.replace(/((?:我叫|我是|叫我|稱呼我(?:為)?|我的名字是|名字是)\s*[「『"“]?)([\u3400-\u9fff·・\-]{2,12})/g,(all,prefix,candidate)=>nearCanonicalName(candidate,canonical)?prefix+canonical:all);if(known)out=out.replace(/^([\u3400-\u9fff·・\-]{2,12})(?=[：:])/,(all,candidate)=>nearCanonicalName(candidate,canonical)?canonical:all);return out}
+export function redactUnknownNpcNames(state,value=""){let out=String(value||"");for(const npc of state?.world?.registry?.npcs||[]){const name=clean(npc?.name,80);if(name&&!npcNameKnown(state,npc))out=out.split(name).join(playerVisibleNpcName(state,npc))}return out}
+export function projectPlayerVisibleRegistry(state,registry={}){const canonical=state?.world?.registry?.npcs||[];return {...registry,npcs:(registry?.npcs||[]).map(row=>{const npc=canonical.find(x=>String(x.id||"")===String(row.id||""))||row;return {...row,name:playerVisibleNpcName(state,npc),role:playerVisibleNpcRole(state,npc),description:redactUnknownNpcNames(state,row.description||"")}})}}
+function redactAnonymousNpcUi(root=document){for(const button of root.querySelectorAll?.(".npc-link")||[]){if(/^眼前的陌生人\s*·/.test(button.textContent||""))button.textContent="眼前的陌生人 · 身份未明"}for(const card of root.querySelectorAll?.(".npc-mini")||[]){const strong=card.querySelector("strong"),small=card.querySelector("small");if(strong?.textContent==="眼前的陌生人"&&small){const parts=String(small.textContent||"").split(" · ");parts[0]="身份未明";small.textContent=parts.join(" · ")}}for(const tag of root.querySelectorAll?.("#choices small,#choices span")||[]){const key=String(tag.textContent||"").trim().toUpperCase();if(KIND_LABEL[key])tag.textContent=KIND_LABEL[key]}}
+if(typeof document!=="undefined"&&typeof MutationObserver!=="undefined"){queueMicrotask(()=>redactAnonymousNpcUi(document));new MutationObserver(rows=>{for(const row of rows)for(const node of row.addedNodes||[])if(node?.nodeType===1)redactAnonymousNpcUi(node)}).observe(document.documentElement,{subtree:true,childList:true})}
