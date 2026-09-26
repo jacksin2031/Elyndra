@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - release/v0.58.0
+    paths:
+      - scripts/v05800_integrate.py
+      - .github/workflows/v05800-release-integration.yml
 
 permissions:
   contents: write
 
 jobs:
   integrate-and-validate:
-    if: github.event.head_commit.message != 'v0.58.0: integrate privacy and grounded dialogue'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
@@ -44,5 +46,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "v0.58.0: integrate privacy and grounded dialogue"
+          git commit -m "v0.58.0: integrate privacy dialogue and narrator layout"
           git push origin HEAD:release/v0.58.0
