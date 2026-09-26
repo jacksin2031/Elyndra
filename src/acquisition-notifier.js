@@ -1,12 +1,13 @@
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const iconFor=type=>({ITEM:"🎒",KNOWLEDGE:"✦",LOCATION:"⌖",NPC:"◉",QUEST:"◆"}[type]||"•");
-const npcDisplayName=row=>row?.nameKnown===false?"眼前的陌生人":clean(row?.displayName)||clean(row?.name)||clean(row?.id);
+const npcDisplayName=row=>row?.nameKnown===true?(clean(row?.displayName)||clean(row?.name)||clean(row?.id)):"眼前的陌生人";
+const npcDisplayRole=row=>(row?.nameKnown===true||row?.roleKnown===true)?(clean(row?.role)||"人物"):"身份未明";
 export function deriveAcquisitionNotifications(prev,next){
  if(!prev||!next)return [];const out=[];
  for(const [id,item] of Object.entries(next.inventory||{})){const before=prev.inventory?.[id],delta=(Number(item.quantity)||0)-(Number(before?.quantity)||0);if(delta>0)out.push({type:"ITEM",title:"取得道具",name:clean(item.name)||id,detail:`×${delta}`})}
  for(const [id,row] of Object.entries(next.knowledge||{}))if(!prev.knowledge?.[id])out.push({type:"KNOWLEDGE",title:"獲得知識",name:clean(row.title)||id,detail:row.status==="VERIFIED"?"已驗證":"未確認"});
  for(const [id,row] of Object.entries(next.locations||{}))if(row.known&&(!prev.locations?.[id]||!prev.locations[id].known))out.push({type:"LOCATION",title:"發現地點",name:clean(row.name)||id,detail:clean(row.region)});
- for(const [id,row] of Object.entries(next.npcs||{}))if(row.encountered&&(!prev.npcs?.[id]||!prev.npcs[id].encountered))out.push({type:"NPC",title:"遇見人物",name:npcDisplayName(row)||id,detail:clean(row.role)});
+ for(const [id,row] of Object.entries(next.npcs||{}))if(row.encountered&&(!prev.npcs?.[id]||!prev.npcs[id].encountered))out.push({type:"NPC",title:"遇見人物",name:npcDisplayName(row)||id,detail:npcDisplayRole(row)});
  const a=prev.mainQuest||{},b=next.mainQuest||{};if(a.stage!==b.stage||a.status!==b.status||a.objective!==b.objective)out.push({type:"QUEST",title:"任務更新",name:clean(b.title)||"主線任務",detail:clean(b.objective,160)});
  return out.slice(0,8)
 }
