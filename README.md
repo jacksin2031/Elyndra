@@ -2,7 +2,7 @@
 
 **Elyndra** 是一款以瀏覽器運行的 **AI × TRPG × World Discovery** 異世界 RPG。
 
-目前版本：**v0.59.0**
+目前版本：**v0.59.1**
 
 > 每一個世界，都有自己的真相。
 
@@ -182,6 +182,10 @@ Repository 正式部署 workflow：`.github/workflows/pages.yml`。
 - Push 到 `main` → Node 20 / Node 24 focused release validation
 - `main` 測試成功 → 部署 GitHub Pages
 - GitHub Actions 使用 immutable commit SHA pin
+
+## v0.59.1 重點
+
+v0.59.1 補齊多國語言覆蓋：首頁、World Creation、AI 設定、手帳、背包、存檔與動態遊玩 UI 會依繁體中文／簡體中文／English／日本語切換。對於 Engine 或舊模組在遊玩途中產生、未進靜態字典的玩家可見文字，Runtime 會偵測剩餘中文並透過既有 AI 翻譯層轉成目前選擇語言，避免語言混雜。
 
 ## v0.59.0 重點
 
