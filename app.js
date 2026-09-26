@@ -446,7 +446,7 @@ async function runBackgroundWorldEvolution(){
  }
 }
 function beginPlayerActionFlight(label){
- playerActionFlight.active=true;playerActionFlight.label=String(label||"").trim().slice(0,240)||"處理目前行動";playerActionFlight.startedAt=Date.now();
+ playerActionFlight.active=true;playerActionFlight.label=localizedStaticText(lt(String(label||"").trim().slice(0,240)),activeLocale)||uiText("處理目前行動",activeLocale);playerActionFlight.startedAt=Date.now();
  recordDebug("PLAYER_ACTION_UI_LOCKED",{action:playerActionFlight.label});renderSuggestions();setPlayerActionControlsLocked(true,"正在處理已選行動…");updateAIStatusBadge()
 }
 function finishPlayerActionFlight(action="",reason="completed"){
