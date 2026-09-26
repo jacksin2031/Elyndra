@@ -16,7 +16,7 @@ Artwork provenance and the exact generation prompt are in [ARTWORK.md](../assets
 ## Validation
 
 - Version contract, JavaScript syntax (126 files), static i18n coverage (495 keys): PASS.
-- Focused release regressions: 32/32 PASS, including 8 dice-feedback tests covering real results, critical outcomes, timer races, reduced motion and reset/dispose.
+- Focused release regressions: 34/34 PASS, including 8 dice-feedback tests covering real results, critical outcomes, timer races, reduced motion and reset/dispose, plus the 2 existing viewport/frame stability tests.
 - Full suite: 817 tests, 790 passed, 27 failed, 0 skipped. The same 27 failure names existed before these UI changes; no newly failing tests. This is not a clean full-suite pass.
 - The narrator/action invariant now checks direct HTML adjacency instead of the number of source characters in the narrative panel. The loading row precedes the narrator within that panel.
 - Cache contract against `main`: PASS (`59004`; impacted modules: app, dice-feedback, version).
@@ -36,3 +36,25 @@ Browser validation uses isolated Chrome contexts, a synthetic imported world and
 ## Existing follow-up
 
 Read-only review found an existing global AI-busy ownership risk: an old world's NPC/action request can call `setAIThinking(false)` in its `finally` after a new world's translation has started. The new activity row mirrors the existing busy state; this change does not add request ownership or resolve that cross-session race. A separate runtime change should use a task/session lease and add overlapping-request regression coverage. The dice controller's own callbacks are generation-guarded independently.
+
+## Full-interface background extension
+
+The user's subsequent screenshot was checked against the actual Pages site: it still served v0.59.3 with cache token 59003, while this unmerged PR contains v0.59.4. That explains why the old headline and missing icons remained visible online.
+
+`world-surfaces.css` owns decorative surface styles separately from layout. `#worldBackdrop` is fixed to the viewport and has no pointer interaction or layout dimensions of its own. It reuses the current genre image and focal position with aspect-preserving `cover`. The HUD, stats, quest, NPC dock, narrator, action and dice panels, top/bottom navigation, modal cards and NPC chat surfaces receive a local SVG material at fixed tile sizes. Modal artwork replaces the old stretched atlas layer. More/free-action/system-menu icons use local vector artwork. Success/failure/critical border colors remain distinct.
+
+The existing desktop 1720 × 860 stage and mobile/tablet flow were retained. A same-page baseline resize sequence returned to exactly the original 1440 × 900 relative panel coordinates; narrow action containers remained scrollable and the last option passed hit testing. Backgrounds may crop with the viewport aspect ratio, and the layout intentionally reflows below 901px; imagery is never distorted to match the container.
+
+The cache contract now also validates `creator.css` and `world-surfaces.css` when changed, so the new stylesheet cannot retain an old release token unnoticed.
+
+Extension validation uses an imported synthetic offline world in installed Chrome:
+
+- A continuous 11-step resize sequence (1440 × 900 through desktop, short landscape, tablet and 320 × 720 phone sizes, then back to 1440 × 900) has no horizontal document overflow. The fixed backdrop exactly matches the viewport at every step; returning to 1440 × 900 restores identical relative panel coordinates.
+- Etching remains a fixed 208px or 192px repeating tile. All five genre fixtures resolve the same matching artwork in the scene and full-screen backdrop.
+- A 24-size Japanese landing sweep from 320 to 1920px, including layout breakpoints, has no document/header overflow, zero headline/feature left-edge difference and no split within `あなた`.
+- Character/inventory and system-menu artwork was visually inspected. The synthetic fixture has no clickable NPC, so opening an NPC conversation for this background extension was NOT RUN.
+- The original drawer/sheet translation could briefly exceed the viewport during breakpoint changes. Modal entry now uses a shared opacity-only fade, with animation disabled for reduced motion.
+- After the fade fix, opening and continuously resizing the same character modal at 1440 × 900, 900 × 600 and 390 × 844 produced 10 contained measurements, both two frames after changes and after settling. Close-button hit testing and dismissal passed. Reduced motion computed to `animation: none`.
+- All nine system-menu entries have visible 20 × 20 icon boxes and readable labels; their local SVG requests returned HTTP 200. A viewport-only phone capture confirms the top bar starts at y=0 and the backdrop covers all 390 × 844 pixels.
+
+These measurements allow intentional responsive reflow and aspect-ratio cropping; they do not claim identical scenery crops at different window shapes.
