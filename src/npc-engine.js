@@ -3,7 +3,7 @@ import {recordCausalEvent} from "./knowledge-graph.js?v=57025";
 import {ensureWorldRegistry} from "./world-registry.js?v=57025";
 import {ensureClock} from "./world-clock.js?v=57025";
 import {ensureTravelNetwork} from "./travel-engine.js?v=57025";
-import {ensureNpcBehaviorProfile} from "./player-experience.js?v=57025";
+import {ensureNpcBehaviorProfile} from "./player-experience.js?v=57028";
 import {adjustNpcRelationship,applyNpcEffect,ensureNpcCognition,npcCognitionSnapshot,planNpcNextStep,recordNpcMemory,syncNpcLifeEffects,tickNpcCommitments} from "./npc-cognition.js?v=57025";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function simulation(state){state.world.state.simulation??={tension:10,lastEventMinute:0,lastTickMinute:ensureClock(state).totalMinutes,flags:{}};state.world.state.simulation.npcCursor??=0;return state.world.state.simulation}

@@ -1,7 +1,7 @@
-import {d20} from "./world-engine.js?v=57025";
+import {d20} from "./world-engine.js?v=57028";
 import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=57025";
 import {advanceTime,ensureClock} from "./world-clock.js?v=57025";
-import {tickWorld} from "./world-simulation.js?v=57025";
+import {tickWorld} from "./world-simulation.js?v=57028";
 import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=57025";
 import {applyCultureAction} from "./culture-engine.js?v=57025";
 import {resolveEconomyAction} from "./economy-engine.js?v=57025";
@@ -14,7 +14,7 @@ import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v
 import {isNpcPresent} from "./world-registry.js?v=57025";
 import {markEntityObserved} from "./visibility-lock.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57025";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57028";
 import {adjustNpcRelationship} from "./npc-cognition.js?v=57025";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
