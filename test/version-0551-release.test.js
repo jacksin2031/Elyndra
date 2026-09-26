@@ -15,6 +15,7 @@ test("v0.59.3 is the canonical app and browser cache release",async()=>{
  assert.match(versionSource,/APP_VERSION="0\.59\.3"/);
  assert.match(html,/app\.js\?v=59003/);
  assert.match(html,/styles\.css\?v=59003/);
+ assert.match(html,/creator\.css\?v=59003/);
  const tokens=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
  assert.ok(tokens.length>20);
  assert.ok(tokens.every(x=>["57025","57026","57028","57029","58000","59000","59001","59002","59003"].includes(x)));
@@ -22,7 +23,7 @@ test("v0.59.3 is the canonical app and browser cache release",async()=>{
  assert.match(app,/\.\/src\/player-entity-visibility\.js\?v=58000/);
  assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=58000/);
  assert.match(app,/\.\/src\/npc-conversation\.js\?v=57029/);
- assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59002"));
+ assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59003"));
  assert.doesNotMatch(app,/\?v=54017/);
  assert.doesNotMatch(app,/\?v=54018[A-Za-z]/);
 });
