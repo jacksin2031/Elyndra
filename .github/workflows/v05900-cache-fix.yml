@@ -1,0 +1,51 @@
+name: v0.59.0 Cache Fix
+
+on:
+  push:
+    branches:
+      - fix/v0.59.0-cache-bust
+    paths:
+      - .github/workflows/v05900-cache-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Fix v0.59.0 runtime-contract cache bust
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/ai-client.js')
+          s=p.read_text(encoding='utf-8')
+          old='from "./ai-runtime-contracts.js?v=58000";'
+          new='from "./ai-runtime-contracts.js?v=59000";'
+          if old not in s:
+              raise SystemExit('expected stale cache-bust import not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        env:
+          CACHE_BASE_REF: main
+        run: npm run cache:check
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Focused v0.59.0 regressions
+        run: node --test test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
+      - name: Commit source fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ai-client.js
+          git commit -m "fix: bump v0.59.0 runtime contract cache bust"
+          git push origin HEAD:fix/v0.59.0-cache-bust
