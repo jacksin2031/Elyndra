@@ -1,7 +1,7 @@
-import {ensureWorldRegistry} from "./world-registry.js?v=57024";
-import {recordCausalEvent} from "./knowledge-graph.js?v=57024";
-import {localCurrencyReward} from "./world-locality.js?v=57024";
-import {adjustNpcRelationship,recordNpcMemory,resolveNpcCommitment} from "./npc-cognition.js?v=57024";
+import {ensureWorldRegistry} from "./world-registry.js?v=57025";
+import {recordCausalEvent} from "./knowledge-graph.js?v=57025";
+import {localCurrencyReward} from "./world-locality.js?v=57025";
+import {adjustNpcRelationship,recordNpcMemory,resolveNpcCommitment} from "./npc-cognition.js?v=57025";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const CONDITION_TYPES=new Set(["FACT_KNOWN","ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","ENTITY_KNOWN","EVENT_OCCURRED","LOCATION_STATE","NPC_STATE","FACTION_STATE","PLAYER_STATE"]);

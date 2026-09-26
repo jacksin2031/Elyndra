@@ -4,7 +4,7 @@ import {randomAutotestWorldRaw,playerVisibleAutotestSnapshot,normalizeAutotestDe
 
 function state(){
  return {
-  world:{id:"W1",name:"Hidden Name",state:{day:2,clock:{hour:9,minute:5,totalMinutes:1985}},canon:{facts:[{id:"secret",text:"NEVER LEAK"}]},registry:{npcs:[{id:"N1",name:"Known",known:true},{id:"N2",name:"Hidden",known:false}],locations:[{id:"L1",name:"Camp",known:true},{id:"L2",name:"Secret Vault",known:false}]}},
+  world:{id:"W1",name:"Hidden Name",state:{day:2,clock:{hour:9,minute:5,totalMinutes:1985}},canon:{facts:[{id:"secret",text:"NEVER LEAK"}]},registry:{npcs:[{id:"N1",name:"Known",known:true,nameKnown:true},{id:"N2",name:"Hidden",known:false}],locations:[{id:"L1",name:"Camp",known:true},{id:"L2",name:"Secret Vault",known:false}]}},
   player:{name:"Tester",worldNameKnown:false,location:"Camp",hp:10,maxHp:10,status:"ACTIVE",level:2,xp:4,knowledgeScore:12,wallet:{}},
   quests:{main:{title:"Find shelter",stage:1,status:"ACTIVE",objectives:["Reach a safe place"]}},
   inventory:[{id:"I1",name:"Rope",quantity:1}],knowledge:[{id:"K1",title:"A visible clue",status:"KNOWN"}],discoveries:3,

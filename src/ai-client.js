@@ -1,26 +1,27 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57024";
-import {seedDirective} from "./seed-contract.js?v=57024";
-import {recognitionForNpc} from "./recognition-engine.js?v=57024";
-import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57024";
-import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57024";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57024";
-import {helperSnapshot} from "./helper-context.js?v=57024";
-import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57024";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57024";
-import {playerWeatherSnapshot} from "./weather-engine.js?v=57024";
-import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57024";
-import {parseModelJSON as parseJSON} from "./model-json.js?v=57024";
-import {npcBehaviorSnapshot} from "./player-experience.js?v=57024";
-import {normalizeActionIntent} from "./action-intent.js?v=57024";
-import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57024";
-import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57024";
-import {planStateSync,validateStatePatch} from "./state-sync.js?v=57024";
-import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57024";
-import {historyDepthSnapshot} from "./history-depth.js?v=57024";
-import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57024";
-import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57024";
-import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57024";
-import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57024";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=57025";
+import {seedDirective} from "./seed-contract.js?v=57025";
+import {recognitionForNpc} from "./recognition-engine.js?v=57025";
+import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57025";
+import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./turn-compiler.js?v=57025";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57025";
+import {helperSnapshot} from "./helper-context.js?v=57025";
+import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57025";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57025";
+import {playerWeatherSnapshot} from "./weather-engine.js?v=57025";
+import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57025";
+import {parseModelJSON as parseJSON} from "./model-json.js?v=57025";
+import {npcBehaviorSnapshot} from "./player-experience.js?v=57025";
+import {normalizeActionIntent} from "./action-intent.js?v=57025";
+import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from "./turn-outcome.js?v=57025";
+import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=57025";
+import {planStateSync,validateStatePatch} from "./state-sync.js?v=57025";
+import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57025";
+import {historyDepthSnapshot} from "./history-depth.js?v=57025";
+import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57025";
+import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57025";
+import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57025";
+import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57025";
+import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./traditional-chinese-guard.js?v=57025";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify(body)});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);return r.json()}
@@ -63,11 +64,11 @@ function weatherProfileConflict(location){
  const profile=location?.weatherProfile||{},a=new Set(Array.isArray(profile.affinities)?profile.affinities.map(String):[]),s=new Set(Array.isArray(profile.suppressions)?profile.suppressions.map(String):[]);return [...a].some(id=>s.has(id))
 }
 async function worldStage(stage,args){
- try{return await withWorldAiSlot(async()=>parseJSON(await directChat({...args,aiTask:args?.aiTask||worldStageTask(stage)}))) }
+ try{return await withWorldAiSlot(async()=>{const system=[String(args?.system||""),WORLD_TRADITIONAL_CHINESE_CONTRACT].filter(Boolean).join("\n"),value=parseJSON(await directChat({...args,system,aiTask:args?.aiTask||worldStageTask(stage)})),leak=simplifiedChineseLeak(value);if(leak)throw new Error(`NON_TRADITIONAL_CHINESE:${leak.character}:${leak.path}`);return value}) }
  catch(e){const suffix=e?.message||String(e);throw new Error(`WORLD_${stage}_FAILED: ${suffix}`)}
 }
 function generationTransportFailure(reason){return /Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)/i.test(String(reason||""))}
-function compilerRecoverable(err){const reason=String(err?.message||err||"");return generationTransportFailure(reason)||/AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|WORLD_[A-Z_]+_FAILED:\s*(AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d))/.test(reason)}
+function compilerRecoverable(err){const reason=String(err?.message||err||"");return generationTransportFailure(reason)||/NON_TRADITIONAL_CHINESE/.test(reason)||/AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|WORLD_[A-Z_]+_FAILED:\s*(AI_TIMEOUT|EMPTY_AI_RESPONSE|INVALID_MODEL_JSON|AI_HTTP_(429|5\d\d)|NON_TRADITIONAL_CHINESE)/.test(reason)}
 let activeGenerationDiagnostics=null;
 function markWorldFallback(stage,reason){
  recordGenerationStage(activeGenerationDiagnostics,stage,{source:"FALLBACK",reason,fallbackUsed:true})
@@ -76,7 +77,7 @@ function compactRetryArgs(args={},reason=""){
  const base=Math.max(350,Number(args.maxOutputTokens)||900),empty=/EMPTY_AI_RESPONSE|INVALID_MODEL_JSON:\s*empty response/i.test(String(reason)),timedOut=/AI_TIMEOUT/i.test(String(reason));
  const timeoutMs=empty?Math.max(45000,Math.min(70000,Number(args.timeoutMs)||50000)):timedOut?Math.max(25000,Math.min(35000,Number(args.timeoutMs)||35000)):Math.max(30000,Math.min(50000,Number(args.timeoutMs)||45000));
  const maxOutputTokens=empty?Math.min(3200,Math.max(1200,Math.round(base*1.6))):timedOut?Math.max(500,Math.min(1600,Math.round(base*.85))):Math.min(2200,Math.max(base,Math.round(base*1.15)));
- return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"}
+ const languageRetry=/NON_TRADITIONAL_CHINESE/.test(String(reason))?"\n上一次輸出含有簡體字；這次所有中文值必須重寫為繁體中文正體字，JSON key、ID 與 enum 不變。":"";return {...args,timeoutMs,maxOutputTokens,disableOptimization:true,temperature:Math.min(.3,Number(args.temperature??.3)),system:String(args.system||"")+"\n上一次輸出未能通過編譯。這次停用額外思考優化並保留足夠可見輸出空間；只回傳 schema 要求的必要 JSON，不要 Markdown、解釋或額外欄位。"+languageRetry}
 }
 function generationCircuit(diagnostics=activeGenerationDiagnostics){
  if(!diagnostics)return {timeoutCount:0,timeoutStages:[],transportCount:0,transportStages:[],coreFailureStages:[],open:false,openedAt:0,stage:""};

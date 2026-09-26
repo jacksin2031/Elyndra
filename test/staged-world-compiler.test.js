@@ -20,7 +20,7 @@ test("world creation uses bounded two-AI waves with Engine validation between wa
  assert.match(worldBlock,/const historyReport=validateWorldHistory/);
  assert.match(worldBlock,/worldGenerationLinkIssues\(\{anchor,history,geography,society,future\}\)/);
  assert.match(client,/const WORLD_AI_CONCURRENCY=2/);
- assert.match(client,/withWorldAiSlot\(async\(\)=>parseJSON\(await directChat\(\{\.\.\.args,aiTask:args\?\.aiTask\|\|worldStageTask\(stage\)\}\)\)\)/);
+ assert.match(client,/withWorldAiSlot\(async\(\)=>\{/);assert.match(client,/WORLD_TRADITIONAL_CHINESE_CONTRACT/);assert.match(client,/simplifiedChineseLeak\(value\)/);assert.match(client,/aiTask:args\?\.aiTask\|\|worldStageTask\(stage\)/);
  assert.match(client,/normalizeWorldIdentity\(identityRaw,expected,seed\)/);
  assert.match(client,/mergeCoreWave\(identity,expected,rules,coreAnchor\)/);
  assert.match(client,/coreWaveIssues\(identity,rules,coreAnchor,core\)/);
@@ -89,10 +89,10 @@ test("World Compiler preserves must-exist labels in Canon prompts",async()=>{
 
 test("staged compiler loads timeout settings through current cache generation",async()=>{
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(client,/ai-settings\.js\?v=57024/);
- assert.match(client,/seed-contract\.js\?v=57024/);
- assert.match(client,/world-compiler\.js\?v=57024/);
- assert.match(client,/recognition-engine\.js\?v=57024/);
+ assert.match(client,/ai-settings\.js\?v=57025/);
+ assert.match(client,/seed-contract\.js\?v=57025/);
+ assert.match(client,/world-compiler\.js\?v=57025/);
+ assert.match(client,/recognition-engine\.js\?v=57025/);
 });
 
 

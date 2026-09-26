@@ -20,6 +20,7 @@ function makeState(){
  ]});
  resolvePlayerLocation(s,"石門廣場");
  const a=s.world.registry.npcs.find(x=>x.name==="艾琳"),b=s.world.registry.npcs.find(x=>x.name==="洛安");
+ a.nameKnown=true;b.nameKnown=true;
  revealRegistryEntities(s,[{kind:"npc",id:a.id}]);
  resolvePlayerLocation(s,"北方關口");revealRegistryEntities(s,[{kind:"npc",id:b.id}]);resolvePlayerLocation(s,"石門廣場");
  s.world.secretDirectorValue="NEVER_EXPOSE";

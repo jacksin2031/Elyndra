@@ -1,8 +1,8 @@
-import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57024";
-import {playerVisibleLocationName} from "./player-location-visibility.js?v=57024";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57024";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57024";
-import {validateSuggestionProvenance} from "./scene-provenance.js?v=57024";
+import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57025";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
+import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57025";
+import {sanitizePlayerText} from "./runtime-guard.js?v=57025";
+import {validateSuggestionProvenance} from "./scene-provenance.js?v=57025";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];

@@ -1,6 +1,6 @@
-import {normalizeLore} from "./lore-engine.js?v=57024";
-import {normalizeWeatherProfile} from "./weather-engine.js?v=57024";
-import {materialSatisfiesClaim} from "./generation-claims.js?v=57024";
+import {normalizeLore} from "./lore-engine.js?v=57025";
+import {normalizeWeatherProfile} from "./weather-engine.js?v=57025";
+import {materialSatisfiesClaim} from "./generation-claims.js?v=57025";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);

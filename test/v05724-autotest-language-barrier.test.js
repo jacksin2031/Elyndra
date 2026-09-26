@@ -10,14 +10,14 @@ function make(originType,difficulty){
  const state=newGame(seed);applyWorldCreationState(state,seed);applyOriginRuntime(state,{phase:"POST_CANON"});return state
 }
 
-test("v0.57.24 FIRST_BUTTON loop has no stale undefined expansion variable",async()=>{
+test("v0.57.25 FIRST_BUTTON loop has no stale undefined expansion variable",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.doesNotMatch(app,/\bfirstButtonExpansionReason\b/);
  assert.match(app,/let expansionReason="";/);
  assert.match(app,/scheduleDeveloperAutotestExpansion\(expansionReason,turn\)/)
 });
 
-test("v0.57.24 hard and realistic directly enforce HIGH spoken-language degradation",()=>{
+test("v0.57.25 hard and realistic directly enforce HIGH spoken-language degradation",()=>{
  for(const difficulty of ["hard","realistic"]){
   const native=make("native",difficulty),nativeRt=originRuntimeSnapshot(native,{director:true});
   assert.equal(native.world.creation.difficultyRules.languageBarrier,"HIGH",difficulty);
@@ -34,7 +34,7 @@ test("v0.57.24 hard and realistic directly enforce HIGH spoken-language degradat
  }
 });
 
-test("v0.57.24 normal difficulty preserves the existing origin language baseline",()=>{
+test("v0.57.25 normal difficulty preserves the existing origin language baseline",()=>{
  const native=make("native","normal"),amnesia=make("amnesia","normal");
  assert.equal(originNpcContext(native,{id:"NPC-N",languages:["COMMON"]}).languageMode,"FLUENT");
  assert.equal(originNpcContext(amnesia,{id:"NPC-A",languages:["COMMON"]}).languageMode,"FRAGMENTED")
