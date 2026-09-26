@@ -1,4 +1,4 @@
-import {directChat} from "./ai-settings.js?v=59000";
+import {directChat} from "./ai-settings.js?v=59001";
 import {recordDebug} from "./debug-telemetry.js?v=57025";
 import {helperSnapshot} from "./helper-context.js?v=57029";
 import {ensureTravelNetwork} from "./travel-engine.js?v=57025";

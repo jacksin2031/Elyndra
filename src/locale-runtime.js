@@ -1,3 +1,4 @@
+import {EXTRA_UI} from "./ui-translations-extra.js?v=59001";
 export const SUPPORTED_LOCALES=Object.freeze({
  "zh-Hant":{label:"繁體中文",htmlLang:"zh-Hant",aiName:"Traditional Chinese"},
  "zh-Hans":{label:"简体中文",htmlLang:"zh-Hans",aiName:"Simplified Chinese"},
@@ -181,6 +182,7 @@ const UI={
  "載入第一個場景":row("載入第一個場景","载入第一个场景","Loading the first scene","最初の場面を読み込み中"),
  "世界生成失敗":row("世界生成失敗","世界生成失败","World generation failed","世界生成失敗")
 };
+Object.assign(UI,EXTRA_UI);
 const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
 const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
@@ -193,7 +195,9 @@ const FORMAT={
  npcNoInfo:row("{name}沒有提供更多可以確認的資訊。","{name}没有提供更多可以确认的信息。","{name} did not provide any more verifiable information.","{name} からこれ以上確認できる情報は得られなかった。"),
  npcSay:row("對{name}說些甚麼……","对{name}说些什么……","Say something to {name}…","{name} に話しかける…"),
  validationFailed:row("存檔世界完整性驗證失敗：{error}","存档世界完整性验证失败：{error}","Saved world integrity validation failed: {error}","セーブ世界の整合性検証に失敗しました：{error}"),
- worldCompileFailed:row("世界編譯失敗：{error}","世界编译失败：{error}","World compilation failed: {error}","世界のコンパイルに失敗しました：{error}")
+ worldCompileFailed:row("世界編譯失敗：{error}","世界编译失败：{error}","World compilation failed: {error}","世界のコンパイルに失敗しました：{error}"),
+ providerFixedModel:row("{provider} · Elyndra 固定模型：{model}","{provider} · Elyndra 固定模型：{model}","{provider} · Elyndra fixed model: {model}","{provider} · Elyndra固定モデル：{model}"),
+ tagCount:row("{count} 個標籤","{count} 个标签","{count} tags","{count}個のタグ")
 };
 export function uiFormat(key,vars={},locale=loadLocale()){const id=normalizeLocale(locale);let out=FORMAT[key]?.[id]??String(key??"");for(const [name,value] of Object.entries(vars||{}))out=out.replaceAll(`{${name}}`,String(value??""));return out}
 export function registerLocalizedOutput(value,locale=loadLocale()){
@@ -204,9 +208,10 @@ export function isRuntimeLocalized(value,locale=loadLocale()){const text=String(
 export function applyDocumentLocale(locale=loadLocale(),root=document){
  const id=normalizeLocale(locale),meta=localeMeta(id);globalThis.ELYNDRA_LOCALE=id;if(typeof document!=="undefined")document.documentElement.lang=meta.htmlLang;
  const base=root.body||root;if(!base?.ownerDocument&&!base?.querySelectorAll)return id;
- const doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
- for(const node of nodes){const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const source=NODE_SOURCE.get(node)||canonicalUiKey(trim);if(!UI[source])continue;NODE_SOURCE.set(node,source);node.nodeValue=raw.replace(trim,UI[source][id])}
- for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[]){let sourceMap=ATTR_SOURCE.get(el);if(!sourceMap){sourceMap={};ATTR_SOURCE.set(el,sourceMap)}for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(!raw)continue;const source=sourceMap[attr]||canonicalUiKey(raw);if(!UI[source])continue;sourceMap[attr]=source;el.setAttribute(attr,UI[source][id])}}
+ const doc=base.ownerDocument||root,title=doc.querySelector?.("title");if(title){const source=canonicalUiKey(title.textContent);const next=UI[source]?.[id];if(next&&next!==title.textContent)title.textContent=next}
+ const filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ for(const node of nodes){const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const source=NODE_SOURCE.get(node)||canonicalUiKey(trim);if(!UI[source])continue;NODE_SOURCE.set(node,source);const next=UI[source][id];if(next!==trim)node.nodeValue=raw.replace(trim,next)}
+ for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[]){let sourceMap=ATTR_SOURCE.get(el);if(!sourceMap){sourceMap={};ATTR_SOURCE.set(el,sourceMap)}for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(!raw)continue;const source=sourceMap[attr]||canonicalUiKey(raw);if(!UI[source])continue;sourceMap[attr]=source;const next=UI[source][id];if(next!==raw)el.setAttribute(attr,next)}}
  const selector=base.querySelector?.("#languageSelect")||doc.querySelector?.("#languageSelect");if(selector)selector.value=id;return id
 }
 
@@ -214,6 +219,11 @@ export function ensureWorldLocale(state,locale=loadLocale()){
  if(!state)return null;const id=normalizeLocale(locale);state.localization??={};state.localization.sourceLocale=normalizeLocale(state.localization.sourceLocale||state.world?.language||DEFAULT_LOCALE);state.localization.displayLocale=normalizeLocale(state.localization.displayLocale||state.localization.sourceLocale);state.localization.translations??={};state.localization.translations[id]??={};return state.localization
 }
 export function translationKey(value){let h=2166136261;for(const ch of String(value??"")){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
+const SESSION_TRANSLATIONS=new Map();
+function sessionLocale(locale=loadLocale()){const id=normalizeLocale(locale);let row=SESSION_TRANSLATIONS.get(id);if(!row){row={table:{},sources:{}};SESSION_TRANSLATIONS.set(id,row)}return row}
+export function applySessionTranslationBundle(targetLocale,bundle){const id=normalizeLocale(targetLocale),row=sessionLocale(id),items=Array.isArray(bundle?.translations)?bundle.translations:[];for(const item of items){const source=String(item?.source??"").trim(),translated=String(item?.translated??"").trim();if(!source||!translated)continue;const key=translationKey(source);row.table[key]=translated;row.sources[key]=source;registerLocalizedOutput(translated,id)}return items.length}
+export function sessionTranslatedText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale);if(isRuntimeLocalized(text,id))return text;return sessionLocale(id).table[translationKey(text)]||text}
+function sessionCompositeText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const exact=sessionTranslatedText(text,locale);if(exact!==text)return exact;const row=sessionLocale(locale);let out=text;const entries=Object.entries(row.sources).map(([key,source])=>[source,row.table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out}
 export function hasTranslation(state,value,locale=loadLocale()){
  const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id);if(isRuntimeLocalized(text,id))return true;return Boolean(loc.translations?.[id]?.[translationKey(text)])
 }
@@ -243,5 +253,11 @@ export function translatedCompositeText(state,value,locale=loadLocale()){
  const text=String(value??"");if(!state||!text)return text;const exact=translatedText(state,text,locale);if(exact!==text)return exact;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);const table=loc.translations?.[id]||{},sources=loc.translationSources?.[id]||{};let out=text;const entries=Object.entries(sources).map(([key,source])=>[source,table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out
 }
 export function applyWorldLocaleToDocument(state,locale=loadLocale(),root=document){
- if(!state||typeof document==="undefined")return;const base=root.body||root,doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION)$/.test(parent.tagName))continue;const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const localized=translatedCompositeText(state,trim,locale);if(localized!==trim)node.nodeValue=raw.replace(trim,localized)}
+ if(!state||typeof document==="undefined")return;const base=root.body||root,doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION|CODE|PRE)$/.test(parent.tagName))continue;const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const localized=translatedCompositeText(state,trim,locale);if(localized!==trim)node.nodeValue=raw.replace(trim,localized)}for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[])for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(!raw)continue;const localized=translatedCompositeText(state,raw,locale);if(localized!==raw)el.setAttribute(attr,localized)}
+}
+export function applySessionLocaleToDocument(locale=loadLocale(),root=document){
+ if(typeof document==="undefined")return;const base=root.body||root,doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION|CODE|PRE)$/.test(parent.tagName))continue;const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const localized=sessionCompositeText(trim,locale);if(localized!==trim)node.nodeValue=raw.replace(trim,localized)}for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[])for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(!raw)continue;const localized=sessionCompositeText(raw,locale);if(localized!==raw)el.setAttribute(attr,localized)}
+}
+export function documentTranslationCandidates(state,locale=loadLocale(),root=document){
+ const id=normalizeLocale(locale);if(id===DEFAULT_LOCALE||typeof document==="undefined")return {sourceLocale:state?.localization?.sourceLocale||DEFAULT_LOCALE,targetLocale:id,strings:[]};const base=root.body||root,doc=base.ownerDocument||root,rows=[];const add=value=>{const text=String(value??"").trim();if(!text||!/[\u3400-\u9fff]/u.test(text)||rows.includes(text))return;const canonical=canonicalUiKey(text);if(UI[canonical]||isRuntimeLocalized(text,id)||sessionTranslatedText(text,id)!==text)return;if(state&&translatedCompositeText(state,text,id)!==text)return;rows.push(text)};const filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter);while(walker.nextNode()){const node=walker.currentNode,parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION|CODE|PRE)$/.test(parent.tagName))continue;add(node.nodeValue)}for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[])for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(raw)add(raw)}return {sourceLocale:state?.localization?.sourceLocale||DEFAULT_LOCALE,targetLocale:id,strings:rows.slice(0,120)}
 }

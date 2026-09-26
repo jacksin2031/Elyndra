@@ -334,4 +334,21 @@ export const EXTRA_UI=Object.freeze({
  "存檔名稱":r("存檔名稱","存档名称","Save name","セーブ名"),
  "保存失敗：":r("保存失敗：","保存失败：","Save failed: ","保存失敗："),
  "確定刪除這個手動存檔？":r("確定刪除這個手動存檔？","确定删除这个手动存档？","Delete this manual save?","この手動セーブを削除しますか？")
+,
+ "建立新世界需要先在 AI 設定連接 Provider，因為世界主題與開局行動會由 AI 生成":r("建立新世界需要先在 AI 設定連接 Provider，因為世界主題與開局行動會由 AI 生成","建立新世界需要先在 AI 设置连接 Provider，因为世界主题与开局行动会由 AI 生成","Connect an AI provider before creating a new world because AI generates the world theme and opening actions.","新しい世界を作る前にAI Providerへ接続してください。世界テーマと開始行動はAIが生成します。"),
+ "正在建立 World Blueprint":r("正在建立 World Blueprint","正在建立 World Blueprint","Building World Blueprint","World Blueprintを作成中"),
+ "解析玩家設定、起源、定位、故事傾向與世界約束":r("解析玩家設定、起源、定位、故事傾向與世界約束","解析玩家设置、起源、定位、故事倾向与世界约束","Parsing player settings, origin, role, story tendencies, and world constraints","プレイヤー設定、起源、役割、物語傾向、世界制約を解析中"),
+ "正在建立 World Constitution":r("正在建立 World Constitution","正在建立 World Constitution","Building World Constitution","World Constitutionを作成中"),
+ "把必須／可以／禁止與難度、起源規則編譯成持久約束":r("把必須／可以／禁止與難度、起源規則編譯成持久約束","把必须／可以／禁止与难度、起源规则编译成持久约束","Compiling required/allowed/forbidden elements, difficulty, and origin rules into persistent constraints","必須／許可／禁止、難易度、起源ルールを永続制約へコンパイル中"),
+ "World Seed 已鎖定":r("World Seed 已鎖定","World Seed 已锁定","World Seed locked","World Seedをロックしました"),
+ "同一份 Blueprint、Constitution 與 Seed 會成為後續世界生成的根":r("同一份 Blueprint、Constitution 與 Seed 會成為後續世界生成的根","同一份 Blueprint、Constitution 与 Seed 会成为后续世界生成的根","The same Blueprint, Constitution, and Seed become the root of subsequent world generation","同じBlueprint、Constitution、Seedが今後の世界生成の根になります"),
+ "AI World Compiler 正在分段建立世界…":r("AI World Compiler 正在分段建立世界…","AI World Compiler 正在分段建立世界…","AI World Compiler is building the world in stages…","AI World Compilerが段階的に世界を構築中…"),
+ "正在驗證 AI 世界":r("正在驗證 AI 世界","正在验证 AI 世界","Validating AI world","AI世界を検証中"),
+ "Engine 正在檢查 Seed、Canon、World Constitution、曆法、Timeline 與跨階段引用":r("Engine 正在檢查 Seed、Canon、World Constitution、曆法、Timeline 與跨階段引用","Engine 正在检查 Seed、Canon、World Constitution、历法、Timeline 与跨阶段引用","Engine is checking Seed, Canon, World Constitution, calendar, Timeline, and cross-stage references","EngineがSeed、Canon、World Constitution、暦、Timeline、段階間参照を確認中"),
+ "正在 Canonize 開局內容":r("正在 Canonize 開局內容","正在 Canonize 开局内容","Canonizing opening content","開始内容をCanon化中"),
+ "只建立世界骨架、出生區域與最小可玩內容；其他地區延遲生成":r("只建立世界骨架、出生區域與最小可玩內容；其他地區延遲生成","只建立世界骨架、出生区域与最小可玩内容；其他地区延迟生成","Building only the world skeleton, starting region, and minimum playable content; other areas are generated later","世界の骨格、開始地域、最小限のプレイ可能内容だけを作り、他地域は遅延生成します"),
+ "AI 世界生成失敗":r("AI 世界生成失敗","AI 世界生成失败","AI world generation failed","AI世界生成失敗"),
+ "保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon":r("保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon","保存 Blueprint、Constitution、Origin、Difficulty 与世界 Canon","Saving Blueprint, Constitution, Origin, Difficulty, and world Canon","Blueprint、Constitution、Origin、Difficulty、世界Canonを保存中")
+,
+ "情境化建議行動":r("情境化建議行動","情境化建议行动","Contextual action suggestions","状況に応じた行動提案")
 });
