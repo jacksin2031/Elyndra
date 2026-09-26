@@ -29,12 +29,14 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          for path, old, new in [
+          replacements = [
               ("src/ai-autotest.js", '"./ai-settings.js?v=57025"', '"./ai-settings.js?v=59000"'),
               ("app.js", '"./src/ai-autotest.js?v=57029"', '"./src/ai-autotest.js?v=59000"'),
-          ]:
+              ("test/version-ui.test.js", r'/\.\/src\/ai-autotest\.js\?v=57029/', r'/\.\/src\/ai-autotest\.js\?v=59000/'),
+          ]
+          for path, old, new in replacements:
               p=Path(path); text=p.read_text(encoding="utf-8")
-              if old not in text: raise SystemExit(f"{path}: cache edge not found: {old}")
+              if old not in text: raise SystemExit(f"{path}: release edge not found: {old}")
               p.write_text(text.replace(old,new,1),encoding="utf-8")
           PY
       - name: Focused multilingual regressions
