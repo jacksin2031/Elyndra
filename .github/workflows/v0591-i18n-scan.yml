@@ -1,16 +1,47 @@
-name: v0.59.1 i18n Scan
+name: v0.59.1 i18n Hardening
 on:
   push:
     branches: [fix/v0.59.1-i18n-coverage]
     paths:
-      - scripts/scan-i18n-coverage.py
+      - scripts/v0591_i18n_hardening.py
+      - src/ui-translations-extra.js
       - .github/workflows/v0591-i18n-scan.yml
 permissions:
-  contents: read
+  contents: write
 jobs:
-  scan:
+  harden-and-validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Scan i18n coverage
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply v0.59.1 i18n hardening
+        run: python3 scripts/v0591_i18n_hardening.py
+      - name: Static i18n coverage
         run: python3 scripts/scan-i18n-coverage.py
+      - name: Focused multilingual regressions
+        run: node --test test/v05901-i18n-coverage.test.js test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        env:
+          CACHE_BASE_REF: main
+        run: npm run cache:check
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Diff check
+        run: git diff --check
+      - name: Commit hardened v0.59.1 source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A ':!.github/workflows/v0591-i18n-scan.yml' ':!scripts/v0591_i18n_hardening.py'
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+          else
+            git commit -m "fix: complete v0.59.1 multilingual UI coverage"
+            git push origin HEAD:fix/v0.59.1-i18n-coverage
+          fi
