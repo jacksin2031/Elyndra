@@ -187,6 +187,17 @@ const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
 const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
 const RUNTIME_LOCALIZED=new Map();
+const JA_CHINESE_LEAK=/(?:眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改)/u;
+const HANT_SIMPLIFIED_LEAK=/[这与为从对会让还开启关闭选择难险饿劳态语种实预设应无]/u;
+const HANS_TRADITIONAL_LEAK=/[這與為從對會讓還開啟關閉選擇難險餓勞態語種實預設應無]/u;
+export function hasLocaleLeak(value,locale=loadLocale()){
+ const text=String(value??'').trim(),id=normalizeLocale(locale);if(!text)return false;
+ if(id==='en')return /[\u3040-\u30ff\u3400-\u9fff]/u.test(text);
+ if(id==='ja')return JA_CHINESE_LEAK.test(text);
+ if(id==='zh-Hans')return HANS_TRADITIONAL_LEAK.test(text);
+ if(id==='zh-Hant')return HANT_SIMPLIFIED_LEAK.test(text);
+ return false
+}
 export function canonicalUiKey(value){return REVERSE.get(String(value??"").trim())||String(value??"").trim()}
 export function uiText(source,locale=loadLocale()){const key=canonicalUiKey(source),id=normalizeLocale(locale);return UI[key]?.[id]??String(source??"")}
 const FORMAT={
@@ -202,9 +213,9 @@ const FORMAT={
 export function uiFormat(key,vars={},locale=loadLocale()){const id=normalizeLocale(locale);let out=FORMAT[key]?.[id]??String(key??"");for(const [name,value] of Object.entries(vars||{}))out=out.replaceAll(`{${name}}`,String(value??""));return out}
 export function registerLocalizedOutput(value,locale=loadLocale()){
  const id=normalizeLocale(locale),set=RUNTIME_LOCALIZED.get(id)??new Set();RUNTIME_LOCALIZED.set(id,set);
- const add=v=>{if(v==null)return;if(typeof v==="string"){const raw=v.trim();if(raw){set.add(translationKey(raw));try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object")add(parsed)}catch{}}return}if(Array.isArray(v)){for(const x of v)add(x);return}if(typeof v==="object")for(const x of Object.values(v))add(x)};add(value);return set.size
+ const add=v=>{if(v==null)return;if(typeof v==="string"){const raw=v.trim();if(raw){if(!hasLocaleLeak(raw,id))set.add(translationKey(raw));try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object")add(parsed)}catch{}}return}if(Array.isArray(v)){for(const x of v)add(x);return}if(typeof v==="object")for(const x of Object.values(v))add(x)};add(value);return set.size
 }
-export function isRuntimeLocalized(value,locale=loadLocale()){const text=String(value??"").trim();return !text||Boolean(RUNTIME_LOCALIZED.get(normalizeLocale(locale))?.has(translationKey(text)))}
+export function isRuntimeLocalized(value,locale=loadLocale()){const text=String(value??"").trim(),id=normalizeLocale(locale);return !text||(!hasLocaleLeak(text,id)&&Boolean(RUNTIME_LOCALIZED.get(id)?.has(translationKey(text))))}
 export function applyDocumentLocale(locale=loadLocale(),root=document){
  const id=normalizeLocale(locale),meta=localeMeta(id);globalThis.ELYNDRA_LOCALE=id;if(typeof document!=="undefined")document.documentElement.lang=meta.htmlLang;
  const base=root.body||root;if(!base?.ownerDocument&&!base?.querySelectorAll)return id;
@@ -222,13 +233,13 @@ export function translationKey(value){let h=2166136261;for(const ch of String(va
 const SESSION_TRANSLATIONS=new Map();
 function sessionLocale(locale=loadLocale()){const id=normalizeLocale(locale);let row=SESSION_TRANSLATIONS.get(id);if(!row){row={table:{},sources:{}};SESSION_TRANSLATIONS.set(id,row)}return row}
 export function applySessionTranslationBundle(targetLocale,bundle){const id=normalizeLocale(targetLocale),row=sessionLocale(id),items=Array.isArray(bundle?.translations)?bundle.translations:[];for(const item of items){const source=String(item?.source??"").trim(),translated=String(item?.translated??"").trim();if(!source||!translated)continue;const key=translationKey(source);row.table[key]=translated;row.sources[key]=source;registerLocalizedOutput(translated,id)}return items.length}
-export function sessionTranslatedText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale);if(isRuntimeLocalized(text,id))return text;return sessionLocale(id).table[translationKey(text)]||text}
+export function sessionTranslatedText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),mapped=sessionLocale(id).table[translationKey(text)];if(mapped&&(mapped!==text||!hasLocaleLeak(mapped,id)))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text}
 function sessionCompositeText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const exact=sessionTranslatedText(text,locale);if(exact!==text)return exact;const row=sessionLocale(locale);let out=text;const entries=Object.entries(row.sources).map(([key,source])=>[source,row.table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out}
 export function hasTranslation(state,value,locale=loadLocale()){
- const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id);if(isRuntimeLocalized(text,id))return true;return Boolean(loc.translations?.[id]?.[translationKey(text)])
+ const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped)return mapped!==text||!hasLocaleLeak(mapped,id);if(hasLocaleLeak(text,id))return false;return isRuntimeLocalized(text,id)
 }
 export function translatedText(state,value,locale=loadLocale()){
- const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(isRuntimeLocalized(text,id))return text;return loc.translations?.[id]?.[translationKey(text)]||text
+ const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped&&(mapped!==text||!hasLocaleLeak(mapped,id)))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text
 }
 export function visibleTranslationPayload(state,locale=loadLocale()){
  if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[],volatileStrings:[]};const registry=state.world?.registry||{},rows=[],volatile=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text);return text};const addVolatile=v=>{const text=add(v);if(text&&!volatile.includes(text))volatile.push(text)};
@@ -240,7 +251,7 @@ export function visibleTranslationPayload(state,locale=loadLocale()){
  const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);return {sourceLocale:loc.sourceLocale,targetLocale:id,strings:rows.slice(0,220),volatileStrings:volatile.slice(0,80)}
 }
 export function missingVisibleTranslations(state,locale=loadLocale()){
- const payload=visibleTranslationPayload(state,locale);if(payload.sourceLocale===payload.targetLocale&&payload.targetLocale===DEFAULT_LOCALE)return {...payload,strings:[]};const candidates=payload.sourceLocale===payload.targetLocale?payload.volatileStrings:payload.strings;return {...payload,strings:candidates.filter(text=>!hasTranslation(state,text,payload.targetLocale))}
+ const payload=visibleTranslationPayload(state,locale);if(payload.sourceLocale===payload.targetLocale&&payload.targetLocale===DEFAULT_LOCALE)return {...payload,strings:[]};const candidates=payload.sourceLocale===payload.targetLocale?[...new Set([...payload.volatileStrings,...payload.strings.filter(text=>hasLocaleLeak(text,payload.targetLocale))])]:payload.strings;return {...payload,strings:candidates.filter(text=>!hasTranslation(state,text,payload.targetLocale))}
 }
 export function applyTranslationBundle(state,targetLocale,bundle){
  const id=normalizeLocale(targetLocale),loc=ensureWorldLocale(state,id),table=loc.translations[id]??={},sources=loc.translationSources??={};loc.translationSources=sources;sources[id]??={};const rows=Array.isArray(bundle?.translations)?bundle.translations:[];
@@ -259,5 +270,5 @@ export function applySessionLocaleToDocument(locale=loadLocale(),root=document){
  if(typeof document==="undefined")return;const base=root.body||root,doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION|CODE|PRE)$/.test(parent.tagName))continue;const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const localized=sessionCompositeText(trim,locale);if(localized!==trim)node.nodeValue=raw.replace(trim,localized)}for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[])for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(!raw)continue;const localized=sessionCompositeText(raw,locale);if(localized!==raw)el.setAttribute(attr,localized)}
 }
 export function documentTranslationCandidates(state,locale=loadLocale(),root=document){
- const id=normalizeLocale(locale);if(id===DEFAULT_LOCALE||typeof document==="undefined")return {sourceLocale:state?.localization?.sourceLocale||DEFAULT_LOCALE,targetLocale:id,strings:[]};const base=root.body||root,doc=base.ownerDocument||root,rows=[];const add=value=>{const text=String(value??"").trim();if(!text||!/[\u3400-\u9fff]/u.test(text)||rows.includes(text))return;const canonical=canonicalUiKey(text);if(UI[canonical]||isRuntimeLocalized(text,id)||sessionTranslatedText(text,id)!==text)return;if(state&&translatedCompositeText(state,text,id)!==text)return;rows.push(text)};const filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter);while(walker.nextNode()){const node=walker.currentNode,parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION|CODE|PRE)$/.test(parent.tagName))continue;add(node.nodeValue)}for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[])for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(raw)add(raw)}return {sourceLocale:state?.localization?.sourceLocale||DEFAULT_LOCALE,targetLocale:id,strings:rows.slice(0,120)}
+ const id=normalizeLocale(locale);if(id===DEFAULT_LOCALE||typeof document==="undefined")return {sourceLocale:state?.localization?.sourceLocale||DEFAULT_LOCALE,targetLocale:id,strings:[]};const base=root.body||root,doc=base.ownerDocument||root,rows=[];const add=value=>{const text=String(value??"").trim();if(!text||rows.includes(text))return;const suspicious=id==="en"?/[\u3040-\u30ff\u3400-\u9fff]/u.test(text):hasLocaleLeak(text,id);if(!suspicious)return;const canonical=canonicalUiKey(text);if(UI[canonical]||isRuntimeLocalized(text,id)||sessionTranslatedText(text,id)!==text)return;if(state&&translatedCompositeText(state,text,id)!==text)return;rows.push(text)};const filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter);while(walker.nextNode()){const node=walker.currentNode,parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION|CODE|PRE)$/.test(parent.tagName))continue;add(node.nodeValue)}for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[])for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(raw)add(raw)}return {sourceLocale:state?.localization?.sourceLocale||DEFAULT_LOCALE,targetLocale:id,strings:rows.slice(0,120)}
 }

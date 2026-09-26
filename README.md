@@ -183,6 +183,10 @@ Repository 正式部署 workflow：`.github/workflows/pages.yml`。
 - `main` 測試成功 → 部署 GitHub Pages
 - GitHub Actions 使用 immutable commit SHA pin
 
+## v0.59.3 重點
+
+v0.59.3 完成多語言可見層補強：World Contract 以 Engine deterministic locale renderer 顯示繁中／簡中／英文／日文；AI 或 Engine 動態文字若混入非目標語言，將不再被誤標為已翻譯，而會進入 residual translation gate。
+
 ## v0.59.2 重點
 
 v0.59.2 修復非繁體中文介面在世界契約確認後進入遊戲時，`state.notes` 陣列被誤判為 `entries` iterable 而觸發 `function is not iterable` 的問題。日文、英文與簡體中文現在可正常完成世界建立、存檔與首次遊戲畫面 refresh。
