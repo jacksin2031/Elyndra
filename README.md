@@ -2,7 +2,7 @@
 
 **Elyndra** 是一款以瀏覽器運行的 **AI × TRPG × World Discovery** 異世界 RPG。
 
-目前版本：**v0.59.1**
+目前版本：**v0.59.2**
 
 > 每一個世界，都有自己的真相。
 
@@ -182,6 +182,10 @@ Repository 正式部署 workflow：`.github/workflows/pages.yml`。
 - Push 到 `main` → Node 20 / Node 24 focused release validation
 - `main` 測試成功 → 部署 GitHub Pages
 - GitHub Actions 使用 immutable commit SHA pin
+
+## v0.59.2 重點
+
+v0.59.2 修復非繁體中文介面在世界契約確認後進入遊戲時，`state.notes` 陣列被誤判為 `entries` iterable 而觸發 `function is not iterable` 的問題。日文、英文與簡體中文現在可正常完成世界建立、存檔與首次遊戲畫面 refresh。
 
 ## v0.59.1 重點
 
