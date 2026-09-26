@@ -18,26 +18,16 @@ def replace_once(path, old, new):
     p.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-# Bring in the already-focused-regression-validated dialogue contract without taking
-# the conflicting v0.57.30 release/cache edits from its branch.
 Path("src/ai-runtime-contracts.js").write_text(show("src/ai-runtime-contracts.js"), encoding="utf-8")
-Path("test/v05730-scene-dialogue-contract.test.js").write_text(
-    show("test/v05730-scene-dialogue-contract.test.js"), encoding="utf-8"
-)
+Path("test/v05730-scene-dialogue-contract.test.js").write_text(show("test/v05730-scene-dialogue-contract.test.js"), encoding="utf-8")
 
-# Canonical v0.58.0 version.
 replace_once("package.json", '"version": "0.57.30"', '"version": "0.58.0"')
 replace_once("src/version.js", 'APP_VERSION="0.57.30"', 'APP_VERSION="0.58.0"')
-
-# Browser entry/cache edges changed by this release. Historical untouched modules
-# retain their older active cache generations.
 replace_once("app.js", './src/version.js?v=57029', './src/version.js?v=58000')
 replace_once("app.js", './src/player-entity-visibility.js?v=57029', './src/player-entity-visibility.js?v=58000')
 replace_once("app.js", './src/acquisition-notifier.js?v=57026', './src/acquisition-notifier.js?v=58000')
 replace_once("index.html", 'app.js?v=57029', 'app.js?v=58000')
 
-# Current release contract. Preserve historical cache generations that are still
-# used by unchanged modules, while requiring the v0.58.0 edges.
 Path("test/version-0551-release.test.js").write_text(r'''import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -67,7 +57,6 @@ test("v0.58.0 is the canonical app and browser cache release",async()=>{
 });
 ''', encoding="utf-8")
 
-# Only the live/current-version block changes. Keep historical assertions below it intact.
 p = Path("test/version-ui.test.js")
 text = p.read_text(encoding="utf-8")
 marker = '\ntest("History/Future/character systems remain available after v0.53"'
@@ -79,7 +68,6 @@ head = head.replace('pkg.version,"0.57.30"', 'pkg.version,"0.58.0"')
 head = head.replace("57029", "58000")
 p.write_text(head + marker + tail, encoding="utf-8")
 
-# Release notes.
 Path("docs/releases/v0.58.0.md").write_text('''# Elyndra v0.58.0
 
 - Harden player-facing NPC identity privacy: unknown canonical names and roles remain redacted in encounter notifications and adventure cards until evidence unlocks them.
@@ -89,7 +77,6 @@ Path("docs/releases/v0.58.0.md").write_text('''# Elyndra v0.58.0
 - GitHub Pages validation uses focused release/privacy/dialogue checks and does not invoke `test:nondownload`.
 ''', encoding="utf-8")
 
-# README current release only; detailed historical notes stay under docs/releases.
 p = Path("README.md")
 text = p.read_text(encoding="utf-8")
 if text.count("目前版本：**v0.57.12**") != 1:
@@ -105,63 +92,3 @@ text, count = pattern.subn(replacement, text, count=1)
 if count != 1:
     raise SystemExit("README.md: release highlight anchor mismatch")
 p.write_text(text, encoding="utf-8")
-
-# Production Pages gate intentionally excludes test:nondownload. It still verifies
-# version/cache integrity, syntax, and the focused release regressions on Node 20/24.
-Path(".github/workflows/pages.yml").write_text('''name: Deploy GitHub Pages
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-permissions:
-  contents: read
-concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 24]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: ${{ matrix.node-version }}
-      - name: Version contract
-        run: npm run version:check
-      - name: Browser cache contract
-        run: npm run cache:check
-        env:
-          CACHE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
-      - name: JavaScript syntax gate
-        run: node scripts/check-js.mjs
-      - name: Focused v0.58.0 regressions
-        run: node --test test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
-  deploy:
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: .
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-''', encoding="utf-8")
