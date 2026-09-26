@@ -1291,12 +1291,12 @@ button:disabled,.choices button:disabled{cursor:not-allowed;opacity:.48;filter:s
 #landing .feature-grid article:nth-child(2){--feature-icon:url("./assets/ui/icons/compass.svg")}
 #landing .feature-grid article:nth-child(3){--feature-icon:url("./assets/ui/icons/person.svg")}
 #landing .feature-grid article:nth-child(4){--feature-icon:url("./assets/ui/icons/world.svg")}
-#game .primary-nav .navbtn:not(.more-nav)>span,.mobile-bottom-nav button>span{
+#game .primary-nav .navbtn:not(.more-nav)>span,#game .mobile-bottom-nav button>span{
   width:24px;height:24px;min-width:24px;padding:0;border:0;border-radius:0;font-size:0;
-  background:currentColor!important;color:#adb9cd;mask:var(--nav-icon) center/contain no-repeat;
+  background:currentColor!important;color:#adb9cd!important;mask:var(--nav-icon) center/contain no-repeat;
   box-shadow:none;filter:none;
 }
-#game .primary-nav .navbtn.active>span,.mobile-bottom-nav button.active>span{color:#efd096}
+#game .primary-nav .navbtn.active:not(.more-nav)>span,#game .mobile-bottom-nav button.active>span{color:#efd096!important}
 [data-nav-home],[data-mobile-target="home"]{--nav-icon:url("./assets/ui/icons/compass.svg")}
 #characterBtn,[data-mobile-target="characterBtn"]{--nav-icon:url("./assets/ui/icons/person.svg")}
 #worldBtn,[data-mobile-target="worldBtn"]{--nav-icon:url("./assets/ui/icons/world.svg")}
