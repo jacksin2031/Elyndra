@@ -24,9 +24,16 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm run test:nondownload
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
         env:
           CACHE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Focused v0.58.0 regressions
+        run: node --test test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/v05800-narrator-layout.test.js test/version-0551-release.test.js test/version-ui.test.js
   deploy:
     permissions:
       contents: read
