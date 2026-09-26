@@ -25,6 +25,18 @@ jobs:
           node-version: 20
       - name: Apply v0.59.0 multilingual patch
         run: python3 scripts/v05900_multilang.py
+      - name: Complete v0.59.0 cache chain
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for path, old, new in [
+              ("src/ai-autotest.js", '"./ai-settings.js?v=57025"', '"./ai-settings.js?v=59000"'),
+              ("app.js", '"./src/ai-autotest.js?v=57029"', '"./src/ai-autotest.js?v=59000"'),
+          ]:
+              p=Path(path); text=p.read_text(encoding="utf-8")
+              if old not in text: raise SystemExit(f"{path}: cache edge not found: {old}")
+              p.write_text(text.replace(old,new,1),encoding="utf-8")
+          PY
       - name: Focused multilingual regressions
         run: node --test test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
       - name: Version contract
