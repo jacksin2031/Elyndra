@@ -15,7 +15,9 @@ pkg = json.loads(Path("package.json").read_text(encoding="utf-8"))
 if pkg.get("version") != "0.58.0":
     raise SystemExit(f"package.json: expected v0.58.0, found {pkg.get('version')}")
 
-# Ensure the browser receives the repaired stylesheet instead of a cached v0.57 asset.
+# Complete the v0.58.0 browser dependency cache chain exposed by cache:check.
+replace_once("src/ai-client.js", './ai-runtime-contracts.js?v=57025', './ai-runtime-contracts.js?v=58000')
+replace_once("app.js", './src/ai-client.js?v=57029', './src/ai-client.js?v=58000')
 replace_once("index.html", 'styles.css?v=57025', 'styles.css?v=58000')
 
 # The desktop fixed-stage/zoom stack can leave the narration paragraph visually
@@ -65,18 +67,22 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
 test("v0.58.0 desktop narration stays in one scene-copy flow",async()=>{
- const [css,html]=await Promise.all([
+ const [css,html,app,client]=await Promise.all([
   readFile(new URL("../styles.css",import.meta.url),"utf8"),
-  readFile(new URL("../index.html",import.meta.url),"utf8")
+  readFile(new URL("../index.html",import.meta.url),"utf8"),
+  readFile(new URL("../app.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
  assert.match(css,/v0\.58\.0 narrator layout stabilization/);
  assert.match(css,/#game \.scene-copy\{[\s\S]*?display:flex!important;[\s\S]*?flex-direction:column!important;/);
  assert.match(css,/#game \.scene-copy #narrative\{[\s\S]*?position:static!important;[\s\S]*?margin:0!important;/);
  assert.match(html,/styles\.css\?v=58000/);
+ assert.match(app,/\.\/src\/ai-client\.js\?v=58000/);
+ assert.match(client,/\.\/ai-runtime-contracts\.js\?v=58000/);
 });
 ''', encoding="utf-8")
 
-# Tighten the current release contract around the stylesheet cache edge.
+# Tighten current release/cache contracts around the changed edges.
 p = Path("test/version-0551-release.test.js")
 release_test = p.read_text(encoding="utf-8")
 anchor = 'assert.match(html,/app\\.js\\?v=58000/);'
@@ -84,6 +90,14 @@ if release_test.count(anchor) != 1:
     raise SystemExit("test/version-0551-release.test.js: app cache assertion anchor mismatch")
 release_test = release_test.replace(anchor, anchor + '\n assert.match(html,/styles\\.css\\?v=58000/);', 1)
 p.write_text(release_test, encoding="utf-8")
+
+p = Path("test/version-ui.test.js")
+version_ui = p.read_text(encoding="utf-8")
+old = 'assert.match(app,/\\.\\/src\\/ai-client\\.js\\?v=57029/);'
+new = 'assert.match(app,/\\.\\/src\\/ai-client\\.js\\?v=58000/);'
+if version_ui.count(old) != 1:
+    raise SystemExit("test/version-ui.test.js: ai-client cache assertion anchor mismatch")
+p.write_text(version_ui.replace(old, new, 1), encoding="utf-8")
 
 # Release notes / README mention the UI correction.
 p = Path("docs/releases/v0.58.0.md")
