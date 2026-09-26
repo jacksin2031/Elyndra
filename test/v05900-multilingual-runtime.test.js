@@ -60,7 +60,7 @@ test("narrator row is an invariant immediately above player actions",async()=>{
  const [html,css]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../styles.css",import.meta.url),"utf8")]);
  const n=html.indexOf('<div class="narrative-panel"'),d=html.indexOf('<div class="decision-panel"');
  assert.ok(n>0&&d>n,"narrative-panel must precede decision-panel in the same scene flow");
- assert.ok(d-n<220,"nothing substantial may be inserted between narrator and action panel");
+ assert.match(html,/<p id="narrative"[^>]*><\/p><\/div>\s*<div class="decision-panel">/,"the narrator must remain the last content before the action panel");
  assert.match(css,/#game \.narrative-panel\{grid-row:2!important/);
  assert.match(css,/#game \.decision-panel\{grid-row:3!important/);
  assert.match(css,/#game \.scene\{display:grid!important;grid-template-rows:minmax\(0,1fr\) auto auto!important/);

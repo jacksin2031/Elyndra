@@ -1,5 +1,6 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59003";
+import {APP_VERSION} from "./src/version.js?v=59004";
+import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
 import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59003";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59003";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57029";
@@ -69,6 +70,7 @@ import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestD
 import {validateSceneProvenance,filterSuggestionProvenance} from "./src/scene-provenance.js?v=57025";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 let activeLocale=saveLocale(loadLocale()),localeTransitionBusy=false;globalThis.ELYNDRA_LOCALE=activeLocale;const lt=value=>gameState?translatedText(gameState,value,activeLocale):String(value??"");
+const diceFeedback=createDiceFeedback({box:$("#diceBox"),value:$("#d20")});
 const stateSession=createStateSessionGuard(null);
 function captureStateSession(){return stateSession.capture(gameState)}
 function isCurrentStateSession(token){return stateSession.isCurrent(token,gameState)}
@@ -206,7 +208,7 @@ function cancelStateBoundWork(reason="STATE_REPLACED"){
  if(playerActionFlight.active)finishPlayerActionFlight(playerActionFlight.label||"state","state_replaced");
  recordDebug("STATE_BOUND_WORK_CANCELLED",{reason})
 }
-function replaceGameState(next,reason="STATE_REPLACED"){cancelStateBoundWork(reason);const cacheBefore={helperHistory:helperHistory.length,rejected:suggestionRefresh.rejected.length,excluded:suggestionRefresh.exclude.length,npcChats:npcChatHistory.size};gameState=next??null;stateSession.replace(gameState);gameplayDebugSnapshot=null;helperHistory=[];npcChatHistory=new Map();suggestionRefresh.message="";suggestionRefresh.error=false;suggestionRefresh.rejected=[];suggestionRefresh.exclude=[];recordDebug("STATE_BOUND_UI_CACHE_RESET",{reason,...cacheBefore});recordDebug("STATE_SESSION_REPLACED",{reason,epoch:stateSession.epoch,worldId:gameState?.world?.id||null});return gameState}
+function replaceGameState(next,reason="STATE_REPLACED"){diceFeedback.reset();$("#rollLabel").textContent=uiText("等待你的行動",activeLocale);$("#rollResult").textContent=uiText("世界會記住重要結果。",activeLocale);cancelStateBoundWork(reason);const cacheBefore={helperHistory:helperHistory.length,rejected:suggestionRefresh.rejected.length,excluded:suggestionRefresh.exclude.length,npcChats:npcChatHistory.size};gameState=next??null;stateSession.replace(gameState);gameplayDebugSnapshot=null;helperHistory=[];npcChatHistory=new Map();suggestionRefresh.message="";suggestionRefresh.error=false;suggestionRefresh.rejected=[];suggestionRefresh.exclude=[];recordDebug("STATE_BOUND_UI_CACHE_RESET",{reason,...cacheBefore});recordDebug("STATE_SESSION_REPLACED",{reason,epoch:stateSession.epoch,worldId:gameState?.world?.id||null});return gameState}
 function commitStatePatch(state,patch,plan,context={}){
  const grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
  if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
@@ -440,13 +442,13 @@ async function runBackgroundWorldEvolution(){
 }
 function beginPlayerActionFlight(label){
  playerActionFlight.active=true;playerActionFlight.label=String(label||"").trim().slice(0,240)||"處理目前行動";playerActionFlight.startedAt=Date.now();
- recordDebug("PLAYER_ACTION_UI_LOCKED",{action:playerActionFlight.label});renderSuggestions();setPlayerActionControlsLocked(true,"正在處理已選行動…")
+ recordDebug("PLAYER_ACTION_UI_LOCKED",{action:playerActionFlight.label});renderSuggestions();setPlayerActionControlsLocked(true,"正在處理已選行動…");updateAIStatusBadge()
 }
 function finishPlayerActionFlight(action="",reason="completed"){
  if(!playerActionFlight.active)return;
  const label=playerActionFlight.label,elapsedMs=Date.now()-playerActionFlight.startedAt;playerActionFlight.active=false;playerActionFlight.label="";playerActionFlight.startedAt=0;
  recordDebug("PLAYER_ACTION_UI_UNLOCKED",{action:String(action||label).slice(0,240),reason,elapsedMs});
- setPlayerActionControlsLocked(aiBusy||turnSyncBusy,aiBusy?"AI 正在處理你的行動…":turnSyncBusy?"STATE SYNC：完成後即可繼續行動":"")
+ setPlayerActionControlsLocked(aiBusy||turnSyncBusy,aiBusy?"AI 正在處理你的行動…":turnSyncBusy?"STATE SYNC：完成後即可繼續行動":"");updateAIStatusBadge()
 }
 function setPlayerActionControlsLocked(locked,reason=""){
  const on=Boolean(locked);
@@ -454,7 +456,17 @@ function setPlayerActionControlsLocked(locked,reason=""){
  const choices=$("#choices"),form=$("#freeActionForm");if(choices)choices.dataset.locked=on?"true":"false";if(form)form.dataset.locked=on?"true":"false";
  const free=$("#freeAction");if(free&&on&&reason)free.placeholder=reason;else if(free&&!on&&!gameState?.combat?.active)free.placeholder=uiText("自由行動：描述你想做的事……",activeLocale)
 }
+function renderActivityStatus(){
+ const panel=$("#activityStatus");if(!panel)return;
+ const busy=aiBusy||turnSyncBusy||playerActionFlight.active;
+ panel.hidden=!busy;
+ const text=busy?uiText(aiBusy?"AI 正在思考…":"正在處理已選行動…",activeLocale):"";
+ const label=$("#activityLabel");if(label.textContent!==text)label.textContent=text;
+ const started=aiBusy?aiThinkingStartedAt:0;
+ $("#activityElapsed").textContent=busy&&started?Math.max(0,Math.floor((Date.now()-started)/1000))+"s":"";
+}
 function updateAIStatusBadge(label=""){
+ renderActivityStatus();
  const badge=$("#aiBadge");if(!badge)return;
  if(aiBusy&&turnSyncBusy){badge.textContent="PLAYER ACTION";badge.classList.add("thinking");badge.title=label||"Player Action AI 正在優先處理玩家可見結果"}
  else if(aiBusy){badge.textContent="AI THINKING";badge.classList.add("thinking");badge.title=label||"AI 正在處理目前行動…"}
@@ -575,7 +587,7 @@ async function submitNpcConversation(npcId,q){markForegroundActivity();preemptBa
 function bindNpcLinks(){document.querySelectorAll("#modalContent .npc-link[data-npc-id]").forEach(b=>b.onclick=()=>openNpcPanel(b.dataset.npcId))}
 async function runCombatAction(action){markForegroundActivity();preemptBackgroundAI();if(!gameState?.combat?.active)return;if(turnSyncBusy){recordDebug("PLAYER_COMBAT_ACTION_BLOCKED_STATE_SYNC",{action});return}if(aiBusy)return;const r=combatAction(gameState,action);bumpStateRevision(gameState,"COMBAT_ACTION");gameState.narrative=r.summary||uiText("戰鬥局勢發生了變化。",activeLocale);gameState.sceneTitle=deriveSceneTitle(gameState,action);renderRoll(r.roll);if(!gameState.combat?.active){gameState.suggestions=fallbackActionButtons(uiText("戰鬥結束",activeLocale))}await persist();await refresh()}
 function signed(n){const x=Number(n)||0;return x>0?`+${x}`:String(x)}
-function renderRoll(roll,relationshipOutcome=null){$("#d20").textContent=roll.natural;const m=roll.modifiers||{},parts=[[uiText("能力",activeLocale),m.attribute],[uiText("技能",activeLocale),m.skill],[uiText("裝備",activeLocale),m.equipment],[uiText("夥伴",activeLocale),m.companion],[uiText("關係修正",activeLocale),m.relationship],[uiText("情境",activeLocale),m.situation],[uiText("天氣",activeLocale),m.weather]].filter(([,v])=>Number(v));const detail=parts.map(([k,v])=>`${k} ${signed(v)}`).join(" · ");$("#rollLabel").textContent=`D20 ${roll.natural} ${roll.bonus>=0?"+":"-"} ${Math.abs(roll.bonus)} = ${roll.total} / DC ${roll.dc}`;const relationChanges=relationshipOutcome?.changes||{},relationDetail=[[uiText("信任",activeLocale),relationChanges.trust],[uiText("尊重",activeLocale),relationChanges.respect],[uiText("畏懼",activeLocale),relationChanges.fear],[uiText("義務",activeLocale),relationChanges.obligation]].filter(([,v])=>Number(v)).map(([k,v])=>`${k} ${signed(v)}`).join(" · ");$("#rollResult").textContent=`${roll.grade.replaceAll("_"," ")}${roll.profile?.skillLabel?` · ${roll.profile.skillLabel}`:""}${detail?` · ${detail}`:""}${Number(roll.difficulty)?` · ${uiText("難度",activeLocale)} ${signed(roll.difficulty)}`:""}${relationDetail?` · ${uiText("互動後",activeLocale)}：${relationDetail}`:""}${roll.skillUp?` · ${uiText("技能提升至",activeLocale)} ${roll.skillUp.after}`:""}`;const box=$("#diceBox");if(box){box.classList.remove("rolling","roll-success","roll-fail");void box.offsetWidth;box.classList.add("rolling",Number(roll.total)>=Number(roll.dc)?"roll-success":"roll-fail");setTimeout(()=>box.classList.remove("rolling"),700)}}
+function renderRoll(roll,relationshipOutcome=null){$("#d20").textContent=roll.natural;const m=roll.modifiers||{},parts=[[uiText("能力",activeLocale),m.attribute],[uiText("技能",activeLocale),m.skill],[uiText("裝備",activeLocale),m.equipment],[uiText("夥伴",activeLocale),m.companion],[uiText("關係修正",activeLocale),m.relationship],[uiText("情境",activeLocale),m.situation],[uiText("天氣",activeLocale),m.weather]].filter(([,v])=>Number(v));const detail=parts.map(([k,v])=>`${k} ${signed(v)}`).join(" · ");$("#rollLabel").textContent=`D20 ${roll.natural} ${roll.bonus>=0?"+":"-"} ${Math.abs(roll.bonus)} = ${roll.total} / DC ${roll.dc}`;const relationChanges=relationshipOutcome?.changes||{},relationDetail=[[uiText("信任",activeLocale),relationChanges.trust],[uiText("尊重",activeLocale),relationChanges.respect],[uiText("畏懼",activeLocale),relationChanges.fear],[uiText("義務",activeLocale),relationChanges.obligation]].filter(([,v])=>Number(v)).map(([k,v])=>`${k} ${signed(v)}`).join(" · ");$("#rollResult").textContent=`${roll.grade.replaceAll("_"," ")}${roll.profile?.skillLabel?` · ${roll.profile.skillLabel}`:""}${detail?` · ${detail}`:""}${Number(roll.difficulty)?` · ${uiText("難度",activeLocale)} ${signed(roll.difficulty)}`:""}${relationDetail?` · ${uiText("互動後",activeLocale)}：${relationDetail}`:""}${roll.skillUp?` · ${uiText("技能提升至",activeLocale)} ${roll.skillUp.after}`:""}`;diceFeedback.play(roll)}
 async function runAction(action,customText="",options={}){
  if(!gameState)return;const actionState=gameState,actionSession=captureStateSession();markForegroundActivity();preemptBackgroundAI();suggestionRefresh.exclude=[];suggestionRefresh.message="";suggestionRefresh.error=false;clearActionRecoveryNotice();
  if(turnSyncBusy){recordDebug("PLAYER_ACTION_BLOCKED_STATE_SYNC",{action:String(customText||action||"").slice(0,180)});return}
@@ -704,7 +716,7 @@ async function runAction(action,customText="",options={}){
 }
 $("#newWorldBtn").onclick=()=>show("creator");$("#continueBtn").onclick=async()=>{replaceGameState(migrate(await loadWorld()),"CONTINUE_AUTOSAVE");if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert(uiFormat("validationFailed",{error:report.errors.join(", ")},activeLocale));aiStatus=await aiHealth();const ready=await refresh();if(!ready)return alert(uiText("需要 AI 才能把目前世界切換到所選語言。",activeLocale));show("game");scheduleWorldQualityCritic("continue_world",1200);scheduleHistoryDeepening("continue_world",1500)};qsa("[data-go]").forEach(b=>b.onclick=()=>show(b.dataset.go));
 const languageSelect=$("#languageSelect");if(languageSelect){languageSelect.value=activeLocale;languageSelect.onchange=async()=>{const previous=activeLocale,next=normalizeLocale(languageSelect.value);if(next===previous)return;activeLocale=saveLocale(next);applyDocumentLocale(activeLocale);helperHistory=[];npcChatHistory.clear();closeModal();recordDebug("LOCALE_SWITCH_REQUESTED",{from:previous,to:next,worldId:gameState?.world?.id||null});if(!gameState){applyDocumentLocale(activeLocale);return}aiStatus=await aiHealth();const ready=await ensureGameplayLocale("language_switch");if(!ready){activeLocale=saveLocale(previous);languageSelect.value=previous;applyDocumentLocale(previous);await refresh({skipLocale:true});alert(uiText("需要 AI 才能把目前世界切換到所選語言。",previous));return}await saveWorld(gameState);await refresh({skipLocale:true});recordDebug("LOCALE_SWITCH_APPLIED",{from:previous,to:next})}}
-function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=uiText(label,activeLocale);sub.textContent=uiText(detail,activeLocale)}
+function worldProgress(value,label,detail=""){const box=$("#worldGenProgress"),bar=$("#worldGenBar"),pct=$("#worldGenPct"),text=$("#worldGenText"),sub=$("#worldGenDetail");box.classList.remove("hidden");$("#worldGenTrack").setAttribute("aria-valuenow",String(value));bar.style.width=value+"%";pct.textContent=value+"%";text.textContent=uiText(label,activeLocale);sub.textContent=uiText(detail,activeLocale)}
 function requestWorldReadyNotificationPermission(){
  if(!("Notification" in window)||Notification.permission!=="default")return;
  try{void Notification.requestPermission().then(permission=>recordDebug("WORLD_NOTIFICATION_PERMISSION",{permission})).catch(()=>{})}catch{}
@@ -823,7 +835,7 @@ for(const id of DEGREE_FIELDS)creatorField(id)?.addEventListener("input",()=>{sy
 initRuleTagBuilder();syncDegreeOutputs();syncCustomWorldStyle();syncAdvancedCreatorModes();setCreatorStep(1);
 $("#generateBtn").onclick=async()=>{
  requestWorldReadyNotificationPermission();
- const btn=$("#generateBtn"),draft=createWorldCreationDraft(creatorRaw()),seed=compileWorldCreation(draft);btn.disabled=true;
+ const btn=$("#generateBtn"),draft=createWorldCreationDraft(creatorRaw()),seed=compileWorldCreation(draft);btn.disabled=true;$("#worldGenProgress").dataset.loading="true";
  try{
   if(!aiStatus.aiConfigured)throw new Error("建立新世界需要先在 AI 設定連接 Provider，因為世界主題與開局行動會由 AI 生成");
   worldProgress(6,"正在建立 World Blueprint","解析玩家設定、起源、定位、故事傾向與世界約束");
@@ -845,12 +857,14 @@ $("#generateBtn").onclick=async()=>{
   finally{setAIThinking(false)}
   const contract=buildWorldContract(gameState);gameState.world.creation.contract=structuredClone(contract);
   worldProgress(93,"世界生成完成","世界已編譯完成；請先確認世界契約，再決定是否穿越。");notifyWorldReady();
+  $("#worldGenProgress").dataset.loading="false";
   const accepted=await confirmWorldContract(contract);
   if(!accepted){replaceGameState(null,"WORLD_CREATION_CANCELLED");worldProgress(0,"已返回修改","這次編譯結果尚未建立正式存檔；修改設定後可重新生成。");return}
+  $("#worldGenProgress").dataset.loading="true";
   worldProgress(96,"正在建立正式存檔","保存 Blueprint、Constitution、Origin、Difficulty 與世界 Canon");
   await persist();worldProgress(98,"正在準備冒險介面","載入第一個場景");await refresh();worldProgress(100,"準備完成","正在穿越…");await new Promise(r=>setTimeout(r,250));show("game");scheduleWorldQualityCritic("post_creation",1000);scheduleHistoryDeepening("post_creation",1500)
- }catch(e){worldProgress(0,"世界生成失敗",e.message);alert(uiFormat("worldCompileFailed",{error:e.message},activeLocale))}
- finally{btn.disabled=false}
+ }catch(e){$("#worldGenProgress").dataset.loading="false";worldProgress(0,"世界生成失敗",e.message);alert(uiFormat("worldCompileFailed",{error:e.message},activeLocale))}
+ finally{btn.disabled=false;$("#worldGenProgress").dataset.loading="false"}
 };
 $("#freeActionForm").onsubmit=async e=>{e.preventDefault();const input=$("#freeAction"),value=input.value.trim();if(!value)return;input.value="";await runAction("free",value)};
 function debugRuntimeSnapshot(){
