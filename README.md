@@ -2,7 +2,7 @@
 
 **Elyndra** 是一款以瀏覽器運行的 **AI × TRPG × World Discovery** 異世界 RPG。
 
-目前版本：**v0.58.0**
+目前版本：**v0.59.0**
 
 > 每一個世界，都有自己的真相。
 
@@ -17,10 +17,35 @@ Elyndra 的核心設計是把 AI 放在「提案與敘事」的位置，而把�
 - **Causal World Core**：World Ledger、History、Future、Generation Claims、Evidence / Belief / Truth 分離，避免 AI 直接改寫已成立的世界事實。
 - **Knowledge & Visibility Gate**：玩家、NPC 與 Director 使用不同知識邊界；未知 Canon 不會因 AI 已看見而自動洩漏給玩家。
 - **Endless Runtime**：遊戲期間可逐步延伸地點、NPC、勢力、支線與世界事件，而不需要一次生成整個世界。
+- **Multilingual Runtime**：支援繁體中文、簡體中文、English、日本語；UI、AI 敘事、世界生成與跨語言存檔載入使用同一個 runtime language contract，避免不同語言互相污染。
 - **多 AI Provider**：支援 OpenAI、Gemini 與 Agnes，並提供 task-aware optimization、timeout、retry、rate-limit backpressure 等 Runtime 控制。
 - **本地存檔**：IndexedDB autosave、手動存檔與 `.elyndra` 匯入／匯出。
 - **Developer Autotest / Debug**：可批次建立世界、執行 AI 遊玩測試、輸出 Debug JSON 與世界檔，並記錄 AI latency、token usage、fallback、degraded state 與 runtime issues。
 - **Desktop / Mobile UI**：同一套 Runtime 支援桌面與手機版操作。
+
+## 多國語言 / Multilingual
+
+Elyndra v0.59.0 目前支援四種顯示與 AI 輸出語言：
+
+| Locale | 語言 |
+| --- | --- |
+| `zh-Hant` | 繁體中文 |
+| `zh-Hans` | 簡體中文 |
+| `en` | English |
+| `ja` | 日本語 |
+
+語言可以在遊戲介面中切換。Runtime 會把目前選擇的語言傳入 AI Scene、NPC、World Generation、Helper 與 server fallback API；AI schema 不再固定要求繁體中文，因此英文、日文與簡體中文模式不會被舊 prompt 拉回其他語言。
+
+### 跨語言世界與存檔
+
+- 新世界會使用目前選擇的語言建立玩家可見內容。
+- 載入其他語言建立的 autosave、手動存檔或 `.elyndra` 世界時，Elyndra 會在進入遊戲畫面前先完成 AI 翻譯／語言正規化。
+- `sourceLocale` 只代表世界原始語言來源；每一段文字會獨立判斷實際語言，因此可以連續進行 `繁中 → English → 日本語` 等切換。
+- 翻譯必須保留 Canon、數字、名稱、遊戲狀態、不確定性與玩家知識邊界，不可新增 lore、劇透 hidden Canon 或修改世界事實。
+- 繁體中文模式額外保留簡體字 leak guard；其他語言不會套用繁中限定規則。
+- 如果跨語言載入需要 AI 而目前沒有可用 AI，世界不會在未翻譯完成前直接進入 gameplay，避免混合語言狀態。
+
+語言系統的設計原則是：**同一時間只有一個 runtime language contract 是玩家可見輸出的權威來源**。既有專有名稱可以保留，但一般 UI、敘事與 AI 輸出不應在四個語言 channel 之間互相干擾。
 
 ## Runtime 架構
 
@@ -49,10 +74,12 @@ AI Scene / NPC / State candidate
        ↓
 Validation / StatePatch / Causal checks
        ↓
+Runtime Language Contract
+       ↓
 IndexedDB / .elyndra
 ```
 
-AI 可以理解玩家語言、生成敘事與提出候選內容，但最終狀態修改必須通過 Engine 邊界。
+AI 可以理解玩家語言、生成敘事與提出候選內容，但最終狀態修改必須通過 Engine 邊界；語言切換只改變玩家可見表達，不應改變 Canon 或 deterministic state。
 
 ## AI Provider
 
@@ -94,14 +121,16 @@ http://localhost:8000
 npm test
 ```
 
-目前 `npm test` 會依序執行：
+目前正式 Pages workflow 會驗證：
 
 1. 版本一致性檢查
 2. Browser cache-bust dependency graph 檢查
 3. JavaScript syntax gate
-4. Node built-in regression test suite
+4. v0.59.0 multilingual focused regressions
+5. NPC identity privacy / scene dialogue regressions
+6. Node 20 / Node 24 compatibility
 
-專案目前沒有 runtime npm dependency，因此不需要先執行 `npm install` 才能跑測試。
+v0.59.0 multilingual regression 會檢查四個 locale channel 的隔離、runtime language contract、跨語言 world-entry gate，以及旁白固定在「你的行動」區域正上方的 UI 結構。
 
 ## 重要目錄
 
@@ -123,8 +152,9 @@ Elyndra/
 - `src/world-engine.js` — World Compiler / Constitution / Canon validation
 - `src/game-engine.js` — deterministic gameplay mutation
 - `src/storage.js` — IndexedDB + `.elyndra` import/export
+- `src/locale-runtime.js` — locale normalization、UI strings、runtime language contract、localized output tracking
 - `src/ai-settings.js` — Provider profiles、Direct AI transport、optimization / timeout / backpressure
-- `src/ai-client.js` — Action / Scene / NPC / State / Runtime Expansion AI boundary
+- `src/ai-client.js` — Action / Scene / NPC / State / Runtime Expansion / translation AI boundary
 - `src/travel-engine.js` — Canon 路網、距離與旅行耗時
 - `src/survival-engine.js` — 飢餓／飽足、疲勞、環境與傷勢
 - `src/magic-engine.js` — 魔法規則、成本與反噬
@@ -146,15 +176,17 @@ README 只保留目前專案入口與現行架構；詳細版本變更請放在 
 
 ## CI / Deployment
 
-Repository 只保留正式的 GitHub Pages workflow：`.github/workflows/pages.yml`。
+Repository 正式部署 workflow：`.github/workflows/pages.yml`。
 
-- Pull Request → Node 20 / Node 24 完整測試
-- Push 到 `main` → Node 20 / Node 24 完整測試
+- Pull Request → Node 20 / Node 24 focused release validation
+- Push 到 `main` → Node 20 / Node 24 focused release validation
 - `main` 測試成功 → 部署 GitHub Pages
 - GitHub Actions 使用 immutable commit SHA pin
 
-## v0.58.0 重點
+## v0.59.0 重點
 
-v0.58.0 整合 NPC 玩家可見身份隱私與條件式場景對白：未知 NPC 的 canonical 名稱／職業在取得證據前保持隱藏；Scene Narrator 只在玩家明確說話或有可見 NPC 回應證據時使用簡短對白，並禁止替玩家發明台詞或讓 NPC 洩漏不可知資訊。同時修正桌面版旁白文字框與場景標題分離的版面問題。
+v0.59.0 加入完整 Multilingual Runtime：繁體中文、簡體中文、English、日本語共用同一個 locale runtime 與 AI language contract。新世界、場景旁白、NPC、Helper、World Generation 與 server fallback 都會使用目前選擇語言；移除 AI schema 中殘留的繁體中文硬鎖，並只在 `zh-Hant` 模式保留繁體字 leak guard。
+
+跨語言載入方面，autosave、手動存檔與 `.elyndra` Import 在進入 gameplay 前都會先完成可見世界翻譯；翻譯器可處理同一世界曾經切換過多個 runtime language 的情況，而不依賴單一舊 `sourceLocale` 猜測每一條文字。Desktop scene layout 同時固定為「主要場景 → 旁白 → 你的行動」，確保 Narrator 永遠直接位於玩家行動區正上方。
 
 完整歷史請查看 `docs/releases/`、Pull Requests 與 commit history。
