@@ -136,8 +136,14 @@ const UI={
 const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
 const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
+const RUNTIME_LOCALIZED=new Map();
 export function canonicalUiKey(value){return REVERSE.get(String(value??"").trim())||String(value??"").trim()}
 export function uiText(source,locale=loadLocale()){const key=canonicalUiKey(source),id=normalizeLocale(locale);return UI[key]?.[id]??String(source??"")}
+export function registerLocalizedOutput(value,locale=loadLocale()){
+ const id=normalizeLocale(locale),set=RUNTIME_LOCALIZED.get(id)??new Set();RUNTIME_LOCALIZED.set(id,set);
+ const add=v=>{if(v==null)return;if(typeof v==="string"){const raw=v.trim();if(raw){set.add(translationKey(raw));try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object")add(parsed)}catch{}}return}if(Array.isArray(v)){for(const x of v)add(x);return}if(typeof v==="object")for(const x of Object.values(v))add(x)};add(value);return set.size
+}
+export function isRuntimeLocalized(value,locale=loadLocale()){const text=String(value??"").trim();return !text||Boolean(RUNTIME_LOCALIZED.get(normalizeLocale(locale))?.has(translationKey(text)))}
 export function applyDocumentLocale(locale=loadLocale(),root=document){
  const id=normalizeLocale(locale),meta=localeMeta(id);globalThis.ELYNDRA_LOCALE=id;if(typeof document!=="undefined")document.documentElement.lang=meta.htmlLang;
  const base=root.body||root;if(!base?.ownerDocument&&!base?.querySelectorAll)return id;
@@ -152,10 +158,10 @@ export function ensureWorldLocale(state,locale=loadLocale()){
 }
 export function translationKey(value){let h=2166136261;for(const ch of String(value??"")){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
 export function hasTranslation(state,value,locale=loadLocale()){
- const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id)return true;return Boolean(loc.translations?.[id]?.[translationKey(text)])
+ const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id||isRuntimeLocalized(text,id))return true;return Boolean(loc.translations?.[id]?.[translationKey(text)])
 }
 export function translatedText(state,value,locale=loadLocale()){
- const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id)return text;return loc.translations?.[id]?.[translationKey(text)]||text
+ const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id||isRuntimeLocalized(text,id))return text;return loc.translations?.[id]?.[translationKey(text)]||text
 }
 export function visibleTranslationPayload(state,locale=loadLocale()){
  if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[]};const registry=state.world?.registry||{},rows=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text)};
@@ -170,8 +176,15 @@ export function missingVisibleTranslations(state,locale=loadLocale()){
  const payload=visibleTranslationPayload(state,locale);if(payload.sourceLocale===payload.targetLocale)return {...payload,strings:[]};return {...payload,strings:payload.strings.filter(text=>!hasTranslation(state,text,payload.targetLocale))}
 }
 export function applyTranslationBundle(state,targetLocale,bundle){
- const id=normalizeLocale(targetLocale),loc=ensureWorldLocale(state,id),table=loc.translations[id]??={};const rows=Array.isArray(bundle?.translations)?bundle.translations:[];
- for(const item of rows){const source=String(item?.source??"").trim(),translated=String(item?.translated??"").trim();if(source&&translated)table[translationKey(source)]=translated}
+ const id=normalizeLocale(targetLocale),loc=ensureWorldLocale(state,id),table=loc.translations[id]??={},sources=loc.translationSources??={};loc.translationSources=sources;sources[id]??={};const rows=Array.isArray(bundle?.translations)?bundle.translations:[];
+ for(const item of rows){const source=String(item?.source??"").trim(),translated=String(item?.translated??"").trim();if(source&&translated){const key=translationKey(source);table[key]=translated;sources[id][key]=source;registerLocalizedOutput(translated,id)}}
  loc.displayLocale=id;loc.translatedAt=Date.now();return rows.length
 }
 export function needsWorldTranslation(state,targetLocale=loadLocale()){return missingVisibleTranslations(state,targetLocale).strings.length>0}
+
+export function translatedCompositeText(state,value,locale=loadLocale()){
+ const text=String(value??"");if(!state||!text)return text;const exact=translatedText(state,text,locale);if(exact!==text)return exact;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id)return text;const table=loc.translations?.[id]||{},sources=loc.translationSources?.[id]||{};let out=text;const entries=Object.entries(sources).map(([key,source])=>[source,table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out
+}
+export function applyWorldLocaleToDocument(state,locale=loadLocale(),root=document){
+ if(!state||typeof document==="undefined")return;const base=root.body||root,doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION)$/.test(parent.tagName))continue;const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const localized=translatedCompositeText(state,trim,locale);if(localized!==trim)node.nodeValue=raw.replace(trim,localized)}
+}

@@ -1,0 +1,29 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+import {SUPPORTED_LOCALES,languageContract,ensureWorldLocale,applyTranslationBundle,translatedText,missingVisibleTranslations,registerLocalizedOutput} from "../src/locale-runtime.js";
+
+test("v0.59.0 keeps four locale channels isolated",()=>{
+ assert.deepEqual(Object.keys(SUPPORTED_LOCALES),["zh-Hant","zh-Hans","en","ja"]);
+ const contracts=Object.keys(SUPPORTED_LOCALES).map(languageContract);assert.equal(new Set(contracts).size,4);for(const c of contracts)assert.match(c,/RUNTIME LANGUAGE OVERRIDE/);
+ const state={world:{name:"霧城",registry:{npcs:[],locations:[]}},sceneTitle:"鐘聲停止",narrative:"街道突然安靜。",quests:{main:{title:"活下來",objectives:["尋找安全地點"]}},suggestions:["觀察四周"],inventory:[]};
+ const loc=ensureWorldLocale(state,"zh-Hant");loc.sourceLocale="zh-Hant";loc.displayLocale="zh-Hant";
+ applyTranslationBundle(state,"en",{translations:[{source:"街道突然安靜。",translated:"The street suddenly falls silent."}]});
+ applyTranslationBundle(state,"ja",{translations:[{source:"街道突然安靜。",translated:"通りが突然静まり返る。"}]});
+ assert.equal(translatedText(state,"街道突然安靜。","en"),"The street suddenly falls silent.");
+ assert.equal(translatedText(state,"街道突然安靜。","ja"),"通りが突然静まり返る。");
+ assert.equal(translatedText(state,"街道突然安靜。","zh-Hant"),"街道突然安靜。");
+ assert.equal(state.narrative,"街道突然安靜。");
+ registerLocalizedOutput("A new English narration appears.","en");assert.equal(missingVisibleTranslations({...state,narrative:"A new English narration appears."},"en").strings.includes("A new English narration appears."),false);
+});
+
+test("v0.59.0 narrator is structurally above the action panel",async()=>{
+ const [html,css,app,settings,client,server]=await Promise.all([
+  readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../styles.css",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../api/_ai.js",import.meta.url),"utf8")
+ ]);
+ const artEnd=html.indexOf('</div></div>\n<div class="narrative-panel"'),narrative=html.indexOf('id="narrative"'),decision=html.indexOf('<div class="decision-panel">');
+ assert.ok(artEnd>0&&narrative>artEnd&&decision>narrative);assert.doesNotMatch(html,/<div class="scene-copy">[\s\S]*id="narrative"[\s\S]*<\/div><\/div>\n<div class="decision-panel">/);
+ assert.match(css,/#game \.scene\{display:grid!important;grid-template-rows:minmax\(0,1fr\) auto auto!important/);assert.match(css,/#game \.narrative-panel\{grid-row:2!important/);assert.match(css,/#game \.decision-panel\{grid-row:3!important/);
+ assert.match(html,/id="languageSelect"/);assert.match(app,/ensureGameplayLocale/);assert.match(app,/missingVisibleTranslations/);assert.match(app,/translation\.sourceLocale=activeLocale|localization\.sourceLocale=activeLocale/);
+ assert.match(settings,/languageContract\(locale\)/);assert.match(settings,/registerLocalizedOutput\(result,locale\)/);assert.match(client,/export async function translateVisibleWorld/);assert.match(server,/languageContract\(normalizeLocale\(locale\)\)/);
+});

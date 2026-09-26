@@ -30,7 +30,7 @@ export default async function handler(req,res){
   const base=planStateSync({action,intent:actionIntent,roll,snapshot,kernel}),plan=serverPlan(base,requestedPlan,snapshot);kernel.dirtyFlags={...(plan.dirtyFlags||kernel.dirtyFlags||{})};
   if(!plan.requiresStateAI)return json(res,200,{patch:{baseRevision:plan.baseRevision,operations:[]},plan,actionIntent,kernel});
   const input={action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)};
-  const raw=await callModel({signal:req.elyndraSignal,system:statePatchDirectorSystem(plan),user:JSON.stringify(input),temperature:plan.mode==="DEEP"?.3:.15,timeoutMs:plan.mode==="DEEP"?50000:plan.mode==="DEFERRED"?40000:25000,maxOutputTokens:plan.mode==="DEEP"?1300:plan.mode==="DEFERRED"?900:800});
+  const raw=await callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,system:statePatchDirectorSystem(plan),user:JSON.stringify(input),temperature:plan.mode==="DEEP"?.3:.15,timeoutMs:plan.mode==="DEEP"?50000:plan.mode==="DEFERRED"?40000:25000,maxOutputTokens:plan.mode==="DEEP"?1300:plan.mode==="DEFERRED"?900:800});
   const patch=normalizeGeneratedStatePatch(parseModelJSON(raw)),v=validateStatePatch(patch,plan);if(!v.valid)return json(res,422,{error:"STATE_PATCH_INVALID",details:v.errors});
   return json(res,200,{patch,plan,actionIntent,kernel})
  }catch(e){

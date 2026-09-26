@@ -30,7 +30,7 @@ linear-gradient(135deg,#1b2933,#11181c 35%,#17242e 65%,#0a0e12)}
 .world-gen-progress{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:12px;background:rgba(10,15,25,.72)}
 .world-gen-progress.hidden{display:none}.world-gen-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.world-gen-head strong{font-size:13px}.world-gen-head span{font-variant-numeric:tabular-nums;color:var(--gold);font-size:12px}.world-gen-track{height:8px;overflow:hidden;border-radius:999px;background:#080c14;border:1px solid #202a3d}.world-gen-bar{width:0;height:100%;border-radius:999px;background:linear-gradient(90deg,#5849d9,#8f7cff,#d7b36a);transition:width .45s ease}.world-gen-progress small{display:block;color:var(--muted);margin-top:9px;line-height:1.5}
 #generateBtn:disabled{opacity:.55;cursor:wait;transform:none}
-.status.thinking{color:var(--gold);border-color:var(--gold);animation:aiPulse 1.15s ease-in-out infinite}.scene-copy p[data-recovery]:after{content:"\A\A" attr(data-recovery);white-space:pre-wrap;color:var(--gold);font-size:12px;letter-spacing:.02em}.scene-copy p[data-thinking]:after{content:"\A\A" attr(data-thinking);white-space:pre-wrap;color:var(--gold);font-size:12px;letter-spacing:.04em;animation:aiPulse 1.15s ease-in-out infinite}button:disabled,input:disabled{cursor:wait;opacity:.55}@keyframes aiPulse{0%,100%{opacity:.55}50%{opacity:1}}
+.status.thinking{color:var(--gold);border-color:var(--gold);animation:aiPulse 1.15s ease-in-out infinite}#narrative[data-recovery]:after{content:"\A\A" attr(data-recovery);white-space:pre-wrap;color:var(--gold);font-size:12px;letter-spacing:.02em}#narrative[data-thinking]:after{content:"\A\A" attr(data-thinking);white-space:pre-wrap;color:var(--gold);font-size:12px;letter-spacing:.04em;animation:aiPulse 1.15s ease-in-out infinite}button:disabled,input:disabled{cursor:wait;opacity:.55}@keyframes aiPulse{0%,100%{opacity:.55}50%{opacity:1}}
 .npc-dock{margin-top:auto;border:1px solid var(--line);border-radius:12px;padding:12px;background:#0f1420}
 #knownNpcList{display:grid;gap:7px;margin-top:9px}
 .npc-mini{width:100%;display:flex;align-items:center;gap:9px;text-align:left;border:1px solid var(--line);border-radius:9px;padding:8px;background:#101725;color:var(--text);cursor:pointer}
@@ -1034,3 +1034,18 @@ body[data-world-genre="末日異世界"]{
     margin:0!important;
   }
 }
+
+/* v0.59.0 structural narrator row + language control */
+.language-control{display:flex;align-items:center;gap:7px;margin-left:auto;font-size:10px;letter-spacing:.08em;color:var(--muted)}
+.language-control select{width:auto;min-width:118px;padding:7px 28px 7px 9px;border-radius:999px;background:#0a0f19;border:1px solid var(--line);color:var(--text);font-size:11px}
+#game .scene{display:grid!important;grid-template-rows:minmax(0,1fr) auto auto!important;gap:10px!important}
+#game .scene-art{grid-row:1!important;min-height:0!important}
+#game .scene-copy{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:flex-end!important;height:100%!important;pointer-events:none}
+#game .scene-copy .scene-meta,#game .scene-copy h2{position:static!important}
+#game .narrative-panel{grid-row:2!important;position:relative!important;z-index:3!important;width:100%!important;min-width:0!important;margin:0!important;padding:0!important}
+#game .narrative-panel #narrative{position:static!important;display:block!important;width:100%!important;max-width:none!important;min-height:58px!important;margin:0!important;padding:13px 16px!important;color:#d8dde6!important;line-height:1.65!important;background:rgba(5,8,13,.92)!important;border:1px solid rgba(215,179,106,.24)!important;border-left:2px solid var(--gold)!important;border-radius:10px!important;backdrop-filter:blur(10px)!important;transform:none!important;inset:auto!important;overflow-wrap:anywhere!important}
+#game .decision-panel{grid-row:3!important;position:relative!important;z-index:2!important;margin:0!important}
+body.locale-transition #game .decision-panel{pointer-events:none;opacity:.45}
+body.locale-transition #game .narrative-panel #narrative:before{content:"…";display:block;color:var(--gold);letter-spacing:.2em}
+@media(max-width:900px){.language-control span{display:none}.language-control select{min-width:96px}.topbar{gap:9px}#game .scene{grid-template-rows:minmax(320px,1fr) auto auto!important}}
+@media(max-width:620px){.language-control{margin-left:auto}.language-control select{min-width:82px;max-width:105px;padding:6px 22px 6px 7px}#game .narrative-panel #narrative{min-height:52px!important;padding:11px 12px!important}}

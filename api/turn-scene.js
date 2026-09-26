@@ -11,7 +11,7 @@ export default async function handler(req,res){
   const {action,intent,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
   const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot});
   const input={action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)};
-  const raw=await callModel({signal:req.elyndraSignal,system:sceneNarratorSystem(),user:JSON.stringify(input),temperature:.8,timeoutMs:35000,maxOutputTokens:1100});
+  const raw=await callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,system:sceneNarratorSystem(),user:JSON.stringify(input),temperature:.8,timeoutMs:35000,maxOutputTokens:1100});
   return json(res,200,{scene:parseModelJSON(raw),actionIntent,kernel})
  }catch(e){
   const status=e.code==="AI_NOT_CONFIGURED"?503:e.code==="INVALID_MODEL_JSON"||String(e.message||"").startsWith("INVALID_MODEL_JSON")?422:502;
