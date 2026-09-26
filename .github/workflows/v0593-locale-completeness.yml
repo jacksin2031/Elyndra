@@ -5,6 +5,7 @@ on:
     paths:
       - scripts/v0593_locale_completeness.py
       - scripts/v0593_locale_followup.py
+      - scripts/v0593_locale_test_contracts.py
       - .github/workflows/v0593-locale-completeness.yml
 permissions:
   contents: write
@@ -22,10 +23,12 @@ jobs:
         run: python3 scripts/v0593_locale_completeness.py
       - name: Apply v0.59.3 locale follow-up
         run: python3 scripts/v0593_locale_followup.py
+      - name: Align v0.59.3 test contracts
+        run: python3 scripts/v0593_locale_test_contracts.py
       - name: Static i18n coverage
         run: python3 scripts/scan-i18n-coverage.py
       - name: Focused v0.59.3 regressions
-        run: node --test test/v05903-locale-completeness.test.js test/v05902-world-compile-i18n-notes.test.js test/v05901-i18n-coverage.test.js test/v05900-multilingual-runtime.test.js test/v05800-narrator-layout.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
+        run: node --test test/v05903-locale-completeness.test.js test/v05902-world-compile-i18n-notes.test.js test/v05901-i18n-coverage.test.js test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
       - name: Version contract
         run: npm run version:check
       - name: Browser cache contract
@@ -40,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A ':!.github/workflows/v0593-locale-completeness.yml' ':!scripts/v0593_locale_completeness.py' ':!scripts/v0593_locale_followup.py'
+          git add -A ':!.github/workflows/v0593-locale-completeness.yml' ':!scripts/v0593_locale_completeness.py' ':!scripts/v0593_locale_followup.py' ':!scripts/v0593_locale_test_contracts.py'
           if git diff --cached --quiet; then
             echo "No source changes to commit"
           else
