@@ -131,7 +131,55 @@ const UI={
  "貴族":row("貴族","贵族","Noble","貴族"),
  "研究者":row("研究者","研究者","Researcher","研究者"),
  "反派陣營":row("反派陣營","反派阵营","Antagonist Faction","敵対陣営"),
- "完全隨機":row("完全隨機","完全随机","Fully Random","完全ランダム")
+ "完全隨機":row("完全隨機","完全随机","Fully Random","完全ランダム"),
+ "AI 正在思考…":row("AI 正在思考…","AI 正在思考…","AI is thinking…","AIが思考中…"),
+ "AI 正在處理你的行動…":row("AI 正在處理你的行動…","AI 正在处理你的行动…","AI is processing your action…","AIが行動を処理中…"),
+ "STATE SYNC：完成後即可繼續行動":row("STATE SYNC：完成後即可繼續行動","STATE SYNC：完成后即可继续行动","STATE SYNC: actions resume when synchronization finishes","STATE SYNC：同期完了後に行動できます"),
+ "正在處理已選行動…":row("正在處理已選行動…","正在处理已选行动…","Processing selected action…","選択した行動を処理中…"),
+ "AI 回應較慢，必要時會自動切換 Engine 備援":row("AI 回應較慢，必要時會自動切換 Engine 備援","AI 响应较慢，必要时会自动切换 Engine 备用","AI is responding slowly; Engine fallback will be used if needed","AIの応答が遅いため、必要ならEngineフォールバックへ切り替えます"),
+ "仍在等待 AI 回應":row("仍在等待 AI 回應","仍在等待 AI 响应","Still waiting for AI","AIの応答を待っています"),
+ "對方正在回應……":row("對方正在回應……","对方正在回应……","They are responding…","相手が応答中…"),
+ "對方正等待你開口。":row("對方正等待你開口。","对方正在等你开口。","They are waiting for you to speak.","相手はあなたが話すのを待っています。"),
+ "送出":row("送出","发送","Send","送信"),
+ "人物":row("人物","人物","Person","人物"),
+ "遠距":row("遠距","远程","Remote","遠隔"),
+ "就在附近":row("就在附近","就在附近","Nearby","すぐ近く"),
+ "你從這段對話中確認到可推進任務的新線索。":row("你從這段對話中確認到可推進任務的新線索。","你从这段对话中确认了可推进任务的新线索。","You confirmed a new clue that can advance the quest.","この会話から任務を進められる新しい手掛かりを確認した。"),
+ "戰鬥局勢發生了變化。":row("戰鬥局勢發生了變化。","战斗局势发生了变化。","The battle situation has changed.","戦況が変化した。"),
+ "戰鬥結束":row("戰鬥結束","战斗结束","Battle ended","戦闘終了"),
+ "能力":row("能力","能力","Ability","能力"),
+ "技能":row("技能","技能","Skill","技能"),
+ "裝備":row("裝備","装备","Equipment","装備"),
+ "夥伴":row("夥伴","伙伴","Companion","仲間"),
+ "關係修正":row("關係修正","关系修正","Relationship","関係補正"),
+ "情境":row("情境","情境","Situation","状況"),
+ "天氣":row("天氣","天气","Weather","天候"),
+ "信任":row("信任","信任","Trust","信頼"),
+ "尊重":row("尊重","尊重","Respect","尊敬"),
+ "畏懼":row("畏懼","畏惧","Fear","畏怖"),
+ "義務":row("義務","义务","Obligation","義務"),
+ "難度":row("難度","难度","Difficulty","難易度"),
+ "互動後":row("互動後","互动后","After interaction","交流後"),
+ "技能提升至":row("技能提升至","技能提升至","Skill increased to","技能上昇"),
+ "AI 場景內容與目前地點／人物狀態不一致；已保留 Engine 結果並重新建立當前場景建議。":row("AI 場景內容與目前地點／人物狀態不一致；已保留 Engine 結果並重新建立當前場景建議。","AI 场景内容与当前地点／人物状态不一致；已保留 Engine 结果并重新建立当前场景建议。","AI scene content conflicted with the current location or character state; the Engine result was kept and current suggestions were rebuilt.","AIの場面内容が現在地／人物状態と一致しないため、Engine結果を保持して現在の提案を再構築しました。"),
+ "AI 行動判定暫時不可用；已切換 Engine 備援並繼續本回合。":row("AI 行動判定暫時不可用；已切換 Engine 備援並繼續本回合。","AI 行动判定暂时不可用；已切换 Engine 备用并继续本回合。","AI action assessment is temporarily unavailable; Engine fallback is continuing this turn.","AIの行動判定が一時的に利用できないため、Engineフォールバックでこのターンを続行します。"),
+ "AI 世界狀態同步暫時失敗；已保留 Engine 結果並恢復控制。":row("AI 世界狀態同步暫時失敗；已保留 Engine 結果並恢復控制。","AI 世界状态同步暂时失败；已保留 Engine 结果并恢复控制。","AI world-state synchronization temporarily failed; the Engine result was kept and control was restored.","AIの世界状態同期が一時的に失敗したため、Engine結果を保持して操作を復帰しました。"),
+ "AI 場景敘述未完成；已保留 Engine 的可見結果。":row("AI 場景敘述未完成；已保留 Engine 的可見結果。","AI 场景叙述未完成；已保留 Engine 的可见结果。","AI scene narration did not finish; the visible Engine result was kept.","AIの場面描写が完了しなかったため、Engineの可視結果を保持しました。"),
+ "選單":row("選單","菜单","Menu","メニュー"),
+ "旅程設定":row("旅程設定","旅程设置","Journey Settings","旅の設定"),
+ "一般冒險期間把系統設定收起，避免打斷場景。":row("一般冒險期間把系統設定收起，避免打斷場景。","普通冒险期间收起系统设置，避免打断场景。","System settings stay tucked away during normal play so they do not interrupt the scene.","通常の冒険中は場面を妨げないようシステム設定をまとめています。"),
+ "開發者 · AI 自動測試":row("開發者 · AI 自動測試","开发者 · AI 自动测试","Developer · AI Autotest","開発者 · AI自動テスト"),
+ "世界留下的痕跡":row("世界留下的痕跡","世界留下的痕迹","World Traces","世界に残した痕跡"),
+ "準備完成":row("準備完成","准备完成","Ready","準備完了"),
+ "正在穿越…":row("正在穿越…","正在穿越…","Crossing over…","転移中…"),
+ "世界生成完成":row("世界生成完成","世界生成完成","World generation complete","世界生成完了"),
+ "世界已編譯完成；請先確認世界契約，再決定是否穿越。":row("世界已編譯完成；請先確認世界契約，再決定是否穿越。","世界已编译完成；请先确认世界契约，再决定是否穿越。","World compilation is complete. Review the world contract before crossing over.","世界のコンパイルが完了しました。転移する前に世界契約を確認してください。"),
+ "已返回修改":row("已返回修改","已返回修改","Returned to editing","編集に戻りました"),
+ "這次編譯結果尚未建立正式存檔；修改設定後可重新生成。":row("這次編譯結果尚未建立正式存檔；修改設定後可重新生成。","本次编译结果尚未建立正式存档；修改设置后可重新生成。","This compilation has not created a permanent save. Adjust the settings and generate again.","今回のコンパイル結果は正式保存されていません。設定を変更して再生成できます。"),
+ "正在建立正式存檔":row("正在建立正式存檔","正在建立正式存档","Creating permanent save","正式セーブを作成中"),
+ "正在準備冒險介面":row("正在準備冒險介面","正在准备冒险界面","Preparing adventure interface","冒険画面を準備中"),
+ "載入第一個場景":row("載入第一個場景","载入第一个场景","Loading the first scene","最初の場面を読み込み中"),
+ "世界生成失敗":row("世界生成失敗","世界生成失败","World generation failed","世界生成失敗")
 };
 const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
@@ -139,6 +187,15 @@ const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
 const RUNTIME_LOCALIZED=new Map();
 export function canonicalUiKey(value){return REVERSE.get(String(value??"").trim())||String(value??"").trim()}
 export function uiText(source,locale=loadLocale()){const key=canonicalUiKey(source),id=normalizeLocale(locale);return UI[key]?.[id]??String(source??"")}
+const FORMAT={
+ npcWait:row("正在等待 {name} 的回應…","正在等待 {name} 的回应…","Waiting for {name} to respond…","{name} の応答を待っています…"),
+ npcRemoteContact:row("正在建立與 {name} 的遠距聯絡…","正在建立与 {name} 的远程联络…","Establishing remote contact with {name}…","{name} との遠隔連絡を確立中…"),
+ npcNoInfo:row("{name}沒有提供更多可以確認的資訊。","{name}没有提供更多可以确认的信息。","{name} did not provide any more verifiable information.","{name} からこれ以上確認できる情報は得られなかった。"),
+ npcSay:row("對{name}說些甚麼……","对{name}说些什么……","Say something to {name}…","{name} に話しかける…"),
+ validationFailed:row("存檔世界完整性驗證失敗：{error}","存档世界完整性验证失败：{error}","Saved world integrity validation failed: {error}","セーブ世界の整合性検証に失敗しました：{error}"),
+ worldCompileFailed:row("世界編譯失敗：{error}","世界编译失败：{error}","World compilation failed: {error}","世界のコンパイルに失敗しました：{error}")
+};
+export function uiFormat(key,vars={},locale=loadLocale()){const id=normalizeLocale(locale);let out=FORMAT[key]?.[id]??String(key??"");for(const [name,value] of Object.entries(vars||{}))out=out.replaceAll(`{${name}}`,String(value??""));return out}
 export function registerLocalizedOutput(value,locale=loadLocale()){
  const id=normalizeLocale(locale),set=RUNTIME_LOCALIZED.get(id)??new Set();RUNTIME_LOCALIZED.set(id,set);
  const add=v=>{if(v==null)return;if(typeof v==="string"){const raw=v.trim();if(raw){set.add(translationKey(raw));try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object")add(parsed)}catch{}}return}if(Array.isArray(v)){for(const x of v)add(x);return}if(typeof v==="object")for(const x of Object.values(v))add(x)};add(value);return set.size
@@ -158,22 +215,22 @@ export function ensureWorldLocale(state,locale=loadLocale()){
 }
 export function translationKey(value){let h=2166136261;for(const ch of String(value??"")){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
 export function hasTranslation(state,value,locale=loadLocale()){
- const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id||isRuntimeLocalized(text,id))return true;return Boolean(loc.translations?.[id]?.[translationKey(text)])
+ const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id);if(isRuntimeLocalized(text,id))return true;return Boolean(loc.translations?.[id]?.[translationKey(text)])
 }
 export function translatedText(state,value,locale=loadLocale()){
- const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id||isRuntimeLocalized(text,id))return text;return loc.translations?.[id]?.[translationKey(text)]||text
+ const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(isRuntimeLocalized(text,id))return text;return loc.translations?.[id]?.[translationKey(text)]||text
 }
 export function visibleTranslationPayload(state,locale=loadLocale()){
- if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[]};const registry=state.world?.registry||{},rows=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text)};
- add(state.world?.name);add(state.sceneTitle);add(state.narrative);add(state.quests?.main?.title);for(const x of state.quests?.main?.objectives||[])add(x);for(const x of state.suggestions||[])add(typeof x==="string"?x:x?.label);
+ if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[],volatileStrings:[]};const registry=state.world?.registry||{},rows=[],volatile=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text);return text};const addVolatile=v=>{const text=add(v);if(text&&!volatile.includes(text))volatile.push(text)};
+ add(state.world?.name);addVolatile(state.sceneTitle);addVolatile(state.narrative);add(state.quests?.main?.title);for(const x of state.quests?.main?.objectives||[])add(x);for(const x of state.suggestions||[])addVolatile(typeof x==="string"?x:x?.label);
  for(const npc of registry.npcs||[]){if(npc?.known===true){add(npc.name);add(npc.role);add(npc.description)}}
  for(const loc of registry.locations||[]){if(loc?.known===true){add(loc.name);add(loc.description)}}
  for(const item of state.inventory||[]){add(item.name);add(item.description)}
  for(const note of state.notes?.entries||state.notes||[]){add(note?.title);add(note?.text||note?.content)}
- const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);return {sourceLocale:loc.sourceLocale,targetLocale:id,strings:rows.slice(0,220)}
+ const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);return {sourceLocale:loc.sourceLocale,targetLocale:id,strings:rows.slice(0,220),volatileStrings:volatile.slice(0,80)}
 }
 export function missingVisibleTranslations(state,locale=loadLocale()){
- const payload=visibleTranslationPayload(state,locale);if(payload.sourceLocale===payload.targetLocale)return {...payload,strings:[]};return {...payload,strings:payload.strings.filter(text=>!hasTranslation(state,text,payload.targetLocale))}
+ const payload=visibleTranslationPayload(state,locale);if(payload.sourceLocale===payload.targetLocale&&payload.targetLocale===DEFAULT_LOCALE)return {...payload,strings:[]};const candidates=payload.sourceLocale===payload.targetLocale?payload.volatileStrings:payload.strings;return {...payload,strings:candidates.filter(text=>!hasTranslation(state,text,payload.targetLocale))}
 }
 export function applyTranslationBundle(state,targetLocale,bundle){
  const id=normalizeLocale(targetLocale),loc=ensureWorldLocale(state,id),table=loc.translations[id]??={},sources=loc.translationSources??={};loc.translationSources=sources;sources[id]??={};const rows=Array.isArray(bundle?.translations)?bundle.translations:[];
@@ -183,7 +240,7 @@ export function applyTranslationBundle(state,targetLocale,bundle){
 export function needsWorldTranslation(state,targetLocale=loadLocale()){return missingVisibleTranslations(state,targetLocale).strings.length>0}
 
 export function translatedCompositeText(state,value,locale=loadLocale()){
- const text=String(value??"");if(!state||!text)return text;const exact=translatedText(state,text,locale);if(exact!==text)return exact;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);if(loc.sourceLocale===id)return text;const table=loc.translations?.[id]||{},sources=loc.translationSources?.[id]||{};let out=text;const entries=Object.entries(sources).map(([key,source])=>[source,table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out
+ const text=String(value??"");if(!state||!text)return text;const exact=translatedText(state,text,locale);if(exact!==text)return exact;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);const table=loc.translations?.[id]||{},sources=loc.translationSources?.[id]||{};let out=text;const entries=Object.entries(sources).map(([key,source])=>[source,table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out
 }
 export function applyWorldLocaleToDocument(state,locale=loadLocale(),root=document){
  if(!state||typeof document==="undefined")return;const base=root.body||root,doc=base.ownerDocument||root,filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);for(const node of nodes){const parent=node.parentElement;if(!parent||/^(SCRIPT|STYLE|TEXTAREA|OPTION)$/.test(parent.tagName))continue;const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const localized=translatedCompositeText(state,trim,locale);if(localized!==trim)node.nodeValue=raw.replace(trim,localized)}
