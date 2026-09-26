@@ -1,0 +1,41 @@
+name: v0.57.30 Dialogue Closure
+
+on:
+  push:
+    branches:
+      - feat/v0.57.30-scene-dialogue-contract
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Setup Node 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply v0.57.30 patch
+        run: python3 scripts/v05730_patch.py
+      - name: Focused dialogue regressions
+        run: node --test test/v05730-scene-dialogue-contract.test.js
+      - name: Non-download regression suite
+        env:
+          CACHE_BASE_REF: main
+        run: npm run test:nondownload
+      - name: Diff check
+        run: git diff --check
+      - name: Create validated closure commit
+        run: |
+          rm scripts/v05730_patch.py
+          rm .github/workflows/v05730-dialogue-closure.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "v0.57.30: ground conditional scene dialogue"
+          git push origin HEAD:feat/v0.57.30-scene-dialogue-contract
