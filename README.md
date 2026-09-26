@@ -2,7 +2,7 @@
 
 **Elyndra** 是一款以瀏覽器運行的 **AI × TRPG × World Discovery** 異世界 RPG。
 
-目前版本：**v0.59.2**
+目前版本：**v0.59.3**
 
 > 每一個世界，都有自己的真相。
 
@@ -21,7 +21,7 @@ Elyndra 的核心設計是把 AI 放在「提案與敘事」的位置，而把�
 - **多 AI Provider**：支援 OpenAI、Gemini 與 Agnes，並提供 task-aware optimization、timeout、retry、rate-limit backpressure 等 Runtime 控制。
 - **本地存檔**：IndexedDB autosave、手動存檔與 `.elyndra` 匯入／匯出。
 - **Developer Autotest / Debug**：可批次建立世界、執行 AI 遊玩測試、輸出 Debug JSON 與世界檔，並記錄 AI latency、token usage、fallback、degraded state 與 runtime issues。
-- **Desktop / Mobile UI**：同一套 Runtime 支援桌面與手機版操作。
+- **Desktop / Mobile UI**：同一套 Runtime 支援桌面、平板與手機版操作；遊戲敘事、任務及行動分區呈現，介面動畫支援系統「減少動態效果」設定。
 
 ## 多國語言 / Multilingual
 
@@ -182,6 +182,10 @@ Repository 正式部署 workflow：`.github/workflows/pages.yml`。
 - Push 到 `main` → Node 20 / Node 24 focused release validation
 - `main` 測試成功 → 部署 GitHub Pages
 - GitHub Actions 使用 immutable commit SHA pin
+
+## v0.59.3 重點
+
+v0.59.3 完成多語言可見層補強：World Contract 以 Engine deterministic locale renderer 顯示繁中／簡中／英文／日文；AI 或 Engine 動態文字若混入非目標語言，將不再被誤標為已翻譯，而會進入 residual translation gate。
 
 ## v0.59.2 重點
 

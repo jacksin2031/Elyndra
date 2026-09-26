@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {worldContractHtml} from "../src/world-creation.js";
+import {hasLocaleLeak,registerLocalizedOutput,isRuntimeLocalized,missingVisibleTranslations,hasTranslation,translationKey} from "../src/locale-runtime.js";
+
+const contract={title:"世界契約",worldStyle:"王道奇幻",worldScale:"中型",difficulty:"普通",origin:"穿越",role:"普通人",metrics:{civilization:6,technology:4,magic:8,civilizations:4,species:4,languages:5,politicalUnity:4,religion:6,resources:6,danger:6,survival:4,unknownRatio:55,warState:"TENSION"},difficultyFlags:{hunger:true,fatigue:true,statusEffects:true,savePolicy:"FREE",languageBarrier:"STANDARD",permadeath:false},storyPreferences:[],required:[],allowed:[],forbidden:[],unknown:[]};
+
+test("v0.59.3 World Contract is fully localized in Japanese",()=>{globalThis.ELYNDRA_LOCALE="ja";const html=worldContractHtml(contract);assert.match(html,/世界構造/);assert.match(html,/難易度ルール/);assert.match(html,/この世界へ渡る/);assert.doesNotMatch(html,/(?:仍然未知|難度規則|文明程度|科技 4|飢餓系統|返回修改|穿越到這個世界|玩家選擇|TENSION)/)});
+test("v0.59.3 World Contract is fully localized in English",()=>{globalThis.ELYNDRA_LOCALE="en";const html=worldContractHtml(contract);assert.match(html,/World Contract/);assert.match(html,/World Structure/);assert.match(html,/Enter This World/);assert.doesNotMatch(html,/[㐀-鿿぀-ヿ]/u);assert.doesNotMatch(html,/TENSION/)});
+test("v0.59.3 mixed Japanese-Chinese AI output is not trusted as localized",()=>{const mixed="眼前的風が常に吹き荒れる荒れた丘陵地帯";assert.equal(hasLocaleLeak(mixed,"ja"),true);registerLocalizedOutput(mixed,"ja");assert.equal(isRuntimeLocalized(mixed,"ja"),false);const state={world:{language:"ja",registry:{npcs:[],locations:[{known:true,name:mixed,description:""}]}},localization:{sourceLocale:"ja",displayLocale:"ja",translations:{ja:{}}},quests:{main:{objectives:[]}},suggestions:[],inventory:[],notes:[]};assert.ok(missingVisibleTranslations(state,"ja").strings.includes(mixed));state.localization.translations.ja[translationKey(mixed)]=mixed;assert.equal(hasTranslation(state,mixed,"ja"),false)});
