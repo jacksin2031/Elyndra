@@ -236,7 +236,7 @@ export function visibleTranslationPayload(state,locale=loadLocale()){
  for(const npc of registry.npcs||[]){if(npc?.known===true){add(npc.name);add(npc.role);add(npc.description)}}
  for(const loc of registry.locations||[]){if(loc?.known===true){add(loc.name);add(loc.description)}}
  for(const item of state.inventory||[]){add(item.name);add(item.description)}
- for(const note of state.notes?.entries||state.notes||[]){add(note?.title);add(note?.text||note?.content)}
+ const noteRows=Array.isArray(state.notes)?state.notes:(Array.isArray(state.notes?.entries)?state.notes.entries:[]);for(const note of noteRows){add(note?.title);add(note?.text||note?.content)}
  const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id);return {sourceLocale:loc.sourceLocale,targetLocale:id,strings:rows.slice(0,220),volatileStrings:volatile.slice(0,80)}
 }
 export function missingVisibleTranslations(state,locale=loadLocale()){
