@@ -5,7 +5,7 @@ on:
     branches:
       - feat/v0.59.0-multilingual-runtime
     paths:
-      - scripts/v05900_multilang.py
+      - scripts/v05900_language_hardening.py
       - .github/workflows/v05900-multilingual-integration.yml
 
 permissions:
@@ -23,22 +23,8 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 20
-      - name: Apply v0.59.0 multilingual patch
-        run: python3 scripts/v05900_multilang.py
-      - name: Complete v0.59.0 cache chain
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          replacements = [
-              ("src/ai-autotest.js", '"./ai-settings.js?v=57025"', '"./ai-settings.js?v=59000"'),
-              ("app.js", '"./src/ai-autotest.js?v=57029"', '"./src/ai-autotest.js?v=59000"'),
-              ("test/version-ui.test.js", r'/\.\/src\/ai-autotest\.js\?v=57029/', r'/\.\/src\/ai-autotest\.js\?v=59000/'),
-          ]
-          for path, old, new in replacements:
-              p=Path(path); text=p.read_text(encoding="utf-8")
-              if old not in text: raise SystemExit(f"{path}: release edge not found: {old}")
-              p.write_text(text.replace(old,new,1),encoding="utf-8")
-          PY
+      - name: Harden runtime language isolation
+        run: python3 scripts/v05900_language_hardening.py
       - name: Focused multilingual regressions
         run: node --test test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
       - name: Version contract
@@ -51,10 +37,10 @@ jobs:
         run: node scripts/check-js.mjs
       - name: Diff check
         run: git diff --check
-      - name: Commit v0.59.0 source
+      - name: Commit language hardening
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A ':!.github/workflows/v05900-multilingual-integration.yml' ':!scripts/v05900_multilang.py'
-          git commit -m "v0.59.0: add isolated multilingual runtime and narrator row"
+          git add -A ':!.github/workflows/v05900-multilingual-integration.yml' ':!scripts/v05900_multilang.py' ':!scripts/v05900_language_hardening.py'
+          git commit -m "v0.59.0: harden runtime language isolation"
           git push origin HEAD:feat/v0.59.0-multilingual-runtime
