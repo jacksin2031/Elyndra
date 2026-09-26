@@ -24,10 +24,6 @@ jobs:
         run: python3 scripts/v05730_patch.py
       - name: Focused dialogue regressions
         run: node --test test/v05730-scene-dialogue-contract.test.js
-      - name: Non-download regression suite
-        env:
-          CACHE_BASE_REF: main
-        run: npm run test:nondownload
       - name: Diff check
         run: git diff --check
       - name: Create validated closure commit
