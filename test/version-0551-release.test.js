@@ -18,7 +18,7 @@ test("v0.59.5 is the canonical app and browser cache release",async()=>{
  assert.match(html,/creator\.css\?v=59005/);
  const tokens=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
  assert.ok(tokens.length>20);
- assert.ok(tokens.every(x=>["57025","57026","57028","57029","58000","59000","59001","59002","59003","59005"].includes(x)));
+ assert.ok(tokens.every(x=>["57025","57026","57028","57029","58000","59000","59001","59002","59003","59004","59005"].includes(x)));
  assert.match(app,/\.\/src\/version\.js\?v=59005/);
  assert.match(app,/\.\/src\/player-entity-visibility\.js\?v=58000/);
  assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=58000/);
