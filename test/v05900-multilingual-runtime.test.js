@@ -77,14 +77,15 @@ test("Japanese locale repairs null translation maps and detects observed Chinese
 });
 
 
-test("Japanese locale includes action text and rejects partial Chinese translation",()=>{
+test("Japanese locale gates visible suggestion labels and rejects partial Chinese translation",()=>{
  const state={world:{name:"霧城",registry:{npcs:[],locations:[]}},player:{location:"鎮外破廟"},sceneTitle:"入口",narrative:"目覚めた。",quests:{main:{title:"目標",objectives:["找到可以交流的人"]}},suggestions:[],suggestionIntents:[{label:"詢問陌生人",action:"向眼前的陌生人詢問目前目標"}],inventory:[]};
  const missing=missingVisibleTranslations(state,"ja").strings;
  assert.ok(missing.includes("鎮外破廟"));
- assert.ok(missing.includes("向眼前的陌生人詢問目前目標"));
+ assert.ok(missing.includes("詢問陌生人"));
+ assert.ok(!missing.includes("向眼前的陌生人詢問目前目標"));
  applyTranslationBundle(state,"ja",{translations:[{source:"向眼前的陌生人詢問目前目標",translated:"目の前の人に詢問目前目標"}]});
  assert.equal(hasTranslation(state,"向眼前的陌生人詢問目前目標","ja"),false);
- assert.ok(missingVisibleTranslations(state,"ja").strings.includes("向眼前的陌生人詢問目前目標"));
+ assert.ok(missingVisibleTranslations(state,"ja").strings.includes("詢問陌生人"));
  applyTranslationBundle(state,"ja",{translations:[{source:"向眼前的陌生人詢問目前目標",translated:"目の前の人に現在の目標を尋ねる"}]});
  assert.equal(hasTranslation(state,"向眼前的陌生人詢問目前目標","ja"),true);
 });
