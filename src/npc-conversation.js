@@ -9,10 +9,19 @@ import {deriveSceneTitle,sanitizePlayerText} from "./runtime-guard.js?v=57025";
 import {roleplayFallbackSuggestions} from "./player-experience.js?v=57025";
 import {markEntityObserved} from "./visibility-lock.js?v=57025";
 import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57025";
+import {originNpcContext,originRuntimeSnapshot} from "./origin-runtime.js?v=57025";
+import {recordDebug} from "./debug-telemetry.js?v=57025";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
+const languageSet=value=>new Set((Array.isArray(value)?value:[]).map(x=>String(x||"").trim().toUpperCase()).filter(Boolean));
+export function npcLanguageContext(state,npc){
+ const origin=originRuntimeSnapshot(state,{director:true}),context=originNpcContext(state,npc),npcSpoken=languageSet(npc?.languages?.length?npc.languages:["COMMON"]),npcRead=languageSet(npc?.readLanguages?.length?npc.readLanguages:(npc?.languages?.length?npc.languages:["COMMON"])),playerSpoken=languageSet(origin.spokenLanguages),playerRead=languageSet(origin.readLanguages);
+ const matches=(a,b)=>[...a].some(x=>b.has(x));
+ return {mode:String(context.languageMode||"GESTURE").toUpperCase(),barrier:String(context.languageBarrier||origin.languageBarrier||"STANDARD").toUpperCase(),originPolicy:String(origin.knowledgePolicy||"CUSTOM").toUpperCase(),languagePolicy:String(origin.languagePolicy||"CUSTOM").toUpperCase(),spokenLanguageMatch:matches(playerSpoken,npcSpoken),readLanguageMatch:matches(playerRead,npcRead)}
+}
 export function applyNpcConversationTurn(state,npc,message,answer){
  const mode=npcInteractionMode(state,npc);if(!mode)throw new Error("NPC_CONTACT_UNAVAILABLE");ensureNpcCognition(state,npc);
+ const languageContext=npcLanguageContext(state,npc);recordDebug("NPC_TALK_RESOLUTION",{languageContext});
  const firstEncounter=mode==="LOCAL"&&npc.encountered!==true;if(mode==="LOCAL"){npc.known=true;npc.encountered=true;markEntityObserved(state,"npc",npc.id,{reason:"NPC_LOCAL_CONVERSATION"})}
  const minutes=npcConversationMinutes(state,mode),before=state.world.state.clock?.totalMinutes||0;revealNpcNameFromEvidence(state,npc,{answer,reason:"NPC_CONVERSATION_EVIDENCE"});const visibleName=playerVisibleNpcName(state,npc);
  advanceTime(state,minutes);
