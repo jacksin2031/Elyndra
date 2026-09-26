@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {SUPPORTED_LOCALES,languageContract,ensureWorldLocale,applyTranslationBundle,translatedText,missingVisibleTranslations,registerLocalizedOutput} from "../src/locale-runtime.js";
+import {SUPPORTED_LOCALES,languageContract,ensureWorldLocale,applyTranslationBundle,translatedText,missingVisibleTranslations,registerLocalizedOutput,hasLocaleLeak} from "../src/locale-runtime.js";
 
 test("v0.59.0 keeps four locale channels isolated",()=>{
  assert.deepEqual(Object.keys(SUPPORTED_LOCALES),["zh-Hant","zh-Hans","en","ja"]);
@@ -64,4 +64,14 @@ test("narrator row is an invariant immediately above player actions",async()=>{
  assert.match(css,/#game \.narrative-panel\{grid-row:2!important/);
  assert.match(css,/#game \.decision-panel\{grid-row:3!important/);
  assert.match(css,/#game \.scene\{display:grid!important;grid-template-rows:minmax\(0,1fr\) auto auto!important/);
+});
+
+
+test("Japanese locale repairs null translation maps and detects observed Chinese fragments",()=>{
+ const state={world:{name:"霧城",registry:{npcs:[],locations:[]}},localization:{sourceLocale:"zh-Hant",translations:null}};
+ const locale=ensureWorldLocale(state,"ja");
+ assert.deepEqual(locale.translations.ja,{});
+ assert.deepEqual(missingVisibleTranslations(state,"ja").strings,["霧城"]);
+ for(const fragment of ["具體的","附近","已選行動","位置、人物或事件"])assert.equal(hasLocaleLeak(fragment,"ja"),true,fragment);
+ assert.equal(hasLocaleLeak("近くの具体的な手掛かりを探す","ja"),false);
 });

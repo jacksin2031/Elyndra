@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {execFileSync} from "node:child_process";
 
-test("v0.59.1 i18n coverage remains active in v0.59.4",async()=>{
+test("v0.59.1 i18n coverage remains active in v0.59.5",async()=>{
  const [locale,extra,app,index,pkg,version]=await Promise.all([
   readFile(new URL("../src/locale-runtime.js",import.meta.url),"utf8"),
   readFile(new URL("../src/ui-translations-extra.js",import.meta.url),"utf8"),
@@ -21,9 +21,9 @@ test("v0.59.1 i18n coverage remains active in v0.59.4",async()=>{
  assert.match(app,/new MutationObserver/);
  assert.match(app,/ensureRenderedLocale\("modal"/);
  assert.match(app,/ensureRenderedLocale\("refresh"/);
- assert.match(index,/app\.js\?v=59004/);
- assert.equal(JSON.parse(pkg).version,"0.59.4");
- assert.match(version,/APP_VERSION="0\.59\.4"/);
+ assert.match(index,/app\.js\?v=59005/);
+ assert.equal(JSON.parse(pkg).version,"0.59.5");
+ assert.match(version,/APP_VERSION="0\.59\.5"/);
  assert.match(extra,/"世界建立步驟"/);
  execFileSync("python3",["scripts/scan-i18n-coverage.py"],{stdio:"pipe"});
 });

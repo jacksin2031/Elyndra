@@ -187,7 +187,7 @@ const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
 const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
 const RUNTIME_LOCALIZED=new Map();
-const JA_CHINESE_LEAK=/(?:眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改)/u;
+const JA_CHINESE_LEAK=/(?:具體的|附近|已選行動|位置、人物或事件|眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改)/u;
 const HANT_SIMPLIFIED_LEAK=/[这与为从对会让还开启关闭选择难险饿劳态语种实预设应无]/u;
 const HANS_TRADITIONAL_LEAK=/[這與為從對會讓還開啟關閉選擇難險餓勞態語種實預設應無]/u;
 export function hasLocaleLeak(value,locale=loadLocale()){
@@ -227,7 +227,7 @@ export function applyDocumentLocale(locale=loadLocale(),root=document){
 }
 
 export function ensureWorldLocale(state,locale=loadLocale()){
- if(!state)return null;const id=normalizeLocale(locale);state.localization??={};state.localization.sourceLocale=normalizeLocale(state.localization.sourceLocale||state.world?.language||DEFAULT_LOCALE);state.localization.displayLocale=normalizeLocale(state.localization.displayLocale||state.localization.sourceLocale);state.localization.translations??={};state.localization.translations[id]??={};return state.localization
+ if(!state)return null;const id=normalizeLocale(locale);if(!state.localization||typeof state.localization!=="object"||Array.isArray(state.localization))state.localization={};state.localization.sourceLocale=normalizeLocale(state.localization.sourceLocale||state.world?.language||DEFAULT_LOCALE);state.localization.displayLocale=normalizeLocale(state.localization.displayLocale||state.localization.sourceLocale);if(!state.localization.translations||typeof state.localization.translations!=="object"||Array.isArray(state.localization.translations))state.localization.translations={};if(!state.localization.translations[id]||typeof state.localization.translations[id]!=="object"||Array.isArray(state.localization.translations[id]))state.localization.translations[id]={};return state.localization
 }
 export function translationKey(value){let h=2166136261;for(const ch of String(value??"")){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
 const SESSION_TRANSLATIONS=new Map();

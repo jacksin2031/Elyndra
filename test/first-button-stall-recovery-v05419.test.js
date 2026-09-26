@@ -18,3 +18,14 @@ test("v0.54.19 computes FIRST_BUTTON stalls even when needsExpansion is false",a
  assert.match(app,/else if\(expansionNeeded&&\(firstButtonFast\?sparseWorld:true\)\)expansionReason=firstButtonFast\?"FIRST_BUTTON_SPARSE_WORLD":"WORLD_EDGE_UNDERDEFINED"/);
  assert.doesNotMatch(app,/else if\(firstButtonFast&&needsExpansion\(gameState\)\)/);
 });
+
+
+test("sparse stalled worlds settle generation before selecting the next action",async()=>{
+ const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
+ const start=app.indexOf('developerAutotest.turn=turn;const firstButtonFast=');
+ const decision=app.indexOf('const decision=await decideAutotestAction(gameState',start);
+ const recovery=app.indexOf('await expandDeveloperAutotestWorld(expansionReason,{force:true})',start);
+ assert.ok(start>=0&&recovery>start&&decision>recovery);
+ assert.match(app.slice(start,decision),/stall>=3&&sparseWorld/);
+ assert.match(app.slice(start,decision),/cooldownUntil/);
+});
