@@ -246,7 +246,7 @@ export function translatedText(state,value,locale=loadLocale()){
 }
 export function visibleTranslationPayload(state,locale=loadLocale()){
  if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[],volatileStrings:[]};const registry=state.world?.registry||{},rows=[],volatile=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text);return text};const addVolatile=v=>{const text=add(v);if(text&&!volatile.includes(text))volatile.push(text)};
- add(state.world?.name);add(state.player?.location);addVolatile(state.sceneTitle);addVolatile(state.narrative);add(state.quests?.main?.title);for(const x of state.quests?.main?.objectives||[])add(x);for(const x of state.suggestions||[])addVolatile(typeof x==="string"?x:x?.label);for(const x of state.suggestionIntents||[]){addVolatile(x?.label);addVolatile(x?.action)}
+ add(state.world?.name);add(state.player?.location);addVolatile(state.sceneTitle);addVolatile(state.narrative);add(state.quests?.main?.title);for(const x of state.quests?.main?.objectives||[])add(x);for(const x of state.suggestions||[])addVolatile(typeof x==="string"?x:x?.label);for(const x of state.suggestionIntents||[])addVolatile(x?.label)
  for(const key of ["label","background","worldKnowledgeBoundary","legalStatus","languagePolicy","knowledgePolicy","openingBias"])add(state.player?.origin?.[key]);for(const npc of registry.npcs||[]){if(npc?.known===true){add(npc.name);add(npc.role);add(npc.description)}}
  for(const loc of registry.locations||[]){if(loc?.known===true){add(loc.name);add(loc.description)}}
  for(const item of state.inventory||[]){add(item.name);add(item.description)}

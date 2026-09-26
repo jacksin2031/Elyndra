@@ -1,11 +1,11 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59006";
+import {APP_VERSION} from "./src/version.js?v=59007";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
-import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59006";
+import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59007";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59004";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59006";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59007";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57029";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59006";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59007";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57029";
 import {maintainSession} from "./src/session-maintenance.js?v=57025";
@@ -61,7 +61,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=57025";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57025";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57025";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57025";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59006";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59007";
 import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot,archiveAutotestExportSnapshot,listAutotestExportSnapshots,loadAutotestExportSnapshot} from "./src/autotest-export.js?v=57025";
 import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory,shareAutotestArtifact} from "./src/autotest-save.js?v=57025";
 import {copyAutotestText} from "./src/autotest-copy.js?v=57025";
@@ -496,12 +496,14 @@ function setAIThinking(on,label=uiText("AI 正在思考…",activeLocale)){
  setPlayerActionControlsLocked(on||turnSyncBusy||playerActionFlight.active,on?uiText("AI 正在處理你的行動…",activeLocale):turnSyncBusy?uiText("STATE SYNC：完成後即可繼續行動",activeLocale):playerActionFlight.active?uiText("正在處理已選行動…",activeLocale):"");qsa("[data-action],.suggestion,#helperForm button,#npcChatForm button").forEach(b=>b.disabled=on);const helperInput=$("#helperInput");if(helperInput)helperInput.disabled=on
 }
 
+const localeRepairCooldown=new WeakMap();
 async function ensureGameplayLocale(reason="runtime"){
- if(!gameState)return true;const state=gameState,sessionToken=captureStateSession(),pending=missingVisibleTranslations(state,activeLocale),loc=ensureWorldLocale(state,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;return true}
+ if(!gameState)return true;const state=gameState,sessionToken=captureStateSession(),pending=missingVisibleTranslations(state,activeLocale),loc=ensureWorldLocale(state,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;localeRepairCooldown.delete(state);return true}
+ const cooldown=localeRepairCooldown.get(state);if(cooldown?.locale===activeLocale&&Date.now()<cooldown.until)return false;
  if(localeTransitionBusy)return false;if(!aiStatus.aiConfigured){recordDebug("LOCALE_TRANSLATION_BLOCKED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,pending:pending.strings.length});return false}
  localeTransitionBusy=true;document.body.classList.add("locale-transition");setAIThinking(true,uiText("正在翻譯世界…",activeLocale));
- try{const bundle=await translateVisibleWorld(pending,activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,bundle);const left=missingVisibleTranslations(state,activeLocale);if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(state);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
- catch(error){recordDebug("LOCALE_TRANSLATION_FAILED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,error:error?.message||String(error)});return false}
+ try{const bundle=await translateVisibleWorld(pending,activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,bundle);let left=missingVisibleTranslations(state,activeLocale);if(left.strings.length){recordDebug("LOCALE_TRANSLATION_REPAIR",{reason,targetLocale:activeLocale,pending:left.strings.length,samples:left.strings.slice(0,3).map(x=>x.slice(0,100))});const repair=await translateVisibleWorld({...left,repair:true},activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,repair);left=missingVisibleTranslations(state,activeLocale)}if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(state);localeRepairCooldown.delete(state);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
+ catch(error){localeRepairCooldown.set(state,{locale:activeLocale,until:Date.now()+30000});recordDebug("LOCALE_TRANSLATION_FAILED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,error:error?.message||String(error)});return false}
  finally{localeTransitionBusy=false;document.body.classList.remove("locale-transition");setAIThinking(false)}
 }
 let renderedLocaleBusy=false;
@@ -599,7 +601,7 @@ async function runAction(action,customText="",options={}){
  if(aiBusy||playerActionFlight.active){recordDebug("PLAYER_ACTION_BLOCKED_SINGLE_FLIGHT",{action:String(customText||action||"").slice(0,180),pending:playerActionFlight.label});return}
  if(actionState.combat?.active){actionState.narrative="敵人仍在眼前。請使用攻擊、防禦或撤退來處理這場戰鬥。";await refresh();return}
  if(actionState.player.status==="DOWNED"){recoverFromDefeat(actionState);bumpStateRevision(actionState,"DEFEAT_RECOVERY");actionState.narrative="你在失去意識後醒來。傷勢尚未痊癒，但你仍保留已確認的世界知識。";actionState.sceneTitle=deriveSceneTitle(actionState,"醒來");actionState.suggestions=fallbackActionButtons("醒來");await persist(actionState,actionSession);return refresh()}
- const requested=String(customText||action||"").trim()||"觀察目前環境",debugTurnStarted=Date.now(),prevalidatedAssessment=options?.suggestion?trustedSuggestionAssessment(actionState,options.suggestion):null;beginPlayerActionFlight(requested);recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:actionState.world?.state?.day||1,location:actionState.player?.location||""});if(markOpeningEngaged(actionState,requested))recordDebug("OPENING_HOOK_ENGAGED",{action:requested,day:actionState.world?.state?.day||1,location:actionState.player?.location||""});
+ const requested=String(customText||action||"").trim()||"觀察目前環境",debugTurnStarted=Date.now(),prevalidatedAssessment=options?.suggestion?trustedSuggestionAssessment(actionState,options.suggestion):null;beginPlayerActionFlight(options?.suggestion?.label||requested);recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:actionState.world?.state?.day||1,location:actionState.player?.location||""});if(markOpeningEngaged(actionState,requested))recordDebug("OPENING_HOOK_ENGAGED",{action:requested,day:actionState.world?.state?.day||1,location:actionState.player?.location||""});
  let assessment=prevalidatedAssessment;if(assessment)recordDebug("SUGGESTED_ACTION_PREVALIDATED",{action:requested,kind:assessment.kind,progression:options.suggestion?.progression===true,risk:options.suggestion?.risk,approach:options.suggestion?.approach,source:assessment.source});if(!assessment)assessment=fastLocalActionAssessment(actionState,requested);
  if(!assessment){
   if(!aiStatus.aiConfigured){actionState.narrative="這個行動需要語義判斷，但目前沒有可用的 AI Provider。基本觀察、查看背包、休息、使用明確物品與前往已知地點仍可由 Engine 直接處理。";finishPlayerActionFlight(requested,"no_provider");await refresh();return}
