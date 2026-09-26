@@ -497,10 +497,10 @@ function setAIThinking(on,label=uiText("AI 正在思考…",activeLocale)){
 }
 
 async function ensureGameplayLocale(reason="runtime"){
- if(!gameState)return true;const pending=missingVisibleTranslations(gameState,activeLocale),loc=ensureWorldLocale(gameState,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;return true}
+ if(!gameState)return true;const state=gameState,sessionToken=captureStateSession(),pending=missingVisibleTranslations(state,activeLocale),loc=ensureWorldLocale(state,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;return true}
  if(localeTransitionBusy)return false;if(!aiStatus.aiConfigured){recordDebug("LOCALE_TRANSLATION_BLOCKED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,pending:pending.strings.length});return false}
  localeTransitionBusy=true;document.body.classList.add("locale-transition");setAIThinking(true,uiText("正在翻譯世界…",activeLocale));
- try{const bundle=await translateVisibleWorld(pending,activeLocale);applyTranslationBundle(gameState,activeLocale,bundle);const left=missingVisibleTranslations(gameState,activeLocale);if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(gameState);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
+ try{const bundle=await translateVisibleWorld(pending,activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,bundle);const left=missingVisibleTranslations(state,activeLocale);if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(state);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
  catch(error){recordDebug("LOCALE_TRANSLATION_FAILED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,error:error?.message||String(error)});return false}
  finally{localeTransitionBusy=false;document.body.classList.remove("locale-transition");setAIThinking(false)}
 }
