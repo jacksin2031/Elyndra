@@ -150,6 +150,10 @@ export function openingCastChronologyIssues(anchor,history,cast){
  return [...new Set(issues)]
 }
 
+const GENERATED_META_TEXT=/(?:不得輸出|具體地點用途或形態|地點類型|可空或穩定ID|欄位說明|schema|placeholder)/i;
+export function normalizeGeneratedLocationType(value,fallback=""){
+ const raw=text(value);if(!raw||GENERATED_META_TEXT.test(raw))return text(fallback)||"場景地點";return raw.slice(0,80)
+}
 export function mergeOpeningRegion(anchor,geography,society){
  const g=obj(geography)?geography:{},s=obj(normalizeOpeningSociety(society))?society:{},location=obj(g.location)?g.location:{};
  return {
@@ -157,6 +161,7 @@ export function mergeOpeningRegion(anchor,geography,society){
   locations:[{
    ...location,
    name:text(location.name)||anchor.startingLocation,
+   type:normalizeGeneratedLocationType(location.type,text(location.name)||anchor.startingLocation),
    region:text(location.region)||anchor.startingRegion,
    historyRefs:uniq([...(Array.isArray(location.historyRefs)?location.historyRefs:[]),...societyHistoryRefs(s)]),
    culture:obj(s.locationCulture)?s.locationCulture:{},
