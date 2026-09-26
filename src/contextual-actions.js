@@ -1,6 +1,6 @@
 import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
-import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57025";
+import {playerVisibleNpcName,redactUnknownNpcNames} from "./player-entity-visibility.js?v=57025";
 import {sanitizePlayerText} from "./runtime-guard.js?v=57025";
 import {validateSuggestionProvenance} from "./scene-provenance.js?v=57025";
 
@@ -124,7 +124,7 @@ function personalizedSuggestion(state){
 }
 function fallbackByApproach(state,approach){
  const npc=presentNpcs(state)[0],loc=currentLocation(state);
- if(approach==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`問${clean(npc.name,50)}剛才最在意的是哪件事`,action:`向${clean(npc.name,50)}詢問剛才最值得注意的變化，要求對方只說自己能確認的部分`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",causalBasis:"NPC 目前在場",requirementsSatisfied:true,source:"ENGINE"});
+ if(approach==="SOCIAL"&&npc)return normalizeContextualSuggestion({label:`問${clean(visibleNpcName(state,npc),50)}剛才最在意的是哪件事`,action:`向${clean(visibleNpcName(state,npc),50)}詢問剛才最值得注意的變化，要求對方只說自己能確認的部分`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",causalBasis:"NPC 目前在場",requirementsSatisfied:true,source:"ENGINE"});
  if(approach==="CREATIVE")return normalizeContextualSuggestion({label:"利用現場環境製造一個觀察機會",action:`利用${loc}現有的人流、遮蔽物或聲音製造一個小干擾，藉機觀察誰會對異常作出反應`,kind:"GENERAL",risk:"MEDIUM",skillHint:"應變",approach:"CREATIVE",consequenceHint:"可能引起注意",causalBasis:"只使用當前可見環境，不依賴未知資源",requirementsSatisfied:true,source:"ENGINE"});
  if(approach==="BOLD")return normalizeContextualSuggestion({label:"冒險靠近最明顯的危險源",action:`直接靠近${loc}目前最明顯的危險或阻礙，嘗試在被迫撤退前確認它後面是否有可利用的通路或線索`,kind:"RISKY",risk:"HIGH",skillHint:"敏捷 / 體能",approach:"BOLD",consequenceHint:"可能受傷或暴露位置",causalBasis:"玩家可以選擇主動承擔場景風險",requirementsSatisfied:true,source:"ENGINE"});
  return normalizeContextualSuggestion({label:`先觀察${loc}的出入口與新痕跡`,action:`保持可撤退距離，觀察${loc}的出入口、人流與最新痕跡，先確認哪個方向最值得行動`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",causalBasis:"當前位置可直接觀察",requirementsSatisfied:true,source:"ENGINE"})
@@ -183,6 +183,7 @@ function canonicalTravelTarget(state,row={}){
 function canonicalSuggestion(state,row){
  const x=normalizeContextualSuggestion(row);if(!x)return null;
  const targetId=inferSuggestionTarget(state,x);let y=targetId&&!x.targetId?{...x,targetId}:x;
+ y={...y,label:redactUnknownNpcNames(state,y.label),action:redactUnknownNpcNames(state,y.action)};
  if(y.kind==="TRAVEL"&&!canonicalTravelTarget(state,y)){const observe=trustedSuggestionObservationDominant(y.action);y={...y,kind:observe?"OBSERVE":"GENERAL",targetId:null}}
  return y
 }
@@ -285,7 +286,7 @@ export function trustedSuggestionAssessment(state,row){
  return {verdict:"ALLOW",kind:actionIntent.kind,normalizedAction:x.action,reason:corrected?"Engine 已重新分類 AI 建議的語義種類，再進入規則判定。":"建議已由 Engine 重新驗證需求、場景前提、語義種類與目標。",requirements:[],confidence:corrected?90:96,source:corrected?"AI_SUGGESTION_ENGINE_RECLASSIFIED":"AI_SUGGESTION_PREVALIDATED",actionIntent}
 }
 export function suggestionPresentation(state,row){
- const x=normalizeContextualSuggestion(row);if(!x)return {label:"",meta:""};
+ const x=canonicalSuggestion(state,row);if(!x)return {label:"",meta:""};
  const difficulty=String(state.player?.difficulty||state.world?.creation?.blueprint?.difficulty||"normal");
  if(difficulty==="realistic")return {label:x.label,meta:""};
  if(difficulty==="hard")return {label:x.label,meta:RISK_LABEL[x.risk]||""};

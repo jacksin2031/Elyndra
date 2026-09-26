@@ -30,7 +30,7 @@ import {playerOriginSnapshot} from "./player-origin.js?v=57025";
 import {originRuntimeSnapshot} from "./origin-runtime.js?v=57025";
 import {normalizeSuggestionIntents} from "./turn-compiler.js?v=57025";
 import {buildKnowledgeLayers} from "./knowledge-layers.js?v=57025";
-import {buildContextualActionSet} from "./contextual-actions.js?v=57025";
+import {buildContextualActionSet} from "./contextual-actions.js?v=57027";
 import {addInventoryItem,learnRecipe,craftingSnapshot} from "./item-engine.js?v=57025";
 import {currentStateRevision} from "./state-sync.js?v=57025";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
