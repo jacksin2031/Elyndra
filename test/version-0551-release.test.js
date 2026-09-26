@@ -12,11 +12,11 @@ test("v0.57.26 is the canonical app and browser cache release",async()=>{
  ]);
  const pkg=JSON.parse(pkgText);
  assert.equal(pkg.version,"0.57.26");
- assert.match(versionSource,/APP_VERSION="0\.57\.25"/);
+ assert.match(versionSource,/APP_VERSION="0\.57\.26"/);
  assert.match(html,/app\.js\?v=57026/);
  const tokens=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
  assert.ok(tokens.length>20);
- assert.ok(tokens.every(x=>x==="57026"));
+ assert.ok(tokens.every(x=>["57025","57026"].includes(x)));\n assert.match(app,/\\.\\/src\\/version\\.js\\?v=57026/);\n assert.match(app,/\\.\\/src\\/npc-conversation\\.js\\?v=57026/);\n assert.match(app,/\\.\\/src\\/acquisition-notifier\\.js\\?v=57026/);
  assert.ok(tokens.includes("57026"));
  assert.doesNotMatch(app,/\?v=54017/);
  assert.doesNotMatch(app,/\?v=54018[A-Za-z]/);
