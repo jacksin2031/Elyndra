@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {SUPPORTED_LOCALES,languageContract,ensureWorldLocale,applyTranslationBundle,translatedText,missingVisibleTranslations,registerLocalizedOutput,hasLocaleLeak} from "../src/locale-runtime.js";
+import {SUPPORTED_LOCALES,languageContract,ensureWorldLocale,applyTranslationBundle,translatedText,missingVisibleTranslations,registerLocalizedOutput,hasLocaleLeak,hasTranslation} from "../src/locale-runtime.js";
 
 test("v0.59.0 keeps four locale channels isolated",()=>{
  assert.deepEqual(Object.keys(SUPPORTED_LOCALES),["zh-Hant","zh-Hans","en","ja"]);
@@ -74,4 +74,17 @@ test("Japanese locale repairs null translation maps and detects observed Chinese
  assert.deepEqual(missingVisibleTranslations(state,"ja").strings,["霧城"]);
  for(const fragment of ["具體的","附近","已選行動","位置、人物或事件"])assert.equal(hasLocaleLeak(fragment,"ja"),true,fragment);
  assert.equal(hasLocaleLeak("近くの具体的な手掛かりを探す","ja"),false);
+});
+
+
+test("Japanese locale includes action text and rejects partial Chinese translation",()=>{
+ const state={world:{name:"霧城",registry:{npcs:[],locations:[]}},player:{location:"鎮外破廟"},sceneTitle:"入口",narrative:"目覚めた。",quests:{main:{title:"目標",objectives:["找到可以交流的人"]}},suggestions:[],suggestionIntents:[{label:"詢問陌生人",action:"向眼前的陌生人詢問目前目標"}],inventory:[]};
+ const missing=missingVisibleTranslations(state,"ja").strings;
+ assert.ok(missing.includes("鎮外破廟"));
+ assert.ok(missing.includes("向眼前的陌生人詢問目前目標"));
+ applyTranslationBundle(state,"ja",{translations:[{source:"向眼前的陌生人詢問目前目標",translated:"目の前の人に詢問目前目標"}]});
+ assert.equal(hasTranslation(state,"向眼前的陌生人詢問目前目標","ja"),false);
+ assert.ok(missingVisibleTranslations(state,"ja").strings.includes("向眼前的陌生人詢問目前目標"));
+ applyTranslationBundle(state,"ja",{translations:[{source:"向眼前的陌生人詢問目前目標",translated:"目の前の人に現在の目標を尋ねる"}]});
+ assert.equal(hasTranslation(state,"向眼前的陌生人詢問目前目標","ja"),true);
 });
