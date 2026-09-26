@@ -12,7 +12,7 @@ test("v0.59.6 is the canonical app and browser cache release",async()=>{
  ]);
  const pkg=JSON.parse(pkgText);
  assert.equal(pkg.version,"0.59.6");
- assert.match(versionSource,/APP_VERSION="0\.59\.5"/);
+ assert.match(versionSource,/APP_VERSION="0\.59\.6"/);
  assert.match(html,/app\.js\?v=59006/);
  assert.match(html,/styles\.css\?v=59006/);
  assert.match(html,/creator\.css\?v=59006/);
