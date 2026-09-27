@@ -19,6 +19,7 @@ rep("src/contextual-actions.js",
 rep("src/contextual-actions.js",'  skillHint:sanitizePlayerText(row.skillHint,70,"")||null,\n  consequenceHint:sanitizePlayerText(row.consequenceHint,90,"")||null,\n  causalBasis:sanitizePlayerText(row.causalBasis,180,"")||null,','  skillHint:sanitizeContextualText(row.skillHint,70,textOptions)||null,\n  consequenceHint:sanitizeContextualText(row.consequenceHint,90,textOptions)||null,\n  causalBasis:sanitizeContextualText(row.causalBasis,180,textOptions)||null,');
 rep("src/contextual-actions.js",'  source:clean(row.source,30)||"AI",','  source,');
 rep("src/contextual-actions.js",'function canonicalSuggestion(state,row){\n const x=normalizeContextualSuggestion(row);if(!x)return null;','function canonicalSuggestion(state,row){\n const x=normalizeContextualSuggestion(row,{state,locale:contextualLocale(state)});if(!x)return null;');
+rep("src/contextual-actions.js",'export function evaluateSuggestionRequirements(state,row={}){\n const x=normalizeContextualSuggestion(row);if(!x)return {ok:false,reasons:["INVALID_SUGGESTION"]};','export function evaluateSuggestionRequirements(state,row={}){\n const x=normalizeContextualSuggestion(row,{state,locale:contextualLocale(state)});if(!x)return {ok:false,reasons:["INVALID_SUGGESTION"]};');
 
 // Release bump and browser cache entry points.
 rep("src/version.js",'APP_VERSION="0.59.14"','APP_VERSION="0.59.15"');
