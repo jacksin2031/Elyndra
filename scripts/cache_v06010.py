@@ -24,10 +24,6 @@ replacements={
 'src/adventure-engine.js':[
 ('./contextual-actions.js?v=60009','./contextual-actions.js?v=60010'),
 ],
-'test/v0609-ja-turn-export-regression.test.js':[
-('../src/contextual-actions.js?v=60009','../src/contextual-actions.js?v=60010'),
-('contextual-actions\\.js\\?v=60009','contextual-actions\\.js\\?v=60010'),
-],
 }
 for path,pairs in replacements.items():
  p=Path(path); s=p.read_text(encoding='utf-8')

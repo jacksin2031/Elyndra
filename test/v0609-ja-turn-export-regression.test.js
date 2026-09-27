@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {normalizeContextualSuggestion,suggestionPresentation} from "../src/contextual-actions.js?v=60009";
+import {normalizeContextualSuggestion,suggestionPresentation} from "../src/contextual-actions.js?v=60010";
 import {hasLocaleLeak} from "../src/locale-runtime.js?v=59010";
 
 function state(){return {localization:{displayLocale:"ja"},player:{difficulty:"normal",location:"未知"},world:{id:"W",state:{day:1},registry:{locations:[],npcs:[]}},events:[]}}
@@ -26,5 +26,5 @@ test("creator review and debug export have locale-safe visible feedback",()=>{
  assert.match(app,/safeVisibleText\(playerVisibleLocationName\(gameState\),"location"\)/);
  assert.match(app,/UI_TRANSLATION_BACKOFF/);
  assert.match(app,/locale-runtime\.js\?v=60010/);
- assert.match(app,/contextual-actions\.js\?v=60009/)
+ assert.match(app,/contextual-actions\.js\?v=60010/)
 });
