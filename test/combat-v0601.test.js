@@ -51,5 +51,5 @@ test("Combat 2.0 UI exposes expanded tactical actions and routes freeform input 
  for(const action of ["attack","technique","move","defend","interact","assist","social","retreat"])assert.match(app,new RegExp(`data-combat-action="${action}"`));
  assert.match(app,/gameState\?\.combat\?\.active\)await runCombatAction\(value,value\)/);
  assert.doesNotMatch(app,/free\.disabled=aiBusy\|\|turnSyncBusy\|\|playerActionFlight\.active\|\|Boolean\(gameState\.combat\?\.active\)/);
- assert.match(app,/combat-engine\.js\?v=60001/);
+ assert.match(app,/combat-engine\.js\?v=60002/);
 });
