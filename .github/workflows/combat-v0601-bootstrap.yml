@@ -70,3 +70,4 @@ jobs:
         run: python3 scripts/scan-i18n-coverage.py
       - name: Combat and TRPG regressions
         run: node --test test/combat-v0601.test.js test/trpg-depth-v060.test.js test/contextual-actions.test.js test/dice-feedback.test.js test/version-policy.test.js test/version-ui.test.js
+# final validation trigger for cache-fixed Combat 2.0 head
