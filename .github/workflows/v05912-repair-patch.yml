@@ -17,7 +17,10 @@ jobs:
         with:
           node-version: 24
       - name: Apply deterministic repair integration
-        run: python3 scripts/v05912_repair_patch.py
+        run: |
+          python3 scripts/v05912_repair_patch.py
+          git checkout HEAD -- .github/workflows/pages.yml
+          git checkout HEAD -- .github/workflows/v05912-repair-patch.yml scripts/v05912_repair_patch.py
       - name: Verify focused repair tests and release contracts
         run: |
           node scripts/check-js.mjs
