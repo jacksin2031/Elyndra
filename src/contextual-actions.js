@@ -3,7 +3,7 @@ import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025
 import {playerVisibleNpcName,redactUnknownNpcNames} from "./player-entity-visibility.js?v=57029";
 import {sanitizePlayerText,stripSystemLabels} from "./runtime-guard.js?v=57029";
 import {validateSuggestionProvenance} from "./scene-provenance.js?v=57025";
-import {hasLocaleLeak} from "./locale-runtime.js?v=59010";
+import {hasLocaleLeak} from "./locale-runtime.js?v=60009";
 import {rhythmSuggestionBias} from "./story-rhythm-engine.js?v=60006";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
@@ -20,8 +20,20 @@ function sanitizeContextualText(value,max=180,{state=null,locale="",source="AI"}
  return s
 }
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
-const RISK_LABEL=Object.freeze({LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""});
-const APPROACH_LABEL=Object.freeze({STEADY:"穩健",SOCIAL:"社交",BOLD:"冒險",CREATIVE:"創意"});
+const PRESENTATION_LABELS=Object.freeze({
+ "zh-Hant":{risk:{LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""},approach:{STEADY:"穩健",SOCIAL:"社交",BOLD:"冒險",CREATIVE:"創意"},skill:{"感知 / 觀察":"感知 / 觀察","交涉":"交涉","應變":"應變","敏捷 / 體能":"敏捷 / 體能","生存 / 移動":"生存 / 移動","魔法":"魔法"}},
+ "zh-Hans":{risk:{LOW:"低风险",MEDIUM:"有风险",HIGH:"危险",EXTREME:"极高风险",UNKNOWN:""},approach:{STEADY:"稳健",SOCIAL:"社交",BOLD:"冒险",CREATIVE:"创意"},skill:{"感知 / 觀察":"感知 / 观察","交涉":"交涉","應變":"应变","敏捷 / 體能":"敏捷 / 体能","生存 / 移動":"生存 / 移动","魔法":"魔法"}},
+ en:{risk:{LOW:"Low risk",MEDIUM:"Risky",HIGH:"Dangerous",EXTREME:"Extreme risk",UNKNOWN:""},approach:{STEADY:"Steady",SOCIAL:"Social",BOLD:"Bold",CREATIVE:"Creative"},skill:{"感知 / 觀察":"Perception / Observation","交涉":"Social","應變":"Adaptation","敏捷 / 體能":"Agility / Athletics","生存 / 移動":"Survival / Travel","魔法":"Magic"}},
+ ja:{risk:{LOW:"低リスク",MEDIUM:"リスクあり",HIGH:"危険",EXTREME:"極めて危険",UNKNOWN:""},approach:{STEADY:"堅実",SOCIAL:"対話",BOLD:"大胆",CREATIVE:"創意"},skill:{"感知 / 觀察":"知覚 / 観察","交涉":"交渉","應變":"対応力","敏捷 / 體能":"敏捷 / 体力","生存 / 移動":"生存 / 移動","魔法":"魔法"}}
+});
+function presentationLabels(state){return PRESENTATION_LABELS[contextualLocale(state)]||PRESENTATION_LABELS["zh-Hant"]}
+const CONSEQUENCE_LABELS=Object.freeze({
+ ja:{"可能引起注意":"周囲の注意を引く可能性","可能受傷或暴露位置":"負傷したり位置が露見したりする可能性"},
+ en:{"可能引起注意":"May attract attention","可能受傷或暴露位置":"May cause injury or reveal your position"},
+ "zh-Hans":{"可能引起注意":"可能引起注意","可能受傷或暴露位置":"可能受伤或暴露位置"}
+});
+function presentationSkill(state,value){const raw=clean(value,70);if(!raw)return "";return presentationLabels(state).skill[raw]||raw}
+function presentationConsequence(state,value){const raw=clean(value,90),id=contextualLocale(state);if(!raw)return "";return CONSEQUENCE_LABELS[id]?.[raw]||((id!=="zh-Hant"&&hasLocaleLeak(raw,id))?"":raw)}
 const VALID_KINDS=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
 const VALID_RISKS=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
 const VALID_APPROACHES=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
@@ -302,11 +314,11 @@ export function trustedSuggestionAssessment(state,row){
 }
 export function suggestionPresentation(state,row){
  const x=canonicalSuggestion(state,row);if(!x)return {label:"",meta:""};
- const difficulty=String(state.player?.difficulty||state.world?.creation?.blueprint?.difficulty||"normal");
- if(difficulty==="realistic")return {label:x.label,meta:""};
- if(difficulty==="hard")return {label:x.label,meta:RISK_LABEL[x.risk]||""};
- const parts=[x.skillHint,RISK_LABEL[x.risk],x.consequenceHint].filter(Boolean);
- return {label:x.label,meta:parts.join(" · "),approach:APPROACH_LABEL[x.approach]||""}
+ const difficulty=String(state.player?.difficulty||state.world?.creation?.blueprint?.difficulty||"normal"),labels=presentationLabels(state),risk=labels.risk[x.risk]||"",skill=presentationSkill(state,x.skillHint);
+ if(difficulty==="realistic")return {label:x.label,meta:"",approach:labels.approach[x.approach]||""};
+ if(difficulty==="hard")return {label:x.label,meta:risk,approach:labels.approach[x.approach]||""};
+ const parts=[skill,risk,presentationConsequence(state,x.consequenceHint)].filter(Boolean);
+ return {label:x.label,meta:parts.join(" · "),approach:labels.approach[x.approach]||""}
 }
 
 export function groundedTravelDestination(state,action="",roll={},intent={}){

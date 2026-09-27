@@ -5,11 +5,12 @@ import {readFile} from "node:fs/promises";
 test("all player actions keep a single-flight UI lock until their visible result settles",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/function setPlayerActionControlsLocked\(locked,reason=/);
- assert.match(app,/const playerActionFlight=\{active:false,label:"",startedAt:0\}/);
- assert.match(app,/beginPlayerActionFlight\(requested\)/);
+ assert.match(app,/const playerActionFlight=\{active:false,label:"",startedAt:0,watchdog:0,timedOut:false,epoch:0\}/);
+ assert.match(app,/beginPlayerActionFlight\(options\?\.suggestion\?\.label\|\|requested\)/);
  assert.match(app,/pending-action-group/);
  assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/);
- assert.match(app,/playerActionFlight\.active\|\|Boolean\(gameState\.combat\?\.active\)/)
+ assert.match(app,/if\(playerActionFlight\.active&&!gameState\?\.combat\?\.active\)/);
+ assert.match(app,/setPlayerActionControlsLocked\(true,uiText\("正在處理已選行動…",activeLocale\)\)/)
 });
 
 test("blocking State Sync rejects repeated actions without an action queue",async()=>{
@@ -38,7 +39,7 @@ test("foreground gameplay preempts nonblocking narration Deferred and world back
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(app,/function preemptBackgroundAI\(\)\{preemptNonblockingScene\(\);preemptBackgroundWorldEvolution\(\);preemptBackgroundWorldQuality\(\);preemptBackgroundHistory\(\);preemptDeferredDirector\(\)\}/);
  assert.match(app,/async function runAction\(action,customText="",options=\{\}\)\{\s*if\(!gameState\)return;const actionState=gameState,actionSession=captureStateSession\(\);markForegroundActivity\(\);preemptBackgroundAI\(\)/);
- assert.match(app,/async function submitNpcConversation\(npcId,q\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/);assert.match(app,/async function runCombatAction\(action\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/)
+ assert.match(app,/async function submitNpcConversation\(npcId,q\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/);assert.match(app,/async function runCombatAction\(action,rawAction=""\)\{markForegroundActivity\(\);preemptBackgroundAI\(\)/)
 });
 
 test("background world evolution waits for Player Action and Deferred work",async()=>{

@@ -1,5 +1,5 @@
 import {recordAIUsage,recordDebug} from "./debug-telemetry.js?v=57025";
-import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=59010";
+import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=60009";
 import {composePromptLanguageContract} from "./prompt-language-contract.js?v=59010";
 const KEY="elyndra:ai-settings:v3";const V2_KEY="elyndra:ai-settings:v2";const OLD_KEY="elyndra:ai-settings:v1";
 export const PROVIDERS={
