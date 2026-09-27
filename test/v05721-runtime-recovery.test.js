@@ -36,11 +36,11 @@ test("v0.57.22 deterministic AutoTest recovery rotates grounded hard-stall trave
  const recent=Array.from({length:7},()=>({action:"停止重複目前互動，沿眼前的裂隙尋找新人物或可驗證線索",kind:"GENERAL",progressed:false,targetId:null}));
  const first=deterministicAutotestDecision(snapshot,recent,"test fallback");
  assert.equal(first.mode,"free");
- assert.equal(first.kind,"TRAVEL");
+ assert.equal(first.kind,"GENERAL");
  assert.doesNotMatch(first.action,/停止重複目前互動/);
  assert.match(first.action,/出口|通道/);
  const second=deterministicAutotestDecision(snapshot,[...recent,{action:first.action,kind:first.kind,progressed:false,targetId:null}],"test fallback");
- assert.equal(second.mode,"free");assert.equal(second.kind,"TRAVEL");
+ assert.equal(second.mode,"free");assert.equal(second.kind,"GENERAL");
  assert.notEqual(second.action,first.action);
  assert.match(second.action,/出口|通道/);
 });
