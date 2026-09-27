@@ -20,9 +20,11 @@ test("v0.59.4 creator uses stable canonical category values and localized labels
  assert.match(app,/category===ALL_RULE_TAGS\|\|name===category/);
 });
 
-test("first game reveal waits for locale completion",async()=>{
+test("first game reveal preserves localization without blocking post-creation UI",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/ensureRenderedLocale\("post_creation_game",\$\("#game"\)\)/);
+ assert.match(app,/refresh\(\{skipRenderedLocale:true\}\)/);
+ assert.match(app,/void ensureRenderedLocale\("post_creation_game",\$\("#game"\)\)/);
  assert.match(app,/ensureRenderedLocale\("continue_game",\$\("#game"\)\)/);
- assert.match(app,/localizedStaticText\(lt\(p\.label\),activeLocale\)/);
+ assert.match(app,/localizedActionText\(p\.label,x\.kind\)/);
+ assert.doesNotMatch(app,/activeLocale==="zh-Hant"\|\|await ensureRenderedLocale\("post_creation_game"/);
 });
