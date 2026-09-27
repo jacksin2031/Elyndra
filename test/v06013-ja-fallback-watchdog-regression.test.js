@@ -6,7 +6,7 @@ import {safePlayerVisibleText,hasLocaleLeak} from "../src/v06011-locale-runtime-
 const GENERIC="日本語表示を準備できなかったため、確定済みのゲーム結果のみ保持しています。";
 
 test("v0.60.13 unknown Japanese leak keeps semantic source for field-aware fallback",()=>{
- const source="找一個能提供現場資訊的人";
+ const source="目前場景敘述仍然沒有完成，因此這個結果暫時只能使用繁體中文備援。";
  assert.equal(hasLocaleLeak(source,"ja"),true);
  assert.equal(safePlayerVisibleText(source,"ja"),source);
  assert.notEqual(safePlayerVisibleText(source,"ja"),GENERIC);
