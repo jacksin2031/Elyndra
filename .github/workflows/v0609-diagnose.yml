@@ -23,7 +23,8 @@ jobs:
       - name: Focused regressions
         run: |
           node --test test/v0609-ja-turn-export-regression.test.js
-          node --test test/v0608-runtime-recovery.test.js
+          node --test test/v0608-runtime-self-repair.test.js
+          node --test test/v0607-i18n-turn-recovery.test.js
           node --test test/v05915-ja-suggestion-locale-regression.test.js
           node --test test/contextual-actions.test.js
           node --test test/nonblocking-turn-sync.test.js
