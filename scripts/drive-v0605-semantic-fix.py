@@ -1,4 +1,5 @@
 from pathlib import Path
+# Temporary fail-closed integration helper; removed before the stacked PR.
 p=Path(__file__).resolve().parents[1]/"src/drive-engine.js"
 text=p.read_text(encoding="utf-8")
 old='r.entries=r.entries.map((raw,i)=>normalizeDrive(raw,i)).filter(Boolean).slice(-16);'
