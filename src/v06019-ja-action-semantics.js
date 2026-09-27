@@ -22,7 +22,7 @@ export function applyJapaneseActionSemantics(assessment,action="",{engine=false}
  if(Array.isArray(intent.subActions)&&intent.subActions.length<=1)nextIntent.subActions=[presented];
  assessment.kind=semantic.kind;assessment.intent=semantic.intent;assessment.actionIntent=nextIntent;assessment.playerVisibleAction=presented||assessment.playerVisibleAction;
  if(engine&&semantic.engineAction)assessment.normalizedAction=semantic.engineAction;
- else if(presented)assessment.normalizedAction=presented;
+ else if(!engine&&presented)assessment.normalizedAction=presented;
  assessment.semanticOverride=semantic.source;
  return assessment
 }
