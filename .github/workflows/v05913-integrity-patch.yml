@@ -18,6 +18,7 @@ jobs:
           node-version: 24
       - name: Apply v0.59.13 integration
         run: |
+          sed -i "s/replace_between(s,start,end,replacement,end,'commitStatePatch')/replace_between(s,start,end,replacement,'commitStatePatch')/" scripts/v05913_integrity_patch.py
           python3 scripts/v05913_integrity_patch.py
           git checkout HEAD -- .github/workflows/v05913-integrity-patch.yml scripts/v05913_integrity_patch.py
       - name: Verify focused integrity regressions
