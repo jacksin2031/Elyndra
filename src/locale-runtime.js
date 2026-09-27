@@ -190,7 +190,7 @@ const REVERSE=new Map();
 for(const [source,translations] of Object.entries(UI)){REVERSE.set(source,source);for(const value of Object.values(translations))REVERSE.set(value,source)}
 const NODE_SOURCE=new WeakMap(),ATTR_SOURCE=new WeakMap();
 const RUNTIME_LOCALIZED=new Map();
-const JA_CHINESE_LEAK=/(?:[這詢剛牆從讓與對說處覺為應們]|內容|當地|暫無|具體的|附近|已選行動|位置、人物或事件|眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改)/u;
+const JA_CHINESE_LEAK=/(?:[這詢剛牆從讓與對說處覺為應們]|內容|當地|暫無|具體的|附近|已選行動|位置、人物或事件|眼前的|你的|這個|這些|這是|目前|當前|尚未|仍然|啟用|預設|不使用|世界真正|主要勢力真正|未知區域|故事傾向|文明程度|科技\s*\d|智慧種族約|政治統一|宗教影響|世界危險|生存強度|可自由存檔|飢餓系統|疲勞系統|負面狀態|標準語言障礙|玩家選擇|不包含|穿越到這個世界|返回修改|狀態|判斷|感知|觀察|低風險|有風險|穩健|應變|利用現場|製造一個|冒險靠近|最明顯的危險源|敏捷\s*\/\s*體能|荷降し場)/u;
 const HANT_SIMPLIFIED_LEAK=/[这与为从对会让还开启关闭选择难险饿劳态语种实预设应无]/u;
 const HANS_TRADITIONAL_LEAK=/[這與為從對會讓還開啟關閉選擇難險餓勞態語種實預設應無]/u;
 export function hasLocaleLeak(value,locale=loadLocale()){
