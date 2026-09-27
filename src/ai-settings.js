@@ -21,8 +21,10 @@ const AI_TASK_TIER={action:"FAST",narration:"FAST",translation:"FAST",helper:"FA
 export function optimizationTier(aiTask="general"){return AI_TASK_TIER[String(aiTask||"").toLowerCase()]||"BALANCED"}
 const AGNES_STRUCTURED_OUTPUT_FLOORS={action:800,scene:1100,turn_state_fast:800,identity:900,geography:900,society:1100,cast:1800,core_anchor:1200,core_rules:1100,future:4096,runtime_expansion:1600,runtime_quality:900};
 const AI_TASK_TIMEOUT_FLOORS={future:70000};
+const PLAYER_TASK_TIMEOUT_CEILINGS={action:7000,scene:8000,turn_state_fast:7000,turn_state_deep:9000};
 const agnesStructuredOutputFloor=aiTask=>AGNES_STRUCTURED_OUTPUT_FLOORS[String(aiTask||"").toLowerCase()]||0;
 const taskTimeoutFloor=aiTask=>AI_TASK_TIMEOUT_FLOORS[String(aiTask||"").toLowerCase()]||0;
+const taskTimeoutCeiling=aiTask=>PLAYER_TASK_TIMEOUT_CEILINGS[String(aiTask||"").toLowerCase()]||0;
 export function providerOptimization(provider,optimization="standard",aiTask="general"){
  const tier=optimizationTier(aiTask);if(provider==="agnes"&&agnesStructuredOutputFloor(aiTask))return {};
  if(tier==="FAST"){if(provider==="gemini")return {thinkingConfig:{thinkingLevel:"LOW"}};if(provider==="openai"||provider==="agnes")return {reasoning_effort:"low"};return {}}
@@ -59,7 +61,7 @@ export async function hardProviderDeadline(promise,{controller=null,timeoutMs=30
 export async function directChat(args){
  const locale=normalizeLocale(args?.locale||loadLocale()),runtimeLanguage=languageContract(locale);args={...args,locale,system:composePromptLanguageContract(args?.system,runtimeLanguage)};
  const s=loadAISettings();if(!s.endpoint||!s.model||!s.apiKey)throw new Error("DIRECT_AI_NOT_CONFIGURED");
- const runtime=directAIRuntimeControl(),timeoutDisabled=args?.disableTimeout===true||runtime.disableTimeout===true,timeoutMs=timeoutDisabled?0:Math.max(timeoutValue(args?.timeoutMs),taskTimeoutFloor(args?.aiTask)),parentSignals=[args?.signal,runtime.signal].filter(Boolean);let last,attempt=0;
+ const runtime=directAIRuntimeControl(),timeoutDisabled=args?.disableTimeout===true||runtime.disableTimeout===true,requestedTimeout=timeoutDisabled?0:Math.max(timeoutValue(args?.timeoutMs),taskTimeoutFloor(args?.aiTask)),ceiling=taskTimeoutCeiling(args?.aiTask),timeoutMs=timeoutDisabled?0:(ceiling?Math.min(requestedTimeout,ceiling):requestedTimeout),parentSignals=[args?.signal,runtime.signal].filter(Boolean);let last,attempt=0;
  while(attempt<2){
   if(parentSignals.some(signal=>signal?.aborted))throw providerAbortError();
   await honorRateLimit(s.provider,args?.aiTask,parentSignals);
