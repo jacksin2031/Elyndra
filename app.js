@@ -1,5 +1,5 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=60001";
+import {APP_VERSION} from "./src/version.js?v=60002";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
 import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59010";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59010";
@@ -20,7 +20,7 @@ import {bootstrapKnowledgeGraph,needsExpansion,recordExpansion} from "./src/know
 import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCompanion} from "./src/npc-engine.js?v=57028";
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=59014";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=57025";
-import {ensureCharacter,combatAction,combatSnapshot,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=60001";
+import {ensureCharacter,combatAction,combatSnapshot,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=60002";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=59014";
 import {ensureCrisis} from "./src/crisis-engine.js?v=57025";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57025";
