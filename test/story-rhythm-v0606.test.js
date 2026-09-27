@@ -14,7 +14,7 @@ test("Story Rhythm starts at the current event cursor and never replays old-save
 });
 
 test("Rhythm classification records player-facing modes without ingesting INTERNAL telemetry",()=>{
- const s=state();ensureStoryRhythm(s);push(s,"PLAYER_ACTION","你沿著河岸追查失蹤者留下的腳印。",{customText:"追查腳印"});push(s,"NPC_CLUE_CONFIRMED","漁夫確認失蹤者昨晚曾經過舊橋。",{npcId:"NPC-FISHER"});s.events.push({id:crypto.randomUUID(),type:"STATE_SYNC_PLAN",visibility:"INTERNAL",summary:"internal",day:1,at:Date.now()});push(s,"QUEST_COMPLETED","你把救回的孩子帶回家人身邊。");syncStoryRhythm(s);const snap=storyRhythmSnapshot(s,{sync:false});assert.deepEqual(snap.recent.map(x=>x.mode),["MYSTERY","MYSTERY","PAYOFF"]);assert.equal(snap.recent.some(x=>x.eventType==="STATE_SYNC_PLAN"),false)
+ const s=state();ensureStoryRhythm(s);push(s,"PLAYER_ACTION","你沿著河岸追查失蹤者留下的腳印。",{customText:"追查腳印"});push(s,"NPC_CLUE_CONFIRMED","漁夫確認失蹤者昨晚曾經過舊橋。",{npcId:"NPC-FISHER"});s.events.push({id:crypto.randomUUID(),type:"STATE_SYNC_PLAN",visibility:"INTERNAL",summary:"internal",day:1,at:Date.now()});push(s,"QUEST_COMPLETED","你把救回的孩子帶回家人身邊。");syncStoryRhythm(s);const snap=storyRhythmSnapshot(s,{sync:false});assert.deepEqual(snap.recent.map(x=>x.mode),["MYSTERY","SOCIAL","PAYOFF"]);assert.deepEqual(snap.recent.map(x=>x.narrativeFunction),["MYSTERY_PROGRESS","MYSTERY_PROGRESS","PAYOFF"]);assert.equal(snap.recent.some(x=>x.eventType==="STATE_SYNC_PLAN"),false)
 });
 
 test("three same-mode beats produce a soft DIVERSIFY directive instead of blocking the mode",()=>{
