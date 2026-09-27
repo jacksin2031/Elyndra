@@ -1,3 +1,5 @@
+import {recordDebug} from "./debug-telemetry.js?v=59012";
+
 // Deterministic repair gate for model-produced structured output.
 // This module MUST NOT invent Canon. It may normalize syntax/shape, bind values to
 // existing engine-owned entities, or remove unsupported claims.
@@ -106,10 +108,23 @@ export function repairWorldStageCandidate(stage,raw){
  return {value,changed,reasons,dropped:[],stage:String(stage||"").toUpperCase()}
 }
 
+function outputShape(value){
+ if(!plain(value))return {type:Array.isArray(value)?"array":typeof value};
+ return {keys:Object.keys(value).slice(0,24),operations:list(value.operations).length,suggestions:list(value.suggestions).length,npcs:list(value.npcs).length,locations:list(value.locations).length,factions:list(value.factions).length,sideQuests:list(value.sideQuests).length}
+}
+function emitRepairDebug(type,result,raw,context={}){
+ if(!result?.changed&&!result?.dropped?.length)return;
+ const dropped=list(result?.dropped).slice(0,20).map(x=>({index:Number.isFinite(Number(x?.index))?Number(x.index):null,op:text(x?.op,60)||undefined,reason:text(x?.reason,120)||"DROPPED"}));
+ recordDebug(result?.value==null?"AI_OUTPUT_REJECTED":"AI_OUTPUT_REPAIRED",{
+  repairKind:type,stage:text(context?.stage,60)||undefined,reasons:list(result?.reasons).map(x=>text(x,120)).filter(Boolean).slice(0,20),dropped,
+  before:outputShape(raw),after:outputShape(result?.value),baseRevisionBefore:Number.isFinite(Number(raw?.baseRevision))?Number(raw.baseRevision):undefined,baseRevisionAfter:Number.isFinite(Number(result?.value?.baseRevision))?Number(result.value.baseRevision):undefined
+ })
+}
 export function repairAiOutput(kind,raw,context={}){
- const type=String(kind||"").toUpperCase();
- if(type==="STATE_PATCH")return repairStatePatchCandidate(raw,context);
- if(type==="SCENE")return repairSceneCandidate(raw,context);
- if(type==="WORLD_STAGE")return repairWorldStageCandidate(context?.stage,raw);
- return {value:raw,changed:false,reasons:[],dropped:[]}
+ const type=String(kind||"").toUpperCase();let result;
+ if(type==="STATE_PATCH")result=repairStatePatchCandidate(raw,context);
+ else if(type==="SCENE")result=repairSceneCandidate(raw,context);
+ else if(type==="WORLD_STAGE")result=repairWorldStageCandidate(context?.stage,raw);
+ else result={value:raw,changed:false,reasons:[],dropped:[]};
+ emitRepairDebug(type,result,raw,context);return result
 }
