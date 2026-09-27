@@ -15,56 +15,39 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Apply release wiring and runtime telemetry patch
+      - name: Apply wiring
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import json
-
-          def replace(path, old, new, count=1):
-              p=Path(path); text=p.read_text()
-              if old not in text:
-                  raise SystemExit(f"missing patch anchor in {path}: {old[:120]!r}")
-              p.write_text(text.replace(old,new,count))
-
-          pkg=Path('package.json')
-          data=json.loads(pkg.read_text()); data['version']='0.60.19'; pkg.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
-          replace('src/version.js','APP_VERSION="0.60.18"','APP_VERSION="0.60.19"')
-
-          replace('index.html','"./src/version.js?v=60010":"./src/version.js?v=60018"','"./src/version.js?v=60010":"./src/version.js?v=60019"')
-          replace('index.html','"./src/ai-client.js?v=60010":"./src/v06017-ai-client-hotfix.js?v=60017"','"./src/ai-client.js?v=60010":"./src/v06019-ai-client-hotfix.js?v=60019"')
-          replace('index.html','"./src/game-engine.js?v=60006":"./src/v06011-game-engine-hotfix.js?v=60018"','"./src/game-engine.js?v=60006":"./src/v06019-game-engine-hotfix.js?v=60019"')
-          replace('index.html','"./src/contextual-actions.js?v=60010":"./src/v06015-contextual-actions-hotfix.js?v=60015"','"./src/contextual-actions.js?v=60010":"./src/v06019-contextual-actions-hotfix.js?v=60019"')
-          replace('index.html','./src/v06015-runtime-ui-hotfix.js?v=60018','./src/v06019-runtime-ui-hotfix.js?v=60019')
-
-          replace('app.js','const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;','const effective=assessment?.playerVisibleAction||requested;')
-          replace('app.js','worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),','worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),playerVitals:{hp:Number(state.player?.hp)||0,maxHp:Number(state.player?.maxHp)||0,satiety:Number(state.player?.survival?.satiety??100),fatigue:Number(state.player?.survival?.fatigue??0),exposure:Number(state.player?.survival?.exposure??0),injury:Number(state.player?.survival?.injury??0),magicStrain:Number(state.player?.magic?.strain??0)},')
-          replace('app.js','if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});','if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});\n for(const field of ["hp","maxHp","satiety","fatigue","exposure","injury","magicStrain"]){const before=prev.playerVitals?.[field],after=next.playerVitals?.[field];if(Number(before)!==Number(after))recordDebug("GAME_PLAYER_STATE_CHANGED",{...meta,field,from:before,to:after,delta:Number(after)-Number(before)})}')
-          replace('app.js','function gameplayDebugDetail(entry){\n const d=entry?.data||{};','function gameplayDebugDetail(entry){\n const d=entry?.data||{};\n if(entry.type==="GAME_PLAYER_STATE_CHANGED")return String(d.field||"state")+" · "+String(d.from??"?")+" → "+String(d.to??"?")+(Number.isFinite(Number(d.delta))?" · Δ"+(Number(d.delta)>0?"+":"")+String(d.delta):"");')
-          replace('app.js','function openDebugPanel(){','function debugEventDetail(event){const raw=String(event?.action||event?.reason||event?.summary||event?.mode||"");if(activeLocale!=="ja"||!raw||!hasLocaleLeak(raw,"ja"))return raw;return ({NPC_AUTONOMOUS_ACTION:"NPCの自律行動（内部テレメトリ）",FACTION_ACTION:"勢力の自律行動（内部テレメトリ）",WORLD_EVENT:"世界イベント（内部テレメトリ）"})[String(event?.type||"")]||"内部テレメトリ（日本語表示）"}\nfunction openDebugPanel(){')
-          replace('app.js','esc(e.action||e.reason||e.summary||e.mode||"")','esc(debugEventDetail(e))')
-
-          replace('test/version-0551-release.test.js','// Official v0.60.18 release contract','// Official v0.60.19 release contract')
-          replace('test/version-0551-release.test.js','test("v0.60.18 is the canonical app and browser cache release"','test("v0.60.19 is the canonical app and browser cache release"')
-          replace('test/version-0551-release.test.js','assert.equal(pkg.version,"0.60.18")','assert.equal(pkg.version,"0.60.19")')
-          replace('test/version-0551-release.test.js','/APP_VERSION="0\\.60\\.18"/','/APP_VERSION="0\\.60\\.19"/')
-          replace('test/version-0551-release.test.js','/v06015-runtime-ui-hotfix\\.js\\?v=60018/','/v06019-runtime-ui-hotfix\\.js\\?v=60019/')
-          replace('test/version-0551-release.test.js','/"\\.\\/src\\/version\\.js\\?v=60010":"\\.\\/src\\/version\\.js\\?v=60018"/','/"\\.\\/src\\/version\\.js\\?v=60010":"\\.\\/src\\/version\\.js\\?v=60019"/')
-          replace('test/version-0551-release.test.js','/"\\.\\/src\\/game-engine\\.js\\?v=60006":"\\.\\/src\\/v06011-game-engine-hotfix\\.js\\?v=60018"/','/"\\.\\/src\\/game-engine\\.js\\?v=60006":"\\.\\/src\\/v06019-game-engine-hotfix\\.js\\?v=60019"/')
-          replace('test/version-0551-release.test.js','/"\\.\\/src\\/ai-client\\.js\\?v=60010":"\\.\\/src\\/v06017-ai-client-hotfix\\.js\\?v=60017"/','/"\\.\\/src\\/ai-client\\.js\\?v=60010":"\\.\\/src\\/v06019-ai-client-hotfix\\.js\\?v=60019"/')
-          replace('test/version-0551-release.test.js','/"\\.\\/src\\/contextual-actions\\.js\\?v=60010":"\\.\\/src\\/v06015-contextual-actions-hotfix\\.js\\?v=60015"/','/"\\.\\/src\\/contextual-actions\\.js\\?v=60010":"\\.\\/src\\/v06019-contextual-actions-hotfix\\.js\\?v=60019"/')
-
-          replace('test/version-ui.test.js','// v0.60.18 release contract','// v0.60.19 release contract')
-          replace('test/version-ui.test.js','assert.equal(pkg.version,"0.60.18")','assert.equal(pkg.version,"0.60.19")')
-          replace('test/version-ui.test.js','/v06015-runtime-ui-hotfix\\.js\\?v=60018/','/v06019-runtime-ui-hotfix\\.js\\?v=60019/')
-          replace('test/version-ui.test.js','/"\\.\\/src\\/version\\.js\\?v=60010":"\\.\\/src\\/version\\.js\\?v=60018"/','/"\\.\\/src\\/version\\.js\\?v=60010":"\\.\\/src\\/version\\.js\\?v=60019"/')
-          replace('test/version-ui.test.js','/"\\.\\/src\\/game-engine\\.js\\?v=60006":"\\.\\/src\\/v06011-game-engine-hotfix\\.js\\?v=60018"/','/"\\.\\/src\\/game-engine\\.js\\?v=60006":"\\.\\/src\\/v06019-game-engine-hotfix\\.js\\?v=60019"/')
-          replace('test/version-ui.test.js','/"\\.\\/src\\/ai-client\\.js\\?v=60010":"\\.\\/src\\/v06017-ai-client-hotfix\\.js\\?v=60017"/','/"\\.\\/src\\/ai-client\\.js\\?v=60010":"\\.\\/src\\/v06019-ai-client-hotfix\\.js\\?v=60019"/')
-
-          pages=Path('.github/workflows/pages.yml'); text=pages.read_text(); anchor='run: node --test test/v06015-action-ui-coherence.test.js';
-          if anchor not in text: raise SystemExit('pages focused test anchor missing')
-          pages.write_text(text.replace(anchor,'run: node --test test/v06019-ja-manual-regressions.test.js test/v06015-action-ui-coherence.test.js',1))
+          def swap(path,old,new,required=True):
+              p=Path(path); t=p.read_text(); n=t.count(old); print(path,repr(old[:70]),'matches',n)
+              if required and n<1: raise SystemExit(f'missing anchor: {path}: {old!r}')
+              if n: p.write_text(t.replace(old,new,1))
+          data=json.loads(Path('package.json').read_text()); data['version']='0.60.19'; Path('package.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          swap('src/version.js','0.60.18','0.60.19')
+          swaps=[
+            ('"./src/version.js?v=60010":"./src/version.js?v=60018"','"./src/version.js?v=60010":"./src/version.js?v=60019"'),
+            ('"./src/ai-client.js?v=60010":"./src/v06017-ai-client-hotfix.js?v=60017"','"./src/ai-client.js?v=60010":"./src/v06019-ai-client-hotfix.js?v=60019"'),
+            ('"./src/game-engine.js?v=60006":"./src/v06011-game-engine-hotfix.js?v=60018"','"./src/game-engine.js?v=60006":"./src/v06019-game-engine-hotfix.js?v=60019"'),
+            ('"./src/contextual-actions.js?v=60010":"./src/v06015-contextual-actions-hotfix.js?v=60015"','"./src/contextual-actions.js?v=60010":"./src/v06019-contextual-actions-hotfix.js?v=60019"'),
+            ('./src/v06015-runtime-ui-hotfix.js?v=60018','./src/v06019-runtime-ui-hotfix.js?v=60019')]
+          for a,b in swaps: swap('index.html',a,b)
+          swap('app.js','const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;','const effective=assessment?.playerVisibleAction||requested;')
+          swap('app.js','worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),','worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),playerVitals:{hp:Number(state.player?.hp)||0,maxHp:Number(state.player?.maxHp)||0,satiety:Number(state.player?.survival?.satiety??100),fatigue:Number(state.player?.survival?.fatigue??0),exposure:Number(state.player?.survival?.exposure??0),injury:Number(state.player?.survival?.injury??0),magicStrain:Number(state.player?.magic?.strain??0)},')
+          swap('app.js','if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});','if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});\n for(const field of ["hp","maxHp","satiety","fatigue","exposure","injury","magicStrain"]){const before=prev.playerVitals?.[field],after=next.playerVitals?.[field];if(Number(before)!==Number(after))recordDebug("GAME_PLAYER_STATE_CHANGED",{...meta,field,from:before,to:after,delta:Number(after)-Number(before)})}')
+          swap('app.js','function gameplayDebugDetail(entry){\n const d=entry?.data||{};','function gameplayDebugDetail(entry){\n const d=entry?.data||{};\n if(entry.type==="GAME_PLAYER_STATE_CHANGED")return String(d.field||"state")+" · "+String(d.from??"?")+" → "+String(d.to??"?")+(Number.isFinite(Number(d.delta))?" · Δ"+(Number(d.delta)>0?"+":"")+String(d.delta):"");')
+          swap('app.js','function openDebugPanel(){','function debugEventDetail(event){const raw=String(event?.action||event?.reason||event?.summary||event?.mode||"");if(activeLocale!=="ja"||!raw||!hasLocaleLeak(raw,"ja"))return raw;return ({NPC_AUTONOMOUS_ACTION:"NPCの自律行動（内部テレメトリ）",FACTION_ACTION:"勢力の自律行動（内部テレメトリ）",WORLD_EVENT:"世界イベント（内部テレメトリ）"})[String(event?.type||"")]||"内部テレメトリ（日本語表示）"}\nfunction openDebugPanel(){')
+          swap('app.js','esc(e.action||e.reason||e.summary||e.mode||"")','esc(debugEventDetail(e))')
+          for path in ['test/version-0551-release.test.js','test/version-ui.test.js']:
+              p=Path(path); t=p.read_text();
+              for a,b in [('0.60.18','0.60.19'),('v06015-runtime-ui-hotfix','v06019-runtime-ui-hotfix'),('v06011-game-engine-hotfix','v06019-game-engine-hotfix'),('v06017-ai-client-hotfix','v06019-ai-client-hotfix'),('v06015-contextual-actions-hotfix','v06019-contextual-actions-hotfix'),('60018','60019'),('60017','60019')]: t=t.replace(a,b)
+              if path.endswith('version-0551-release.test.js'): t=t.replace('60015','60019')
+              p.write_text(t)
+          p=Path('.github/workflows/pages.yml'); t=p.read_text(); anchor='run: node --test test/v06015-action-ui-coherence.test.js'; print('pages anchor',t.count(anchor));
+          if anchor not in t: raise SystemExit('missing pages test anchor')
+          p.write_text(t.replace(anchor,'run: node --test test/v06019-ja-manual-regressions.test.js test/v06015-action-ui-coherence.test.js',1))
           PY
           rm .github/workflows/v06019-bootstrap.yml
           git config user.name github-actions[bot]
@@ -72,7 +55,7 @@ jobs:
           git add -A
           git commit -m "v0.60.19: wire Japanese manual-test regressions [v06019-wired]"
           git push origin HEAD:${GITHUB_REF_NAME}
-      - name: Verify targeted contract on committed tree
+      - name: Verify targeted contract
         run: |
           node --test test/v06019-ja-manual-regressions.test.js
           npm run version:check
