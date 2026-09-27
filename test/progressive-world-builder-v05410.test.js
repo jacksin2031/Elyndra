@@ -40,8 +40,8 @@ test("v0.54.10 checkpointed Geography remains valid after it is written into Can
 
 test("v0.54.10 selected player action remains frozen through intermediate refreshes",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/const playerActionFlight=\{active:false,label:"",startedAt:0\}/);
- assert.match(app,/beginPlayerActionFlight\(requested\)/);
+ assert.match(app,/const playerActionFlight=\{active:false,label:"",startedAt:0,watchdog:0,timedOut:false,epoch:0\}/);
+ assert.match(app,/beginPlayerActionFlight\(options\?\.suggestion\?\.label\|\|requested\)/);
  assert.match(app,/if\(playerActionFlight\.active&&!gameState\?\.combat\?\.active\)/);
  assert.match(app,/已選行動 · AI 處理中/);
  assert.match(app,/free\.disabled=aiBusy\|\|turnSyncBusy\|\|playerActionFlight\.active/);
