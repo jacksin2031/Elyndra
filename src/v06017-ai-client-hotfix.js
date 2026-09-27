@@ -1,4 +1,5 @@
 import * as base from "./ai-client.js?v=60010&base=1";
+import {applyJapaneseActionSemantics,japaneseFastAssessment} from "./v06019-ja-action-semantics.js?v=60019";
 export * from "./ai-client.js?v=60010&base=1";
 
 const clean=(value,max=180)=>String(value??"").trim().slice(0,max);
@@ -16,7 +17,14 @@ export function preservePlayerVisibleAdjustedAction(assessment,requestedAction="
  return {...assessment,engineNormalizedAction:adjusted,normalizedAction:requested,playerVisibleAction:requested,actionIntent:visibleIntent(assessment.actionIntent,requested)}
 }
 
+export function fastLocalActionAssessment(state,action){
+ const requested=clean(action),jaFast=globalThis.ELYNDRA_LOCALE==="ja"?japaneseFastAssessment(requested):null;
+ if(jaFast)return jaFast;
+ return base.fastLocalActionAssessment(state,requested)
+}
+
 export async function assessPlayerAction(state,action){
- const requested=clean(action),assessment=await base.assessPlayerAction(state,requested);
- return preservePlayerVisibleAdjustedAction(assessment,requested)
+ const requested=clean(action),assessment=await base.assessPlayerAction(state,requested),visible=preservePlayerVisibleAdjustedAction(assessment,requested);
+ if(globalThis.ELYNDRA_LOCALE==="ja")applyJapaneseActionSemantics(visible,requested);
+ return visible
 }
