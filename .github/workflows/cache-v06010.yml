@@ -1,0 +1,38 @@
+name: Validate v0.60.10 cache chain
+on:
+  push:
+    branches: [fix/v06010-ja-world-creation]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'repair v0.60.10 cache chain') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: fix/v06010-ja-world-creation
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+      - name: Repair cache chain
+        run: python3 scripts/cache_v06010.py
+      - name: Diff integrity
+        run: git diff --check
+      - name: Browser cache contract
+        run: npm run cache:check
+        env:
+          CACHE_BASE_REF: 6bbc10bcdf39ea7e13a6c974d4d9e3777d4b7331
+      - name: JavaScript syntax
+        run: node scripts/check-js.mjs
+      - name: Focused regressions
+        run: node --test test/v06010-ja-world-creation-regression.test.js test/v0609-ja-turn-export-regression.test.js test/v0608-runtime-self-repair.test.js test/v0607-i18n-turn-recovery.test.js test/version-0551-release.test.js test/version-ui.test.js
+      - name: Commit cache chain
+        run: |
+          git config user.name "JackSin"
+          git config user.email "a24dc523@dhw.ac.jp"
+          git add -A
+          git restore --staged .github/workflows/cache-v06010.yml
+          git commit -m "v0.60.10: repair v0.60.10 cache chain"
+          git push origin HEAD:fix/v06010-ja-world-creation
