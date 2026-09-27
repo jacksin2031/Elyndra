@@ -1,0 +1,60 @@
+name: TRPG Depth Version Fix
+on:
+  push:
+    branches: [feat/trpg-depth-v060-foundation]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Start v0.60.0 line and update cache remaps
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          p=Path('package.json')
+          data=json.loads(p.read_text(encoding='utf-8'))
+          if data.get('version')!='0.59.15': raise SystemExit(f'unexpected package version: {data.get("version")}')
+          data['version']='0.60.0'
+          p.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          p=Path('src/version.js')
+          s=p.read_text(encoding='utf-8')
+          if 'APP_VERSION="0.59.15"' not in s: raise SystemExit('version.js anchor missing')
+          p.write_text(s.replace('APP_VERSION="0.59.15"','APP_VERSION="0.60.0"',1),encoding='utf-8')
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='{"imports":{"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59014","./src/action-intent.js?v=57025":"./src/action-intent.js?v=59015","./src/turn-outcome.js?v=57025":"./src/turn-outcome.js?v=59015","./src/ai-runtime-contracts.js?v=59000":"./src/ai-runtime-contracts.js?v=59015"}}'
+          new='{"imports":{"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59014","./src/action-intent.js?v=57025":"./src/action-intent.js?v=60000","./src/action-intent.js?v=59015":"./src/action-intent.js?v=60000","./src/turn-outcome.js?v=57025":"./src/turn-outcome.js?v=60000","./src/resolution-engine.js?v=59015":"./src/resolution-engine.js?v=60000","./src/ai-runtime-contracts.js?v=59000":"./src/ai-runtime-contracts.js?v=60000"}}'
+          if old not in s: raise SystemExit('importmap anchor missing')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+      - name: PR version policy
+        run: npm run version:check
+        env:
+          GITHUB_EVENT_NAME: pull_request
+          GITHUB_BASE_REF: main
+      - name: Browser cache contract
+        run: npm run cache:check
+        env:
+          CACHE_BASE_REF: main
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: TRPG Depth regressions
+        run: node --test test/trpg-depth-v060.test.js test/ai-runtime-kernel.test.js test/ai-runtime-v037.test.js
+      - name: Commit v0.60.0 foundation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json src/version.js index.html
+          git commit -m "chore: start v0.60.0 TRPG depth line"
+          git push origin HEAD:feat/trpg-depth-v060-foundation
