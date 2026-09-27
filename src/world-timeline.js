@@ -45,16 +45,9 @@ export function timelineAuthoringSlots(pacing=createTimelinePacing()){
  }
  return out
 }
-function usableAuthoringRow(value){return Boolean(value&&typeof value==="object"&&clean(value.title,120)&&clean(value.directorTruth,600).length>=8&&clean(value.observableEffect,500).length>=8)}
 export function bindTimelineAuthoringSlots(input=[],pacing=createTimelinePacing()){
- const slots=timelineAuthoringSlots(pacing),rows=Array.isArray(input)?input:[],usable=rows.filter(usableAuthoringRow);
- return slots.map((slot,i)=>{
-  const source=usableAuthoringRow(rows[i])?rows[i]:(usable.length?usable[Math.min(i,usable.length-1)]:{}),row=source&&typeof source==="object"?structuredClone(source):{};
-  if(!usableAuthoringRow(rows[i])&&usableAuthoringRow(row)){
-   row.id="";row.title=`${clean(row.title,108)} · ${slot.slot}`;row.activationConditions=[];row.cancelConditions=[];row.escalationConditions=[]
-  }
-  return {...row,earliestDay:slot.earliestDay,latestDay:slot.latestDay}
- })
+ const slots=timelineAuthoringSlots(pacing),rows=Array.isArray(input)?input:[];
+ return slots.map((slot,i)=>({...((rows[i]&&typeof rows[i]==="object")?rows[i]:{}),earliestDay:slot.earliestDay,latestDay:slot.latestDay}))
 }
 export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
  const out=[];
