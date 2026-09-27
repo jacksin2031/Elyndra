@@ -35,7 +35,7 @@ jobs:
           p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
           PY
           node scripts/apply-v05910-runtime-integrity.mjs
-          rm -f .hotfix-v05910-error.txt .hotfix-v05910-test.log .hotfix-v05910-node-test.log
+          rm -f .hotfix-v05910-error.txt .hotfix-v05910-test.log .hotfix-v05910-node-test.log .hotfix-v05910-failing-files.txt
       - name: Run focused regression tests
         run: node --test test/v05910-runtime-integrity.test.js
       - name: Verify version contract
@@ -44,25 +44,30 @@ jobs:
         run: npm run cache:check
       - name: Verify JavaScript syntax
         run: node scripts/check-js.mjs
-      - name: Run complete Node test suite
+      - name: Isolate failing Node test files
         shell: bash
         run: |
-          set +e
-          node --test > .hotfix-v05910-node-test.log 2>&1
-          status=$?
-          set -e
+          : > .hotfix-v05910-failing-files.txt
+          status=0
+          while IFS= read -r file; do
+            if ! node --test "$file" >/dev/null 2>&1; then
+              echo "$file" >> .hotfix-v05910-failing-files.txt
+              status=1
+            fi
+          done < <(find test -type f -name '*.test.js' | sort)
           if [ "$status" -ne 0 ]; then
-            printf '\nexit_status=%s\n' "$status" >> .hotfix-v05910-node-test.log
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add .hotfix-v05910-node-test.log
+            git add .hotfix-v05910-failing-files.txt
             if ! git diff --cached --quiet; then
-              git commit -m "chore: record v0.59.10 Node suite failure"
+              git commit -m "chore: record v0.59.10 failing test files"
               git push origin HEAD:fix/v05910-runtime-integrity
             fi
-            exit "$status"
+            exit 1
           fi
-          rm -f .hotfix-v05910-node-test.log
+          rm -f .hotfix-v05910-failing-files.txt
+      - name: Run complete Node test suite
+        run: node --test
       - name: Commit product changes
         shell: bash
         run: |
