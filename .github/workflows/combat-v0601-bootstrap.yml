@@ -23,6 +23,10 @@ jobs:
       - name: Patch runtime
         id: patch
         run: |
+          if grep -q 'combatAction,combatSnapshot' app.js && grep -q 'APP_VERSION="0.60.1"' src/version.js && grep -q 'tactical=/假攻' src/combat-engine.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           python3 scripts/combat-v0601-bootstrap.py
           python3 scripts/combat-v0601-intent-fix.py
           if git diff --quiet; then
