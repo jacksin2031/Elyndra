@@ -18,14 +18,22 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 20
-      - name: Patch NPC Agency 2.0 runtime
+      - name: Apply NPC Agency integration patch
+        run: python3 scripts/npc-agency-v0603-bootstrap.py
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
+        env:
+          CACHE_BASE_REF: feat/trpg-depth-social-v060
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: NPC Agency integration regressions
+        run: node --test test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Commit validated integration
         run: |
-          python3 scripts/npc-agency-v0603-bootstrap.py
-          npm run version:check
-          CACHE_BASE_REF=feat/trpg-depth-social-v060 npm run cache:check
-          node scripts/check-js.mjs
-          python3 scripts/scan-i18n-coverage.py
-          node --test test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
           if ! git diff --quiet; then
             git config user.name "Elyndra CI"
             git config user.email "actions@users.noreply.github.com"
