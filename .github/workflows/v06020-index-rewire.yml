@@ -1,0 +1,40 @@
+name: Temporary v0.60.20 index rewire
+on:
+  push:
+    branches: [fix/v06020-ja-manual-regressions]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'wire v0.60.20 index cache edges') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/v06020-ja-manual-regressions
+      - name: Rewire only v0.60.20 browser release edges
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          replacements={
+            '"./src/version.js?v=60010":"./src/version.js?v=60019"':'"./src/version.js?v=60010":"./src/version.js?v=60020"',
+            '"./src/contextual-actions.js?v=60010":"./src/v06019-contextual-actions-hotfix.js?v=60019"':'"./src/contextual-actions.js?v=60010":"./src/v06020-contextual-actions-hotfix.js?v=60020"',
+            '<script type="module" src="./src/v06019-runtime-ui-hotfix.js?v=60019"></script>':'<script type="module" src="./src/v06020-runtime-ui-hotfix.js?v=60020"></script>',
+          }
+          for old,new in replacements.items():
+            if old not in s:
+              raise SystemExit(f'missing expected edge: {old}')
+            s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Verify exact scope and commit
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- index.html
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html
+          git commit -m "chore: wire v0.60.20 index cache edges"
+          git push origin HEAD:fix/v06020-ja-manual-regressions
