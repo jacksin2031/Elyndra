@@ -1,7 +1,7 @@
 import * as base from "./game-engine.js?v=60006&base=1";
 import {safePlayerVisibleText} from "./v06011-locale-runtime-hotfix.js?v=60011";
 import {projectSuccessfulTravel,projectPermissionGrant} from "./v06014-turn-projection.js?v=60014";
-import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60017";
+import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60018";
 export * from "./game-engine.js?v=60006&base=1";
 
 const locale=()=>String(globalThis.ELYNDRA_LOCALE||"zh-Hant");
