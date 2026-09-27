@@ -17,12 +17,16 @@ jobs:
           node-version: 24
       - name: Patch app cache edge
         run: |
-          node -e 'const fs=require("fs");for(const p of ["index.html","test/version-0551-release.test.js","test/version-ui.test.js"]){let t=fs.readFileSync(p,"utf8");if(!t.includes("app.js?v=60014"))throw new Error("missing app cache anchor: "+p);fs.writeFileSync(p,t.replaceAll("app.js?v=60014","app.js?v=60019"))}'
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); t=p.read_text(); assert 'app.js?v=60014' in t; p.write_text(t.replace('app.js?v=60014','app.js?v=60019'))
+          p=Path('test/version-ui.test.js'); t=p.read_text(); old=r'app\.js\?v=60014'; assert old in t; p.write_text(t.replace(old,r'app\.js\?v=60019'))
+          PY
           node --test test/v06019-ja-manual-regressions.test.js test/version-0551-release.test.js test/version-ui.test.js
       - name: Commit cache closure
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html test/version-0551-release.test.js test/version-ui.test.js
+          git add index.html test/version-ui.test.js
           git commit -m "v0.60.19: close app cache edge [v06019-cache-wired]"
           git push origin HEAD:${GITHUB_REF_NAME}
