@@ -46,7 +46,7 @@ test("v0.60.11 import-map and single-flight guards cover the manual-test regress
  assert.match(html,/\.\/src\/game-engine\.js\?v=60006\"\s*:\s*\"\.\/src\/v06011-game-engine-hotfix\.js\?v=60011/);
  assert.match(html,/\.\/src\/player-experience\.js\?v=57028\"\s*:\s*\"\.\/src\/v06011-player-experience-hotfix\.js\?v=60011/);
  assert.match(html,/\.\/src\/lazy-generation\.js\?v=59014\"\s*:\s*\"\.\/src\/v06011-lazy-generation-hotfix\.js\?v=60011/);
- assert.match(html,/\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60011/);
+ assert.match(html,/\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60012/);
  assert.match(app,/playerActionFlight\.epoch!==actionFlightEpoch\|\|playerActionFlight\.timedOut\|\|actionAiLease!==foregroundAiLease/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/)
 });

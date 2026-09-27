@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-// Official v0.60.11 release contract; this file also anchors the final Pages deployment check.
-test("v0.60.11 is the canonical app and browser cache release",async()=>{
+// Official v0.60.12 release contract; this file also anchors the final Pages deployment check.
+test("v0.60.12 is the canonical app and browser cache release",async()=>{
  const [pkgText,versionSource,html,app]=await Promise.all([
   readFile(new URL("../package.json",import.meta.url),"utf8"),
   readFile(new URL("../src/version.js",import.meta.url),"utf8"),
@@ -11,10 +11,11 @@ test("v0.60.11 is the canonical app and browser cache release",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText);
- assert.equal(pkg.version,"0.60.11");
- assert.match(versionSource,/APP_VERSION="0\.60\.11"/);
+ assert.equal(pkg.version,"0.60.12");
+ assert.match(versionSource,/APP_VERSION="0\.60\.12"/);
  assert.match(html,/app\.js\?v=60011/);
- assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60011"/);
+ assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60012"/);
+ assert.match(html,/"\.\/src\/ai-settings\.js\?v=60010":"\.\/src\/ai-settings\.js\?v=60012"/);
  assert.match(html,/styles\.css\?v=59014/);
  assert.match(html,/creator\.css\?v=59010/);
  assert.match(html,/world-surfaces\.css\?v=59011/);
