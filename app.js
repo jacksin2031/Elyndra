@@ -9,7 +9,7 @@ import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generat
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=60006";
 import {maintainSession} from "./src/session-maintenance.js?v=60006";
-import {performAction} from "./src/game-engine.js?v=60005";
+import {performAction} from "./src/game-engine.js?v=60006";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=60005";
 import {ensureClock,formatWorldTime} from "./src/world-clock.js?v=57025";
 import {ensureWorldSimulation} from "./src/world-simulation.js?v=57028";
@@ -21,7 +21,7 @@ import {ensureNpcRuntime,findNpc,inviteCompanion,acceptCompanionOffer,dismissCom
 import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=60005";
 import {planNpcConversationAction} from "./src/npc-agency-engine.js?v=60004";
 import {ensureFactionRuntime} from "./src/faction-engine.js?v=57025";
-import {ensureCharacter,combatAction,combatSnapshot,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=60005";
+import {ensureCharacter,combatAction,combatSnapshot,recoverFromDefeat,xpNeeded} from "./src/combat-engine.js?v=60006";
 import {ensureQuestProgress,ensureMainQuest,questSnapshot,evaluateQuestState} from "./src/quest-engine.js?v=60005";
 import {ensureCrisis} from "./src/crisis-engine.js?v=57025";
 import {visibleLore,resolveLocalLoreAction} from "./src/lore-engine.js?v=57025";
