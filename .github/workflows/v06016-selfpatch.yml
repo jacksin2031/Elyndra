@@ -1,0 +1,25 @@
+name: Finalize v0.60.16 branch wiring
+on:
+  push:
+    branches: [fix/v06015-action-intent-coherence-followup]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/v06015-action-intent-coherence-followup
+          fetch-depth: 0
+      - name: Apply exact release wiring replacements
+        run: node scripts/v06016-selfpatch.mjs
+      - name: Commit finalized release wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m "release: finalize v0.60.16 cache wiring"
+          git push origin HEAD:fix/v06015-action-intent-coherence-followup
