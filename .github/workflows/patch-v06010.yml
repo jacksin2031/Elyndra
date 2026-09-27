@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 20
-      - name: Correct unrelated regression fixture
+      - name: Correct generated regression fixtures
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -24,6 +24,7 @@ jobs:
           s=p.read_text(encoding='utf-8')
           s=s.replace(',allowedElements:"灯台守の失踪"','')
           s=s.replace(' assert.deepEqual(blueprint.rules.allowed,["灯台守の失踪"]);\n','')
+          s=s.replace(".replace('ai-client\\\\.js\\\\?v=60009','ai-client\\\\.js\\\\?v=60009')", ".replace('ai-client\\\\.js\\\\?v=60009','ai-client\\\\.js\\\\?v=60009').replace('world-creation\\\\.js\\\\?v=59003','world-creation\\\\.js\\\\?v=60010')")
           p.write_text(s,encoding='utf-8')
           PY
       - name: Apply patch
