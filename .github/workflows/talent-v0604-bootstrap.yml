@@ -1,25 +1,27 @@
-name: Talent 2.0 Cache Closure
+name: Talent 2.0 Validation
 on:
   push:
     branches:
       - feat/trpg-depth-talents-v060
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: talent-v0604-cache-closure
-  cancel-in-progress: false
+  group: talent-v0604-validation-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  close-cache:
+  validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: 20
-      - name: Apply cache dependency closure
-        run: python3 scripts/talent-v0604-cache-closure.py
+          node-version: ${{ matrix.node }}
       - name: Version contract
         run: npm run version:check
       - name: Browser cache contract
@@ -32,12 +34,3 @@ jobs:
         run: python3 scripts/scan-i18n-coverage.py
       - name: Talent and TRPG regressions
         run: node --test test/talent-rules-v0604.test.js test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
-      - name: Commit validated cache closure
-        run: |
-          if ! git diff --quiet; then
-            git config user.name "Elyndra CI"
-            git config user.email "actions@users.noreply.github.com"
-            git add app.js src/adventure-engine.js src/item-engine.js src/combat-engine.js src/game-engine.js src/progression-ui.js src/storage.js
-            git commit -m "fix: close Talent v0.60.4 browser cache graph"
-            git push origin HEAD:feat/trpg-depth-talents-v060
-          fi
