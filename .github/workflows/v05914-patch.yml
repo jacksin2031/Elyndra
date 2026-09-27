@@ -17,7 +17,23 @@ jobs:
         with:
           node-version: 24
       - name: Apply v0.59.14 patch
-        run: node scripts/v05914-patch.mjs
+        id: apply_patch
+        shell: bash
+        run: |
+          set +e
+          node scripts/v05914-patch.mjs > patch-output.txt 2>&1
+          code=$?
+          cat patch-output.txt
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload patch diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05914-patch-output
+          path: patch-output.txt
+      - name: Stop on patch failure
+        if: steps.apply_patch.outputs.code != '0'
+        run: exit 1
       - name: Version contract
         run: npm run version:check
       - name: Browser cache contract
