@@ -1,6 +1,7 @@
 import * as base from "./game-engine.js?v=60006&base=1";
 import {safePlayerVisibleText} from "./v06011-locale-runtime-hotfix.js?v=60011";
 import {projectSuccessfulTravel,projectPermissionGrant} from "./v06014-turn-projection.js?v=60014";
+import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60015";
 export * from "./game-engine.js?v=60006&base=1";
 
 const locale=()=>String(globalThis.ELYNDRA_LOCALE||"zh-Hant");
@@ -9,18 +10,18 @@ const clean=(v,max=220)=>typeof v==="string"?v.trim().slice(0,max):"";
 function projectionVisible(value){
  const text=String(value??"");if(locale()!=="ja")return visible(text);
  let m=text.match(/^你取得了前往「(.+)」的通行許可。$/u);if(m)return `「${m[1]}」への通行許可を得ました。`;
- return visible(text)
+ return localizeV06015JapaneseVisibleText(visible(text))
 }
 function localizeArray(rows=[]){return Array.isArray(rows)?rows.map(visible):rows}
 function localizeResult(result){
  if(!result||locale()!=="ja")return result;
- if(typeof result.text==="string")result.text=visible(result.text);
+ if(typeof result.text==="string")result.text=projectionVisible(result.text);
  const fx=result.ruleEffects||{};
- if(fx.engineFeasibility){fx.engineFeasibility.reason=visible(fx.engineFeasibility.reason);fx.engineFeasibility.requirements=localizeArray(fx.engineFeasibility.requirements)}
- if(fx.gate?.message)fx.gate.message=visible(fx.gate.message);
- if(fx.npcRelationship?.summary)fx.npcRelationship.summary=visible(fx.npcRelationship.summary);
- if(fx.talentRule?.improvised?.summary)fx.talentRule.improvised.summary=visible(fx.talentRule.improvised.summary);
- if(fx.talentRule?.travelMitigation?.summary)fx.talentRule.travelMitigation.summary=visible(fx.talentRule.travelMitigation.summary);
+ if(fx.engineFeasibility){fx.engineFeasibility.reason=projectionVisible(fx.engineFeasibility.reason);fx.engineFeasibility.requirements=Array.isArray(fx.engineFeasibility.requirements)?fx.engineFeasibility.requirements.map(projectionVisible):fx.engineFeasibility.requirements}
+ if(fx.gate?.message)fx.gate.message=projectionVisible(fx.gate.message);
+ if(fx.npcRelationship?.summary)fx.npcRelationship.summary=projectionVisible(fx.npcRelationship.summary);
+ if(fx.talentRule?.improvised?.summary)fx.talentRule.improvised.summary=projectionVisible(fx.talentRule.improvised.summary);
+ if(fx.talentRule?.travelMitigation?.summary)fx.talentRule.travelMitigation.summary=projectionVisible(fx.talentRule.travelMitigation.summary);
  return result
 }
 function localizePlayerEvents(state){
@@ -30,9 +31,14 @@ function localizePlayerEvents(state){
   for(const key of ["summary","text","playerSummary","visibleSummary","reason"])if(typeof event?.[key]==="string")event[key]=projectionVisible(event[key])
  }
 }
+export function coherentActionAssessment(assessment,customText=""){
+ if(!assessment||String(assessment.verdict||"").toUpperCase()!=="ALLOW")return assessment;
+ const presented=clean(customText,220);if(!presented)return assessment;
+ return {...assessment,normalizedAction:presented,playerVisibleAction:presented}
+}
 export function performAction(state,action="free",customText="",assessment=null){
- const label=clean(assessment?.normalizedAction||customText||action,220)||"free",result=localizeResult(base.performAction(state,action,customText,assessment));
- if(result&&!result.blocked){projectSuccessfulTravel(state,label,result,assessment||{},projectionVisible);projectPermissionGrant(state,label,result,assessment||{},projectionVisible)}
+ const coherentAssessment=coherentActionAssessment(assessment,customText),label=clean(coherentAssessment?.normalizedAction||customText||action,220)||"free",result=localizeResult(base.performAction(state,action,customText,coherentAssessment));
+ if(result&&!result.blocked){projectSuccessfulTravel(state,label,result,coherentAssessment||{},projectionVisible);projectPermissionGrant(state,label,result,coherentAssessment||{},projectionVisible)}
  if(locale()==="ja"&&state){if(typeof state.narrative==="string")state.narrative=projectionVisible(state.narrative);localizePlayerEvents(state)}
  return result
 }
