@@ -18,11 +18,18 @@ function repairNarrative(){
  const localized=localizeV06015JapaneseVisibleText(before);if(localized!==before)narrative.textContent=localized;
  if(safeStableNarrative(localized))lastStableNarrative=localized
 }
+function repairDebugTelemetry(){
+ for(const row of document.querySelectorAll("#modalContent tr")){
+  if(!String(row.textContent||"").includes("NPC_AUTONOMOUS_ACTION"))continue;
+  const cells=row.querySelectorAll("td"),detail=cells[cells.length-1];if(!detail)continue;
+  const text=String(detail.textContent||"").trim();if(text&&JA_LEAK.test(text))detail.textContent="NPCの自律行動（内部テレメトリ）"
+ }
+}
 function repairJapaneseVisibleUi(root=document.body){
  if(locale()!=="ja"||!root)return;
  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
  for(const node of nodes){const parent=node.parentElement;if(!parent||parent.closest("script,style,textarea"))continue;localizeNodeText(node)}
- localizeAttributes(root);repairNarrative();
+ localizeAttributes(root);repairNarrative();repairDebugTelemetry();
  const region=document.querySelector("#worldMeta");if(region){const next=localizeV06015JapaneseVisibleText(region.textContent);if(next!==region.textContent)region.textContent=next}
  const weather=document.querySelector("#weather");if(weather){const next=localizeV06015JapaneseVisibleText(weather.textContent);if(next!==weather.textContent)weather.textContent=next}
 }
