@@ -1,130 +1,69 @@
 import {recordDebug} from "./debug-telemetry.js?v=59012";
+import {createPipelineTrace,REPAIR_DISPOSITION,REPAIR_SEVERITY} from "./runtime-observability.js?v=59013";
 
-// Deterministic repair gate for model-produced structured output.
-// This module MUST NOT invent Canon. It may normalize syntax/shape, bind values to
-// existing engine-owned entities, or remove unsupported claims.
-
+// Deterministic repair gate. It may normalize, bind to existing Engine-owned data,
+// or remove unsupported claims. It MUST NOT invent Canon.
 const text=(value,max=500)=>String(value??"").normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max);
 const list=value=>Array.isArray(value)?value:[];
 const plain=value=>value&&typeof value==="object"&&!Array.isArray(value);
 const norm=value=>text(value,180).normalize("NFKC").toLowerCase().replace(/[\s\u3000]+/g,"").replace(/[「」『』“”\"'`，,。.!！?？:：;；、()（）\[\]【】]/g,"");
 const ENTITY_EDGE=/^[\s「」『』“”\"'`，,。.!！?？:：;；、()（）\[\]【】]+|[\s「」『』“”\"'`，,。.!！?？:：;；、()（）\[\]【】]+$/g;
-const VALID_SCENE_OUTCOME=new Set(["SUCCESS","FAILURE"]);
-const VALID_SUGGESTION_KIND=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]);
-const VALID_RISK=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]);
-const VALID_APPROACH=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
+const VALID_SCENE_OUTCOME=new Set(["SUCCESS","FAILURE"]),VALID_SUGGESTION_KIND=new Set(["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"]),VALID_RISK=new Set(["LOW","MEDIUM","HIGH","EXTREME","UNKNOWN"]),VALID_APPROACH=new Set(["STEADY","SOCIAL","BOLD","CREATIVE"]);
+const OP_CAPABILITY=Object.freeze({DISCOVER_FACT:"DISCOVER_FACT",SET_WORLD_NAME_KNOWN:"SET_WORLD_NAME_KNOWN",SET_CALENDAR_KNOWN:"SET_CALENDAR_KNOWN",REVEAL_ENTITY:"REVEAL_ENTITY",MOVE_PLAYER:"MOVE_PLAYER",ACQUIRE_ITEM:"ACQUIRE_ITEM",START_ENCOUNTER:"START_ENCOUNTER",NPC_RELATIONSHIP_SIGNAL:"NPC_RELATIONSHIP_SIGNAL",FACTION_REPUTATION_SIGNAL:"FACTION_REPUTATION_SIGNAL",QUEST_HINT:"QUEST_HINT",COMPANION_SIGNAL:"COMPANION_SIGNAL",LEARN_RECIPE:"LEARN_RECIPE",LEARN_MAGIC:"LEARN_MAGIC",GENERATE_CONTENT:"GENERATE_CONTENT",WORLD_IMPACT_SIGNAL:"WORLD_IMPACT_SIGNAL",TIMELINE_SIGNAL:"TIMELINE_SIGNAL"});
+const issue=(code,disposition=REPAIR_DISPOSITION.NORMALIZED,severity=REPAIR_SEVERITY.RECOVERABLE,details={})=>({code,disposition,severity,...details});
+const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 
-export function sanitizeAiEntityName(value,max=120){
- return text(value,max).replace(ENTITY_EDGE,"").replace(/\s{2,}/g," ").trim().slice(0,max)
-}
-
-function registryRows(snapshot={},kind=""){
- const registry=snapshot?.registry||snapshot?.world?.registry||{};
- if(kind==="npc")return list(registry.npcs);
- if(kind==="faction")return list(registry.factions);
- if(kind==="location")return list(registry.locations);
- if(kind==="sideQuest")return list(registry.sideQuests);
- return []
-}
-function canonicalEntity(snapshot,kind,value){
- const raw=text(value,140);if(!raw)return null;
- const rows=registryRows(snapshot,kind),exact=rows.find(x=>String(x?.id||"")===raw);if(exact)return exact;
- const key=norm(raw);if(!key)return null;
- const matches=rows.filter(x=>[x?.id,x?.name,x?.title].some(v=>v&&norm(v)===key));
- return matches.length===1?matches[0]:null
-}
-function canonicalFact(snapshot,value){
- const raw=text(value,140);if(!raw)return null;
- const facts=list(snapshot?.directorCanon||snapshot?.world?.canon?.facts||snapshot?.canon?.facts);
- const exact=facts.find(x=>String(x?.id||"")===raw);if(exact)return exact;
- const key=norm(raw),matches=facts.filter(x=>[x?.id,x?.title,x?.text].some(v=>v&&norm(v)===key));
- return matches.length===1?matches[0]:null
-}
+export function sanitizeAiEntityName(value,max=120){return text(value,max).replace(ENTITY_EDGE,"").replace(/\s{2,}/g," ").trim().slice(0,max)}
+function registryRows(snapshot={},kind=""){const registry=snapshot?.registry||snapshot?.world?.registry||{};if(kind==="npc")return list(registry.npcs);if(kind==="faction")return list(registry.factions);if(kind==="location")return list(registry.locations);if(kind==="sideQuest")return list(registry.sideQuests);return []}
+function canonicalEntity(snapshot,kind,value){const raw=text(value,140);if(!raw)return null;const rows=registryRows(snapshot,kind),exact=rows.find(x=>String(x?.id||"")===raw);if(exact)return exact;const key=norm(raw);if(!key)return null;const matches=rows.filter(x=>[x?.id,x?.name,x?.title].some(v=>v&&norm(v)===key));return matches.length===1?matches[0]:null}
+function canonicalFact(snapshot,value){const raw=text(value,140);if(!raw)return null;const facts=list(snapshot?.directorCanon||snapshot?.world?.canon?.facts||snapshot?.canon?.facts),exact=facts.find(x=>String(x?.id||"")===raw);if(exact)return exact;const key=norm(raw),matches=facts.filter(x=>[x?.id,x?.title,x?.text].some(v=>v&&norm(v)===key));return matches.length===1?matches[0]:null}
 function capabilitySet(plan={}){return new Set(list(plan?.capabilities).map(x=>String(x||"").toUpperCase()).filter(Boolean))}
-const OP_CAPABILITY=Object.freeze({
- DISCOVER_FACT:"DISCOVER_FACT",SET_WORLD_NAME_KNOWN:"SET_WORLD_NAME_KNOWN",SET_CALENDAR_KNOWN:"SET_CALENDAR_KNOWN",REVEAL_ENTITY:"REVEAL_ENTITY",MOVE_PLAYER:"MOVE_PLAYER",ACQUIRE_ITEM:"ACQUIRE_ITEM",START_ENCOUNTER:"START_ENCOUNTER",NPC_RELATIONSHIP_SIGNAL:"NPC_RELATIONSHIP_SIGNAL",FACTION_REPUTATION_SIGNAL:"FACTION_REPUTATION_SIGNAL",QUEST_HINT:"QUEST_HINT",COMPANION_SIGNAL:"COMPANION_SIGNAL",LEARN_RECIPE:"LEARN_RECIPE",LEARN_MAGIC:"LEARN_MAGIC",GENERATE_CONTENT:"GENERATE_CONTENT",WORLD_IMPACT_SIGNAL:"WORLD_IMPACT_SIGNAL",TIMELINE_SIGNAL:"TIMELINE_SIGNAL"
-});
+function finalize(value,raw,issues=[],dropped=[]){const reasons=[...new Set(issues.map(x=>x.code))];return {value,changed:value==null||issues.length>0||dropped.length>0||!same(value,raw),issues,reasons,dropped}}
 
 export function repairStatePatchCandidate(raw,{plan={},snapshot={}}={}){
- const reasons=[],dropped=[];if(!plain(raw))return {value:{baseRevision:Number(plan?.baseRevision)||0,operations:[]},changed:true,reasons:["PATCH_NOT_OBJECT"],dropped};
+ const issues=[],dropped=[];if(!plain(raw))return finalize(null,raw,[issue("PATCH_NOT_OBJECT",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT)]);
  const allowed=capabilitySet(plan),operations=[];
  for(const [index,input] of list(raw.operations).entries()){
-  if(!plain(input)){dropped.push({index,reason:"OP_NOT_OBJECT"});continue}
-  const op=String(input.op||"").trim().toUpperCase(),cap=OP_CAPABILITY[op];
-  if(!cap||!allowed.has(cap)){dropped.push({index,op,reason:"OP_NOT_AUTHORIZED"});continue}
+  if(!plain(input)){dropped.push({index,reason:"OP_NOT_OBJECT"});issues.push(issue("OP_NOT_OBJECT",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index}));continue}
+  const originalOp=String(input.op||"").trim(),op=originalOp.toUpperCase(),cap=OP_CAPABILITY[op];if(originalOp!==op)issues.push(issue("OP_ENUM_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE,{index,op}));
+  if(!cap||!allowed.has(cap)){dropped.push({index,op,reason:"OP_NOT_AUTHORIZED"});issues.push(issue("OP_NOT_AUTHORIZED",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index,op}));continue}
   let row={...input,op};
-  if(op==="NPC_RELATIONSHIP_SIGNAL"||op==="COMPANION_SIGNAL"){
-   const entity=canonicalEntity(snapshot,"npc",row.npcId);if(!entity?.id){dropped.push({index,op,reason:"NPC_NOT_CANONICAL"});continue}row.npcId=String(entity.id)
-  }
-  if(op==="FACTION_REPUTATION_SIGNAL"){
-   const entity=canonicalEntity(snapshot,"faction",row.factionId);if(!entity?.id){dropped.push({index,op,reason:"FACTION_NOT_CANONICAL"});continue}row.factionId=String(entity.id)
-  }
-  if(op==="REVEAL_ENTITY"){
-   const kind=String(row.kind||"").trim(),entity=canonicalEntity(snapshot,kind,row.id);if(!entity?.id){dropped.push({index,op,reason:"REVEAL_ENTITY_NOT_CANONICAL"});continue}row.id=String(entity.id)
-  }
-  if(op==="DISCOVER_FACT"&&String(row.sourceKind||"").toUpperCase()==="CANON"){
-   const fact=canonicalFact(snapshot,row.factId||row.sourceId);if(!fact?.id){dropped.push({index,op,reason:"FACT_NOT_CANONICAL"});continue}row.factId=String(fact.id);row.sourceId=String(fact.id);row.sourceKind="CANON"
-  }
-  if(op==="ACQUIRE_ITEM"&&plain(row.item))row.item={...row.item,name:sanitizeAiEntityName(row.item.name,100)};
-  if(op==="START_ENCOUNTER"&&plain(row.enemy))row.enemy={...row.enemy,name:sanitizeAiEntityName(row.enemy.name,100)};
+  const bind=(kind,key,missingCode)=>{const before=String(row[key]||""),entity=canonicalEntity(snapshot,kind,before);if(!entity?.id){dropped.push({index,op,reason:missingCode});issues.push(issue(missingCode,REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index,op}));return false}row[key]=String(entity.id);if(before!==row[key])issues.push(issue("CANONICAL_ID_BOUND",REPAIR_DISPOSITION.BOUND,REPAIR_SEVERITY.CONTRACT_VIOLATION,{index,op,kind}));return true};
+  if((op==="NPC_RELATIONSHIP_SIGNAL"||op==="COMPANION_SIGNAL")&&!bind("npc","npcId","NPC_NOT_CANONICAL"))continue;
+  if(op==="FACTION_REPUTATION_SIGNAL"&&!bind("faction","factionId","FACTION_NOT_CANONICAL"))continue;
+  if(op==="REVEAL_ENTITY"){const kind=String(row.kind||"").trim(),before=String(row.id||""),entity=canonicalEntity(snapshot,kind,before);if(!entity?.id){dropped.push({index,op,reason:"REVEAL_ENTITY_NOT_CANONICAL"});issues.push(issue("REVEAL_ENTITY_NOT_CANONICAL",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index,op,kind}));continue}row.id=String(entity.id);if(before!==row.id)issues.push(issue("CANONICAL_ID_BOUND",REPAIR_DISPOSITION.BOUND,REPAIR_SEVERITY.CONTRACT_VIOLATION,{index,op,kind}))}
+  if(op==="DISCOVER_FACT"&&String(row.sourceKind||"").toUpperCase()==="CANON"){const before=String(row.factId||row.sourceId||""),fact=canonicalFact(snapshot,before);if(!fact?.id){dropped.push({index,op,reason:"FACT_NOT_CANONICAL"});issues.push(issue("FACT_NOT_CANONICAL",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index,op}));continue}row.factId=String(fact.id);row.sourceId=String(fact.id);row.sourceKind="CANON";if(before!==row.factId)issues.push(issue("CANONICAL_ID_BOUND",REPAIR_DISPOSITION.BOUND,REPAIR_SEVERITY.CONTRACT_VIOLATION,{index,op,kind:"fact"}))}
+  for(const [target,key] of [["ACQUIRE_ITEM","item"],["START_ENCOUNTER","enemy"]])if(op===target&&plain(row[key])){const before=String(row[key].name||""),name=sanitizeAiEntityName(before,100);row[key]={...row[key],name};if(name!==before)issues.push(issue("ENTITY_NAME_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE,{index,op}))}
   operations.push(row)
  }
- const baseRevision=Number(plan?.baseRevision);const value={...raw,baseRevision:Number.isFinite(baseRevision)?baseRevision:Number(raw.baseRevision)||0,operations};
- if(Number(raw.baseRevision)!==value.baseRevision)reasons.push("BASE_REVISION_REBOUND");if(dropped.length)reasons.push("INVALID_OPERATIONS_DROPPED");
- return {value,changed:reasons.length>0||operations.length!==list(raw.operations).length,reasons,dropped}
+ const baseRevision=Number(plan?.baseRevision),rawRevision=Number(raw.baseRevision),value={...raw,baseRevision:Number.isFinite(baseRevision)?baseRevision:rawRevision||0,operations};
+ if(Number.isFinite(baseRevision)&&rawRevision!==baseRevision)issues.push(issue("BASE_REVISION_REBOUND",REPAIR_DISPOSITION.BOUND,REPAIR_SEVERITY.CONTRACT_VIOLATION));else if(raw.baseRevision!==value.baseRevision)issues.push(issue("BASE_REVISION_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE));
+ return finalize(value,raw,issues,dropped)
 }
 
-function repairSuggestion(row,index){
- if(typeof row==="string")row={label:row,action:row};if(!plain(row))return {value:null,reason:"SUGGESTION_NOT_OBJECT",index};
- const label=text(row.label||row.action,120),action=text(row.action||row.label,220);if(!label||!action)return {value:null,reason:"SUGGESTION_EMPTY",index};
- const kind=String(row.kind||"GENERAL").toUpperCase(),risk=String(row.risk||"UNKNOWN").toUpperCase(),approach=String(row.approach||"STEADY").toUpperCase();
- return {value:{...row,label,action,kind:VALID_SUGGESTION_KIND.has(kind)?kind:"GENERAL",risk:VALID_RISK.has(risk)?risk:"UNKNOWN",approach:VALID_APPROACH.has(approach)?approach:"STEADY",targetId:text(row.targetId,120)||null,requiredItemIds:list(row.requiredItemIds).map(x=>text(x,120)).filter(Boolean).slice(0,8),requiredCapabilities:list(row.requiredCapabilities).map(x=>text(x,80)).filter(Boolean).slice(0,8),requirementsSatisfied:row.requirementsSatisfied===true,progression:row.progression===true},reason:null,index}
+function repairSuggestion(input,index){
+ let row=input,issues=[];if(typeof row==="string"){row={label:row,action:row};issues.push(issue("SUGGESTION_SHAPE_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE,{index}))}if(!plain(row))return {value:null,issues:[issue("SUGGESTION_NOT_OBJECT",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index})],reason:"SUGGESTION_NOT_OBJECT",index};
+ const label=text(row.label||row.action,120),action=text(row.action||row.label,220);if(!label||!action)return {value:null,issues:[issue("SUGGESTION_EMPTY",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT,{index})],reason:"SUGGESTION_EMPTY",index};
+ const rawKind=String(row.kind||"GENERAL"),rawRisk=String(row.risk||"UNKNOWN"),rawApproach=String(row.approach||"STEADY"),kind=rawKind.toUpperCase(),risk=rawRisk.toUpperCase(),approach=rawApproach.toUpperCase(),fixed={...row,label,action,kind:VALID_SUGGESTION_KIND.has(kind)?kind:"GENERAL",risk:VALID_RISK.has(risk)?risk:"UNKNOWN",approach:VALID_APPROACH.has(approach)?approach:"STEADY",targetId:text(row.targetId,120)||null,requiredItemIds:list(row.requiredItemIds).map(x=>text(x,120)).filter(Boolean).slice(0,8),requiredCapabilities:list(row.requiredCapabilities).map(x=>text(x,80)).filter(Boolean).slice(0,8),requirementsSatisfied:row.requirementsSatisfied===true,progression:row.progression===true};
+ if(!same(fixed,row))issues.push(issue("SUGGESTION_FIELDS_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE,{index}));return {value:fixed,issues,reason:null,index}
 }
 export function repairSceneCandidate(raw,{expectedOutcome=""}={}){
- const reasons=[],dropped=[];if(!plain(raw))return {value:null,changed:true,reasons:["SCENE_NOT_OBJECT"],dropped};
- const value={...raw};
- value.sceneTitle=text(raw.sceneTitle,160);value.narrative=text(raw.narrative,1800);
- const expected=String(expectedOutcome||"").toUpperCase();if(VALID_SCENE_OUTCOME.has(expected)&&String(raw.outcome||"").toUpperCase()!==expected){value.outcome=expected;reasons.push("OUTCOME_REBOUND")}
- else value.outcome=VALID_SCENE_OUTCOME.has(String(raw.outcome||"").toUpperCase())?String(raw.outcome).toUpperCase():expected||"FAILURE";
- const suggestions=[];for(const [index,row] of list(raw.suggestions).entries()){const fixed=repairSuggestion(row,index);if(fixed.value)suggestions.push(fixed.value);else dropped.push({index,reason:fixed.reason})}value.suggestions=suggestions.slice(0,4);
- if(dropped.length)reasons.push("INVALID_SUGGESTIONS_DROPPED");
- return {value,changed:reasons.length>0||suggestions.length!==list(raw.suggestions).length,reasons,dropped}
+ const issues=[],dropped=[];if(!plain(raw))return finalize(null,raw,[issue("SCENE_NOT_OBJECT",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT)]);
+ const value={...raw,sceneTitle:text(raw.sceneTitle,160),narrative:text(raw.narrative,1800)},expected=String(expectedOutcome||"").toUpperCase(),actual=String(raw.outcome||"").toUpperCase();
+ if(VALID_SCENE_OUTCOME.has(expected)&&actual!==expected){value.outcome=expected;issues.push(issue("OUTCOME_REBOUND",REPAIR_DISPOSITION.BOUND,REPAIR_SEVERITY.CONTRACT_VIOLATION))}else value.outcome=VALID_SCENE_OUTCOME.has(actual)?actual:expected||"FAILURE";
+ const suggestions=[];for(const [index,row] of list(raw.suggestions).entries()){const fixed=repairSuggestion(row,index);issues.push(...fixed.issues);if(fixed.value)suggestions.push(fixed.value);else dropped.push({index,reason:fixed.reason})}value.suggestions=suggestions.slice(0,4);if(list(raw.suggestions).length>4)issues.push(issue("SUGGESTION_LIMIT_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE));return finalize(value,raw,issues,dropped)
 }
-
-function cleanEntityObject(row,kind){
- if(!plain(row))return row;const next={...row};
- if("name" in next)next.name=sanitizeAiEntityName(next.name,120);
- if(kind==="sideQuest"&&"title" in next)next.title=sanitizeAiEntityName(next.title,140);
- return next
-}
-export function repairWorldStageCandidate(stage,raw){
- if(!plain(raw))return {value:raw,changed:false,reasons:[],dropped:[]};
- const value=structuredClone(raw),reasons=[];let changed=false;
- const fixArray=(container,key,kind)=>{if(!plain(container)||!Array.isArray(container[key]))return;container[key]=container[key].map(row=>{const fixed=cleanEntityObject(row,kind);if(JSON.stringify(fixed)!==JSON.stringify(row))changed=true;return fixed})};
- fixArray(value,"npcs","npc");fixArray(value,"locations","location");fixArray(value,"factions","faction");fixArray(value,"sideQuests","sideQuest");
- if(plain(value.generation)){fixArray(value.generation,"npcs","npc");fixArray(value.generation,"locations","location");fixArray(value.generation,"factions","faction");fixArray(value.generation,"sideQuests","sideQuest")}
- if(plain(value.faction)){const fixed=cleanEntityObject(value.faction,"faction");if(JSON.stringify(fixed)!==JSON.stringify(value.faction)){value.faction=fixed;changed=true}}
- if(changed)reasons.push("ENTITY_NAMES_SANITIZED");
- return {value,changed,reasons,dropped:[],stage:String(stage||"").toUpperCase()}
-}
-
-function outputShape(value){
- if(!plain(value))return {type:Array.isArray(value)?"array":typeof value};
- return {keys:Object.keys(value).slice(0,24),operations:list(value.operations).length,suggestions:list(value.suggestions).length,npcs:list(value.npcs).length,locations:list(value.locations).length,factions:list(value.factions).length,sideQuests:list(value.sideQuests).length}
-}
-function emitRepairDebug(type,result,raw,context={}){
- if(!result?.changed&&!result?.dropped?.length)return;
- const dropped=list(result?.dropped).slice(0,20).map(x=>({index:Number.isFinite(Number(x?.index))?Number(x.index):null,op:text(x?.op,60)||undefined,reason:text(x?.reason,120)||"DROPPED"}));
- recordDebug(result?.value==null?"AI_OUTPUT_REJECTED":"AI_OUTPUT_REPAIRED",{
-  repairKind:type,stage:text(context?.stage,60)||undefined,reasons:list(result?.reasons).map(x=>text(x,120)).filter(Boolean).slice(0,20),dropped,
-  before:outputShape(raw),after:outputShape(result?.value),baseRevisionBefore:Number.isFinite(Number(raw?.baseRevision))?Number(raw.baseRevision):undefined,baseRevisionAfter:Number.isFinite(Number(result?.value?.baseRevision))?Number(result.value.baseRevision):undefined
- })
-}
+function cleanEntityObject(row,kind,issues){if(!plain(row))return row;const next={...row};if("name" in next){const before=String(next.name||""),after=sanitizeAiEntityName(before,120);next.name=after;if(before!==after)issues.push(issue("ENTITY_NAME_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE,{kind}))}if(kind==="sideQuest"&&"title" in next){const before=String(next.title||""),after=sanitizeAiEntityName(before,140);next.title=after;if(before!==after)issues.push(issue("ENTITY_NAME_NORMALIZED",REPAIR_DISPOSITION.NORMALIZED,REPAIR_SEVERITY.RECOVERABLE,{kind}))}return next}
+export function repairWorldStageCandidate(stage,raw){if(!plain(raw))return finalize(raw,raw);const value=structuredClone(raw),issues=[],fixArray=(container,key,kind)=>{if(!plain(container)||!Array.isArray(container[key]))return;container[key]=container[key].map(row=>cleanEntityObject(row,kind,issues))};fixArray(value,"npcs","npc");fixArray(value,"locations","location");fixArray(value,"factions","faction");fixArray(value,"sideQuests","sideQuest");if(plain(value.generation)){fixArray(value.generation,"npcs","npc");fixArray(value.generation,"locations","location");fixArray(value.generation,"factions","faction");fixArray(value.generation,"sideQuests","sideQuest")}if(plain(value.faction))value.faction=cleanEntityObject(value.faction,"faction",issues);const out=finalize(value,raw,issues,[]);out.stage=String(stage||"").toUpperCase();return out}
+function repairCore(type,raw,context={}){if(type==="STATE_PATCH")return repairStatePatchCandidate(raw,context);if(type==="SCENE")return repairSceneCandidate(raw,context);if(type==="WORLD_STAGE")return repairWorldStageCandidate(context?.stage,raw);return finalize(raw,raw)}
+function outputShape(value){if(!plain(value))return {type:Array.isArray(value)?"array":typeof value};return {keys:Object.keys(value).slice(0,24),operations:list(value.operations).length,suggestions:list(value.suggestions).length,npcs:list(value.npcs).length,locations:list(value.locations).length,factions:list(value.factions).length,sideQuests:list(value.sideQuests).length}}
+function deriveTrace(type,context={}){const inherited=plain(context?.trace)?context.trace:{},baseRevision=context?.plan?.baseRevision??context?.snapshot?.stateRevision;return createPipelineTrace({...inherited,stage:type,turnId:inherited.turnId??context?.turnId??(baseRevision==null?null:`REV-${baseRevision}`)})}
+function attachTrace(value,trace){if(!plain(value))return;try{Object.defineProperty(value,"__elyndraTrace",{value:trace,enumerable:false,configurable:true})}catch{}}
+export function aiOutputTrace(value){return plain(value)&&plain(value.__elyndraTrace)?value.__elyndraTrace:null}
+export function verifyRepairIdempotence(kind,raw,context={}){const type=String(kind||"").toUpperCase(),first=repairCore(type,structuredClone(raw),context);if(first.value==null)return {ok:true,first,second:null};const second=repairCore(type,structuredClone(first.value),context),ok=second.value!=null&&!second.changed&&!second.dropped?.length&&same(first.value,second.value);return {ok,first,second}}
 export function repairAiOutput(kind,raw,context={}){
- const type=String(kind||"").toUpperCase();let result;
- if(type==="STATE_PATCH")result=repairStatePatchCandidate(raw,context);
- else if(type==="SCENE")result=repairSceneCandidate(raw,context);
- else if(type==="WORLD_STAGE")result=repairWorldStageCandidate(context?.stage,raw);
- else result={value:raw,changed:false,reasons:[],dropped:[]};
- emitRepairDebug(type,result,raw,context);return result
+ const type=String(kind||"").toUpperCase(),trace=deriveTrace(type,context);recordDebug("AI_OUTPUT_RECEIVED",{...trace,repairKind:type,before:outputShape(raw)});let result=repairCore(type,raw,context),idempotence={ok:true};
+ if(result.value!=null){const second=repairCore(type,structuredClone(result.value),context);idempotence={ok:second.value!=null&&!second.changed&&!second.dropped?.length&&same(result.value,second.value)};if(!idempotence.ok){result=finalize(null,raw,[...list(result.issues),issue("REPAIR_NON_IDEMPOTENT",REPAIR_DISPOSITION.REJECTED,REPAIR_SEVERITY.HARD_REJECT)],list(result.dropped));recordDebug("AI_REPAIR_NON_IDEMPOTENT",{...trace,repairKind:type})}}
+ const issues=list(result.issues),hardRejects=issues.filter(x=>x.severity===REPAIR_SEVERITY.HARD_REJECT).length,masking=result.value!=null&&issues.some(x=>x.severity!==REPAIR_SEVERITY.RECOVERABLE),dispositionCounts={};for(const row of issues)dispositionCounts[row.disposition]=(dispositionCounts[row.disposition]||0)+1;result={...result,hardRejects,masking,idempotent:idempotence.ok,trace,dispositionCounts};attachTrace(result.value,trace);
+ if(result.changed||result.dropped?.length||result.value==null)recordDebug(result.value==null?"AI_OUTPUT_REJECTED":"AI_OUTPUT_REPAIRED",{...trace,repairKind:type,masking,hardRejects,idempotent:idempotence.ok,issues:issues.slice(0,30).map(x=>({code:x.code,disposition:x.disposition,severity:x.severity,index:x.index,op:x.op,kind:x.kind})),reasons:result.reasons,dropped:list(result.dropped).slice(0,20),before:outputShape(raw),after:outputShape(result.value)});return result
 }
