@@ -1,0 +1,133 @@
+name: Stage v0.59.8 runtime recovery hotfix
+on:
+  push:
+    branches: [fix/v0598-runtime-autotest-recovery]
+permissions:
+  contents: write
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply targeted runtime repairs
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          def replace(path, old, new, count=-1):
+              p=Path(path); s=p.read_text()
+              if old not in s:
+                  raise SystemExit(f'pattern missing in {path}: {old[:120]!r}')
+              p.write_text(s.replace(old,new,count))
+
+          # 1) Rate-limit recovery: ordinary background work still sheds, but AutoTest
+          # sparse-world recovery is allowed to wait for the provider cooldown instead
+          # of hammering doomed runtime_expansion calls.
+          p=Path('src/ai-settings.js'); s=p.read_text()
+          s=s.replace('const initial={disableTimeout:false,signal:null,pauseWhenHidden:false,requestSpacingMs:0};globalThis[RUNTIME_CONTROL_KEY]=initial;return initial',
+                      'const initial={disableTimeout:false,signal:null,pauseWhenHidden:false,requestSpacingMs:0,recoveryCritical:false};globalThis[RUNTIME_CONTROL_KEY]=initial;return initial')
+          s=s.replace('requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs??(control?.signal?1200:0))||0)))};',
+                      'requestSpacingMs:Math.max(0,Math.min(10000,Math.round(Number(control?.requestSpacingMs??(control?.signal?1200:0))||0))),recoveryCritical:control?.recoveryCritical===true};')
+          s=s.replace('globalThis[RUNTIME_CONTROL_KEY]={disableTimeout:false,signal:null,pauseWhenHidden:false,requestSpacingMs:0}',
+                      'globalThis[RUNTIME_CONTROL_KEY]={disableTimeout:false,signal:null,pauseWhenHidden:false,requestSpacingMs:0,recoveryCritical:false}')
+          old='async function honorRateLimit(provider,task,parentSignals=[]){const row=rateLimitState(provider),now=Date.now(),cooldownRemaining=Math.max(0,(Number(row.until)||0)-now),taskName=String(task||"").toLowerCase();if(cooldownRemaining&&SHED_ON_RATE_LIMIT.has(taskName)){recordDebug("AI_BACKPRESSURE_SKIPPED",{provider,task,until:row.until,remainingMs:cooldownRemaining});throw backpressureError(provider,task,row.until)}const runtime=directAIRuntimeControl(),spacing='
+          new='async function honorRateLimit(provider,task,parentSignals=[]){const row=rateLimitState(provider),now=Date.now(),cooldownRemaining=Math.max(0,(Number(row.until)||0)-now),taskName=String(task||"").toLowerCase(),runtime=directAIRuntimeControl(),recoveryCritical=runtime.recoveryCritical===true&&taskName==="runtime_expansion";if(cooldownRemaining&&SHED_ON_RATE_LIMIT.has(taskName)&&!recoveryCritical){recordDebug("AI_BACKPRESSURE_SKIPPED",{provider,task,until:row.until,remainingMs:cooldownRemaining});throw backpressureError(provider,task,row.until)}const spacing='
+          if old not in s: raise SystemExit('honorRateLimit pattern missing')
+          s=s.replace(old,new)
+          old='if(SHED_ON_RATE_LIMIT.has(String(args?.aiTask||"").toLowerCase()))throw backpressureError(s.provider,args?.aiTask,row.until);'
+          new='if(SHED_ON_RATE_LIMIT.has(String(args?.aiTask||"").toLowerCase())&&!(runtime.recoveryCritical===true&&String(args?.aiTask||"").toLowerCase()==="runtime_expansion"))throw backpressureError(s.provider,args?.aiTask,row.until);'
+          if old not in s: raise SystemExit('429 shed pattern missing')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          replace('app.js','setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal})','setDirectAIRuntimeControl({disableTimeout:config.disableTimeout===true,signal:developerAutotest.batchController.signal,recoveryCritical:true})')
+
+          # 2) Never advertise a targetless free recovery as TRAVEL, and preserve a
+          # real targetId if an AI/free decision supplies one.
+          p=Path('src/ai-autotest.js'); s=p.read_text()
+          s=s.replace('kind:"TRAVEL",targetId:null,progression:true},\n  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:"TRAVEL",targetId:null,progression:true}',
+                      'kind:"INTERACT",targetId:null,progression:true},\n  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:"INTERACT",targetId:null,progression:true}')
+          old='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};'
+          new='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||"",100)||null,combatAction:null,reason,goalReached,goalEvidence};'
+          if old not in s: raise SystemExit('normalize free pattern missing')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          # 3) Repair Future Timeline slot-by-slot. A short/malformed AI event no
+          # longer discards the entire FUTURE stage.
+          p=Path('src/ai-client.js'); s=p.read_text()
+          marker='function castFallback(anchor,history,region,society){'
+          helper=r'''function repairFutureTimelineCandidate(raw,anchor,history,pacing){
+ const fallback=futureFallback(anchor,history,pacing),slots=timelineAuthoringSlots(pacing),rows=Array.isArray(raw?.worldTimeline)?raw.worldTimeline:[],baseRows=fallback.worldTimeline||[],historyIds=new Set((Array.isArray(history)?history:[]).map(x=>String(x?.id||"")).filter(Boolean));let repaired=0;
+ const worldTimeline=slots.map((slot,i)=>{const base=structuredClone(baseRows[i]||{}),src=rows[i]&&typeof rows[i]==="object"&&!Array.isArray(rows[i])?structuredClone(rows[i]):null;if(!src){repaired++;return base}let changed=false,next={...base,...src};for(const key of ["title","directorTruth","observableEffect"]){const min=key==="title"?1:8;if(String(src[key]||"").trim().length<min){next[key]=base[key];changed=true}}const srcLinks=src.links&&typeof src.links==="object"&&!Array.isArray(src.links)?src.links:{},historyRefs=(Array.isArray(srcLinks.historyRefs)?srcLinks.historyRefs:[]).map(String).filter(id=>historyIds.has(id)),locationRefs=(Array.isArray(srcLinks.locationRefs)?srcLinks.locationRefs:[]).map(String).filter(Boolean);next.links={historyRefs:historyRefs.length?historyRefs:[...(base.links?.historyRefs||[])],locationRefs:locationRefs.length?locationRefs:[...(base.links?.locationRefs||[])]};if(!historyRefs.length||!locationRefs.length)changed=true;if(!Array.isArray(src.affectedRegions)||!src.affectedRegions.length){next.affectedRegions=[...(base.affectedRegions||[])];changed=true}for(const key of ["domains","activationConditions","cancelConditions","escalationConditions"]){if(!Array.isArray(src[key])){next[key]=[...(base[key]||[])];changed=true}}if(changed)repaired++;return next});
+ const worldCalendar=raw?.worldCalendar&&typeof raw.worldCalendar==="object"&&!Array.isArray(raw.worldCalendar)?{...fallback.worldCalendar,...raw.worldCalendar}:fallback.worldCalendar;if(!raw?.worldCalendar||typeof raw.worldCalendar!=="object")repaired++;
+ return {candidate:{worldCalendar,worldTimeline:bindTimelineAuthoringSlots(worldTimeline,pacing)},repaired}
+}
+
+'''
+          if marker not in s: raise SystemExit('future helper marker missing')
+          s=s.replace(marker,helper+marker,1)
+          old='const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);\n  if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));\n  let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);'
+          new='const futureRepair=repairFutureTimelineCandidate(futureRaw,anchor,history,directive.timelinePacing),authoredTimeline=futureRepair.candidate.worldTimeline,timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);\n  if(!timelineReport.valid)markWorldFallback("FUTURE","TIMELINE_VALIDATION_FAILED:"+timelineReport.errors.join(","));\n  let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRepair.candidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);'
+          if old not in s: raise SystemExit('future validation block missing')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          # 4) Deterministic origin prose for Japanese avoids routing fixed Chinese
+          # boilerplate through translation repair on every fresh world.
+          p=Path('src/world-creation.js'); s=p.read_text()
+          marker='function originProfile(origin){'
+          helper=r'''function originProfileLocaleCopy(p,earth){
+ const locale=String(globalThis?.ELYNDRA_LOCALE||"");
+ if(locale==="ja")return {background:"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。",commonKnowledge:earth?["現代地球の一般的な生活・衛生・基礎科学の常識を保持する。","現代の常識は異世界の Canon を意味しない。"]:["起源に照らして妥当な常識だけを保持し、World Compiler が構築していない世界情報を知っていることにはしない。"],initialAssumptions:[`法的身分：${p.legalStatus}`,`言語の初期状態：${p.languagePolicy}`,`知識境界：${p.knowledgePolicy}`],worldKnowledgeBoundary:`World Creation 2.0 origin policy=${p.knowledgePolicy}; hidden/director truth をプレイヤー既知情報として扱わない。`};
+ if(locale==="en")return {background:"The World Compiler establishes the concrete identity, starting location, and causal background from the World Constitution.",commonKnowledge:earth?["Retain ordinary modern-Earth knowledge of daily life, hygiene, and basic science.","Modern common knowledge is not otherworld Canon."]:["Retain only common knowledge justified by the origin; do not invent world information that the World Compiler has not established."],initialAssumptions:[`Legal status: ${p.legalStatus}`,`Starting language: ${p.languagePolicy}`,`Knowledge boundary: ${p.knowledgePolicy}`],worldKnowledgeBoundary:`World Creation 2.0 origin policy=${p.knowledgePolicy}; hidden/director truth is not player knowledge.`};
+ return {background:`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`,commonKnowledge:earth?["保留現代地球的一般生活、衛生與基礎科學常識。","現代常識不等於異世界 Canon。"]:["只保留符合起源的合理常識；未經 World Compiler 建立的世界資訊不可憑空知道。"],initialAssumptions:[`合法身份：${p.legalStatus}`,`語言起點：${p.languagePolicy}`,`知識邊界：${p.knowledgePolicy}`],worldKnowledgeBoundary:`World Creation 2.0 origin policy=${p.knowledgePolicy}; 不得把 hidden/director truth 當成玩家已知資訊。`}
+}
+
+'''
+          if marker not in s: raise SystemExit('origin marker missing')
+          s=s.replace(marker,helper+marker,1)
+          old='const earth=p.knowledgePolicy==="EARTH_ONLY";\n return {\n  id:"WC2_"+p.id.toUpperCase(),label:p.label,era:earth?"contemporary":"world_defined",originWorld:earth?"Earth":"world_defined",\n  background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),\n  commonKnowledge:earth?["保留現代地球的一般生活、衛生與基礎科學常識。","現代常識不等於異世界 Canon。"]:["只保留符合起源的合理常識；未經 World Compiler 建立的世界資訊不可憑空知道。"],\n  defaultValues:[],\n  initialAssumptions:[`合法身份：${p.legalStatus}`,`語言起點：${p.languagePolicy}`,`知識邊界：${p.knowledgePolicy}`],\n  worldKnowledgeBoundary:`World Creation 2.0 origin policy=${p.knowledgePolicy}; 不得把 hidden/director truth 當成玩家已知資訊。`,'
+          new='const earth=p.knowledgePolicy==="EARTH_ONLY",copy=originProfileLocaleCopy(p,earth);\n return {\n  id:"WC2_"+p.id.toUpperCase(),label:p.label,era:earth?"contemporary":"world_defined",originWorld:earth?"Earth":"world_defined",\n  background:custom||copy.background,\n  commonKnowledge:copy.commonKnowledge,\n  defaultValues:[],\n  initialAssumptions:copy.initialAssumptions,\n  worldKnowledgeBoundary:copy.worldKnowledgeBoundary,'
+          if old not in s: raise SystemExit('origin profile block missing')
+          s=s.replace(old,new,1); p.write_text(s)
+
+          # Regression coverage.
+          test=Path('test/v0598-runtime-autotest-recovery.test.js')
+          test.write_text('''import test from "node:test";\nimport assert from "node:assert/strict";\nimport {readFile} from "node:fs/promises";\n\ntest("v0.59.8 AutoTest waits for critical sparse-world expansion under provider cooldown",async()=>{\n const settings=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),app=await readFile(new URL("../app.js",import.meta.url),"utf8");\n assert.match(settings,/recoveryCritical/);\n assert.match(settings,/taskName===\\"runtime_expansion\\"/);\n assert.match(app,/recoveryCritical:true/);\n});\n\ntest("v0.59.8 does not emit targetless deterministic TRAVEL recovery",async()=>{\n const ai=await readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8");\n assert.doesNotMatch(ai,/尚未嘗試的可見通道[^\\n]+kind:\\"TRAVEL\\",targetId:null/);\n assert.match(ai,/targetId:text\\(parsed\\?\\.targetId/);\n});\n\ntest("v0.59.8 repairs incomplete Future slots before timeline validation",async()=>{\n const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");\n assert.match(client,/function repairFutureTimelineCandidate/);\n assert.match(client,/futureRepair=repairFutureTimelineCandidate/);\n});\n\ntest("v0.59.8 has deterministic Japanese origin boilerplate",async()=>{\n const creation=await readFile(new URL("../src/world-creation.js",import.meta.url),"utf8");\n assert.match(creation,/locale===\\"ja\\"/);\n assert.match(creation,/具体的な身分、開始地点、因果関係/);\n});\n''')
+
+          # Release/cache contract.
+          pkg=Path('package.json'); data=json.loads(pkg.read_text()); data['version']='0.59.8'; pkg.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          replace('src/version.js','APP_VERSION="0.59.7"','APP_VERSION="0.59.8"')
+          for path in ['index.html','app.js','src/ai-client.js','src/ai-settings.js','src/ai-autotest.js','test/version-ui.test.js','test/version-0551-release.test.js','test/v05901-i18n-coverage.test.js']:
+              p=Path(path); t=p.read_text().replace('59007','59008').replace('0.59.7','0.59.8').replace('0\\.59\\.7','0\\.59\\.8'); p.write_text(t)
+          pages=Path('.github/workflows/pages.yml'); t=pages.read_text(); needle='node --test test/version-policy.test.js '; t=t.replace(needle,'node --test test/v0598-runtime-autotest-recovery.test.js test/version-policy.test.js ',1); pages.write_text(t)
+
+          # This staging workflow must not remain in the PR net diff.
+          Path('.github/workflows/v0598-runtime-hotfix.yml').unlink()
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
+        env:
+          CACHE_BASE_REF: 268f8b632f366387383968c816ad53c38dd0e17f
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: Focused runtime recovery regressions
+        run: node --test test/v0598-runtime-autotest-recovery.test.js test/first-button-stall-recovery-v05419.test.js test/ai-autotest-first-button-hotfix.test.js test/autotest-resilience-v0572.test.js test/ai-settings.test.js test/isekai-runtime-v11.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Commit verified patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "v0.59.8: harden AutoTest runtime recovery"
+          git push origin HEAD:fix/v0598-runtime-autotest-recovery
