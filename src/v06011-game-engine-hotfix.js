@@ -1,7 +1,7 @@
 import * as base from "./game-engine.js?v=60006&base=1";
 import {safePlayerVisibleText} from "./v06011-locale-runtime-hotfix.js?v=60011";
 import {projectSuccessfulTravel,projectPermissionGrant} from "./v06014-turn-projection.js?v=60014";
-import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60015";
+import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60016";
 export * from "./game-engine.js?v=60006&base=1";
 
 const locale=()=>String(globalThis.ELYNDRA_LOCALE||"zh-Hant");
@@ -32,9 +32,11 @@ function localizePlayerEvents(state){
  }
 }
 export function coherentActionAssessment(assessment,customText=""){
- if(!assessment||String(assessment.verdict||"").toUpperCase()!=="ALLOW")return assessment;
- const presented=clean(customText,220);if(!presented)return assessment;
- return {...assessment,normalizedAction:presented,playerVisibleAction:presented}
+ if(!assessment)return assessment;
+ const verdict=String(assessment.verdict||"").toUpperCase(),presented=clean(customText,220);
+ if(verdict==="ALLOW")return presented?{...assessment,normalizedAction:presented,playerVisibleAction:presented}:assessment;
+ if(verdict==="ADJUST"&&clean(assessment.engineNormalizedAction,220))return {...assessment,normalizedAction:clean(assessment.engineNormalizedAction,220),playerVisibleAction:clean(assessment.playerVisibleAction||presented,220)||presented};
+ return assessment;
 }
 export function performAction(state,action="free",customText="",assessment=null){
  const coherentAssessment=coherentActionAssessment(assessment,customText),label=clean(coherentAssessment?.normalizedAction||customText||action,220)||"free",result=localizeResult(base.performAction(state,action,customText,coherentAssessment));
