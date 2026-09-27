@@ -16,7 +16,13 @@ jobs:
         with:
           node-version: 24
       - name: Apply patch
-        run: python3 scripts/v0609_patch.py
+        run: |
+          python3 scripts/v0609_patch.py
+          python3 scripts/v0609_patch2.py
+      - name: Browser module cache invariant
+        run: |
+          ! grep -R --include='*.js' -n 'locale-runtime.js?v=59010' app.js src
+          ! grep -n 'contextual-actions.js?v=60006' app.js
       - name: Syntax
         run: |
           find . -path './node_modules' -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check
@@ -28,16 +34,18 @@ jobs:
           node --test test/v05915-ja-suggestion-locale-regression.test.js
           node --test test/contextual-actions.test.js
           node --test test/nonblocking-turn-sync.test.js
+          node --test test/progressive-world-builder-v05410.test.js
           node --test test/debug-telemetry.test.js
       - name: Version/cache checks
         run: |
-          node --test test/version-0551-release.test.js || true
+          node --test test/version-0551-release.test.js
+          npm run version:check
           grep -q '0.60.9' src/version.js
           grep -q '60009' app.js
       - name: Commit runtime patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app.js index.html src/version.js src/contextual-actions.js src/locale-runtime.js test/v0609-ja-turn-export-regression.test.js .github/workflows/pages.yml
+          git add app.js index.html src test/v0609-ja-turn-export-regression.test.js
           git commit -m 'fix: harden Japanese UI and first-turn recovery (v0.60.9) [v0609-applied]'
           git push origin HEAD:fix/v0609-ja-turn-export
