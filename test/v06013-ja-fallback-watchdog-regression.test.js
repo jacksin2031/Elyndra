@@ -20,12 +20,16 @@ test("v0.60.13 known deterministic engine and weather text localizes synchronous
  assert.doesNotMatch(result,/找|這|目前|場景/);
 });
 
-test("v0.60.13 runtime UI recovery protects narrative and defers global watchdog past scene fallback",async()=>{
+test("v0.60.13 runtime UI recovery is turn-scoped and defers global watchdog past scene fallback",async()=>{
  const source=await readFile(new URL("../src/v06013-runtime-ui-hotfix.js",import.meta.url),"utf8");
  assert.match(source,/PLAYER_ACTION_GLOBAL_WATCHDOG/);
  assert.match(source,/19500/);
  assert.match(source,/GENERIC_JA_FALLBACK/);
  assert.match(source,/lastGoodNarrative/);
+ assert.match(source,/lastRollSignature/);
+ assert.match(source,/refreshTurnBoundary/);
+ assert.match(source,/lastGoodNarrative="";lastGoodSceneTitle=""/);
+ assert.match(source,/text!==turnInitialNarrative/);
  assert.match(source,/現在の天候は/);
  assert.match(source,/現在地は/);
  assert.match(source,/WORLD IMPACT & REPUTATION/);
