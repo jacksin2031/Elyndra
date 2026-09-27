@@ -22,4 +22,6 @@ new='const destination=firstButtonRecoveryDestination(state);if(destination){con
 s=s[:row_start]+new+s[row_end:]
 '''
 s=s[:start]+replacement+s[end:]
+# The extra UI table's existing final property has no trailing comma. Make insertion comma-safe.
+s=s.replace("s=s[:pos]+insert+s[pos:]; p.write_text(s)","prefix=s[:pos].rstrip(); prefix=prefix if prefix.endswith(',') else prefix+','; s=prefix+'\\n'+insert+s[pos:]; p.write_text(s)")
 p.write_text(s)
