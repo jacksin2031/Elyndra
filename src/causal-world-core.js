@@ -4,12 +4,12 @@ import {ensureKnowledgeMetadata,knowledgeModelSnapshot} from "./knowledge-model.
 import {ensureFutureEngine,registerTimelineFutures,mirrorLegacyCrisisToFuture,futureSnapshot} from "./future-engine.js?v=57025";
 import {ensureItemHeritage} from "./item-heritage.js?v=57025";
 import {ensureDocumentRuntime} from "./document-engine.js?v=57025";
-import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=57025";
+import {ensureLazyGeneration,lazyGenerationSnapshot} from "./lazy-generation.js?v=59014";
 import {ensureHistoryDepth,historyDepthSnapshot} from "./history-depth.js?v=57025";
 import {syncHistoryLegacy,historyLegacySnapshot} from "./history-legacy.js?v=57025";
 import {ensureVisibilityLocks,visibilityLockSnapshot} from "./visibility-lock.js?v=57025";
 import {ensureWorldCatalog,worldCatalogSnapshot} from "./world-catalog.js?v=57025";
-import {repairCausalIntegrity,auditCausalIntegrity} from "./causal-integrity.js?v=57025";
+import {repairCausalIntegrity,auditCausalIntegrity} from "./causal-integrity.js?v=59014";
 
 export function ensureCausalWorldCore(state){
  if(!state?.world)throw new Error("CAUSAL_WORLD_STATE_REQUIRED");

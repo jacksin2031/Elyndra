@@ -1,5 +1,5 @@
 import {ensureWorldRegistry} from "./world-registry.js?v=57025";
-import {ensureQuestProgress} from "./quest-engine.js?v=57025";
+import {ensureQuestProgress} from "./quest-engine.js?v=59014";
 import {createNpcCommitment,ensureNpcCognition,npcRelationshipSnapshot,recordNpcMemory,resolveNpcCommitment} from "./npc-cognition.js?v=57025";
 
 const uid=p=>p+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));

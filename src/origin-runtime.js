@@ -4,7 +4,7 @@ const clean=(v,max=300)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(rows,max=16)=>[...new Set((Array.isArray(rows)?rows:[]).map(x=>clean(x,120)).filter(Boolean))].slice(0,max);
 const KNOWLEDGE_RULES=Object.freeze({
  EARTH_ONLY:{factLimit:0,worldName:false,calendar:false,spokenCommon:false,readCommon:false,identitySignal:"OUTSIDER",equipmentPolicy:"NONE",spawnPolicy:"UNREGISTERED_ARRIVAL",openingMode:"ZERO_LOCAL_KNOWLEDGE"},
- PARTIAL_LOCAL:{factLimit:3,worldName:true,calendar:true,spokenCommon:true,readCommon:true,identitySignal:"LOCAL_OR_UNKNOWN",equipmentPolicy:"WORLD_LOCAL_BASIC",spawnPolicy:"LOCAL_LIFE",openingMode:"PARTIAL_LOCAL"},
+ PARTIAL_LOCAL:{factLimit:3,worldName:true,calendar:false,spokenCommon:true,readCommon:true,identitySignal:"LOCAL_OR_UNKNOWN",equipmentPolicy:"WORLD_LOCAL_BASIC",spawnPolicy:"LOCAL_LIFE",openingMode:"PARTIAL_LOCAL"},
  BRIEFED_PARTIAL:{factLimit:2,worldName:true,calendar:false,spokenCommon:true,readCommon:true,identitySignal:"SPONSORED_OUTSIDER",equipmentPolicy:"SPONSOR_DEPENDENT",spawnPolicy:"SUMMONING_EVENT",openingMode:"BRIEFED"},
  HOST_FRAGMENTED:{factLimit:1,worldName:false,calendar:false,spokenCommon:true,readCommon:false,identitySignal:"HOST_IDENTITY",equipmentPolicy:"HOST_EXISTING",spawnPolicy:"HOST_LOCATION",openingMode:"FRAGMENTED"},
  LOCAL_BASELINE:{factLimit:6,worldName:true,calendar:true,spokenCommon:true,readCommon:true,identitySignal:"LOCAL",equipmentPolicy:"WORLD_LOCAL_BASIC",spawnPolicy:"LOCAL_HOME_OR_DUTY",openingMode:"LOCAL_BASELINE"},
@@ -19,6 +19,11 @@ function policy(state){
 }
 function publicFacts(state){
  return (state.world?.canon?.facts||[]).filter(x=>String(x.visibility||"").toLowerCase()==="public"&&x.id&&x.text)
+}
+function localOriginFacts(state,rows,rules){
+ if(String(rules?.knowledgePolicy||"")!=="PARTIAL_LOCAL")return rows;
+ const keys=[state.world?.bible?.startingLocation,state.world?.bible?.startingSettlement,state.world?.bible?.startingRegion].map(x=>clean(x,120)).filter(Boolean);
+ return rows.filter(f=>f?.originKnown===true||String(f?.originScope||"").toUpperCase()==="LOCAL"||keys.some(k=>k&&String(f?.text||"").includes(k)))
 }
 function rankFacts(state,rows){
  const keys=[state.world?.bible?.startingLocation,state.world?.bible?.startingSettlement,state.world?.bible?.startingRegion].map(x=>clean(x,120)).filter(Boolean);
@@ -74,7 +79,7 @@ export function applyOriginRuntime(state,{phase="POST_CANON"}={}){
  const firstPostApply=rt.appliedRevision==null;
  if(firstPostApply)applyOriginVisibilityBoundary(state,rules);
  state.player.worldNameKnown=rules.worldName===true;state.player.calendarKnown=rules.calendar===true;
- const rows=rankFacts(state,publicFacts(state)).slice(0,Math.max(0,rules.factLimit)),granted=[];
+ const rows=rankFacts(state,localOriginFacts(state,publicFacts(state),rules)).slice(0,Math.max(0,rules.factLimit)),granted=[];
  for(const fact of rows){const ev=grantOriginFact(state,fact);if(ev||state.knowledge.some(x=>x.factId===fact.id&&x.status==="VERIFIED"))granted.push(fact.id)}
  rt.grantedFactIds=uniq(granted);
  const loc=startingLocationRecord(state);if(loc&&rules.factLimit>0){loc.known=true;loc.discoveredDay??=Number(state.world?.state?.day)||1}

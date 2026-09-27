@@ -4,7 +4,7 @@ import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacy
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
 const hash=value=>{let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
-const REASONS=["PLAYER_REQUEST","WORLD_EDGE_UNDERDEFINED","WORLD_QUALITY_DROP","PERIODIC_CANON_REVIEW","CLAIM_MATERIALIZATION","BACKGROUND_GAMEPLAY"];
+const REASONS=["PLAYER_REQUEST","WORLD_EDGE_UNDERDEFINED","WORLD_QUALITY_DROP","PERIODIC_CANON_REVIEW","CLAIM_MATERIALIZATION","BACKGROUND_GAMEPLAY","PROACTIVE_ENRICHMENT"];
 const PROVIDER_ABORT=/AI_TIMEOUT|AI_HTTP_(?:429|5\d\d)|Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|PROVIDER/i;
 export const LAZY_PROMPT_VERSION="RUNTIME_EXPANSION_V3";
 export const LAZY_VALIDATION_VERSION="LAZY_VALIDATION_V4";
@@ -31,7 +31,10 @@ function normalizeReason(reason){
 function rotate(rows,seed,count){
  if(!rows.length||count<=0)return [];const start=seed%rows.length,out=[];for(let i=0;i<Math.min(count,rows.length);i++)out.push(rows[(start+i)%rows.length]);return out
 }
-function slotsFor(state,reason,hasClaims){
+function slotsFor(state,reason,hasClaims,domain=""){
+ if(reason==="PROACTIVE_ENRICHMENT"){
+  const d=String(domain||"").toUpperCase();return {locations:d==="GEOGRAPHY"?1:0,npcs:d==="CAST"?1:0,factions:d==="FACTION"?1:0,sideQuests:d==="QUEST"?1:0,definitions:0}
+ }
  const politics=Number(state.world?.seedContract?.politics??state.world?.seed?.politics)||0,existing=state.world?.registry||{};
  const slots={locations:1,npcs:1,factions:0,sideQuests:1,definitions:0};
  if(reason==="WORLD_EDGE_UNDERDEFINED"||reason==="PLAYER_REQUEST")slots.locations=2;
@@ -43,11 +46,11 @@ function slotsFor(state,reason,hasClaims){
 function pendingClaims(state){
  return generationClaimsSnapshot(state,{pendingOnly:true}).filter(x=>x.status==="UNMATERIALIZED"||x.status==="FAILED").sort((a,b)=>String(a.key).localeCompare(String(b.key)))
 }
-export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
+export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY",domain=""}={}){
  const root=ensureLazyGeneration(state);syncGenerationClaimsFromCausalStructure(state);
- const normalizedReason=normalizeReason(reason),region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0);
- const active=root.plans.find(x=>x.status==="PLANNED"&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution);if(active)return active;
- const generationRevision=root.generationRevision+1,attemptEpoch=root.plans.filter(x=>providerAbortPlan(x)&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution).length,claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12}),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,generationRevision,"attempt="+attemptEpoch,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
+ const normalizedReason=normalizeReason(reason),enrichmentDomain=normalizedReason==="PROACTIVE_ENRICHMENT"&&["GEOGRAPHY","CAST","FACTION","QUEST"].includes(String(domain||"").toUpperCase())?String(domain).toUpperCase():"",region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0);
+ const active=root.plans.find(x=>x.status==="PLANNED"&&x.reason===normalizedReason&&String(x.domain||"")===enrichmentDomain&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution);if(active)return active;
+ const generationRevision=root.generationRevision+1,attemptEpoch=root.plans.filter(x=>providerAbortPlan(x)&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution).length,claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12}),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,generationRevision,"attempt="+attemptEpoch,"domain="+enrichmentDomain,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
  const existing=root.plans.find(x=>x.id===planId);
  if(existing){
   if(existing.status==="PLANNED")return existing;
@@ -56,10 +59,10 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY"}={}){
   return existing
  }
  const history=(state.world?.history||[]).filter(x=>x?.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))),historyRefs=rotate(history,seed,Math.min(2,history.length)).map(x=>x.id);
- const selectedClaims=rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),definitionClaimCount=selectedClaims.filter(x=>x.type==="BLUEPRINT_DEFINITION").length,slots=slotsFor(state,normalizedReason,(selectedClaims.length-definitionClaimCount)>0||selectedEchoes.length>0);slots.definitions=Math.min(3,definitionClaimCount);
+ const selectedClaims=enrichmentDomain?[]:rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=enrichmentDomain?[]:rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),definitionClaimCount=selectedClaims.filter(x=>x.type==="BLUEPRINT_DEFINITION").length,slots=slotsFor(state,normalizedReason,(selectedClaims.length-definitionClaimCount)>0||selectedEchoes.length>0,enrichmentDomain);slots.definitions=Math.min(3,definitionClaimCount);
  for(const e of selectedEchoes)if(e.kind==="MEMORIAL")slots.locations=Math.max(1,slots.locations);else if(e.kind==="ORAL_TRADITION")slots.npcs=Math.max(1,slots.npcs);
  const worldVersion=Number(state.world?.version)||1,totalMinutes=Math.max(0,Number(state.world?.state?.clock?.totalMinutes)||0),worldSeedFingerprint=fingerprint(state.world?.seedContract||state.world?.seed||{}),entitySeed=hash(key+"|ENTITY|"+generationRevision).toString(36),generationSlot={region,day,evolution,reason:normalizedReason};
- const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,attemptEpoch,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,forbiddenTerms:constitutionForbidTerms(state),historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,requiredBy:x.requiredBy,definitionKind:x.definitionKind||null,slotIndex:x.slotIndex||0,sourceRef:x.sourceRef||null,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now(),lastAttemptAt:Date.now(),attempts:1};
+ const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,domain:enrichmentDomain||null,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,attemptEpoch,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,forbiddenTerms:constitutionForbidTerms(state),historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,requiredBy:x.requiredBy,definitionKind:x.definitionKind||null,slotIndex:x.slotIndex||0,sourceRef:x.sourceRef||null,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now(),lastAttemptAt:Date.now(),attempts:1};
  for(const c of selectedClaims)reserveGenerationClaim(state,c.id,{planId,reason:normalizedReason});for(const e of selectedEchoes)reserveHistoryLegacyEcho(state,e.id,{planId,reason:normalizedReason});
  root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
 }

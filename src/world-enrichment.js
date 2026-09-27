@@ -1,0 +1,32 @@
+const clamp=(n,min,max)=>Math.max(min,Math.min(max,Number(n)||0));
+const list=v=>Array.isArray(v)?v:[];
+const ACTION_TYPES=new Set(["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"]);
+const DOMAINS=Object.freeze(["GEOGRAPHY","CAST","FACTION","QUEST","HISTORY"]);
+const PROVIDER_FAILURE=/AI_TIMEOUT|AI_HTTP_(?:429|5\d\d)|Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|PROVIDER/i;
+const PROVIDER_BACKOFF_MS=120000;
+
+function playerTurns(state){return list(state?.events).filter(e=>ACTION_TYPES.has(String(e?.type||""))).length}
+function root(state){state.world??={};state.world.enrichment??={version:1,count:0,lastCompletedTurn:0,lastScheduledTurn:0,lastDomain:"",lastReason:"",providerBackoffUntil:0,lastPressure:0};const r=state.world.enrichment;r.version=1;r.count=Math.max(0,Number(r.count)||0);r.lastCompletedTurn=Math.max(0,Number(r.lastCompletedTurn)||0);r.lastScheduledTurn=Math.max(0,Number(r.lastScheduledTurn)||0);r.providerBackoffUntil=Math.max(0,Number(r.providerBackoffUntil)||0);return r}
+function scoreRow(domain,score,reasons=[]){return {domain,score:Math.round(clamp(score,0,100)),reasons:[...new Set(reasons.filter(Boolean))]}}
+function recentProviderBackoff(state,now){const rows=list(state.world?.lazyGeneration?.plans).slice().reverse();const hit=rows.find(plan=>plan?.status==="ABORTED"&&PROVIDER_FAILURE.test(String(plan?.abortReason||""))&&Number(plan?.abortedAt)>0&&now-Number(plan.abortedAt)<PROVIDER_BACKOFF_MS);return hit?Math.max(0,Number(hit.abortedAt)+PROVIDER_BACKOFF_MS):0}
+
+export function ensureWorldEnrichment(state){return root(state)}
+export function worldEnrichmentPressure(state,{now=Date.now()}={}){
+ const r=root(state),providerUntil=recentProviderBackoff(state,now);if(providerUntil)r.providerBackoffUntil=Math.max(r.providerBackoffUntil,providerUntil);
+ const turn=playerTurns(state),anchorTurn=Math.max(r.lastCompletedTurn,r.lastScheduledTurn),elapsed=Math.max(0,turn-anchorTurn),registry=state.world?.registry||{},locations=list(registry.locations),npcs=list(registry.npcs),factions=list(registry.factions),sideQuests=list(registry.sideQuests),mainStage=Math.max(0,Number(state.quests?.main?.stage)||0),discoveries=Math.max(0,Number(state.discoveries)||0),historyRecords=list(state.world?.historyDepth?.records),rows=[];
+ if(r.providerBackoffUntil>now)return {required:false,backoff:true,backoffUntil:r.providerBackoffUntil,turn,elapsedTurns:elapsed,pressure:r.lastPressure||0,domain:r.lastDomain||"",reasons:["PROVIDER_BACKOFF"],scores:[]};
+ if(turn<4||elapsed<4)return {required:false,backoff:false,turn,elapsedTurns:elapsed,pressure:0,domain:"",reasons:[turn<4?"MINIMUM_PLAY_NOT_REACHED":"ENRICHMENT_TURN_COOLDOWN"],scores:[]};
+ const targetLocations=clamp(2+Math.floor(turn/10),2,6),locationDeficit=Math.max(0,targetLocations-locations.length);rows.push(scoreRow("GEOGRAPHY",locationDeficit?42+locationDeficit*18+Math.min(18,elapsed*2):Math.max(0,elapsed-10)*4,locationDeficit?[`LOCATION_DEPTH_DEFICIT:${locations.length}/${targetLocations}`]:elapsed>=12?["GEOGRAPHY_STALE"]:[]));
+ const targetNpcs=clamp(1+Math.floor(turn/12),1,5),npcDeficit=Math.max(0,targetNpcs-npcs.length);rows.push(scoreRow("CAST",npcDeficit?40+npcDeficit*20+Math.min(16,elapsed*2):Math.max(0,elapsed-12)*3,npcDeficit?[`CAST_DEPTH_DEFICIT:${npcs.length}/${targetNpcs}`]:elapsed>=14?["CAST_STALE"]:[]));
+ const targetFactions=mainStage>=3?2:mainStage>=2?1:0,factionDeficit=Math.max(0,targetFactions-factions.length);rows.push(scoreRow("FACTION",factionDeficit?48+factionDeficit*22+Math.min(12,elapsed):0,factionDeficit?[`FACTION_DEPTH_DEFICIT:${factions.length}/${targetFactions}`]:[]));
+ const usefulSideQuests=sideQuests.filter(q=>!["COMPLETED","FAILED","ABANDONED"].includes(String(q?.status||"").toUpperCase())).length,targetQuests=mainStage>=1?clamp(1+Math.floor(turn/24),1,3):0,questDeficit=Math.max(0,targetQuests-usefulSideQuests);rows.push(scoreRow("QUEST",questDeficit?44+questDeficit*18+Math.min(14,elapsed):0,questDeficit?[`QUEST_DEPTH_DEFICIT:${usefulSideQuests}/${targetQuests}`]:[]));
+ const skeletons=historyRecords.filter(x=>String(x?.depth||"SKELETON").toUpperCase()==="SKELETON").length,historyDemand=discoveries>=3&&skeletons>0;rows.push(scoreRow("HISTORY",historyDemand?45+Math.min(30,discoveries*3)+Math.min(20,elapsed):0,historyDemand?[`HISTORY_SKELETONS:${skeletons}`,`DISCOVERIES:${discoveries}`]:[]));
+ rows.sort((a,b)=>b.score-a.score||DOMAINS.indexOf(a.domain)-DOMAINS.indexOf(b.domain));const best=rows[0]||scoreRow("",0,[]),threshold=60,required=best.score>=threshold;
+ r.lastPressure=best.score;r.lastDomain=best.domain;r.lastReason=best.reasons.join("+");
+ return {required,backoff:false,turn,elapsedTurns:elapsed,pressure:best.score,threshold,domain:best.domain,reasons:best.reasons,scores:rows}
+}
+export function markWorldEnrichmentScheduled(state,evaluation={}){const r=root(state);r.lastScheduledTurn=Math.max(r.lastScheduledTurn,Number(evaluation.turn)||playerTurns(state));r.lastDomain=String(evaluation.domain||r.lastDomain||"");r.lastReason=list(evaluation.reasons).join("+")||r.lastReason;return r}
+export function markWorldEnrichmentCompleted(state,evaluation={},meta={}){const r=root(state);r.lastCompletedTurn=Math.max(r.lastCompletedTurn,Number(evaluation.turn)||playerTurns(state));r.lastScheduledTurn=r.lastCompletedTurn;r.count++;r.lastDomain=String(evaluation.domain||meta.domain||r.lastDomain||"");r.lastReason=list(evaluation.reasons).join("+")||String(meta.reason||r.lastReason||"");r.lastPressure=0;r.providerBackoffUntil=0;return r}
+export function markWorldEnrichmentSkipped(state,evaluation={},reason=""){const r=root(state);r.lastPressure=Number(evaluation.pressure)||r.lastPressure;r.lastDomain=String(evaluation.domain||r.lastDomain||"");r.lastReason=String(reason||list(evaluation.reasons).join("+")||r.lastReason||"");return r}
+export function markWorldEnrichmentBackoff(state,error="",{now=Date.now(),backoffMs=PROVIDER_BACKOFF_MS}={}){const r=root(state);r.providerBackoffUntil=Math.max(r.providerBackoffUntil,now+Math.max(30000,Number(backoffMs)||PROVIDER_BACKOFF_MS));r.lastReason=String(error||"PROVIDER_BACKOFF").slice(0,240);return r}
+export function enrichmentDomainSlots(domain){const d=String(domain||"").toUpperCase();return {locations:d==="GEOGRAPHY"?1:0,npcs:d==="CAST"?1:0,factions:d==="FACTION"?1:0,sideQuests:d==="QUEST"?1:0,definitions:0}}

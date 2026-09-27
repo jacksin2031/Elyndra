@@ -8,7 +8,7 @@ import {validateWorldHistory} from "./world-history.js?v=57025";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=57025";
 import {modernEarthOriginProfile} from "./player-origin.js?v=57025";
 import {applyOpeningExperience} from "./player-experience.js?v=57028";
-import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=57025";
+import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=59014";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
