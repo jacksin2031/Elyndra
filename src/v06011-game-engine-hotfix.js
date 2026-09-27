@@ -1,7 +1,7 @@
 import * as base from "./game-engine.js?v=60006&base=1";
 import {safePlayerVisibleText} from "./v06011-locale-runtime-hotfix.js?v=60011";
 import {projectSuccessfulTravel,projectPermissionGrant} from "./v06014-turn-projection.js?v=60014";
-import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60015";
+import {localizeV06015JapaneseVisibleText} from "./v06015-ja-visible-text.js?v=60016";
 export * from "./game-engine.js?v=60006&base=1";
 
 const locale=()=>String(globalThis.ELYNDRA_LOCALE||"zh-Hant");
@@ -31,10 +31,16 @@ function localizePlayerEvents(state){
   for(const key of ["summary","text","playerSummary","visibleSummary","reason"])if(typeof event?.[key]==="string")event[key]=projectionVisible(event[key])
  }
 }
+function synchronizePresentedActionIntent(assessment,presented){
+ const intent=assessment?.actionIntent;if(!intent||typeof intent!=="object"||Array.isArray(intent))return;
+ const next={...intent,raw:presented};
+ if(Array.isArray(intent.subActions)&&intent.subActions.length===1)next.subActions=[presented];
+ assessment.actionIntent=next
+}
 export function coherentActionAssessment(assessment,customText=""){
  if(!assessment||String(assessment.verdict||"").toUpperCase()!=="ALLOW")return assessment;
  const presented=clean(customText,220);if(!presented)return assessment;
- return {...assessment,normalizedAction:presented,playerVisibleAction:presented}
+ assessment.normalizedAction=presented;assessment.playerVisibleAction=presented;synchronizePresentedActionIntent(assessment,presented);return assessment
 }
 export function performAction(state,action="free",customText="",assessment=null){
  const coherentAssessment=coherentActionAssessment(assessment,customText),label=clean(coherentAssessment?.normalizedAction||customText||action,220)||"free",result=localizeResult(base.performAction(state,action,customText,coherentAssessment));
