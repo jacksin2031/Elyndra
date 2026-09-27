@@ -176,7 +176,7 @@ function captureGameplayDebugState(state){
  const registry=state.world?.registry||{},inventory=Array.isArray(state.inventory)?state.inventory:[],knowledge=Array.isArray(state.knowledge)?state.knowledge:[],sideQuests=Array.isArray(registry.sideQuests)?registry.sideQuests:[],npcs=Array.isArray(registry.npcs)?registry.npcs:[],locations=Array.isArray(registry.locations)?registry.locations:[];
  const map=(rows,project)=>Object.fromEntries(rows.filter(Boolean).map(row=>[String(row.id||row.name||row.title||""),project(row)]).filter(([id])=>id));
  return {
-  worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),
+  worldId:state.world?.id||null,clock:gameplayDebugClock(state),location:String(state.player?.location||state.world?.state?.location||""),playerVitals:{hp:Number(state.player?.hp)||0,maxHp:Number(state.player?.maxHp)||0,satiety:Number(state.player?.survival?.satiety??100),fatigue:Number(state.player?.survival?.fatigue??0),exposure:Number(state.player?.survival?.exposure??0),injury:Number(state.player?.survival?.injury??0),magicStrain:Number(state.player?.magic?.strain??0)},
   inventory:map(inventory,x=>({id:x.id||"",name:x.name||"",quantity:Math.max(0,Number(x.quantity)||1),category:x.category||"",equipped:Boolean(x.equipped)})),
   knowledge:map(knowledge,x=>({id:x.id||"",title:x.title||"",status:x.status||"",score:Number(x.score)||0,factId:x.factId||null,historyId:x.historyId||null,sources:Array.isArray(x.sources)?x.sources.slice(0,6):[]})),
   sideQuests:map(sideQuests,x=>({id:x.id||"",title:x.title||"",objective:x.objective||"",known:x.known===true,status:x.status||"",progress:Number(x.progress)||0,target:Number(x.target)||0})),
@@ -192,6 +192,7 @@ function recordGameplayStateChanges(state,reason="refresh"){
  if(!prev||prev.worldId!==next.worldId){gameplayDebugSnapshot=next;recordDebug("GAME_STATE_BASELINE",{worldId:next.worldId,location:next.location,clock:next.clock,reason});return}
  const latestEvent=Array.isArray(state.events)&&state.events.length?state.events[state.events.length-1]:null,meta={clock:next.clock,reason,sourceEventType:latestEvent?.type||"",sourceEventId:latestEvent?.id||null};
  if(prev.location!==next.location)recordDebug("GAME_LOCATION_CHANGED",{...meta,from:prev.location,to:next.location});
+ for(const field of ["hp","maxHp","satiety","fatigue","exposure","injury","magicStrain"]){const before=prev.playerVitals?.[field],after=next.playerVitals?.[field];if(Number(before)!==Number(after))recordDebug("GAME_PLAYER_STATE_CHANGED",{...meta,field,from:before,to:after,delta:Number(after)-Number(before)})}
  for(const [id,loc] of Object.entries(next.locations)){const before=prev.locations[id];if(loc.known&&(!before||!before.known))recordDebug("GAME_LOCATION_DISCOVERED",{...meta,locationId:id,name:loc.name,region:loc.region})}
  for(const [id,item] of Object.entries(next.inventory)){
   const before=prev.inventory[id],delta=item.quantity-(before?.quantity||0);
@@ -674,7 +675,7 @@ async function runAction(action,customText="",options={}){
  if(playerActionFlight.epoch!==actionFlightEpoch||playerActionFlight.timedOut||actionAiLease!==foregroundAiLease){recordDebug("PLAYER_ACTION_STALE_CONTINUATION_DISCARDED",{action:requested,phase:"post_assessment"});return}
  recordDebug("ACTION_ASSESSMENT",{action:requested,verdict:assessment?.verdict,kind:assessment?.kind,intent:assessment?.actionIntent?.intent,targetId:assessment?.actionIntent?.targetId,source:assessment?.source,confidence:assessment?.confidence,reason:assessment?.reason,latencyFromTurnStartMs:Date.now()-debugTurnStarted});
  if(assessment?.source==="ENGINE_DEGRADED"){actionState.events??=[];actionState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_DEGRADED",visibility:"INTERNAL",action:requested,reason:assessment.aiError||assessment.reason,day:actionState.world?.state?.day||1,at:Date.now()});showActionRecoveryNotice("AI 行動判定暫時不可用；已切換 Engine 備援並繼續本回合。");recordDebug("ACTION_ASSESSMENT_DEGRADED_VISIBLE",{action:requested,error:assessment.aiError||assessment.reason})}
-  const effective=assessment?.verdict==="ADJUST"&&assessment.normalizedAction?assessment.normalizedAction:requested;
+  const effective=assessment?.playerVisibleAction||requested;
  const preboundFailForward=options?.suggestion?groundedSuggestionFailForward(actionState,options.suggestion,{success:true}):null;
  const previousSuggestions=[...(actionState.suggestions||[])],previousSuggestionIntents=[...(actionState.suggestionIntents||[])],impactBefore=ensureWorldImpact(actionState).records.length;
  if(assessment?.verdict!=="BLOCK"){
@@ -948,6 +949,7 @@ function downloadDebugFile(kind="json"){
 }
 function gameplayDebugDetail(entry){
  const d=entry?.data||{};
+ if(entry.type==="GAME_PLAYER_STATE_CHANGED")return String(d.field||"state")+" · "+String(d.from??"?")+" → "+String(d.to??"?")+(Number.isFinite(Number(d.delta))?" · Δ"+(Number(d.delta)>0?"+":"")+String(d.delta):"");
  if(entry.type==="GAME_ITEM_GAINED"||entry.type==="GAME_ITEM_LOST")return (d.name||d.itemId||"?")+" · "+(d.quantityDelta>0?"+":"")+String(d.quantityDelta??0)+" → "+String(d.totalQuantity??0);
  if(entry.type==="GAME_KNOWLEDGE_GAINED"||entry.type==="GAME_KNOWLEDGE_UPDATED")return (d.title||d.knowledgeId||"?")+" · "+(d.status||d.toStatus||"");
  if(entry.type.startsWith("GAME_SIDE_QUEST_"))return (d.title||d.questId||"?")+(d.to!=null?" · "+d.to+"/"+(d.target||"?"):"");
@@ -958,12 +960,13 @@ function gameplayDebugDetail(entry){
  if(entry.type==="GAME_STATE_BASELINE")return (d.location||"?")+" · baseline";
  return d.reason||d.sourceEventType||d.action||d.summary||""
 }
+function debugEventDetail(event){const raw=String(event?.action||event?.reason||event?.summary||event?.mode||"");if(activeLocale!=="ja"||!raw||!hasLocaleLeak(raw,"ja"))return raw;return ({NPC_AUTONOMOUS_ACTION:"NPCの自律行動（内部テレメトリ）",FACTION_ACTION:"勢力の自律行動（内部テレメトリ）",WORLD_EVENT:"世界イベント（内部テレメトリ）"})[String(event?.type||"")]||"内部テレメトリ（日本語表示）"}
 function openDebugPanel(){
  const entries=telemetryEntries(),summary=telemetrySummary(entries),tokens=summary.tokenTotals||{},ai=loadAISettings(),runtime=debugRuntimeSnapshot(),recentAI=entries.filter(x=>x.type==="AI_REQUEST").slice(-30).reverse(),recentGameplay=entries.filter(x=>x.type.startsWith("GAME_")).slice(-60).reverse(),recentEvents=(gameState?.events||[]).slice(-35).reverse();
  const usageLabel=(tokens.api||0)+" API / "+(tokens.estimated||0)+" estimated";
  const aiRows=recentAI.map(x=>{const d=x.data||{},u=d.usage||{};return "<tr><td>"+esc(new Date(x.at).toLocaleTimeString())+"</td><td>"+esc(d.task||"?")+"</td><td>"+esc(d.tier||"?")+"</td><td>"+esc(d.provider||"?")+"</td><td>"+esc(d.status||"?")+"</td><td>"+Number(d.latencyMs||0)+"ms</td><td>"+Number(u.input||0)+" / "+Number(u.output||0)+" / "+Number(u.reasoning||0)+" / "+Number(u.total||0)+"</td><td>"+esc(u.source||"?")+"</td></tr>"}).join("");
  const gameplayRows=recentGameplay.map(x=>{const d=x.data||{},clock=d.clock||{};return "<tr><td>"+esc(new Date(x.at).toLocaleTimeString())+"</td><td>"+esc(clock.day?"D"+clock.day+" "+(clock.time||""):"")+"</td><td>"+esc(x.type||"?")+"</td><td>"+esc(gameplayDebugDetail(x))+"</td></tr>"}).join("");
- const eventRows=recentEvents.map(e=>"<tr><td>"+esc(e.at?new Date(e.at).toLocaleTimeString():"")+"</td><td>"+esc(e.type||"?")+"</td><td>"+esc(e.action||e.reason||e.summary||e.mode||"")+"</td></tr>").join("");
+ const eventRows=recentEvents.map(e=>"<tr><td>"+esc(e.at?new Date(e.at).toLocaleTimeString():"")+"</td><td>"+esc(e.type||"?")+"</td><td>"+esc(debugEventDetail(e))+"</td></tr>").join("");
  openModal("<div class=\"eyebrow\">ELYNDRA DEBUG</div><h2>遊玩診斷</h2><p class=\"muted\">持續收集本機遊玩、AI、排隊、背景處理、角色狀態變化與錯誤資訊。取得物品、知識、支線、NPC 遭遇、地點、信任、戰鬥等會以 GAME_* telemetry 記錄。匯出時會包含目前完整遊戲狀態；API Key、Authorization、Password 等敏感欄位會自動遮罩。</p>"+
  "<div class=\"debug-card-grid\"><div class=\"debug-stat\"><small>VERSION</small><strong>v"+esc(APP_VERSION)+"</strong><span>"+esc(gameState?.world?.name||"No world")+"</span></div>"+
  "<div class=\"debug-stat\"><small>AI</small><strong>"+esc(ai.provider||"?")+" · "+esc(ai.model||"?")+"</strong><span>"+esc(ai.optimization||"standard")+"</span></div>"+
