@@ -89,3 +89,16 @@ body[data-screen="game"] .topbar,#game .sidebar{
   #game .mobile-bottom-nav{background-color:rgba(6,10,18,.97)!important}
   .modal-card::after{opacity:.10!important}
 }
+
+/* v0.59.11 player identity card containment: generated/raster artwork must never escape the compact HUD card. */
+#game .player-summary{overflow:hidden!important;min-width:0;max-width:100%;contain:layout paint}
+#game .player-summary>div:last-child{min-width:0;overflow:hidden}
+#game .player-summary strong,#game .player-summary span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#game .player-sigil,#game #playerInitial{
+  position:relative!important;overflow:hidden!important;isolation:isolate!important;
+  width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;flex:0 0 40px!important;
+  background-image:linear-gradient(145deg,#e8d7ae,#8e86c9)!important;background-size:100% 100%!important;background-position:center!important;
+}
+#game .player-sigil img,#game #playerInitial img{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:cover!important;object-position:center!important}
+#game .player-sigil::before,#game .player-sigil::after,#game #playerInitial::before,#game #playerInitial::after{max-width:100%!important;max-height:100%!important;inset:0!important;background-size:cover!important}
+@media(max-width:720px){#game .player-sigil,#game #playerInitial{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;max-width:36px!important;max-height:36px!important;flex-basis:36px!important}}
