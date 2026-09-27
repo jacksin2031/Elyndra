@@ -24,6 +24,7 @@ jobs:
             python3 scripts/drive-v0605-bootstrap.py
             python3 scripts/drive-v0605-cache-fix.py
             python3 scripts/drive-v0605-syntax-fix.py
+            python3 scripts/drive-v0605-semantic-fix.py
           else
             echo "Drive System integration already applied"
           fi
