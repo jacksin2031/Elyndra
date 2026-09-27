@@ -1,4 +1,4 @@
-// v0.60.19 release contract
+// v0.60.20 release contract
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -9,9 +9,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.60.19");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.60.20");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=60019/);assert.match(html,/v06019-runtime-ui-hotfix\.js\?v=60019/);assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60019"/);assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06019-ai-client-hotfix\.js\?v=60019"/);assert.match(html,/"\.\/src\/ai-settings\.js\?v=60010":"\.\/src\/ai-settings\.js\?v=60012"/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60010"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=60019/);assert.match(html,/v06020-runtime-ui-hotfix\.js\?v=60020/);assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60020"/);assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06019-ai-client-hotfix\.js\?v=60019"/);assert.match(html,/"\.\/src\/ai-settings\.js\?v=60010":"\.\/src\/ai-settings\.js\?v=60012"/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60010"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History/Future/character systems remain available after v0.53",async()=>{
