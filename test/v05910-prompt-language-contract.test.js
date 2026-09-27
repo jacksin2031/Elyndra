@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {CANONICAL_PROMPT_CONTRACT,composePromptLanguageContract} from "../src/prompt-language-contract.js";
 
+// Release-level regression: source/control prompt language must never become the runtime output language.
 const read=path=>readFile(new URL(path,import.meta.url),"utf8");
 
 test("v0.59.10 prompt contract treats source prompt language as control-only",()=>{
