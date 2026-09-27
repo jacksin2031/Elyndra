@@ -109,14 +109,26 @@ function resolveField(f,key,styleBase,r,opts={}){
  return {value,source,locked}
 }
 
+function explicitMagicLevel(draft){
+ const source=[draft?.basic?.customStyleDescription,draft?.customWorldDescription,...(Array.isArray(draft?.storyPreferences)?draft.storyPreferences:[])].filter(Boolean).join("\n").normalize("NFKC"),lower=source.toLowerCase();
+ if(!source.trim())return null;
+ if(/(?:魔法|魔術|魔力)(?:は|が)?(?:希少|稀少)(?:ではない|じゃない)/u.test(source))return null;
+ if(/(?:魔法|魔術|魔力)(?:は|が|の存在は)?(?:ほぼ|ほとんど)?(?:存在しない|ない|無い|禁止)|(?:無魔法|无魔法|沒有魔法|没有魔法)|\b(?:no|without)\s+magic\b/i.test(source))return 1;
+ if(/(?:魔法|魔術|魔力)(?:は|が|の存在は)?(?:非常に|とても|かなり)?(?:希少|稀少|珍しい|少ない|めったにない|滅多にない)|(?:希少|稀少|rare|scarce)(?:な|の|\s+)(?:魔法|魔術|魔力|magic)|(?:魔法|魔术|魔力)(?:非常)?(?:稀有|稀少|罕見|罕见|很少|少見|少见)|\bmagic\s+is\s+(?:very\s+)?(?:rare|scarce)\b|\b(?:rare|scarce)[ -]?magic\b/i.test(source)||/(?:magic).{0,8}(?:rare|scarce)/i.test(lower))return 2;
+ if(/(?:魔法|魔術|魔力)(?:は|が)?(?:限定的|限られている)|\blow[ -]?magic\b/i.test(source))return 3;
+ if(/(?:魔法|魔術|魔力)(?:は|が)?(?:非常に|とても)?(?:普遍|豊富|豊か|日常的|ありふれている)|(?:魔法|魔术|魔力)(?:普遍|丰富|豐富|常見|常见)|\b(?:high|common|abundant)[ -]?magic\b|\bmagic\s+is\s+(?:common|abundant)\b/i.test(source))return 8;
+ return null
+}
+
 export function resolveWorldBlueprint(draft){
  const d=draft?.schemaVersion===2?draft:createWorldCreationDraft(draft),r=rng(d.masterSeed),style=d.basic.worldStyle.value,base=STYLE_BASE[style]||STYLE_BASE["王道奇幻"];
  const scale=resolveField(d.basic.worldScale,"scale",base,r,{values:["小型","中型","大型"]});
- const a=d.advanced;
+ const a=d.advanced,promptMagic=explicitMagicLevel(d);let magicLevel=resolveField(a.magicLevel,"magic",base,r,{min:1,max:10});
+ if(promptMagic!=null&&a.magicLevel?.mode==="style"&&a.magicLevel?.locked!==true)magicLevel={...magicLevel,value:promptMagic,source:BLUEPRINT_SOURCES.USER};
  const resolved={
   civilizationLevel:resolveField(a.civilizationLevel,"civilization",base,r,{min:1,max:10}),
   technologyLevel:resolveField(a.technologyLevel,"technology",base,r,{min:1,max:10}),
-  magicLevel:resolveField(a.magicLevel,"magic",base,r,{min:1,max:10}),
+  magicLevel,
   civilizationCount:resolveField(a.civilizationCount,"civilizationCount",base,r,{min:1,max:12}),
   speciesCount:resolveField(a.speciesCount,"speciesCount",base,r,{min:1,max:12}),
   languageCount:resolveField(a.languageCount,"languageCount",base,r,{min:1,max:16}),

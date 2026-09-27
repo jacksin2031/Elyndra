@@ -3,7 +3,7 @@ import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025
 import {playerVisibleNpcName,redactUnknownNpcNames} from "./player-entity-visibility.js?v=57029";
 import {sanitizePlayerText,stripSystemLabels} from "./runtime-guard.js?v=57029";
 import {validateSuggestionProvenance} from "./scene-provenance.js?v=57025";
-import {hasLocaleLeak} from "./locale-runtime.js?v=60009";
+import {hasLocaleLeak} from "./locale-runtime.js?v=60010";
 import {rhythmSuggestionBias} from "./story-rhythm-engine.js?v=60006";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
