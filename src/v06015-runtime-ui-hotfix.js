@@ -1,9 +1,10 @@
 import "./v06013-runtime-ui-hotfix.js?v=60014";
 import {localizeV06015JapaneseVisibleText,isV06015JapaneseSceneFallback,v06015JapaneseFallbackNarrative} from "./v06015-ja-visible-text.js?v=60018";
 
-const JA_LEAK=/(?:這|这|們|们|為|为|與|与|從|从|讓|让|對|对|說|说|處|处|覺|觉|應|应|還|还|暫|暂|無法|无法|目前|尚未|已經|已经|場景|场景|敘述|叙述|選擇|选择|建議|建议|觀察|观察|交涉|冒險|冒险|狀況|状况|條件|条件|世界會|世界会|區域|区域|霧狀|人物關係|具判定加成)/u;
+const JA_LEAK=/(?:這|这|們|们|為|为|與|与|從|从|讓|让|對|对|說|说|處|处|覺|觉|應|应|還|还|暫|暂|無法|无法|目前|尚未|已經|已经|場景|场景|敘述|叙述|選擇|选择|建議|建议|觀察|观察|交涉|冒險|冒险|狀況|状况|條件|条件|世界會|世界会|區域|区域|霧狀|人物關係|具判定加成|行動|事件|勢力|势力)/u;
 const VISIBLE_JA_ATTRIBUTES=["placeholder","title","aria-label","data-thinking","data-syncing","data-recovery"];
 const VISIBLE_JA_SELECTOR=VISIBLE_JA_ATTRIBUTES.map(attr=>`[${attr}]`).join(",");
+const DEBUG_EVENT_JA=Object.freeze({NPC_AUTONOMOUS_ACTION:"NPCの自律行動（内部テレメトリ）",FACTION_ACTION:"勢力の行動（内部テレメトリ）",WORLD_EVENT:"世界イベント（内部テレメトリ）"});
 let lastStableNarrative="";
 let queued=false;
 
@@ -22,9 +23,10 @@ function repairNarrative(){
 }
 function repairDebugTelemetry(){
  for(const row of document.querySelectorAll("#modalContent tr")){
-  if(!String(row.textContent||"").includes("NPC_AUTONOMOUS_ACTION"))continue;
+  const rowText=String(row.textContent||""),eventType=Object.keys(DEBUG_EVENT_JA).find(type=>rowText.includes(type));if(!eventType)continue;
   const cells=row.querySelectorAll("td"),detail=cells[cells.length-1];if(!detail)continue;
-  const text=String(detail.textContent||"").trim();if(text&&JA_LEAK.test(text))detail.textContent="NPCの自律行動（内部テレメトリ）"
+  const before=String(detail.textContent||"").trim(),localized=localizeV06015JapaneseVisibleText(before);if(localized!==before)detail.textContent=localized;
+  const current=String(detail.textContent||"").trim();if(current&&JA_LEAK.test(current))detail.textContent=DEBUG_EVENT_JA[eventType]
  }
 }
 function repairJapaneseVisibleUi(root=document.body){
