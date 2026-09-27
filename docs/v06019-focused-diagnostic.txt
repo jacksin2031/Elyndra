@@ -1,0 +1,318 @@
+✔ first-button strategy always returns suggestion index zero (5.491394ms)
+✔ first-button strategy uses Attack as the first combat action (0.785815ms)
+✔ first-button strategy has a safe fallback when no action button exists (1.4969ms)
+✔ autotest report exposes the effective play strategy (1.16041ms)
+✔ first-button keeps index zero normally but switches strategy after repeated stalled turns (14.915896ms)
+✔ runtime world evolution is automatic background work and never awaited by runAction (9.354564ms)
+✔ foreground AI preempts low-priority background world work (7.770174ms)
+✔ timed-out background world evolution enters exponential cooldown instead of immediately retrying (2.879584ms)
+✔ StatePatch commit releases foreground before late Scene narration and preview remains revision-gated (6.548386ms)
+✔ Combat 2.0 startEncounter creates a multi-enemy Encounter while preserving combat.enemy alias (7.900399ms)
+✔ Combat 2.0 keeps legacy single-enemy startCombat contract (1.222729ms)
+✔ Encounter migration upgrades an old combat.enemy save without deleting the alias (0.638347ms)
+✔ Encounter zones, morale and target selection are deterministic Engine state (0.668791ms)
+✔ freeform combat action can target a non-primary enemy and runs through Intent + Resolution (9.610116ms)
+✔ legacy quick combat actions remain accepted alongside expanded combat verbs (9.83235ms)
+✔ Combat 2.0 UI exposes expanded tactical actions and routes freeform input through combatAction (1.889149ms)
+✔ contextual action set always has three primary suggestions and one progression route (12.220954ms)
+✔ AI progression suggestion is preserved and Engine does not add a generic replacement (2.541973ms)
+✔ high-risk progression never replaces the required primary progression route (1.421692ms)
+✔ legacy string suggestions are not trusted as AI causal validation (1.1723ms)
+✔ prevalidated suggested action skips AI feasibility while its scene seal remains current (2.506443ms)
+✔ internal background events do not invalidate a prevalidated action button (2.778776ms)
+✔ scene seal expires locally and refresh never renews the stale AI suggestion (2.989777ms)
+✔ requirementsSatisfied false candidates are never exposed as buttons (0.821773ms)
+✔ suggestions do not decide player personality or values (0.284401ms)
+✔ difficulty controls secondary information without changing the action (0.631979ms)
+✔ experienced characters receive build-specific suggestions (0.638872ms)
+✔ recently executed fallback actions are not immediately recycled as fresh choices (0.752029ms)
+✔ Engine reclassifies misleading GENERAL suggestion metadata before prevalidation (0.856456ms)
+✔ successful progression fail-forward is bound only to an existing observable source (1.708245ms)
+✔ OpenAI-compatible usage captures prompt output reasoning cached and total tokens (1.53945ms)
+✔ Gemini usage captures prompt candidates thoughts cached and total tokens (0.203289ms)
+✔ debug string scrub removes embedded bearer, query and provider API keys (0.699314ms)
+✔ missing provider usage is clearly marked estimated (0.195259ms)
+✔ telemetry sums token usage and redacts credentials without hiding gameplay canon (42.537175ms)
+✔ in-game Debug UI exposes token accounting and JSON TXT export (14.805392ms)
+✔ direct OpenAI-compatible response writes real API usage into telemetry (4.206171ms)
+✔ debug bundle summary only counts the active session while preserving historical telemetry (0.682128ms)
+✔ debug summary separates expected preemption and deduplicates wrapper failures (0.710237ms)
+✔ shows the Engine natural roll and finishes its feedback timer (1.896541ms)
+✔ explicit failure wins over a high total on a critical 1 (0.233477ms)
+✔ critical-success grade wins over a low total on a natural 20 (1.006221ms)
+✔ contradictory success bool suppresses the critical class (0.180786ms)
+✔ a stale callback cannot clear the newer roll state (0.297623ms)
+✔ reduced motion settles immediately without scheduling (0.1999ms)
+✔ normal then reduced-motion play clears busy and ignores the forced stale callback (0.245195ms)
+✔ reset and dispose cancel timers and clear feedback state (0.231714ms)
+✔ Drive runtime starts empty and does not turn the World Campaign Scaffold into a player goal (11.933654ms)
+✔ creating a Drive is player-authored, focused deterministically and duplicate-safe (1.472651ms)
+✔ Drive sync only advances a clearly relevant future event and ignores unrelated actions (2.790714ms)
+✔ Relationship Drive can anchor to a specific NPC without trusting AI narration (0.677128ms)
+✔ Drive becomes READY from evidence but only the player-facing command fulfills it (1.0511ms)
+✔ a newly initialized Drive runtime never replays historical events (0.575969ms)
+✔ abandoning a Drive is explicit and clears focus safely (0.656752ms)
+✔ v0.54.19 FIRST_BUTTON stall recovery bypasses only the generic expansion gate (5.71388ms)
+✔ v0.54.19 computes FIRST_BUTTON stalls even when needsExpansion is false (2.276343ms)
+✔ sparse stalled worlds settle generation before selecting the next action (3.193638ms)
+✔ high-politics opening recovers missing Society faction before world validation (1.76234ms)
+✔ History starts as Skeleton and does not deepen before research (8.445525ms)
+✔ research signals request depth according to evidence strength (1.151965ms)
+✔ History Deepening plan is deterministic and quota-bound (1.444164ms)
+✔ candidate cannot mutate Skeleton, exceed quota or invent clue/future refs (2.23815ms)
+✔ commit creates hidden Canon detail without granting player Knowledge (1.53485ms)
+✔ deepened documents and relics remain hidden seeds until separately discovered (5.458217ms)
+✔ reading a History document creates research demand but not instant truth (1.773409ms)
+✔ aborted or stale History proposals cannot commit (0.621524ms)
+✔ app runs History Deepening only as preemptible background work (11.478872ms)
+✔ all player actions keep a single-flight UI lock until their visible result settles (6.194598ms)
+✔ blocking State Sync rejects repeated actions without an action queue (2.217876ms)
+✔ ENGINE_ONLY and DEFERRED narration remains async internally but keeps player controls locked (3.86477ms)
+✔ FAST and DEEP commit StatePatch without waiting for Player Action narration (2.136163ms)
+✔ foreground gameplay preempts nonblocking narration Deferred and world background work (1.433231ms)
+✔ background world evolution waits for Player Action and Deferred work (1.473409ms)
+✔ NPC Agency 2.0 keeps ordinary chat roleplay-only and does not create social events (2.870266ms)
+✔ substantive request is planned before AI without committing relationship state (7.771326ms)
+✔ failed deception binds AI to escalation rather than letting model grant the request (1.068715ms)
+✔ existing social pressure can produce an Engine-authorized concession (0.959167ms)
+✔ agency policy reflects persistent obligation without exposing numeric relationship values to AI (0.417032ms)
+✔ speech-act classifier leaves questions and greetings as chat but detects coercive requests (0.152539ms)
+✔ v0.54.10 direct and server world creation use exactly three bounded two-AI waves (5.615017ms)
+✔ v0.54.10 checkpointed Geography remains valid after it is written into Canon (10.348544ms)
+✔ v0.54.10 selected player action remains frozen through intermediate refreshes (4.1781ms)
+✔ Social Conflict 2.0 persuasion builds trust while intimidation builds fear and costs trust (7.158638ms)
+✔ Social DC is relationship-aware and intimidation becomes easier against a fearful target (0.421173ms)
+✔ accumulated social pressure can force surrender in combat without directly applying combat state (0.743885ms)
+✔ deception failure raises suspicion and damages persistent trust (0.725618ms)
+✔ anonymous combatants still receive deterministic social state without inventing NPC canon (0.367519ms)
+✔ Story Rhythm starts at the current event cursor and never replays old-save history (8.979846ms)
+✔ Rhythm classification records player-facing modes without ingesting INTERNAL telemetry (2.311983ms)
+✔ three same-mode beats produce a soft DIVERSIFY directive instead of blocking the mode (1.436501ms)
+✔ sustained tension asks for RELEASE and favors downtime without mutating world danger (0.957515ms)
+✔ progress without payoff accumulates debt and eventually requests PAYOFF (1.86452ms)
+✔ scene sequence session arc and campaign counters advance through deterministic boundaries (0.946432ms)
+✔ rhythm bias never turns into an action permission or requirement bypass (0.652555ms)
+✔ Talent 2.0 rule talents no longer collapse into static +1 bonuses (11.662632ms)
+✔ 就地取材 grants an Engine permission once per location-day scene (3.531281ms)
+✔ 追跡者視野 converts travel danger/position consequence into time without rewriting failure (0.908298ms)
+✔ 迎擊姿態 intercepts companion harm once per combat round and reduces severity (0.311667ms)
+✔ 讀懂弦外之音 exposes only an Engine-bounded agency clue and consumes on commit (0.661135ms)
+✔ Talent 2.0 is wired into game, combat and NPC conversation authority (9.697237ms)
+✔ E2E: a free-text combat technique becomes a player-facing Combat beat before victory (18.344812ms)
+✔ E2E: free-text intimidation uses Social Conflict 2.0 instead of generic success-to-trust (9.658227ms)
+✔ E2E: one grounded clue can advance a player Drive and Story Rhythm without either gaining Canon authority (3.389831ms)
+✔ E2E: rhythm preference stays soft and Engine authority still blocks impossible movement (1.535876ms)
+✔ E2E: player-facing local GM prose no longer leaks validation or state-machine disclaimers (6.106581ms)
+✔ TRPG Depth: Action Intent 2.0 preserves intent approach goal targets tools and stakes (2.078881ms)
+✔ TRPG Depth: deterministic fallback understands deception creative and defensive approaches (0.995181ms)
+✔ TRPG Depth: Resolution 2.0 exposes all five deterministic tiers (0.283274ms)
+✔ TRPG Depth: mixed success achieves the goal but emits an uncommitted semantic cost (0.353136ms)
+✔ TRPG Depth: ordinary failure becomes fail-forward opportunity without rewriting success (0.225763ms)
+✔ TRPG Depth: Turn Outcome Kernel v2 separates fiction mechanics and internal authority (2.249877ms)
+✔ v0.57.30 anonymous NPC presentation hides canonical name and role until evidence unlocks them (1.152162ms)
+✔ v0.57.30 GAME_NPC_ENCOUNTERED toast defaults unknown identity to anonymous even when snapshot omits knowledge flags (0.498826ms)
+✔ v0.57.30 adventure NPC card redaction covers the inserted card root and chat header (5.539448ms)
+✔ v0.57.30 scene dialogue is conditional rather than mandatory (0.864839ms)
+✔ v0.57.30 narrator cannot invent player speech or commitments (0.195374ms)
+✔ v0.57.30 NPC dialogue is bounded by visible knowledge relationship and outcome (0.231033ms)
+✔ v0.57.30 Scene snapshot exposes grounded NPC relationship cues without director-only knowledge (0.954696ms)
+✔ v0.59.0 keeps four locale channels isolated (2.746771ms)
+✔ v0.59.0 normalizes deterministic volatile gameplay text in non-default locales (0.450359ms)
+✔ v0.59.0 narrator is structurally above the action panel (8.227394ms)
+✔ multilingual hardening removes language locks and gates every world entry (2.653852ms)
+✔ narrator row is an invariant immediately above player actions (1.533214ms)
+✔ Japanese locale repairs null translation maps and detects observed Chinese fragments (0.435598ms)
+✔ Japanese locale gates visible suggestion labels and rejects partial Chinese translation (0.407131ms)
+✔ v0.59.1 i18n coverage remains active after the current release (52.420477ms)
+✔ v0.59.2 non-default locale translation accepts the canonical notes array (1.095064ms)
+✔ v0.59.2 locale translation also tolerates the legacy notes.entries array shape (0.276491ms)
+✔ v0.59.3 World Contract is fully localized in Japanese (1.276216ms)
+✔ v0.59.3 World Contract is fully localized in English (0.364553ms)
+✔ v0.59.3 mixed Japanese-Chinese AI output is not trusted as localized (1.178465ms)
+✔ world creation preset labels are deterministic in all supported locales (0.773777ms)
+✔ v0.59.4 creator uses stable canonical category values and localized labels (5.553254ms)
+✔ first game reveal preserves localization without blocking post-creation UI (1.962905ms)
+✔ v0.59.8 targetless hard recovery never claims TRAVEL (1.338662ms)
+✔ v0.59.8 autotest fingerprint counts time and event progress (0.433425ms)
+✔ v0.59.8 future compiler fills only missing timeline slots (5.953272ms)
+✔ v0.59.8 Agnes keeps enough FUTURE output and waits through normal critical cooldown (1.317438ms)
+✔ v0.59.8 Japanese fixed world strings bypass AI translation repair (1.423224ms)
+✔ v0.59.10 grounded recovery and Japanese UI contracts (2.761562ms)
+✔ v0.59.11 reincarnation first POST_CANON keeps only origin-scoped visibility (11.919835ms)
+✔ v0.59.11 origin boundary only applies once and preserves later discoveries (2.693373ms)
+✔ v0.59.11 player identity HUD hard-bounds artwork (5.276518ms)
+✔ v0.59.11 current objective card stays inside the sidebar HUD (1.612851ms)
+✔ v0.59.11 origin/HUD asset routing remains intact after the current app release (1.729151ms)
+✔ v0.59.12 entity hygiene removes model punctuation without inventing a name (0.921147ms)
+✔ v0.59.12 state repair binds unique canonical ids and drops unauthorized mutations (1.887328ms)
+✔ v0.59.12 scene repair makes Engine outcome authoritative and drops malformed suggestions (0.58162ms)
+✔ v0.59.12 world-stage repair cleans generated entity labels only (0.451716ms)
+✔ v0.59.12 repair dispatcher never asks another model (1.329961ms)
+✔ v0.59.12 every deterministic repair is visible in Debug telemetry (0.739836ms)
+✔ v0.59.12 ai-client routes world/scene/state model JSON through deterministic repair (7.233473ms)
+✔ v0.59.13 repair is idempotent for state, scene, and world output (3.214752ms)
+✔ v0.59.13 separates recoverable normalization from masking and hard reject (1.814576ms)
+✔ v0.59.13 invariant audit blocks canon mutation, dangling references, and failed-outcome success effects (1.01295ms)
+✔ v0.59.13 repair Debug events carry a stable pipeline correlation chain (0.886682ms)
+✔ v0.59.13 AutoTest makes unsafe commit rate the P0 KPI and exposes upstream drift (2.228481ms)
+✔ v0.59.14 opening CAST never auto-exposes its generated NPC (2.389108ms)
+✔ v0.59.14 truncated suggestion fragment is not accepted as a Scene (0.301838ms)
+✔ v0.59.14 zh-Hant scene repair deterministically removes Simplified leakage (0.564185ms)
+✔ v0.59.14 StatePatch canonical binding can use hidden director registry (0.674322ms)
+✔ v0.59.14 reincarnation receives local facts only and no automatic full calendar (8.785093ms)
+✔ v0.59.14 origin knowledge alone cannot skip main quest investigation (3.209178ms)
+✔ v0.59.14 NPC dialogue dock is below dice and not inside sidebar (8.795166ms)
+✔ v0.59.14 opening compiler no longer forces visible stranger and scene repair carries turn correlation (1.267192ms)
+✔ v0.59.14 proactive enrichment schedules the thinnest world domain (1.4607ms)
+✔ v0.59.14 scheduled enrichment imposes a deterministic turn cooldown (0.277352ms)
+✔ v0.59.14 provider failures back off proactive enrichment instead of hammering AI (0.356088ms)
+✔ v0.59.14 lazy generation supports single-domain proactive plans (5.819792ms)
+✔ v0.59.14 gameplay emits enrichment pressure lifecycle telemetry (2.737419ms)
+✔ v0.59.15 Japanese AI suggestions survive contextual normalization (2.256347ms)
+✔ v0.59.15 Japanese locale still rejects obvious Chinese suggestion leakage (0.28567ms)
+✔ v0.59.15 Japanese first-turn action panel always has three primary actions (7.712505ms)
+✔ v0.59.15 Japanese model suggestions can populate primary action cards (2.31428ms)
+✔ v0.59.15 renderer cannot silently hide an otherwise valid action set (4.999486ms)
+✔ v0.60.10 explicit Japanese rare-magic intent constrains style-mode blueprint (2.524571ms)
+✔ v0.60.10 Japanese creator progress is localized on first render (0.290723ms)
+✔ v0.60.10 same-source new worlds cannot be blocked by language-switch repair (5.391009ms)
+✔ foreground AI deadlines stay below the gameplay watchdog (5.742235ms)
+✔ v0.60.13 Japanese visible text localizes known templates and preserves unknown leaks for field-aware fallback (2.215387ms)
+✔ v0.60.11 HUD preserves a concrete Japanese location token even before registry convergence (0.437545ms)
+✔ v0.60.11 unknown canonical locations use a Japanese observable alias (0.337374ms)
+✔ v0.60.11 Japanese fallback suggestions are generated natively in Japanese (0.50662ms)
+✔ v0.60.13 background lazy generation safely rebases pure revision drift including checkpoints only (1.303721ms)
+✔ v0.60.19 import-map and single-flight guards retain the manual-test protections (8.568728ms)
+✔ v0.60.13 unknown Japanese leak keeps semantic source for field-aware fallback (1.839839ms)
+✔ v0.60.13 known deterministic engine and weather text localizes synchronously (0.507115ms)
+✔ v0.60.13 runtime UI recovery is turn-scoped and defers global watchdog past scene fallback (4.57306ms)
+✔ v0.60.13 checkpointed lazy generation can rebase stale-only foreground revision drift (1.848168ms)
+✔ v0.60.14 successful Japanese TRAVEL with a canonical target projects location immediately (15.528771ms)
+✔ v0.60.14 permission success unlocks only an existing canonical EVENT_OCCURRED gate (1.746992ms)
+✔ v0.60.14 permission projection does not invent access state when the destination is ambiguous (0.859394ms)
+✖ v0.60.14 fixes remain wired through the v0.60.18 release (12.202406ms)
+✔ v0.60.15 suggestion presentation, execution and scene use one action identity (6.125151ms)
+✔ v0.60.15 Japanese debug panel masks leaked NPC autonomous telemetry detail but keeps event type visible (1.906048ms)
+✔ v0.60.18 Japanese visible text covers reproduced panel, processing, map and weather leaks (1.139391ms)
+✔ v0.60.18 runtime observes CSS-visible thinking, syncing and recovery attributes (6.107541ms)
+✔ v0.60.18 recognizes unfinished and both runtime generic scene fallbacks (0.581249ms)
+✔ v0.60.18 ALLOW keeps shared identity while ADJUST splits player-visible and Engine identities (1.180057ms)
+✔ v0.60.18 ALLOW preserves genuine multi-step semantic decomposition while synchronizing its player-visible identity (0.15904ms)
+✔ v0.60.18 retains exact canonical TRAVEL projection but does not invent a partial ambiguous target (13.485441ms)
+✔ v0.60.18 permission projection remains conservative without a grounded NPC (1.121269ms)
+✔ v0.60.19 release wiring loads Japanese UI, Engine and AI assessment wrappers (4.053053ms)
+✔ v0.60.19 Japanese REST and SOCIAL intents are deterministic (1.740653ms)
+✔ v0.60.19 adjusted actions keep the requested Japanese identity (0.363377ms)
+✔ v0.60.19 runtime wiring covers suggestion identity, rest execution, vitals telemetry and Japanese debug events (8.490365ms)
+✔ v0.60.7 suggestion execution uses the same localized action players see (5.339853ms)
+✔ v0.60.7 first game reveal no longer blocks on a second DOM translation call (4.160444ms)
+✔ v0.60.7 rate limit and slow scene paths release player control deterministically (3.358467ms)
+✔ v0.60.8 self repair closes unsupported opening knowledge without touching Canon (2.557037ms)
+✔ v0.60.8 explicit evidence is never erased by self repair (0.323309ms)
+✔ v0.60.8 opening boundary repair does not revoke knowledge after the first action (0.363726ms)
+✔ v0.60.8 first-turn recovery is global and locale repair cannot block action flight (7.50016ms)
+✔ v0.60.8 Japanese action leak guard rejects mixed Chinese actions and recovery notices are localized (1.710333ms)
+✔ ja suggestion presentation localizes Engine metadata (2.415871ms)
+✔ reported Traditional Chinese tokens are rejected in ja (0.245597ms)
+✔ creator review and debug export have locale-safe visible feedback (1.490209ms)
+✔ v0.60.19 is the canonical app and browser cache release (6.096348ms)
+✔ version policy exempts CI, tests, docs and tooling (0.898695ms)
+✔ runtime, API, deployment and asset changes remain product changes (0.355857ms)
+✔ pure browser cache-token changes do not require a release bump (0.149383ms)
+✔ semantic runtime edits still require a release bump even beside cache changes (0.91561ms)
+✔ non-product-only PR keeps the current version (0.894564ms)
+✔ product PR requires a higher semantic version (0.213454ms)
+✔ empty release bumps and version regressions are rejected (0.162805ms)
+✔ main UI exposes APP_VERSION and package version consistently (6.859822ms)
+✔ History/Future/character systems remain available after v0.53 (5.543547ms)
+✔ v0.50-v0.52 causal protections remain intact after v0.53 (3.371832ms)
+✔ v0.53.0 hardens Knowledge, background races, Claims and Ledger causality (2.237442ms)
+✔ v0.54 Developer AI autotest remains available after v0.57.30 player-facing hardening (2.143807ms)
+✔ desktop game stage keeps one fixed logical canvas and uses layout zoom when available (5.766775ms)
+✔ generated ornamental frames use 9-slice borders and scene artwork never stretches (1.734178ms)
+ℹ tests 232
+ℹ suites 0
+ℹ pass 231
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3577.728256
+
+✖ failing tests:
+
+test at test/v06014-manual-regressions.test.js:34:1
+✖ v0.60.14 fixes remain wired through the v0.60.18 release (12.202406ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60018/. Input:
+  
+  '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=59014"><link rel="stylesheet" href="creator.css?v=59010"><link rel="stylesheet" href="world-surfaces.css?v=59011"><script type="importmap">{"imports":{"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59014","./src/combat-engine.js?v=59014":"./src/combat-engine.js?v=60004","./src/ai-client.js?v=59014":"./src/ai-client.js?v=60004","./src/ai-client.js?v=60010":"./src/v06019-ai-client-hotfix.js?v=60019","./src/npc-conversation.js?v=59014":"./src/npc-conversation.js?v=60004","./src/action-intent.js?v=57025":"./src/action-intent.js?v=60000","./src/action-intent.js?v=59015":"./src/action-intent.js?v=60000","./src/turn-outcome.js?v=57025":"./src/turn-outcome.js?v=60000","./src/resolution-engine.js?v=59015":"./src/resolution-engine.js?v=60000","./src/ai-runtime-contracts.js?v=59000":"./src/ai-runtime-contracts.js?v=60000","./src/check-engine.js?v=57025":"./src/check-engine.js?v=60004","./src/talent-engine.js?v=57025":"./src/talent-engine.js?v=60004","./src/npc-agency-engine.js?v=60003":"./src/npc-agency-engine.js?v=60004","./src/locale-runtime.js?v=60009":"./src/v06011-locale-runtime-hotfix.js?v=60013","./src/locale-runtime.js?v=60010":"./src/v06011-locale-runtime-hotfix.js?v=60013","./src/version.js?v=60010":"./src/version.js?v=60019","./src/ai-settings.js?v=60010":"./src/ai-settings.js?v=60012","./src/game-engine.js?v=60006":"./src/v06019-game-engine-hotfix.js?v=60019","./src/player-location-visibility.js?v=57025":"./src/v06011-player-location-hotfix.js?v=60011","./src/player-experience.js?v=57028":"./src/v06011-player-experience-hotfix.js?v=60011","./src/lazy-generation.js?v=59014":"./src/v06011-lazy-generation-hotfix.js?v=60013","./src/v06011-locale-runtime-hotfix.js?v=60011":"./src/v06011-locale-runtime-hotfix.js?v=60013","./src/contextual-actions.js?v=60010":"./src/v06019-contextual-actions-hotfix.js?v=60019"}}</script></head>\n' +
+    '<body data-screen="landing"><div id="worldBackdrop" aria-hidden="true"></div><div class="noise"></div><header class="topbar">\n' +
+    '<div class="brand-wrap"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div></div>\n' +
+    '<div class="topbar-context" aria-live="polite"><span id="topLocation">未知之地</span><span class="topbar-dot">◆</span><span id="topTime">時序未知</span></div>\n' +
+    '<label class="language-control"><span>語言</span><select id="languageSelect" aria-label="語言"><option value="zh-Hant">繁體中文</option><option value="zh-Hans">簡體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>\n' +
+    '<span id="aiBadge" class="status">LOCAL</span>\n' +
+    '<div class="system-actions"><button id="aiSettingsBtn" class="ghost">AI 設定</button><button id="saveToolsBtn" class="ghost">存檔管理</button><button id="developerBtn" class="ghost">開發者</button><button id="resetBtn" class="ghost danger-ghost">重置世界</button></div>\n' +
+    '<button id="gameMenuBtn" class="ghost icon-btn" type="button" aria-label="更多選項">•••</button>\n' +
+    '</header>\n' +
+    '<main id="app">\n' +
+    '<section id="landing" class="screen active"><div class="hero"><div class="eyebrow">AI × TRPG × WORLD DISCOVERY</div><h1>醒來時，你對這個世界一無所知。</h1><p>創造只屬於你的異世界。探索、擲骰、閱讀遺物、結識夥伴，直到你理解這個世界真正發生過甚麼。</p><div class="actions"><button id="newWorldBtn" class="primary">開始轉生</button><button id="continueBtn" class="secondary">繼續冒險</button></div></div><div class="feature-grid"><article><span>01</span><h3>世界不是說明書</h3><p>設定藏在人物、書本、武器、遺跡與事件之中。</p></article><article><span>02</span><h3>骰子決定命運</h3><p>Engine 決定成敗，AI 只能描述已發生的結果。</p></article><article><span>03</span><h3>AI 夥伴有記憶</h3><p>NPC 只知道自己應該知道的事，也會記住重要互動。</p></article><article><span>04</span><h3>世界屬於玩家</h3><p>IndexedDB 本地保存，並可匯出完整 .elyndra 世界。</p></article></div></section>\n' +
+    '<section id="creator" class="screen">\n' +
+    '<div class="panel wide creator-panel">\n' +
+    ' <div class="panel-head"><div><div class="eyebrow">WORLD CREATION 2.0</div><h2>訂製你的異世界</h2><p class="muted">你決定想玩甚麼樣的故事；世界仍會保留未知真相與自主發展。</p></div><button class="ghost" data-go="landing">返回</button></div>\n' +
+    ' <div class="creator-stepper" aria-label="世界建立步驟">\n' +
+    '  <button type="button" class="active" data-step-target="1"><span>1</span>世界</button>\n' +
+    '  <button type="button" data-step-target="2"><span>2</span>你</button>\n' +
+    '  <button type="button" data-step-target="3"><span>3</span>偏好</button>\n' +
+    '  <button type="button" data-step-target="4"><span>4</span>進階</button>\n' +
+    '  <button type="button" data-step-target="5"><span>5</span>確認</button>\n' +
+    ' </div>\n' +
+    '\n' +
+    ' <section class="creator-step active" data-creator-step="1">\n' +
+    '  <div class="creator-step-head"><small>STEP 01</small><h3>先決定世界的大方向</h3><p>只設定必要項目也可以開始，其餘由世界風格與 Seed 合理補完。</p></div>\n' +
+    '  <div class="form-grid">\n' +
+    '   <label>世界風格<select id="genre"><option>王道奇幻</option><option>黑暗奇幻</option><option>東方幻想</option><option>蒸汽魔法</option><option>末日異世界</option><option value="自訂世界">自訂世界</option></select><span class="creator-lock"><input id="worldStyleLocked" type="checkbox"> 鎖定</span></label>\n' +
+    '   <label>世界規模<select id="scale"><option>小型</option><option selected>中型</option><option>大型</option></select><span class="creator-lock"><input id="worldScaleLocked" type="checkbox"> 鎖定</span></label>\n' +
+    '   <label>希望遊玩時間（小時）<input id="playHours" type="number" min="2" max="100" step="1" value="15"><small>影響 Timeline horizon、事件密度與伏筆長度</small></label>\n' +
+    '   <label>遊戲難度<select id="difficulty"><option value="easy">簡單 · 故事體驗</option><option value="normal" selected>普通 · 完整 RPG</option><option value="hard">困難 · 生存與語言障礙</option><option value="realistic">現實 · 持續性後果</option></select></label>\n' +
+    '  </div>\n' +
+    '  <label id="customWorldStyleWrap" class="full custom-world-style hidden">自訂世界風格描述<textarea id="customWorldStyle" maxlength="600" placeholder="例如：天空群島文明、魔法由記憶驅動、城市依靠巨獸骨架建立；政治分裂但跨國學院保持中立。"></textarea><small>這段會成為 World Blueprint 的風格基礎，而不是直接塞入單一 Prompt。</small></label>\n' +
+    '  <div class="creator-inline"><button id="randomWorldBtn" type="button" class="secondary">🎲 重抽未鎖定設定</button><span id="styleHint" class="world-style-hint">沒有指定的細節會由世界風格或 Seed 決定。</span></div>\n' +
+    '  <div class="creator-nav"><span></span><button type="button" class="primary" data-step-next="2">下一步：你的起源</button></div>\n' +
+    ' </section>\n' +
+    ' <section class="creator-step" data-creator-step="2">\n' +
+    '  <div class="creator-step-head"><small>STEP 02</small><h3>你如何來到這個世界？</h3><p>起源會進入正式 World Blueprint，影響身份、知識、語言與開局事件，而不只是背景文字。</p></div>\n' +
+    '  <div class="form-grid">\n' +
+    '   <label>角色名稱<input id="playerName" type="text" maxlength="40" placeholder="留空則交給 AI 決定"></label>\n' +
+    '   <label>玩家起源<select id="originType"><option value="crossing">穿越</option><option value="reincarnation">轉生</option><option value="summoned">被召喚</option><option value="possession">附身</option><option value="native">原住民</option><option value="amnesia">失憶</option><option value="custom">完全自訂</option></select></label>\n' +
+    '   <label>世界中的定位<select id="playerRole"><option value="ordinary">普通人</option><option value="adventurer">冒險者</option><option value="hero_candidate">英雄候選人</option><option value="merchant">商人</option><option value="noble">貴族</option><option value="researcher">研究者</option><option value="antagonist">反派陣營</option><option value="random">完全隨機</option><option value="custom">完全自訂</option></select></label>\n' +
+    '  </div>\n' +
+    '  <label class="full">自訂起源細節<textarea id="originCustom" maxlength="400" placeholder="例如：被一個已經衰敗的王國秘密召喚，但召喚儀式似乎出了問題。"></textarea></label>\n' +
+    '  <label class="full">自訂角色定位<textarea id="roleCustom" maxlength="300" placeholder="例如：想當普通研究者，對古代文明特別有興趣，但不保證會成為主角。"></textarea></label>\n' +
+    '  <div class="creator-nav"><button type="button" class="ghost" data-step-prev="1">返回</button><button type="button" class="primary" data-step-next="3">下一步：故事偏好</button></div>\n' +
+    ' </section>\n' +
+    '\n' +
+    ' <section class="creator-step" data-creator-step="3">\n' +
+    '  <div class="creator-step-head"><small>STEP 03</small><h3>描述你想去的異世界</h3><p>自然語言會保存進 Blueprint；故事偏好只形成 Destiny Tendencies，不會預先寫死事件。</p></div>\n' +
+    '  <label class="full">自訂異世界<textarea id="prompt" maxlength="1200" placeholder="例如：魔法學院＋多王國＋高魔法＋慢慢成長。希望世界表面繁榮，但古代文明留下很多未解之謎。"></textarea></label>\n' +
+    '  <div class="form-grid"><label>故事偏好<textarea id="storyPreferences" maxlength="900" placeholder="每行一項，例如：&#10;後期可能爆發戰爭&#10;希望有魔法學院篇&#10;穿越可能不是偶然"></textarea></label></div>\n' +
+    '  <div class="rule-tag-builder">\n' +
+    '   <div class="rule-tag-head"><div><small class="eyebrow">WORLD CONSTITUTION TAGS</small><h4>世界元素規則</h4><p class="muted">先選標籤加入到哪一組；同一標籤不會同時存在於兩個互相衝突的規則中。</p></div>\n' +
+    '    <div class="rule-target-tabs" role="tablist"><button type="button" class="active" data-rule-target="required">必須存在</button><button type="button" data-rule-target="allowed">可以存在</button><button type="button" data-rule-target="forbidden">禁止出現</button></div>\n' +
+    '   </div>\n' +
+    '   <div class="preset-tag-toolbar"><select id="ruleTagCategory" aria-label="預設標籤分類"></select><input id="ruleTagSearch" type="search" placeholder="搜尋預設標籤"><span id="ruleTagCount" class="muted"></span></div>\n' +
+    '   <div id="ruleTagPresets" class="preset-tag-cloud" aria-label="預設世界標籤"></div>\n' +
+    '   <div class="rule-buckets">\n' +
+    '    <section class="rule-bucket required" data-rule-bucket="required"><header><strong>必須存在</strong><small>AI 必須在世界 Canon 中實現</small></header><div class="selected-tag-cloud" id="requiredTagCloud"></div><div class="custom-tag-row"><input id="requiredTagInput" maxlength="60" placeholder="自訂標籤，例如：漂浮大陸"><button type="button" class="secondary" data-add-custom-tag="required">加入</button></div><input id="requiredElements" type="hidden"></section>\n' +
+    '    <section class="rule-bucket allowed" data-rule-bucket="allowed"><header><strong>可以存在</strong><small>可作世界素材，但不是必要條件</small></header><div class="selected-tag-cloud" id="allowedTagCloud"></div><div class="custom-tag-row"><input id="allowedTagInput" maxlength="60" placeholder="自訂標籤，例如：地下王國"><button type="button" class="secondary" data-add-custom-tag="allowed">加入</button></div><input id="allowedElements" type="hidden"></section>\n' +
+    '    <section class="rule-bucket forbidden" data-rule-b'... 13268 more characters
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Elyndra/Elyndra/test/v06014-manual-regressions.test.js:38:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=59014"><link rel="stylesheet" href="creator.css?v=59010"><link rel="stylesheet" href="world-surfaces.css?v=59011"><script type="importmap">{"imports":{"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59014","./src/combat-engine.js?v=59014":"./src/combat-engine.js?v=60004","./src/ai-client.js?v=59014":"./src/ai-client.js?v=60004","./src/ai-client.js?v=60010":"./src/v06019-ai-client-hotfix.js?v=60019","./src/npc-conversation.js?v=59014":"./src/npc-conversation.js?v=60004","./src/action-intent.js?v=57025":"./src/action-intent.js?v=60000","./src/action-intent.js?v=59015":"./src/action-intent.js?v=60000","./src/turn-outcome.js?v=57025":"./src/turn-outcome.js?v=60000","./src/resolution-engine.js?v=59015":"./src/resolution-engine.js?v=60000","./src/ai-runtime-contracts.js?v=59000":"./src/ai-runtime-contracts.js?v=60000","./src/check-engine.js?v=57025":"./src/check-engine.js?v=60004","./src/talent-engine.js?v=57025":"./src/talent-engine.js?v=60004","./src/npc-agency-engine.js?v=60003":"./src/npc-agency-engine.js?v=60004","./src/locale-runtime.js?v=60009":"./src/v06011-locale-runtime-hotfix.js?v=60013","./src/locale-runtime.js?v=60010":"./src/v06011-locale-runtime-hotfix.js?v=60013","./src/version.js?v=60010":"./src/version.js?v=60019","./src/ai-settings.js?v=60010":"./src/ai-settings.js?v=60012","./src/game-engine.js?v=60006":"./src/v06019-game-engine-hotfix.js?v=60019","./src/player-location-visibility.js?v=57025":"./src/v06011-player-location-hotfix.js?v=60011","./src/player-experience.js?v=57028":"./src/v06011-player-experience-hotfix.js?v=60011","./src/lazy-generation.js?v=59014":"./src/v06011-lazy-generation-hotfix.js?v=60013","./src/v06011-locale-runtime-hotfix.js?v=60011":"./src/v06011-locale-runtime-hotfix.js?v=60013","./src/contextual-actions.js?v=60010":"./src/v06019-contextual-actions-hotfix.js?v=60019"}}</script></head>\n<body data-screen="landing"><div id="worldBackdrop" aria-hidden="true"></div><div class="noise"></div><header class="topbar">\n<div class="brand-wrap"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div></div>\n<div class="topbar-context" aria-live="polite"><span id="topLocation">未知之地</span><span class="topbar-dot">◆</span><span id="topTime">時序未知</span></div>\n<label class="language-control"><span>語言</span><select id="languageSelect" aria-label="語言"><option value="zh-Hant">繁體中文</option><option value="zh-Hans">簡體中文</option><option value="en">English</option><option value="ja">日本語</option></select></label>\n<span id="aiBadge" class="status">LOCAL</span>\n<div class="system-actions"><button id="aiSettingsBtn" class="ghost">AI 設定</button><button id="saveToolsBtn" class="ghost">存檔管理</button><button id="developerBtn" class="ghost">開發者</button><button id="resetBtn" class="ghost danger-ghost">重置世界</button></div>\n<button id="gameMenuBtn" class="ghost icon-btn" type="button" aria-label="更多選項">•••</button>\n</header>\n<main id="app">\n<section id="landing" class="screen active"><div class="hero"><div class="eyebrow">AI × TRPG × WORLD DISCOVERY</div><h1>醒來時，你對這個世界一無所知。</h1><p>創造只屬於你的異世界。探索、擲骰、閱讀遺物、結識夥伴，直到你理解這個世界真正發生過甚麼。</p><div class="actions"><button id="newWorldBtn" class="primary">開始轉生</button><button id="continueBtn" class="secondary">繼續冒險</button></div></div><div class="feature-grid"><article><span>01</span><h3>世界不是說明書</h3><p>設定藏在人物、書本、武器、遺跡與事件之中。</p></article><article><span>02</span><h3>骰子決定命運</h3><p>Engine 決定成敗，AI 只能描述已發生的結果。</p></article><article><span>03</span><h3>AI 夥伴有記憶</h3><p>NPC 只知道自己應該知道的事，也會記住重要互動。</p></article><article><span>04</span><h3>世界屬於玩家</h3><p>IndexedDB 本地保存，並可匯出完整 .elyndra 世界。</p></article></div></section>\n<section id="creator" class="screen">\n<div class="panel wide creator-panel">\n <div class="panel-head"><div><div class="eyebrow">WORLD CREATION 2.0</div><h2>訂製你的異世界</h2><p class="muted">你決定想玩甚麼樣的故事；世界仍會保留未知真相與自主發展。</p></div><button class="ghost" data-go="landing">返回</button></div>\n <div class="creator-stepper" aria-label="世界建立步驟">\n  <button type="button" class="active" data-step-target="1"><span>1</span>世界</button>\n  <button type="button" data-step-target="2"><span>2</span>你</button>\n  <button type="button" data-step-target="3"><span>3</span>偏好</button>\n  <button type="button" data-step-target="4"><span>4</span>進階</button>\n  <button type="button" data-step-target="5"><span>5</span>確認</button>\n </div>\n\n <section class="creator-step active" data-creator-step="1">\n  <div class="creator-step-head"><small>STEP 01</small><h3>先決定世界的大方向</h3><p>只設定必要項目也可以開始，其餘由世界風格與 Seed 合理補完。</p></div>\n  <div class="form-grid">\n   <label>世界風格<select id="genre"><option>王道奇幻</option><option>黑暗奇幻</option><option>東方幻想</option><option>蒸汽魔法</option><option>末日異世界</option><option value="自訂世界">自訂世界</option></select><span class="creator-lock"><input id="worldStyleLocked" type="checkbox"> 鎖定</span></label>\n   <label>世界規模<select id="scale"><option>小型</option><option selected>中型</option><option>大型</option></select><span class="creator-lock"><input id="worldScaleLocked" type="checkbox"> 鎖定</span></label>\n   <label>希望遊玩時間（小時）<input id="playHours" type="number" min="2" max="100" step="1" value="15"><small>影響 Timeline horizon、事件密度與伏筆長度</small></label>\n   <label>遊戲難度<select id="difficulty"><option value="easy">簡單 · 故事體驗</option><option value="normal" selected>普通 · 完整 RPG</option><option value="hard">困難 · 生存與語言障礙</option><option value="realistic">現實 · 持續性後果</option></select></label>\n  </div>\n  <label id="customWorldStyleWrap" class="full custom-world-style hidden">自訂世界風格描述<textarea id="customWorldStyle" maxlength="600" placeholder="例如：天空群島文明、魔法由記憶驅動、城市依靠巨獸骨架建立；政治分裂但跨國學院保持中立。"></textarea><small>這段會成為 World Blueprint 的風格基礎，而不是直接塞入單一 Prompt。</small></label>\n  <div class="creator-inline"><button id="randomWorldBtn" type="button" class="secondary">🎲 重抽未鎖定設定</button><span id="styleHint" class="world-style-hint">沒有指定的細節會由世界風格或 Seed 決定。</span></div>\n  <div class="creator-nav"><span></span><button type="button" class="primary" data-step-next="2">下一步：你的起源</button></div>\n </section>\n <section class="creator-step" data-creator-step="2">\n  <div class="creator-step-head"><small>STEP 02</small><h3>你如何來到這個世界？</h3><p>起源會進入正式 World Blueprint，影響身份、知識、語言與開局事件，而不只是背景文字。</p></div>\n  <div class="form-grid">\n   <label>角色名稱<input id="playerName" type="text" maxlength="40" placeholder="留空則交給 AI 決定"></label>\n   <label>玩家起源<select id="originType"><option value="crossing">穿越</option><option value="reincarnation">轉生</option><option value="summoned">被召喚</option><option value="possession">附身</option><option value="native">原住民</option><option value="amnesia">失憶</option><option value="custom">完全自訂</option></select></label>\n   <label>世界中的定位<select id="playerRole"><option value="ordinary">普通人</option><option value="adventurer">冒險者</option><option value="hero_candidate">英雄候選人</option><option value="merchant">商人</option><option value="noble">貴族</option><option value="researcher">研究者</option><option value="antagonist">反派陣營</option><option value="random">完全隨機</option><option value="custom">完全自訂</option></select></label>\n  </div>\n  <label class="full">自訂起源細節<textarea id="originCustom" maxlength="400" placeholder="例如：被一個已經衰敗的王國秘密召喚，但召喚儀式似乎出了問題。"></textarea></label>\n  <label class="full">自訂角色定位<textarea id="roleCustom" maxlength="300" placeholder="例如：想當普通研究者，對古代文明特別有興趣，但不保證會成為主角。"></textarea></label>\n  <div class="creator-nav"><button type="button" class="ghost" data-step-prev="1">返回</button><button type="button" class="primary" data-step-next="3">下一步：故事偏好</button></div>\n </section>\n\n <section class="creator-step" data-creator-step="3">\n  <div class="creator-step-head"><small>STEP 03</small><h3>描述你想去的異世界</h3><p>自然語言會保存進 Blueprint；故事偏好只形成 Destiny Tendencies，不會預先寫死事件。</p></div>\n  <label class="full">自訂異世界<textarea id="prompt" maxlength="1200" placeholder="例如：魔法學院＋多王國＋高魔法＋慢慢成長。希望世界表面繁榮，但古代文明留下很多未解之謎。"></textarea></label>\n  <div class="form-grid"><label>故事偏好<textarea id="storyPreferences" maxlength="900" placeholder="每行一項，例如：&#10;後期可能爆發戰爭&#10;希望有魔法學院篇&#10;穿越可能不是偶然"></textarea></label></div>\n  <div class="rule-tag-builder">\n   <div class="rule-tag-head"><div><small class="eyebrow">WORLD CONSTITUTION TAGS</small><h4>世界元素規則</h4><p class="muted">先選標籤加入到哪一組；同一標籤不會同時存在於兩個互相衝突的規則中。</p></div>\n    <div class="rule-target-tabs" role="tablist"><button type="button" class="active" data-rule-target="required">必須存在</button><button type="button" data-rule-target="allowed">可以存在</button><button type="button" data-rule-target="forbidden">禁止出現</button></div>\n   </div>\n   <div class="preset-tag-toolbar"><select id="ruleTagCategory" aria-label="預設標籤分類"></select><input id="ruleTagSearch" type="search" placeholder="搜尋預設標籤"><span id="ruleTagCount" class="muted"></span></div>\n   <div id="ruleTagPresets" class="preset-tag-cloud" aria-label="預設世界標籤"></div>\n   <div class="rule-buckets">\n    <section class="rule-bucket required" data-rule-bucket="required"><header><strong>必須存在</strong><small>AI 必須在世界 Canon 中實現</small></header><div class="selected-tag-cloud" id="requiredTagCloud"></div><div class="custom-tag-row"><input id="requiredTagInput" maxlength="60" placeholder="自訂標籤，例如：漂浮大陸"><button type="button" class="secondary" data-add-custom-tag="required">加入</button></div><input id="requiredElements" type="hidden"></section>\n    <section class="rule-bucket allowed" data-rule-bucket="allowed"><header><strong>可以存在</strong><small>可作世界素材，但不是必要條件</small></header><div class="selected-tag-cloud" id="allowedTagCloud"></div><div class="custom-tag-row"><input id="allowedTagInput" maxlength="60" placeholder="自訂標籤，例如：地下王國"><button type="button" class="secondary" data-add-custom-tag="allowed">加入</button></div><input id="allowedElements" type="hidden"></section>\n    <section class="rule-bucket forbidden" data-rule-b'... 13268 more characters,
+    expected: /\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60018/,
+    operator: 'match',
+    diff: 'simple'
+  }
