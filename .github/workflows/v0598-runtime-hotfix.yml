@@ -10,29 +10,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
+        with: {fetch-depth: 0}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: 20
-      - name: Remove runtime expansion from rate-limit shedding
-        run: python -c 'from pathlib import Path; p=Path("src/ai-settings.js"); s=p.read_text(); old="\"turn_deferred\",\"runtime_expansion\",\"history_deepening\""; new="\"turn_deferred\",\"history_deepening\""; assert old in s; p.write_text(s.replace(old,new,1))'
-      - name: Repair targetless AutoTest recovery
-        run: python -c 'from pathlib import Path; p=Path("src/ai-autotest.js"); s=p.read_text(); old="kind:\"TRAVEL\",targetId:null,progression:true"; assert s.count(old)>=2; s=s.replace(old,"kind:\"INTERACT\",targetId:null,progression:true",2); old2="if(parsed?.mode===\"free\"&&text(parsed?.action,180))return {mode:\"free\",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||\"\",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};"; old2=old2.replace("===\"free\"","==\"free\""); new2="if(parsed?.mode==\"free\"&&text(parsed?.action,180))return {mode:\"free\",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||\"\",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||\"\",100)||null,combatAction:null,reason,goalReached,goalEvidence};"; assert old2 in s; p.write_text(s.replace(old2,new2,1))'
-      - name: Repair incomplete Future slots before validation
-        run: python -c 'from pathlib import Path; p=Path("src/ai-client.js"); s=p.read_text(); old="const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);"; new="const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x===\"object\"&&String(x.title||\"\").trim()&&String(x.directorTruth||\"\").trim().length>=8&&String(x.observableEffect||\"\").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);".replace("===\\\"object\\\"","==\\\"object\\\""); assert old in s; s=s.replace(old,new,1); old2="let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);"; new2="let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar===\"object\")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;".replace("===\\\"object\\\"","==\\\"object\\\""); assert old2 in s; p.write_text(s.replace(old2,new2,1))'
-      - name: Localize fixed Japanese origin boilerplate
-        run: python -c 'from pathlib import Path; p=Path("src/world-creation.js"); s=p.read_text(); old="background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),"; new="background:custom||(String(globalThis?.ELYNDRA_LOCALE||\"\")===\"ja\"?\"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。\":`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),"; assert old in s; p.write_text(s.replace(old,new,1))'
-      - name: Add regression tests and release contract
+        with: {node-version: 20}
+      - name: Patch runtime sources
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/ai-settings.js'); s=p.read_text(); old='"turn_deferred","runtime_expansion","history_deepening"'; assert old in s; p.write_text(s.replace(old,'"turn_deferred","history_deepening"',1))
+          p=Path('src/ai-autotest.js'); s=p.read_text(); old='kind:"TRAVEL",targetId:null,progression:true'; assert s.count(old)>=2; s=s.replace(old,'kind:"INTERACT",targetId:null,progression:true',2); old2='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};'; new2='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||"",100)||null,combatAction:null,reason,goalReached,goalEvidence};'; assert old2 in s; p.write_text(s.replace(old2,new2,1))
+          p=Path('src/ai-client.js'); s=p.read_text(); old='const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'; new='const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x==="object"&&String(x.title||"").trim()&&String(x.directorTruth||"").trim().length>=8&&String(x.observableEffect||"").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'; assert old in s; s=s.replace(old,new,1); old2='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);'; new2='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar==="object")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;'; assert old2 in s; p.write_text(s.replace(old2,new2,1))
+          p=Path('src/world-creation.js'); s=p.read_text(); old='background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),'; new='background:custom||(String(globalThis?.ELYNDRA_LOCALE||"")==="ja"?"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。":`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),'; assert old in s; p.write_text(s.replace(old,new,1))
+          PY
+      - name: Add regressions and v0.59.8 release contract
         run: |
           cat > test/v0598-runtime-autotest-recovery.test.js <<'EOF'
           import test from "node:test";
           import assert from "node:assert/strict";
           import {readFile} from "node:fs/promises";
-          test("v0.59.8 runtime expansion is not shed during provider cooldown",async()=>{const s=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8");assert.doesNotMatch(s,/SHED_ON_RATE_LIMIT=new Set\(\[[^\]]*runtime_expansion/)});
-          test("v0.59.8 targetless deterministic recovery is not TRAVEL",async()=>{const s=await readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8");assert.doesNotMatch(s,/kind:"TRAVEL",targetId:null,progression:true/);assert.match(s,/targetId:text\(parsed\?\.targetId/)});
-          test("v0.59.8 repairs missing Future slots before validation",async()=>{const s=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");assert.match(s,/futureFallbackCandidate=futureFallback/);assert.match(s,/futureRows=timelineAuthoringSlots/)});
-          test("v0.59.8 Japanese origin fixed prose is deterministic",async()=>{const s=await readFile(new URL("../src/world-creation.js",import.meta.url),"utf8");assert.match(s,/具体的な身分、開始地点、因果関係/)});
+          test("runtime expansion waits through provider cooldown",async()=>{const s=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8");assert.doesNotMatch(s,/SHED_ON_RATE_LIMIT=new Set\(\[[^\]]*runtime_expansion/)});
+          test("targetless recovery is not emitted as TRAVEL",async()=>{const s=await readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8");assert.doesNotMatch(s,/kind:"TRAVEL",targetId:null,progression:true/);assert.match(s,/targetId:text\(parsed\?\.targetId/)});
+          test("missing Future slots are repaired before validation",async()=>{const s=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");assert.match(s,/futureFallbackCandidate=futureFallback/);assert.match(s,/futureRows=timelineAuthoringSlots/)});
+          test("Japanese origin boilerplate has deterministic locale copy",async()=>{const s=await readFile(new URL("../src/world-creation.js",import.meta.url),"utf8");assert.match(s,/具体的な身分、開始地点、因果関係/)});
           EOF
           python - <<'PY'
           from pathlib import Path
@@ -40,15 +39,14 @@ jobs:
           p=Path('package.json'); d=json.loads(p.read_text()); d['version']='0.59.8'; p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
           p=Path('src/version.js'); p.write_text(p.read_text().replace('APP_VERSION="0.59.7"','APP_VERSION="0.59.8"'))
           for name in ['index.html','app.js','src/ai-client.js','src/ai-settings.js','src/ai-autotest.js','test/version-ui.test.js','test/version-0551-release.test.js','test/v05901-i18n-coverage.test.js']:
-              p=Path(name); s=p.read_text().replace('59007','59008').replace('0.59.7','0.59.8').replace(r'0\.59\.7',r'0\.59\.8'); p.write_text(s)
-          p=Path('.github/workflows/pages.yml'); s=p.read_text(); s=s.replace('node --test test/version-policy.test.js ','node --test test/v0598-runtime-autotest-recovery.test.js test/version-policy.test.js ',1); p.write_text(s)
+              p=Path(name); x=p.read_text().replace('59007','59008').replace('0.59.7','0.59.8').replace(r'0\.59\.7',r'0\.59\.8'); p.write_text(x)
+          p=Path('.github/workflows/pages.yml'); x=p.read_text().replace('node --test test/version-policy.test.js ','node --test test/v0598-runtime-autotest-recovery.test.js test/version-policy.test.js ',1); p.write_text(x)
           PY
       - name: Version contract
         run: npm run version:check
       - name: Browser cache contract
         run: npm run cache:check
-        env:
-          CACHE_BASE_REF: 268f8b632f366387383968c816ad53c38dd0e17f
+        env: {CACHE_BASE_REF: 268f8b632f366387383968c816ad53c38dd0e17f}
       - name: JavaScript syntax gate
         run: node scripts/check-js.mjs
       - name: Static i18n coverage
