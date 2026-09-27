@@ -1,5 +1,5 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59014";
+import {APP_VERSION} from "./src/version.js?v=59015";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
 import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59010";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59010";
@@ -7,7 +7,7 @@ import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirec
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=59014";
 import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59014";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
-import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=59014";
+import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=59015";
 import {maintainSession} from "./src/session-maintenance.js?v=57025";
 import {performAction} from "./src/game-engine.js?v=59014";
 import {saveWorld,loadWorld,hasWorld,deleteWorld,exportWorld,importWorld,saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot} from "./src/storage.js?v=59014";
@@ -54,7 +54,7 @@ import {recordDebug,telemetryEntries,telemetrySummary,debugBundle,debugBundleTex
 import {notifyGameplayAcquisitions} from "./src/acquisition-notifier.js?v=58000";
 import {ensurePlayerExperience,markOpeningEngaged,projectObservableWorldChanges,roleplayFallbackSuggestions} from "./src/player-experience.js?v=57028";
 import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-closure.js?v=57028";
-import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=57029";
+import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=59015";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57025";
 import {createStateSessionGuard} from "./src/state-session.js?v=57025";
 import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=59014";

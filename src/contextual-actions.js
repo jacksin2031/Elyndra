@@ -1,10 +1,23 @@
 import {normalizeActionIntent,inferActionKind} from "./action-intent.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
 import {playerVisibleNpcName,redactUnknownNpcNames} from "./player-entity-visibility.js?v=57029";
-import {sanitizePlayerText} from "./runtime-guard.js?v=57029";
+import {sanitizePlayerText,stripSystemLabels} from "./runtime-guard.js?v=57029";
 import {validateSuggestionProvenance} from "./scene-provenance.js?v=57025";
+import {hasLocaleLeak} from "./locale-runtime.js?v=59010";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
+const CONTEXTUAL_LOCALES=new Set(["zh-Hant","zh-Hans","en","ja"]);
+function contextualLocale(state=null,explicit=""){const raw=String(explicit||state?.localization?.displayLocale||globalThis.ELYNDRA_LOCALE||"zh-Hant");return CONTEXTUAL_LOCALES.has(raw)?raw:"zh-Hant"}
+function sanitizeContextualText(value,max=180,{state=null,locale="",source="AI"}={}){
+ const sourceKind=String(source||"AI").toUpperCase();
+ if(sourceKind==="ENGINE")return clean(stripSystemLabels(value,max),max);
+ const id=contextualLocale(state,locale);if(id==="zh-Hant")return sanitizePlayerText(value,max,"");
+ const s=clean(stripSystemLabels(value,max),max);if(!s||hasLocaleLeak(s,id))return "";
+ if(id==="ja"){const foreign=(s.match(/[\uac00-\ud7af\u0400-\u04ff]/gu)||[]).length,kana=(s.match(/[\u3040-\u30ff]/gu)||[]).length,han=(s.match(/[\u3400-\u9fff]/gu)||[]).length,latin=(s.match(/[A-Za-z]/g)||[]).length;if(foreign)return "";if(s.length>=24&&kana+han<4&&latin>12)return ""}
+ else if(id==="zh-Hans"&&/[\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/u.test(s))return "";
+ else if(id==="en"&&/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0400-\u04ff]/u.test(s))return "";
+ return s
+}
 const list=(v,max=8,maxLen=100)=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,maxLen)).filter(Boolean))].slice(0,max):[];
 const RISK_LABEL=Object.freeze({LOW:"低風險",MEDIUM:"有風險",HIGH:"危險",EXTREME:"極高風險",UNKNOWN:""});
 const APPROACH_LABEL=Object.freeze({STEADY:"穩健",SOCIAL:"社交",BOLD:"冒險",CREATIVE:"創意"});
@@ -71,10 +84,11 @@ function inferApproach(row){
  if(/製造|引開|佯裝|假裝|利用|組合|誘導|聲東擊西|繞路/.test(row?.action||""))return "CREATIVE";
  return "STEADY"
 }
-export function normalizeContextualSuggestion(row={}){
+export function normalizeContextualSuggestion(row={},options={}){
  if(typeof row==="string")row={label:row,action:row};
  if(!row||typeof row!=="object"||Array.isArray(row))return null;
- const label=sanitizePlayerText(row.label||row.action,120,""),action=sanitizePlayerText(row.action||row.label,180,"");if(!label||!action||PLAYER_META_TEXT.test(label+" "+action)||DECISION_WORDS.test(label+" "+action))return null;
+ const source=clean(row.source,30)||"AI",textOptions={state:options?.state||null,locale:options?.locale||"",source};
+ const label=sanitizeContextualText(row.label||row.action,120,textOptions),action=sanitizeContextualText(row.action||row.label,180,textOptions);if(!label||!action||PLAYER_META_TEXT.test(label+" "+action)||DECISION_WORDS.test(label+" "+action))return null;
  const kind=VALID_KINDS.has(String(row.kind||"").toUpperCase())?String(row.kind).toUpperCase():"GENERAL";
  const risk=VALID_RISKS.has(String(row.risk||"").toUpperCase())?String(row.risk).toUpperCase():"UNKNOWN";
  const approach=inferApproach({...row,kind,risk});
@@ -82,16 +96,16 @@ export function normalizeContextualSuggestion(row={}){
   label,action,kind,risk,approach,
   progression:row.progression===true,
   targetId:clean(row.targetId,100)||null,
-  skillHint:sanitizePlayerText(row.skillHint,70,"")||null,
-  consequenceHint:sanitizePlayerText(row.consequenceHint,90,"")||null,
-  causalBasis:sanitizePlayerText(row.causalBasis,180,"")||null,
+  skillHint:sanitizeContextualText(row.skillHint,70,textOptions)||null,
+  consequenceHint:sanitizeContextualText(row.consequenceHint,90,textOptions)||null,
+  causalBasis:sanitizeContextualText(row.causalBasis,180,textOptions)||null,
   requirementsSatisfied:row.requirementsSatisfied===true,
   requiredItemIds:list(row.requiredItemIds),requiredCapabilities:list(row.requiredCapabilities,8,70),
   affordance:row.affordance&&typeof row.affordance==="object"?{
    sourceKind:clean(row.affordance.sourceKind,20).toUpperCase(),sourceId:clean(row.affordance.sourceId,120),
    evidenceType:clean(row.affordance.evidenceType,20).toUpperCase(),title:clean(row.affordance.title,100),text:clean(row.affordance.text,500)
   }:null,
-  source:clean(row.source,30)||"AI",
+  source,
   prevalidated:row.prevalidated===true,
   validatedContext:row.validatedContext&&typeof row.validatedContext==="object"?{
    worldId:String(row.validatedContext.worldId||""),
@@ -156,7 +170,7 @@ function genericMagicAvailable(state){
  return [...(p.capabilities||[]),...(p.talents||[])].some(row=>/magic|mana|spell|cast|靈息|靈能|魔力|魔法|法術|施法/i.test(String(typeof row==="string"?row:row?.id||row?.name||"")))
 }
 export function evaluateSuggestionRequirements(state,row={}){
- const x=normalizeContextualSuggestion(row);if(!x)return {ok:false,reasons:["INVALID_SUGGESTION"]};
+ const x=normalizeContextualSuggestion(row,{state,locale:contextualLocale(state)});if(!x)return {ok:false,reasons:["INVALID_SUGGESTION"]};
  const reasons=[];
  if(!requiredItemsAvailable(state,x))reasons.push("REQUIRED_ITEM_MISSING");
  const implied=impliedInventoryItem(x.action);
@@ -181,7 +195,7 @@ function canonicalTravelTarget(state,row={}){
  const action=String(row?.action||row?.label||"");return locations.find(loc=>loc?.name&&action.includes(String(loc.name)))||null
 }
 function canonicalSuggestion(state,row){
- const x=normalizeContextualSuggestion(row);if(!x)return null;
+ const x=normalizeContextualSuggestion(row,{state,locale:contextualLocale(state)});if(!x)return null;
  const targetId=inferSuggestionTarget(state,x);let y=targetId&&!x.targetId?{...x,targetId}:x;
  y={...y,label:redactUnknownNpcNames(state,y.label),action:redactUnknownNpcNames(state,y.action)};
  if(y.kind==="TRAVEL"&&!canonicalTravelTarget(state,y)){const observe=trustedSuggestionObservationDominant(y.action);y={...y,kind:observe?"OBSERVE":"GENERAL",targetId:null}}
