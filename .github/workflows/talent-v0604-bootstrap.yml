@@ -32,8 +32,18 @@ jobs:
         run: node scripts/check-js.mjs
       - name: Static i18n coverage
         run: python3 scripts/scan-i18n-coverage.py
-      - name: Talent and TRPG regressions
-        run: node --test test/talent-rules-v0604.test.js test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Talent 2.0 regressions
+        run: node --test test/talent-rules-v0604.test.js
+      - name: NPC Agency regressions
+        run: node --test test/npc-agency-v0603.test.js
+      - name: Social Conflict regressions
+        run: node --test test/social-conflict-v0602.test.js
+      - name: Combat 2.0 regressions
+        run: node --test test/combat-v0601.test.js
+      - name: TRPG Depth foundation regressions
+        run: node --test test/trpg-depth-v060.test.js
+      - name: Release and UI contracts
+        run: node --test test/version-ui.test.js test/version-0551-release.test.js
       - name: Commit validated integration
         run: |
           if ! git diff --quiet; then
