@@ -16,13 +16,44 @@ jobs:
         with:
           node-version: 20
       - name: Remove runtime expansion from rate-limit shedding
-        run: python -c 'from pathlib import Path; p=Path("src/ai-settings.js"); s=p.read_text(); old="[\"turn_deferred\",\"runtime_expansion\",\"history_deepening\",\"runtime_quality\",\"quality\",\"quality_repair\",\"runtime_repair\"]"; new="[\"turn_deferred\",\"history_deepening\",\"runtime_quality\",\"quality\",\"quality_repair\",\"runtime_repair\"]"; assert old in s; p.write_text(s.replace(old,new,1))'
+        run: python -c 'from pathlib import Path; p=Path("src/ai-settings.js"); s=p.read_text(); old="\"turn_deferred\",\"runtime_expansion\",\"history_deepening\""; new="\"turn_deferred\",\"history_deepening\""; assert old in s; p.write_text(s.replace(old,new,1))'
       - name: Repair targetless AutoTest recovery
-        run: python -c 'from pathlib import Path; p=Path("src/ai-autotest.js"); s=p.read_text(); s=s.replace("kind:\"TRAVEL\",targetId:null,progression:true},\\n  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:\"TRAVEL\",targetId:null,progression:true}","kind:\"INTERACT\",targetId:null,progression:true},\\n  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:\"INTERACT\",targetId:null,progression:true}"); old="if(parsed?.mode===\"free\"&&text(parsed?.action,180))return {mode:\"free\",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||\"\",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};"; new="if(parsed?.mode===\"free\"&&text(parsed?.action,180))return {mode:\"free\",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||\"\",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||\"\",100)||null,combatAction:null,reason,goalReached,goalEvidence};"; assert old in s; p.write_text(s.replace(old,new,1))'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/ai-autotest.js'); s=p.read_text()
+          old='''{action:`從${loc}改走另一個可安全接近的出口或通道，先移動到新的可觀察位置再追查「${objective}」`,kind:"TRAVEL",targetId:null,progression:true},
+  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:"TRAVEL",targetId:null,progression:true}'''
+          new='''{action:`從${loc}改走另一個可安全接近的出口或通道，先移動到新的可觀察位置再追查「${objective}」`,kind:"INTERACT",targetId:null,progression:true},
+  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:"INTERACT",targetId:null,progression:true}'''
+          assert old in s
+          s=s.replace(old,new,1)
+          old='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};'
+          new='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||"",100)||null,combatAction:null,reason,goalReached,goalEvidence};'
+          assert old in s
+          p.write_text(s.replace(old,new,1))
+          PY
       - name: Repair incomplete Future slots before validation
-        run: python -c 'from pathlib import Path; p=Path("src/ai-client.js"); s=p.read_text(); old="const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);"; new="const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x===\"object\"&&String(x.title||\"\").trim()&&String(x.directorTruth||\"\").trim().length>=8&&String(x.observableEffect||\"\").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);"; assert old in s; s=s.replace(old,new,1); old2="let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);"; new2="let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar===\"object\")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;"; assert old2 in s; p.write_text(s.replace(old2,new2,1))'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/ai-client.js'); s=p.read_text()
+          old='const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'
+          new='const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x==="object"&&String(x.title||"").trim()&&String(x.directorTruth||"").trim().length>=8&&String(x.observableEffect||"").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'
+          assert old in s; s=s.replace(old,new,1)
+          old='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);'
+          new='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar==="object")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;'
+          assert old in s; p.write_text(s.replace(old,new,1))
+          PY
       - name: Localize fixed Japanese origin boilerplate
-        run: python -c 'from pathlib import Path; p=Path("src/world-creation.js"); s=p.read_text(); old="background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),"; new="background:custom||(String(globalThis?.ELYNDRA_LOCALE||\"\")===\"ja\"?\"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。\":`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),"; assert old in s; p.write_text(s.replace(old,new,1))'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/world-creation.js'); s=p.read_text()
+          old='background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),'
+          new='background:custom||(String(globalThis?.ELYNDRA_LOCALE||"")==="ja"?"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。":`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),'
+          assert old in s; p.write_text(s.replace(old,new,1))
+          PY
       - name: Add regression tests and release contract
         run: |
           cat > test/v0598-runtime-autotest-recovery.test.js <<'EOF'
@@ -58,6 +89,7 @@ jobs:
       - name: Commit verified patch
         run: |
           rm .github/workflows/v0598-runtime-hotfix.yml
+          rm -f .ci/v0598-trigger*.txt
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
