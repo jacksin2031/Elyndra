@@ -1,0 +1,43 @@
+name: v0.60.7 hotfix bootstrap
+
+on:
+  push:
+    branches:
+      - fix/v0606-i18n-turn-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply hotfix
+        run: python3 scripts/apply-v0607-hotfix.py
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
+      - name: JavaScript syntax
+        run: node scripts/check-js.mjs
+      - name: i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: v0.60.7 focused regressions
+        run: node --test test/v0607-i18n-turn-recovery.test.js test/v05915-ja-suggestion-locale-regression.test.js test/v05900-multilingual-runtime.test.js test/trpg-depth-e2e-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Commit verified product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js index.html package.json src/version.js test/version-0551-release.test.js test/version-ui.test.js test/v0607-i18n-turn-recovery.test.js
+          if git diff --cached --quiet; then
+            echo "No product changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: recover localized turns and reveal initial scene promptly (v0.60.7)"
+          git push origin HEAD:fix/v0606-i18n-turn-recovery
