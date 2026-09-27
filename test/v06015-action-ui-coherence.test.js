@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
 test("v0.60.15 suggestion presentation, execution and scene use one action identity",async()=>{
- const [index,wrapper,engine,app]=await Promise.all([
+ const [index,wrapper,currentWrapper,engine,app]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../src/v06015-contextual-actions-hotfix.js",import.meta.url),"utf8"),
+  readFile(new URL("../src/v06019-contextual-actions-hotfix.js",import.meta.url),"utf8"),
   readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
- assert.match(index,/"\.\/src\/contextual-actions\.js\?v=60010":"\.\/src\/v06015-contextual-actions-hotfix\.js\?v=60015"/);
+ assert.match(index,/"\.\/src\/contextual-actions\.js\?v=60010":"\.\/src\/v06019-contextual-actions-hotfix\.js\?v=60019"/);
+ assert.match(currentWrapper,/v06015-contextual-actions-hotfix\.js\?v=60015/);
  assert.match(wrapper,/label:action/);assert.match(wrapper,/canonicalAction:action/);
  assert.match(engine,/coherentActionAssessment/);assert.match(engine,/assessment\.normalizedAction=presented/);assert.match(engine,/assessment\.actionIntent=next/);
  assert.match(app,/startTurnAIJobs\(effective,roll/);assert.match(app,/action:effective/)
