@@ -22,6 +22,7 @@ jobs:
         run: |
           if grep -q 'APP_VERSION="0.60.5"' src/version.js; then
             python3 scripts/rhythm-v0606-bootstrap.py
+            python3 scripts/rhythm-v0606-semantic-fix.py
           else
             echo "Story Rhythm integration already applied"
           fi
