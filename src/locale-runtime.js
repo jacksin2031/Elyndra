@@ -238,11 +238,18 @@ function sessionLocale(locale=loadLocale()){const id=normalizeLocale(locale);let
 export function applySessionTranslationBundle(targetLocale,bundle){const id=normalizeLocale(targetLocale),row=sessionLocale(id),items=Array.isArray(bundle?.translations)?bundle.translations:[];for(const item of items){const source=String(item?.source??"").trim(),translated=String(item?.translated??"").trim();if(!source||!translated)continue;const key=translationKey(source);row.table[key]=translated;row.sources[key]=source;registerLocalizedOutput(translated,id)}return items.length}
 export function sessionTranslatedText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),mapped=sessionLocale(id).table[translationKey(text)];if(mapped&&!hasLocaleLeak(mapped,id))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text}
 function sessionCompositeText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const exact=sessionTranslatedText(text,locale);if(exact!==text)return exact;const row=sessionLocale(locale);let out=text;const entries=Object.entries(row.sources).map(([key,source])=>[source,row.table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out}
+const JAPANESE_ORIGIN_NAMES=Object.freeze({"穿越":"異世界への転移","轉生":"転生","被召喚":"召喚","附身":"憑依","原住民":"現地出身","失憶":"記憶喪失","完全自訂":"独自設定"});
+function fixedWorldTranslation(value,locale){
+ if(locale!=="ja")return "";const text=String(value??"").trim();
+ if(text==="掌握目前地點、道路與最基本的當地規則。")return "現在地、道筋、現地の基本的な決まりを把握する。";
+ const match=text.match(/^(.+?)起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。$/u);
+ return match&&JAPANESE_ORIGIN_NAMES[match[1]]?`${JAPANESE_ORIGIN_NAMES[match[1]]}の出自。具体的な身分、開始地点、因果関係は世界の設定に基づいて決まります。`:""
+}
 export function hasTranslation(state,value,locale=loadLocale()){
- const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped)return !hasLocaleLeak(mapped,id);if(hasLocaleLeak(text,id))return false;return isRuntimeLocalized(text,id)
+ const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text||fixedWorldTranslation(text,id))return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped)return !hasLocaleLeak(mapped,id);if(hasLocaleLeak(text,id))return false;return isRuntimeLocalized(text,id)
 }
 export function translatedText(state,value,locale=loadLocale()){
- const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped&&!hasLocaleLeak(mapped,id))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text
+ const text=String(value??"");if(!text)return text;const id=normalizeLocale(locale),fixed=fixedWorldTranslation(text,id);if(fixed)return fixed;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];if(mapped&&!hasLocaleLeak(mapped,id))return mapped;if(isRuntimeLocalized(text,id)&&!hasLocaleLeak(text,id))return text;return text
 }
 export function visibleTranslationPayload(state,locale=loadLocale()){
  if(!state)return {sourceLocale:DEFAULT_LOCALE,targetLocale:normalizeLocale(locale),strings:[],volatileStrings:[]};const registry=state.world?.registry||{},rows=[],volatile=[];const add=v=>{const text=String(v??"").trim();if(text&&!rows.includes(text))rows.push(text);return text};const addVolatile=v=>{const text=add(v);if(text&&!volatile.includes(text))volatile.push(text)};

@@ -83,7 +83,7 @@ test("v0.57.22 bounds action assessment latency and avoids blocking per-turn exp
  assert.match(ai,/ACTION_ASSESSMENT_CIRCUIT_OPEN_MS=60000/);
  assert.match(ai,/timeoutMs:compact\?10000:18000/);
  assert.match(ai,/retryOnTimeout:false/);
- assert.match(settings,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000/);
+ assert.match(settings,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000/);
  assert.doesNotMatch(app,/if\(!firstButtonFast&&needsExpansion\(gameState\)\)await expandDeveloperAutotestWorld/);
  assert.match(app,/AUTOTEST_RUNTIME_EXPANSION_THROTTLED/);
  assert.match(app,/AUTOTEST_RUNTIME_EXPANSION_DEFERRED/);

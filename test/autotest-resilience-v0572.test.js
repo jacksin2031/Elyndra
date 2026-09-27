@@ -31,5 +31,5 @@ test("zero-turn PLAY record is not counted as an executed world",()=>{
 
 test("AutoTest runtime enables provider pacing and sheds expansion during rate limit",async()=>{
  const ai=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\(\[.*runtime_expansion/);assert.match(ai,/control\?\.signal\?1200:0/);assert.match(app,/setDirectAIRuntimeControl\(\{disableTimeout:config\.disableTimeout===true,signal:developerAutotest\.batchController\.signal\}\)/)
+ assert.match(ai,/requestSpacingMs/);assert.doesNotMatch(ai,/SHED_ON_RATE_LIMIT=new Set\(\[.*runtime_expansion/);assert.match(ai,/AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT/);assert.match(ai,/control\?\.signal\?1200:0/);assert.match(app,/setDirectAIRuntimeControl\(\{disableTimeout:config\.disableTimeout===true,signal:developerAutotest\.batchController\.signal\}\)/)
 });

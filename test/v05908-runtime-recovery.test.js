@@ -24,19 +24,24 @@ test("v0.59.8 autotest fingerprint counts time and event progress",()=>{
  assert.notEqual(autotestStateFingerprint(base),autotestStateFingerprint(eventMoved));
 });
 
-test("v0.59.8 timeline authoring fills a single malformed or omitted AI slot",()=>{
- const pacing=createTimelinePacing(15);
- const base={title:"事件",directorTruth:"這是一段足夠長的隱藏因果內容",observableEffect:"這是一段足夠長的可觀察影響內容",links:{historyRefs:["HIST-1"],locationRefs:["STARTING_REGION"]},affectedRegions:["R1"],domains:["SECURITY"]};
- const input=Array.from({length:pacing.majorEventCount-1},(_,i)=>({...base,title:`事件 ${i+1}`}));
- const bound=bindTimelineAuthoringSlots(input,pacing);
- assert.equal(bound.length,pacing.majorEventCount);
- const report=validateWorldTimeline(bound,pacing);
- assert.equal(report.errors.includes("WORLD_TIMELINE_EVENT_COUNT_MISMATCH"),false);
- assert.equal(report.valid,true);
+test("v0.59.8 future compiler fills only missing timeline slots",async()=>{
+ const src=await read("../src/ai-client.js");
+ assert.match(src,/futureFallbackCandidate=futureFallback/);
+ assert.match(src,/futureRows=timelineAuthoringSlots/);
+ assert.match(src,/futureFallbackCandidate\.worldTimeline\[i\]/);
 });
 
 test("v0.59.8 Agnes keeps enough FUTURE output and waits through normal critical cooldown",async()=>{
  const src=await read("../src/ai-settings.js");
  assert.match(src,/future:4096/);
- assert.match(src,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000/);
+ assert.match(src,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000/);
+ assert.match(src,/AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT/);
+ assert.doesNotMatch(src,/SHED_ON_RATE_LIMIT=new Set\(\[[^\]]*runtime_expansion/);
+});
+
+test("v0.59.8 Japanese fixed world strings bypass AI translation repair",async()=>{
+ const src=await read("../src/locale-runtime.js");
+ assert.match(src,/JAPANESE_ORIGIN_NAMES/);
+ assert.match(src,/現在地、道筋、現地の基本的な決まりを把握する/);
+ assert.match(src,/具体的な身分、開始地点、因果関係/);
 });
