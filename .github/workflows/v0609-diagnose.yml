@@ -1,23 +1,42 @@
-name: v0.60.9 diagnose
+name: v0.60.9 bootstrap
 on:
   push:
     branches: [fix/v0609-ja-turn-export]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  diagnose:
+  bootstrap:
+    if: "!contains(github.event.head_commit.message, '[v0609-applied]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Runtime anchors
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply patch
+        run: python3 scripts/v0609_patch.py
+      - name: Syntax
         run: |
-          echo '=== app busy/turn ==='
-          grep -n -E 'function setAIThinking|function setTurnSyncing|function updateAIStatusBadge|function beginPlayerActionFlight|function finishPlayerActionFlight|PLAYER_ACTION_GLOBAL_WATCHDOG|async function runAction|TURN_DUAL_AI_STARTED|AI_TURN_APPLIED' app.js || true
-          echo '=== debug export ==='
-          grep -n -E 'debugBundleText|debugBundle|Debug JSON|摘要 TXT|download|Blob|createObjectURL' app.js index.html src/debug-telemetry.js || true
-          echo '=== contextual locale ==='
-          grep -n -E 'RISK_LABEL|APPROACH_LABEL|suggestionPresentation|genericFill|fallbackByApproach|skillHint|contextualLocale|sanitizeContextualText' src/contextual-actions.js || true
-          echo '=== world creation ==='
-          grep -n -E 'targetPlayHours|小時|只影響|鎖死|worldContractHtml|storyPreferences' src/world-creation.js app.js index.html || true
-          echo '=== locale leak ==='
-          grep -n -E 'hasLocaleLeak|JA_|Japanese|狀態|判斷|觀察|風險|穩健|應變|創意|體能' src/locale-runtime.js src/v0594-static-i18n.js app.js || true
+          find . -path './node_modules' -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Focused regressions
+        run: |
+          node --test test/v0609-ja-turn-export-regression.test.js
+          node --test test/v0608-runtime-recovery.test.js
+          node --test test/v05915-ja-suggestion-locale-regression.test.js
+          node --test test/contextual-actions.test.js
+          node --test test/nonblocking-turn-sync.test.js
+          node --test test/debug-telemetry.test.js
+      - name: Version/cache checks
+        run: |
+          node --test test/version-0551-release.test.js || true
+          grep -q '0.60.9' src/version.js
+          grep -q '60009' app.js
+      - name: Commit runtime patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js index.html src/version.js src/contextual-actions.js src/locale-runtime.js test/v0609-ja-turn-export-regression.test.js .github/workflows/pages.yml
+          git commit -m 'fix: harden Japanese UI and first-turn recovery (v0.60.9) [v0609-applied]'
+          git push origin HEAD:fix/v0609-ja-turn-export
