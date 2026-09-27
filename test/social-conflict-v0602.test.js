@@ -26,10 +26,12 @@ test("Social DC is relationship-aware and intimidation becomes easier against a 
  assert.ok(fearDc<calmDc);
 });
 
-test("successful social pressure can force surrender in combat without directly applying combat state",()=>{
- const {state}=stateWithNpc({trust:5,respect:20,fear:82});const target={id:"npc-1",name:"灰港守衛",combatState:"ACTIVE"};
- const first=resolveSocialAction(state,target,{raw:"你已經沒有勝算，放下武器",approach:"INTIMIDATION"},resolution("SUCCESS",true),{combat:true,moraleBefore:22});
- assert.equal(first.surrendered,true);assert.equal(first.outcome,"SURRENDER");assert.equal(first.moraleDelta,-100);assert.equal(target.combatState,"ACTIVE");
+test("accumulated social pressure can force surrender in combat without directly applying combat state",()=>{
+ const {state}=stateWithNpc({trust:5,respect:20,fear:82});const target={id:"npc-1",name:"灰港守衛",combatState:"ACTIVE"},intent={raw:"你已經沒有勝算，放下武器",approach:"INTIMIDATION"};
+ const first=resolveSocialAction(state,target,intent,resolution("SUCCESS",true),{combat:true,moraleBefore:22});
+ assert.equal(first.surrendered,false);assert.ok(["WAVER","CONCEDE"].includes(first.outcome));
+ const second=resolveSocialAction(state,target,intent,resolution("SUCCESS",true),{combat:true,moraleBefore:22});
+ assert.equal(second.surrendered,true);assert.equal(second.outcome,"SURRENDER");assert.equal(second.moraleDelta,-100);assert.equal(target.combatState,"ACTIVE");
 });
 
 test("deception failure raises suspicion and damages persistent trust",()=>{
