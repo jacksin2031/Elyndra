@@ -1,0 +1,34 @@
+name: v05911 temporary patch
+
+on:
+  push:
+    branches:
+      - fix/v05911-origin-prompts
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[v05911-patcher]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v05911-origin-prompts
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply v0.59.11 patch
+        run: python scripts/v05911_patch.py
+      - name: Run full regression suite
+        run: npm test
+      - name: Commit validated patch and remove temporary tooling
+        run: |
+          rm -f scripts/v05911_patch.py .github/workflows/v05911-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: v0.59.11 origin runtime and long-session coherence [v05911-patcher]"
+          git push origin HEAD:fix/v05911-origin-prompts
