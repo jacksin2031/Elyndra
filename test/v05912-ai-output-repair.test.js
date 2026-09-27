@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import {repairAiOutput,repairSceneCandidate,repairStatePatchCandidate,repairWorldStageCandidate,sanitizeAiEntityName} from "../src/ai-output-repair.js";
+import {telemetryEntries} from "../src/debug-telemetry.js";
+
+function memoryStorage(){const m=new Map();return {getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)}}
 
 test("v0.59.12 entity hygiene removes model punctuation without inventing a name",()=>{
  assert.equal(sanitizeAiEntityName('  斷脈礦工”， '),"斷脈礦工");
@@ -49,6 +52,17 @@ test("v0.59.12 repair dispatcher never asks another model",()=>{
  const result=repairAiOutput("SCENE",{outcome:"SUCCESS",narrative:"ok",suggestions:[]},{expectedOutcome:"SUCCESS"});
  assert.equal(result.value.outcome,"SUCCESS");
  assert.equal(result.changed,false)
+});
+
+test("v0.59.12 every deterministic repair is visible in Debug telemetry",()=>{
+ globalThis.localStorage=memoryStorage();
+ try{
+  repairAiOutput("SCENE",{outcome:"SUCCESS",sceneTitle:"霧中",narrative:"風聲。",suggestions:[null]},{expectedOutcome:"FAILURE",stage:"TURN_SCENE"});
+  const entry=telemetryEntries().filter(x=>x.type==="AI_OUTPUT_REPAIRED").at(-1);
+  assert.ok(entry);assert.equal(entry.data.repairKind,"SCENE");assert.equal(entry.data.stage,"TURN_SCENE");
+  assert.ok(entry.data.reasons.includes("OUTCOME_REBOUND"));assert.ok(entry.data.reasons.includes("INVALID_SUGGESTIONS_DROPPED"));
+  assert.equal(entry.data.dropped[0].reason,"SUGGESTION_NOT_OBJECT");assert.equal(entry.data.before.suggestions,1);assert.equal(entry.data.after.suggestions,0)
+ }finally{delete globalThis.localStorage}
 });
 
 test("v0.59.12 ai-client routes world/scene/state model JSON through deterministic repair",async()=>{
