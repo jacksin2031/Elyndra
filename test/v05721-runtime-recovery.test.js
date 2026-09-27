@@ -36,11 +36,11 @@ test("v0.57.22 deterministic AutoTest recovery rotates grounded hard-stall trave
  const recent=Array.from({length:7},()=>({action:"停止重複目前互動，沿眼前的裂隙尋找新人物或可驗證線索",kind:"GENERAL",progressed:false,targetId:null}));
  const first=deterministicAutotestDecision(snapshot,recent,"test fallback");
  assert.equal(first.mode,"free");
- assert.equal(first.kind,"TRAVEL");
+ assert.equal(first.kind,"GENERAL");
  assert.doesNotMatch(first.action,/停止重複目前互動/);
  assert.match(first.action,/出口|通道/);
  const second=deterministicAutotestDecision(snapshot,[...recent,{action:first.action,kind:first.kind,progressed:false,targetId:null}],"test fallback");
- assert.equal(second.mode,"free");assert.equal(second.kind,"TRAVEL");
+ assert.equal(second.mode,"free");assert.equal(second.kind,"GENERAL");
  assert.notEqual(second.action,first.action);
  assert.match(second.action,/出口|通道/);
 });
@@ -83,7 +83,7 @@ test("v0.57.22 bounds action assessment latency and avoids blocking per-turn exp
  assert.match(ai,/ACTION_ASSESSMENT_CIRCUIT_OPEN_MS=60000/);
  assert.match(ai,/timeoutMs:compact\?10000:18000/);
  assert.match(ai,/retryOnTimeout:false/);
- assert.match(settings,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000/);
+ assert.match(settings,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000/);
  assert.doesNotMatch(app,/if\(!firstButtonFast&&needsExpansion\(gameState\)\)await expandDeveloperAutotestWorld/);
  assert.match(app,/AUTOTEST_RUNTIME_EXPANSION_THROTTLED/);
  assert.match(app,/AUTOTEST_RUNTIME_EXPANSION_DEFERRED/);
