@@ -1,0 +1,100 @@
+name: v05911 patcher
+on:
+  push:
+    branches: [fix/v05911-runtime-integrity-player-ui]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/v05911-runtime-integrity-player-ui
+          fetch-depth: 0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version: '3.13'
+      - name: Apply v0.59.11 patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p=Path(path); s=p.read_text();
+              if old not in s: raise SystemExit(f'pattern not found: {path}: {old[:80]}')
+              p.write_text(s.replace(old,new))
+
+          p=Path('src/origin-runtime.js')
+          s=p.read_text()
+          marker='export function applyOriginRuntime(state,{phase="POST_CANON"}={}){\n'
+          boundary='''function applyOriginVisibilityBoundary(state,rules){
+ const p=profile(state),originId=String(p.id||"").toLowerCase();
+ if(originId!=="reincarnation"&&rules.knowledgePolicy!=="PARTIAL_LOCAL")return;
+ const r=state.world?.registry;if(!r||typeof r!=="object")return;
+ const start=startingLocationRecord(state),startId=String(start?.id||"");
+ for(const loc of Array.isArray(r.locations)?r.locations:[]){
+  const allowed=Boolean(startId&&String(loc?.id||"")===startId)||loc?.originKnown===true;
+  loc.known=allowed;if(!allowed)loc.visibilityLock="UNSEEN";
+ }
+ for(const npc of Array.isArray(r.npcs)?r.npcs:[]){
+  const allowed=npc?.originKnown===true||npc?.companion?.status==="ACTIVE";
+  npc.known=allowed;if(!allowed){npc.encountered=false;npc.visibilityLock="UNSEEN"}
+ }
+ for(const faction of Array.isArray(r.factions)?r.factions:[]){const allowed=faction?.originKnown===true;faction.known=allowed;if(!allowed)faction.visibilityLock="UNSEEN"}
+ for(const quest of Array.isArray(r.sideQuests)?r.sideQuests:[]){const allowed=quest?.originKnown===true;quest.known=allowed;if(!allowed)quest.visibilityLock="UNSEEN"}
+}
+'''
+          if boundary not in s:
+              if marker not in s: raise SystemExit('origin runtime marker missing')
+              s=s.replace(marker,boundary+marker)
+          old=''' if(!post)return rt;\n state.player.worldNameKnown=rules.worldName===true;state.player.calendarKnown=rules.calendar===true;\n'''
+          new=''' if(!post)return rt;\n const firstPostApply=rt.appliedRevision==null;\n if(firstPostApply)applyOriginVisibilityBoundary(state,rules);\n state.player.worldNameKnown=rules.worldName===true;state.player.calendarKnown=rules.calendar===true;\n'''
+          if old not in s: raise SystemExit('origin post marker missing')
+          s=s.replace(old,new)
+          p.write_text(s)
+
+          p=Path('world-surfaces.css')
+          s=p.read_text()
+          guard='''\n/* v0.59.11 player identity card containment: generated/raster artwork must never escape the compact HUD card. */
+#game .player-summary{overflow:hidden!important;min-width:0;max-width:100%;contain:layout paint}
+#game .player-summary>div:last-child{min-width:0;overflow:hidden}
+#game .player-summary strong,#game .player-summary span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#game .player-sigil,#game #playerInitial{
+  position:relative!important;overflow:hidden!important;isolation:isolate!important;
+  width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;flex:0 0 40px!important;
+  background-image:linear-gradient(145deg,#e8d7ae,#8e86c9)!important;background-size:100% 100%!important;background-position:center!important;
+}
+#game .player-sigil img,#game #playerInitial img{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:cover!important;object-position:center!important}
+#game .player-sigil::before,#game .player-sigil::after,#game #playerInitial::before,#game #playerInitial::after{max-width:100%!important;max-height:100%!important;inset:0!important;background-size:cover!important}
+@media(max-width:720px){#game .player-sigil,#game #playerInitial{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;max-width:36px!important;max-height:36px!important;flex-basis:36px!important}}
+'''
+          if 'v0.59.11 player identity card containment' not in s: p.write_text(s+guard)
+
+          test=Path('test/v05911-origin-player-ui.test.js')
+          test.write_text('''import test from "node:test";\nimport assert from "node:assert/strict";\nimport {readFile} from "node:fs/promises";\nimport {newGame} from "../src/world-engine.js";\nimport {createWorldCreationDraft,compileWorldCreation,applyWorldCreationState} from "../src/world-creation.js";\nimport {applyOriginRuntime} from "../src/origin-runtime.js";\n\nfunction reincarnationState(){\n const seed=compileWorldCreation(createWorldCreationDraft({worldStyle:"王道奇幻",worldScale:"中型",targetPlayHours:12,difficulty:"normal",originType:"reincarnation",playerRole:"ordinary",masterSeed:"v05911-reincarnation"}));\n const s=newGame(seed);applyWorldCreationState(s,seed);\n s.world.bible={...(s.world.bible||{}),startingLocation:"出生村",startingSettlement:"出生村",startingRegion:"北境",weatherSystem:{phenomena:[]}};\n s.world.state.location="出生村";s.player.location="出生村";\n s.world.registry={locations:[{id:"LOC-HOME",name:"出生村",known:true},{id:"LOC-SECRET",name:"王都密室",known:true}],npcs:[{id:"NPC-SECRET",name:"王都密探",known:true,encountered:true,companion:{status:"NONE"}}],factions:[{id:"FAC-SECRET",name:"王都內廷",known:true}],sideQuests:[{id:"SQ-SECRET",title:"密室陰謀",known:true}]};\n return s\n}\n\ntest("v0.59.11 reincarnation keeps only origin-scoped visibility at first POST_CANON",()=>{\n const s=reincarnationState();applyOriginRuntime(s,{phase:"POST_CANON"});\n assert.equal(s.world.registry.locations[0].known,true);\n assert.equal(s.world.registry.locations[1].known,false);\n assert.equal(s.world.registry.npcs[0].known,false);assert.equal(s.world.registry.npcs[0].encountered,false);\n assert.equal(s.world.registry.factions[0].known,false);\n assert.equal(s.world.registry.sideQuests[0].known,false);\n});\n\ntest("v0.59.11 origin boundary is first-apply only and does not erase later discoveries",()=>{\n const s=reincarnationState();applyOriginRuntime(s,{phase:"POST_CANON"});\n s.world.registry.locations[1].known=true;s.world.registry.npcs[0].known=true;s.world.registry.npcs[0].encountered=true;\n applyOriginRuntime(s,{phase:"POST_CANON"});\n assert.equal(s.world.registry.locations[1].known,true);assert.equal(s.world.registry.npcs[0].known,true);assert.equal(s.world.registry.npcs[0].encountered,true);\n});\n\ntest("v0.59.11 player identity HUD hard-bounds artwork to the compact sigil",async()=>{\n const css=await readFile(new URL("../world-surfaces.css",import.meta.url),"utf8");\n assert.match(css,/player identity card containment/);\n assert.match(css,/#game \\.player-summary\{[^}]*overflow:hidden!important/);\n assert.match(css,/#game \\.player-sigil,#game #playerInitial\{[\\s\\S]*max-width:40px!important;max-height:40px!important/);\n assert.match(css,/object-fit:cover!important/);\n});\n''')
+
+          # Release bump + cache epoch propagation.
+          for path in Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts or path == Path('.github/workflows/v05911-patcher.yml'): continue
+              if path.suffix.lower() not in {'.js','.mjs','.json','.html','.css','.md','.yml','.yaml'}: continue
+              try: text=path.read_text()
+              except UnicodeDecodeError: continue
+              updated=text.replace('0.59.10','0.59.11').replace('59010','59011')
+              if updated!=text: path.write_text(updated)
+
+          pages=Path('.github/workflows/pages.yml'); text=pages.read_text()
+          needle='run: node --test '
+          if 'test/v05911-origin-player-ui.test.js' not in text:
+              text=text.replace(needle,needle+'test/v05911-origin-player-ui.test.js ',1)
+              pages.write_text(text)
+
+          Path('.github/workflows/v05911-patcher.yml').unlink()
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix: bound reincarnation knowledge and player identity HUD"
+          git push origin HEAD:fix/v05911-runtime-integrity-player-ui
