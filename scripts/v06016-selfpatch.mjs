@@ -1,4 +1,7 @@
-import {readFileSync,writeFileSync,rmSync,existsSync} from "node:fs";
+import {readFileSync,writeFileSync} from "node:fs";
+
+const releaseReady=readFileSync("index.html","utf8").includes('"./src/version.js?v=60010":"./src/version.js?v=60016"');
+if(releaseReady){console.log("v0.60.16 release wiring already finalized; no changes required.");process.exit(0)}
 
 function patch(path,replacements){
  let text=readFileSync(path,"utf8");
@@ -45,9 +48,3 @@ patch("test/v06015-ja-live-regressions.test.js",[
 patch("test/v06015-action-ui-coherence.test.js",[
  ['assert.match(engine,/normalizedAction:presented/)','assert.match(engine,/assessment\\.normalizedAction=presented/);assert.match(engine,/assessment\\.actionIntent=next/)']
 ]);
-
-if(existsSync(".github/workflows/pages.yml"))patch(".github/workflows/pages.yml",[["Focused v0.60.15 regressions","Focused v0.60.16 regressions"]]);
-
-for(const path of [".github/workflows/v06016-selfpatch.yml","scripts/v06016-selfpatch.mjs"]){
- try{rmSync(path)}catch{}
-}
