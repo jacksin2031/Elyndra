@@ -1,0 +1,52 @@
+name: Temporary v0.60.13 branch patcher
+on:
+  push:
+    branches: [fix/v06013-ja-fallback-watchdog]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v06013-ja-fallback-watchdog
+          fetch-depth: 0
+      - name: Patch cache wiring and release gates
+        shell: python
+        run: |
+          import json,re,pathlib
+          root=pathlib.Path('.')
+          p=root/'index.html'
+          text=p.read_text(encoding='utf-8')
+          m=re.search(r'<script type="importmap">(.*?)</script>',text,re.S)
+          if not m: raise SystemExit('importmap not found')
+          data=json.loads(m.group(1)); imports=data.setdefault('imports',{})
+          imports['./src/locale-runtime.js?v=60009']='./src/v06011-locale-runtime-hotfix.js?v=60013'
+          imports['./src/locale-runtime.js?v=60010']='./src/v06011-locale-runtime-hotfix.js?v=60013'
+          imports['./src/v06011-locale-runtime-hotfix.js?v=60011']='./src/v06011-locale-runtime-hotfix.js?v=60013'
+          imports['./src/lazy-generation.js?v=59014']='./src/v06011-lazy-generation-hotfix.js?v=60013'
+          imports['./src/version.js?v=60010']='./src/version.js?v=60013'
+          newmap='<script type="importmap">'+json.dumps(data,separators=(',',':'),ensure_ascii=False)+'</script>'
+          text=text[:m.start()]+newmap+text[m.end():]
+          runtime='<script type="module" src="./src/v06013-runtime-ui-hotfix.js?v=60013"></script>'
+          if runtime not in text:
+            text=text.replace('<script type="module" src="app.js?v=60011"></script>',runtime+'<script type="module" src="app.js?v=60011"></script>')
+          p.write_text(text,encoding='utf-8')
+
+          w=root/'.github/workflows/pages.yml'
+          pages=w.read_text(encoding='utf-8')
+          pages=pages.replace('Focused v0.60.12 regressions','Focused v0.60.13 regressions')
+          needle='run: node --test '
+          pages=pages.replace(needle,needle+'test/v06013-ja-fallback-watchdog-regression.test.js ',1)
+          w.write_text(pages,encoding='utf-8')
+
+          pathlib.Path('.github/workflows/tmp-v06013-patcher.yml').unlink()
+      - name: Commit generated patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html .github/workflows/pages.yml .github/workflows/tmp-v06013-patcher.yml
+          git commit -m "v0.60.13: wire runtime hotfix and release gates"
+          git push origin HEAD:fix/v06013-ja-fallback-watchdog
