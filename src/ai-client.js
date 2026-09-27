@@ -23,6 +23,7 @@ import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-
 import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57025";
 import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./traditional-chinese-guard.js?v=57025";
 import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=59010";
+import {repairAiOutput} from "./ai-output-repair.js?v=59012";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify({...body,locale:normalizeLocale(body?.locale||loadLocale())})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);const data=await r.json();registerLocalizedOutput(data,normalizeLocale(body?.locale||loadLocale()));return data}
@@ -76,7 +77,7 @@ async function worldStage(stage,args){
  const locale=normalizeLocale(args?.locale||loadLocale());
  try{return await withWorldAiSlot(async()=>{
   const system=[String(args?.system||""),languageContract(locale)].filter(Boolean).join("\n");
-  const value=parseJSON(await directChat({...args,locale,system,aiTask:args?.aiTask||worldStageTask(stage)}));
+  const parsed=parseJSON(await directChat({...args,locale,system,aiTask:args?.aiTask||worldStageTask(stage)})),value=repairAiOutput("WORLD_STAGE",parsed,{stage}).value;
   if(locale==="zh-Hant"){
    const leak=simplifiedChineseLeak(value);if(leak)throw new Error(`NON_TRADITIONAL_CHINESE:${leak.character}:${leak.path}`)
   }
@@ -395,9 +396,9 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  }
  activeGenerationDiagnostics=null;
  report(42,"世界核心","正在透過伺服器建立世界");
- const candidate=(await post("/api/world",{seed,constitution,seedDirective:directive})).candidate;
+ const candidate=(await post("/api/world",{seed,constitution,seedDirective:directive})).candidate,repaired=repairAiOutput("WORLD_STAGE",candidate,{stage:"WORLD_SERVER_CANDIDATE"}).value;
  report(85,"AI 世界評審","伺服器已完成世界品質評分與必要的定點修復");
- return candidate
+ return repaired
 }
 export async function generateHistoryDeepening(state,plan,options={}){
  if(!plan?.historyId)return null;const signal=options?.signal;
@@ -524,7 +525,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
    aiTask:"scene",signal:options?.signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1100,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
-  }).then(parseJSON);
+  }).then(raw=>repairAiOutput("SCENE",parseJSON(raw),{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE"}).value);
   const stateSync=immediateStateAI?directChat({
    aiTask:plan.mode==="DEEP"?"turn_state_deep":"turn_state_fast",signal:options?.signal,
    timeoutMs:plan.mode==="DEEP"?45000:22000,retryOnTimeout:false,
@@ -532,12 +533,12 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
    temperature:plan.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(plan),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
-  }).then(parseJSON).then(rawPatch=>{const patch=normalizeGeneratedStatePatch(rawPatch),v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
+  }).then(parseJSON).then(rawPatch=>{const patch=repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(rawPatch),{plan,snapshot}).value,v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
   return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"direct"}
  }
  const payload={action,intent:actionIntent,roll,snapshot,plan};
- const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>x.scene);
- const stateSync=immediateStateAI?post("/api/turn-state",payload,{signal:options?.signal}).then(x=>x.patch):Promise.resolve(null);
+ const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>repairAiOutput("SCENE",x.scene,{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE"}).value);
+ const stateSync=immediateStateAI?post("/api/turn-state",payload,{signal:options?.signal}).then(x=>repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(x.patch),{plan,snapshot}).value):Promise.resolve(null);
  return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"server"}
 }
 export async function generateStatePatch(action,roll,snapshot,plan,options={}){
@@ -552,10 +553,10 @@ export async function generateStatePatch(action,roll,snapshot,plan,options={}){
    system:statePatchDirectorSystem(resolved),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
   });
-  const patch=normalizeGeneratedStatePatch(parseJSON(raw)),v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
+  const patch=repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(parseJSON(raw)),{plan:resolved,snapshot}).value,v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
  }
  const response=await post("/api/turn-state",{action,intent:actionIntent,roll,snapshot,plan:resolved},{signal:options?.signal});
- return response.patch
+ return repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(response.patch),{plan:resolved,snapshot}).value
 }
 export function finalizeTurnAIJobs(jobs,scene,statePatch,roll,snapshot,action){
  if(statePatch){const v=validateStatePatch(statePatch,jobs.plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","))}

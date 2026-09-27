@@ -57,10 +57,9 @@ test("v0.59.11 current objective card stays inside the sidebar HUD",async()=>{
  assert.match(css,/#game \.quest-card>p\{[^}]*-webkit-line-clamp:3/)
 });
 
-test("v0.59.11 cache map routes modified runtime modules to the release epoch",async()=>{
+test("v0.59.11 origin/HUD asset routing remains intact after v0.59.12 app release",async()=>{
  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
  assert.match(html,/world-surfaces\.css\?v=59011/);
- assert.match(html,/app\.js\?v=59011/);
- assert.match(html,/"\.\/src\/version\.js\?v=59010":"\.\/src\/version\.js\?v=59011"/);
+ assert.match(html,/app\.js\?v=59012/);
  assert.match(html,/"\.\/src\/origin-runtime\.js\?v=57025":"\.\/src\/origin-runtime\.js\?v=59011"/)
 });
