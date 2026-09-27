@@ -23,13 +23,14 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import textwrap
+          import re, textwrap
           source=Path('.github/workflows/apply-runtime-integrity-hotfix.yml').read_text(encoding='utf-8')
           marker="          python3 <<'PY'\n"
           start=source.index(marker)+len(marker)
           end=source.index("\n          PY",start)
           code=textwrap.dedent(source[start:end])
-          code=code.replace('touched = False\n                  def repl(match):\n                      nonlocal touched\n','touched = [False]\n                  def repl(match):\n')
+          code=code.replace('touched = False','touched = [False]')
+          code=re.sub(r'(?m)^\s*nonlocal touched\s*\n','',code)
           code=code.replace('touched = True','touched[0] = True').replace('if touched:','if touched[0]:')
           compile(code,'runtime-integrity-hotfix','exec')
           exec(code,{'__name__':'__main__'})
