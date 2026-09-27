@@ -1,0 +1,23 @@
+name: v0.60.9 diagnose
+on:
+  push:
+    branches: [fix/v0609-ja-turn-export]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Runtime anchors
+        run: |
+          echo '=== app busy/turn ==='
+          grep -n -E 'function setAIThinking|function setTurnSyncing|function updateAIStatusBadge|function beginPlayerActionFlight|function finishPlayerActionFlight|PLAYER_ACTION_GLOBAL_WATCHDOG|async function runAction|TURN_DUAL_AI_STARTED|AI_TURN_APPLIED' app.js || true
+          echo '=== debug export ==='
+          grep -n -E 'debugBundleText|debugBundle|Debug JSON|摘要 TXT|download|Blob|createObjectURL' app.js index.html src/debug-telemetry.js || true
+          echo '=== contextual locale ==='
+          grep -n -E 'RISK_LABEL|APPROACH_LABEL|suggestionPresentation|genericFill|fallbackByApproach|skillHint|contextualLocale|sanitizeContextualText' src/contextual-actions.js || true
+          echo '=== world creation ==='
+          grep -n -E 'targetPlayHours|小時|只影響|鎖死|worldContractHtml|storyPreferences' src/world-creation.js app.js index.html || true
+          echo '=== locale leak ==='
+          grep -n -E 'hasLocaleLeak|JA_|Japanese|狀態|判斷|觀察|風險|穩健|應變|創意|體能' src/locale-runtime.js src/v0594-static-i18n.js app.js || true
