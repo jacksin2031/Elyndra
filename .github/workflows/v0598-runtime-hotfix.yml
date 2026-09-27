@@ -18,42 +18,11 @@ jobs:
       - name: Remove runtime expansion from rate-limit shedding
         run: python -c 'from pathlib import Path; p=Path("src/ai-settings.js"); s=p.read_text(); old="\"turn_deferred\",\"runtime_expansion\",\"history_deepening\""; new="\"turn_deferred\",\"history_deepening\""; assert old in s; p.write_text(s.replace(old,new,1))'
       - name: Repair targetless AutoTest recovery
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('src/ai-autotest.js'); s=p.read_text()
-          old='''{action:`從${loc}改走另一個可安全接近的出口或通道，先移動到新的可觀察位置再追查「${objective}」`,kind:"TRAVEL",targetId:null,progression:true},
-  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:"TRAVEL",targetId:null,progression:true}'''
-          new='''{action:`從${loc}改走另一個可安全接近的出口或通道，先移動到新的可觀察位置再追查「${objective}」`,kind:"INTERACT",targetId:null,progression:true},
-  {action:`沿${loc}尚未嘗試的可見通道移動一小段，避開剛才的互動循環並尋找「${objective}」的新證據`,kind:"INTERACT",targetId:null,progression:true}'''
-          assert old in s
-          s=s.replace(old,new,1)
-          old='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};'
-          new='if(parsed?.mode==="free"&&text(parsed?.action,180))return {mode:"free",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||"",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||"",100)||null,combatAction:null,reason,goalReached,goalEvidence};'
-          assert old in s
-          p.write_text(s.replace(old,new,1))
-          PY
+        run: python -c 'from pathlib import Path; p=Path("src/ai-autotest.js"); s=p.read_text(); old="kind:\"TRAVEL\",targetId:null,progression:true"; assert s.count(old)>=2; s=s.replace(old,"kind:\"INTERACT\",targetId:null,progression:true",2); old2="if(parsed?.mode===\"free\"&&text(parsed?.action,180))return {mode:\"free\",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||\"\",30),targetId:null,combatAction:null,reason,goalReached,goalEvidence};"; old2=old2.replace("===\"free\"","==\"free\""); new2="if(parsed?.mode==\"free\"&&text(parsed?.action,180))return {mode:\"free\",suggestionIndex:null,action:text(parsed.action,180),kind:text(parsed?.kind||\"\",30),progression:parsed?.progression===true,targetId:text(parsed?.targetId||\"\",100)||null,combatAction:null,reason,goalReached,goalEvidence};"; assert old2 in s; p.write_text(s.replace(old2,new2,1))'
       - name: Repair incomplete Future slots before validation
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('src/ai-client.js'); s=p.read_text()
-          old='const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'
-          new='const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x==="object"&&String(x.title||"").trim()&&String(x.directorTruth||"").trim().length>=8&&String(x.observableEffect||"").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'
-          assert old in s; s=s.replace(old,new,1)
-          old='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);'
-          new='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar==="object")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;'
-          assert old in s; p.write_text(s.replace(old,new,1))
-          PY
+        run: python -c 'from pathlib import Path; p=Path("src/ai-client.js"); s=p.read_text(); old="const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);"; new="const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x===\"object\"&&String(x.title||\"\").trim()&&String(x.directorTruth||\"\").trim().length>=8&&String(x.observableEffect||\"\").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);".replace("===\\\"object\\\"","==\\\"object\\\""); assert old in s; s=s.replace(old,new,1); old2="let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);"; new2="let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar===\"object\")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;".replace("===\\\"object\\\"","==\\\"object\\\""); assert old2 in s; p.write_text(s.replace(old2,new2,1))'
       - name: Localize fixed Japanese origin boilerplate
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('src/world-creation.js'); s=p.read_text()
-          old='background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),'
-          new='background:custom||(String(globalThis?.ELYNDRA_LOCALE||"")==="ja"?"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。":`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),'
-          assert old in s; p.write_text(s.replace(old,new,1))
-          PY
+        run: python -c 'from pathlib import Path; p=Path("src/world-creation.js"); s=p.read_text(); old="background:custom||(`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),"; new="background:custom||(String(globalThis?.ELYNDRA_LOCALE||\"\")===\"ja\"?\"具体的な身分、開始地点、因果関係は World Compiler が World Constitution に基づいて構築する。\":`${p.label}起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。`),"; assert old in s; p.write_text(s.replace(old,new,1))'
       - name: Add regression tests and release contract
         run: |
           cat > test/v0598-runtime-autotest-recovery.test.js <<'EOF'
@@ -61,7 +30,7 @@ jobs:
           import assert from "node:assert/strict";
           import {readFile} from "node:fs/promises";
           test("v0.59.8 runtime expansion is not shed during provider cooldown",async()=>{const s=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8");assert.doesNotMatch(s,/SHED_ON_RATE_LIMIT=new Set\(\[[^\]]*runtime_expansion/)});
-          test("v0.59.8 targetless deterministic recovery is not TRAVEL",async()=>{const s=await readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8");assert.doesNotMatch(s,/尚未嘗試的可見通道[^\n]+kind:"TRAVEL",targetId:null/);assert.match(s,/targetId:text\(parsed\?\.targetId/)});
+          test("v0.59.8 targetless deterministic recovery is not TRAVEL",async()=>{const s=await readFile(new URL("../src/ai-autotest.js",import.meta.url),"utf8");assert.doesNotMatch(s,/kind:"TRAVEL",targetId:null,progression:true/);assert.match(s,/targetId:text\(parsed\?\.targetId/)});
           test("v0.59.8 repairs missing Future slots before validation",async()=>{const s=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");assert.match(s,/futureFallbackCandidate=futureFallback/);assert.match(s,/futureRows=timelineAuthoringSlots/)});
           test("v0.59.8 Japanese origin fixed prose is deterministic",async()=>{const s=await readFile(new URL("../src/world-creation.js",import.meta.url),"utf8");assert.match(s,/具体的な身分、開始地点、因果関係/)});
           EOF
