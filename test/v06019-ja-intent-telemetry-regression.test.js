@@ -33,12 +33,21 @@ test("v0.60.19 Japanese REST executes deterministically and records real player-
  }finally{globalThis.ELYNDRA_LOCALE=oldLocale;clearDebugTelemetry()}
 });
 
+test("v0.60.19 Japanese generic person question binds only an unambiguous present NPC",()=>{
+ const oldLocale=globalThis.ELYNDRA_LOCALE;globalThis.ELYNDRA_LOCALE="ja";
+ try{
+  const state=newGame(seed),loc={id:"LOC-HARBOR",name:"港の入口",region:"湾岸",type:"ROAD",known:true,accessRequirements:[]};state.world.registry.locations=[loc];state.player.location=loc.name;state.world.state.location=loc.name;state.world.registry.npcs=[{id:"NPC-GUIDE",name:"港の案内人",role:"案内人",locationId:loc.id,known:true,encountered:true,alive:true}];
+  const assessment={verdict:"ALLOW",kind:"OBSERVE",normalizedAction:"周囲を観察する",actionIntent:{kind:"OBSERVE",intent:"OBSERVE"}},result=performAction(state,"free","近くの人に港への道を聞く",assessment);
+  assert.equal(assessment.kind,"SOCIAL");assert.equal(assessment.actionIntent.intent,"TALK");assert.equal(assessment.actionIntent.targetId,"NPC-GUIDE");assert.equal(result.actionKind,"SOCIAL");assert.ok(state.events.some(e=>e.type==="NPC_INTERACTION"&&e.npcId==="NPC-GUIDE"))
+ }finally{globalThis.ELYNDRA_LOCALE=oldLocale}
+});
+
 test("v0.60.19 debug repair covers NPC, faction and world events while retaining fallback diagnostics",async()=>{
  const [ui,engine,client,index,pkg,version]=await Promise.all([
   readFile(new URL("../src/v06015-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06017-ai-client-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8")
  ]);
- assert.match(ui,/FACTION_ACTION/);assert.match(ui,/WORLD_EVENT/);assert.match(ui,/NPC_AUTONOMOUS_ACTION/);assert.match(ui,/data-thinking/);assert.match(ui,/data-recovery/);
- assert.match(engine,/GAME_PLAYER_STATE_CHANGED/);assert.match(engine,/v06019-ja-action-semantics\.js\?v=60019/);assert.match(client,/japaneseFastAssessment/);
+ assert.match(ui,/FACTION_ACTION/);assert.match(ui,/WORLD_EVENT/);assert.match(ui,/NPC_AUTONOMOUS_ACTION/);assert.match(ui,/data-thinking/);assert.match(ui,/data-recovery/);assert.match(ui,/JA_LEAK\.test\(localized\)/);
+ assert.match(engine,/GAME_PLAYER_STATE_CHANGED/);assert.match(engine,/engineAssessment\.verdict="ADJUST"/);assert.match(engine,/unambiguousPresentNpcId/);assert.match(engine,/v06019-ja-action-semantics\.js\?v=60019/);assert.match(client,/japaneseFastAssessment/);
  assert.match(index,/v06017-ai-client-hotfix\.js\?v=60019/);assert.match(index,/v06011-game-engine-hotfix\.js\?v=60019/);assert.match(index,/v06015-runtime-ui-hotfix\.js\?v=60019/);assert.match(index,/version\.js\?v=60019/);
  assert.equal(JSON.parse(pkg).version,"0.60.19");assert.match(version,/APP_VERSION="0\.60\.19"/)
 });
