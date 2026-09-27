@@ -34,22 +34,8 @@ jobs:
               raise SystemExit(f'expected one importRe line, got {found}')
           p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
           PY
-          set +e
-          node scripts/apply-v05910-runtime-integrity.mjs > .hotfix-v05910-error.txt 2>&1
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            printf '\nexit_status=%s\n' "$status" >> .hotfix-v05910-error.txt
-            git add .hotfix-v05910-error.txt
-            if ! git diff --cached --quiet; then
-              git commit -m "chore: record v0.59.10 patch guard failure"
-              git push origin HEAD:fix/v05910-runtime-integrity
-            fi
-            exit "$status"
-          fi
-          rm -f .hotfix-v05910-error.txt .hotfix-v05910-test.log
+          node scripts/apply-v05910-runtime-integrity.mjs
+          rm -f .hotfix-v05910-error.txt .hotfix-v05910-test.log .hotfix-v05910-node-test.log
       - name: Run focused regression tests
         run: node --test test/v05910-runtime-integrity.test.js
       - name: Verify version contract
@@ -59,7 +45,24 @@ jobs:
       - name: Verify JavaScript syntax
         run: node scripts/check-js.mjs
       - name: Run complete Node test suite
-        run: node --test
+        shell: bash
+        run: |
+          set +e
+          node --test > .hotfix-v05910-node-test.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            printf '\nexit_status=%s\n' "$status" >> .hotfix-v05910-node-test.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .hotfix-v05910-node-test.log
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: record v0.59.10 Node suite failure"
+              git push origin HEAD:fix/v05910-runtime-integrity
+            fi
+            exit "$status"
+          fi
+          rm -f .hotfix-v05910-node-test.log
       - name: Commit product changes
         shell: bash
         run: |
