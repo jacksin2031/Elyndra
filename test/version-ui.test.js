@@ -35,7 +35,7 @@ test("v0.50-v0.52 causal protections remain intact after v0.53",async()=>{
   readFile(new URL("../src/world-quality.js",import.meta.url),"utf8"),readFile(new URL("../src/world-registry.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/world-creation.js",import.meta.url),"utf8"),
   readFile(new URL("../src/generation-claims.js",import.meta.url),"utf8"),readFile(new URL("../src/world-catalog.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
- assert.match(app,/\.\/src\/lazy-generation\.js\?v=57025/);assert.match(legacy,/ORAL_TRADITION/);assert.match(legacy,/WEAPON_RELIC/);
+ assert.match(app,/\.\/src\/lazy-generation\.js\?v=59014/);assert.match(legacy,/ORAL_TRADITION/);assert.match(legacy,/WEAPON_RELIC/);
  assert.match(visibility,/CANON_LOCKED/);assert.match(quality,/backgroundMutableFields/);assert.match(registry,/WORLD_CONSTITUTION_FORBID/);
  assert.match(lazy,/generationRevision/);assert.match(lazy,/worldSeedFingerprint/);assert.match(causal,/visibilityLockSnapshot/);
  assert.match(app,/\.\/src\/world-creation\.js\?v=59003/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);

@@ -25,7 +25,7 @@ test("v0.59.14 is the canonical app and browser cache release",async()=>{
  assert.match(app,/\.\/src\/origin-runtime\.js\?v=57025/);
  assert.match(app,/\.\/src\/player-entity-visibility\.js\?v=58000/);
  assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=58000/);
- assert.match(app,/\.\/src\/npc-conversation\.js\?v=57029/);
+ assert.match(app,/\.\/src\/npc-conversation\.js\?v=59014/);
  assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59010"));
  assert.doesNotMatch(app,/\?v=54017/);
  assert.doesNotMatch(app,/\?v=54018[A-Za-z]/);
