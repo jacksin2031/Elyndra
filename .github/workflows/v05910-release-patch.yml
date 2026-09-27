@@ -1,0 +1,65 @@
+name: v0.59.10 release patch
+
+on:
+  push:
+    branches:
+      - fix/v05910-prompt-language-contract
+    paths:
+      - .github/workflows/v05910-release-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/v05910-prompt-language-contract
+          fetch-depth: 0
+      - name: Apply v0.59.10 version and cache epoch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          pkg_path=Path('package.json')
+          pkg=json.loads(pkg_path.read_text())
+          pkg['version']='0.59.10'
+          pkg_path.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n')
+
+          version=Path('src/version.js')
+          text=version.read_text()
+          text=text.replace('APP_VERSION="0.59.9"','APP_VERSION="0.59.10"')
+          version.write_text(text)
+
+          browser=[Path('app.js'),*Path('src').rglob('*.js')]
+          for path in browser:
+              text=path.read_text()
+              updated=text.replace('?v=59009','?v=59010')
+              if updated!=text:
+                  path.write_text(updated)
+
+          index=Path('index.html')
+          text=index.read_text()
+          index.write_text(text.replace('?v=59009','?v=59010'))
+
+          for path in Path('test').rglob('*.js'):
+              text=path.read_text()
+              updated=(text
+                  .replace('0.59.9','0.59.10')
+                  .replace('0\\.59\\.9','0\\.59\\.10')
+                  .replace('59009','59010'))
+              if updated!=text:
+                  path.write_text(updated)
+          PY
+      - name: Remove temporary patch workflow
+        run: git rm .github/workflows/v05910-release-patch.yml
+      - name: Commit release propagation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: release v0.59.10 prompt language hardening"
+          git push origin HEAD:fix/v05910-prompt-language-contract
