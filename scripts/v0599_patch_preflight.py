@@ -2,6 +2,8 @@ from pathlib import Path
 
 p=Path('scripts/v0599_patch.py')
 s=p.read_text()
+# Match the actual one-line minified helper by its next function boundary.
+s=s.replace("m=re.search(r'function firstButtonRecoveryDestination\\(state=\\{\\}\\)\\{.*?\\n\\}',s,re.S)","m=re.search(r'function firstButtonRecoveryDestination\\(state=\\{\\}\\)\\{.*?(?=\\nfunction repeatedAutotestTarget)',s,re.S)")
 # Keep backward-compatible destination.name/id while attaching target/known metadata.
 s=s.replace('return {target,known:true}', 'return {...target,target,known:true}')
 s=s.replace('unexplored={target,known:false}', 'unexplored={...target,target,known:false}')
