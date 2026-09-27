@@ -23,21 +23,33 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import re, textwrap
-          source=Path('.github/workflows/apply-runtime-integrity-hotfix.yml').read_text(encoding='utf-8')
-          marker="          python3 <<'PY'\n"
-          start=source.index(marker)+len(marker)
-          end=source.index("\n          PY",start)
-          code=textwrap.dedent(source[start:end])
-          code=code.replace('touched = False','touched = [False]')
-          code=re.sub(r'(?m)^\s*nonlocal touched\s*\n','',code)
-          code=code.replace('touched = True','touched[0] = True').replace('if touched:','if touched[0]:')
-          compile(code,'runtime-integrity-hotfix','exec')
-          exec(code,{'__name__':'__main__'})
+          import re, textwrap, traceback
+          try:
+              source=Path('.github/workflows/apply-runtime-integrity-hotfix.yml').read_text(encoding='utf-8')
+              marker="          python3 <<'PY'\n"
+              start=source.index(marker)+len(marker)
+              end=source.index("\n          PY",start)
+              code=textwrap.dedent(source[start:end])
+              code=code.replace('touched = False','touched = [False]')
+              code=re.sub(r'(?m)^\s*nonlocal touched\s*\n','',code)
+              code=code.replace('touched = True','touched[0] = True').replace('if touched:','if touched[0]:')
+              compile(code,'runtime-integrity-hotfix','exec')
+              exec(code,{'__name__':'__main__'})
+          except BaseException:
+              Path('.hotfix-error.txt').write_text(traceback.format_exc(),encoding='utf-8')
+              raise
           PY
           npm test
           npm run check:cache-bust
+      - name: Upload staging traceback
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-hotfix-staging-error
+          path: .hotfix-error.txt
+          if-no-files-found: ignore
       - name: Commit patched runtime
+        if: success()
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
