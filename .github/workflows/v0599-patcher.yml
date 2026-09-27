@@ -28,7 +28,7 @@ jobs:
           head,sep,tail=s.partition(marker)
           if not sep:
               raise SystemExit('v0.59.9 regression marker missing')
-          tail=tail.replace('\\\\','\\')
+          tail=tail.replace(chr(92)*2, chr(92))
           p.write_text(head+sep+tail)
       - name: Version policy
         run: npm run version:check
