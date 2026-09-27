@@ -4,7 +4,7 @@ import {ensureSurvival,survivalRules} from "./survival-engine.js?v=57025";
 import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=57025";
 import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=57025";
 import {adjustNpcRelationship,recordNpcMemory,upsertNpcBelief} from "./npc-cognition.js?v=57025";
-import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=59014";
+import {evaluateNpcQuestInteraction} from "./npc-quest-interaction.js?v=60005";
 
 const uid=prefix=>prefix+"-"+(globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));

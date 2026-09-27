@@ -8,7 +8,7 @@ import {interceptCompanionHarmWithTalent} from "./talent-rules.js?v=60004";
 import {normalizeActionIntent} from "./action-intent.js?v=60000";
 import {buildResolutionOutcome} from "./resolution-engine.js?v=60000";
 import {resolveMagicAction} from "./magic-engine.js?v=57025";
-import {useItem} from "./item-engine.js?v=60004";
+import {useItem} from "./item-engine.js?v=60005";
 import {activeEnemies,advanceEncounterRound,applyEnemyMorale,completeEncounterObjectives,consumeEnvironment,createEncounterFrame,encounterSnapshot,ensureEncounterFrame,movePlayerZone,recordEncounterAction,selectCombatTarget,setPrimaryEnemy,usableEnvironment} from "./encounter-engine.js?v=60001";
 import {resolveSocialAction,socialActionDc} from "./social-conflict-engine.js?v=60002";
 

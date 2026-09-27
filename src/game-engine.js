@@ -6,12 +6,12 @@ import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.
 import {applyCultureAction} from "./culture-engine.js?v=57025";
 import {resolveEconomyAction} from "./economy-engine.js?v=57025";
 import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=57025";
-import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=59014";
+import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=60005";
 import {exploreDungeon} from "./dungeon-engine.js?v=57025";
 import {resolveTalentAction} from "./talent-engine.js?v=60004";
 import {buildResolutionOutcome} from "./resolution-engine.js?v=60000";
 import {mitigateTravelFailureWithTalent,useImprovisedToolTalent} from "./talent-rules.js?v=60004";
-import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=60004";
+import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=60005";
 import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=57025";
 import {isNpcPresent} from "./world-registry.js?v=57025";
 import {markEntityObserved} from "./visibility-lock.js?v=57025";
