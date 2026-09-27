@@ -35,7 +35,17 @@ const JA_EXACT=new Map([
  ["前往條件尚未滿足。","移動条件をまだ満たしていません。"],
  ["目前沒有可用的 Canon 路線連接到該地點。","その場所へ接続する利用可能なCanon経路がありません。"],
  ["需要先建立可通行路線","先に通行可能な経路を確立する必要があります"],
- ["Engine 沒有發現硬性阻擋條件；AI 只提供語義理解，最終可嘗試性由 Engine 決定。","Engine上の強制的な阻害条件は確認されませんでした。AIは意味理解のみを補助し、最終的な実行可否はEngineが決定します。"]
+ ["Engine 沒有發現硬性阻擋條件；AI 只提供語義理解，最終可嘗試性由 Engine 決定。","Engine上の強制的な阻害条件は確認されませんでした。AIは意味理解のみを補助し、最終的な実行可否はEngineが決定します。"],
+ ["你的異世界已完成編譯，請先確認世界契約，再決定是否穿越。","異世界の編纂が完了しました。まず世界契約を確認してから、入場するか決めてください。"],
+ ["世界生成完成","世界生成完了"],
+ ["Elyndra · 世界生成完成","Elyndra · 世界生成完了"],
+ ["已重新產生 3 個新的可執行建議。","新しい実行可能な提案を3件生成しました。"],
+ ["目前沒有足夠情報確認。","現時点では確認できる情報が不足しています。"],
+ ["視野被流動介質遮蔽","流動する霧や粒子によって視界が遮られている"],
+ ["低能見現象","低視界現象"],
+ ["世界中的懸浮物、霧狀能量或其他介質降低能見度。","浮遊物や霧状のエネルギーなどが視界を低下させています。"],
+ ["遠處輪廓逐漸變得模糊。","遠くの輪郭が次第にぼやけています。"],
+ ["天空與環境出現不尋常異象","空と周囲に異常な現象が現れている"]
 ]);
 
 const EXTRA_JA_LEAK=/(?:這|这|們|们|為|为|與|与|從|从|讓|让|對|对|說|说|處|处|覺|觉|應|应|還|还|暫|暂|無法|无法|目前|尚未|已經|已经|場景|场景|敘述|叙述|選擇|选择|建議|建议|確認現場|确认现场|有沒有|有没有|新的具體變化|新的具体变化|恢復操作|恢复操作|保留\s*Engine\s*結果|保留\s*Engine\s*结果)/u;
@@ -55,6 +65,7 @@ function jaDynamic(text){
  m=text.match(/^目前狀態：HP ([^；]+)；飽食度 ([^；]+)；疲勞 ([^；]+)；傷勢 ([^。]+)。$/u);if(m)return `現在の状態：HP ${m[1]}；満腹度 ${m[2]}；疲労 ${m[3]}；負傷 ${m[4]}。`;
  m=text.match(/^你休息了 (\d+) 分鐘。/u);if(m)return `${m[1]}分間休息しました。`;
  m=text.match(/^你沿著已知且可安全通行的路線抵達 (.+)。$/u);if(m)return `既知の安全な経路を通って${m[1]}に到着しました。`;
+ m=text.match(/^你沿著可通行路線抵達 (.+)。$/u);if(m)return `通行可能な経路を通って${m[1]}に到着しました。`;
  m=text.match(/^目前沒有可用的 Canon 路線前往 (.+)。$/u);if(m)return `${m[1]}へ向かう利用可能なCanon経路がありません。`;
  m=text.match(/^目前無法前往 (.+)。$/u);if(m)return `現在は${m[1]}へ移動できません。`;
  if(text.startsWith("背包："))return "持ち物："+after(text,"背包：");
@@ -66,12 +77,17 @@ function jaDynamic(text){
  if(text.startsWith("從旁人的語氣與反應中，你開始察覺："))return "周囲の人々の口調や反応から、次のことに気づき始めます："+after(text,"從旁人的語氣與反應中，你開始察覺：");
  if(text.startsWith("這個變化已經直接進入你的日常行動範圍："))return "この変化は、すでにあなたの日常の行動範囲へ直接影響しています："+after(text,"這個變化已經直接進入你的日常行動範圍：");
  if(text.startsWith("眼前已出現一項可以直接確認的改變："))return "目の前に直接確認できる変化が現れています："+after(text,"眼前已出現一項可以直接確認的改變：");
- return "日本語表示を準備できなかったため、確定済みのゲーム結果のみ保持しています。"
+ return null
 }
+
 export function safePlayerVisibleText(value,locale=base.loadLocale()){
  const id=base.normalizeLocale(locale),text=String(value??"");if(id!=="ja"||!text)return text;
  const exact=JA_EXACT.get(text);if(exact)return exact;
- return jaLeak(text)?jaDynamic(text):text
+ if(!jaLeak(text))return text;
+ // v0.60.13: never turn an unknown leak into a generic Japanese sentence.
+ // Returning the original value preserves semantic identity so field-aware callers
+ // can reject it and choose a context-specific deterministic fallback instead.
+ return jaDynamic(text)||text
 }
 export function hasLocaleLeak(value,locale=base.loadLocale()){const id=base.normalizeLocale(locale);return id==="ja"?jaLeak(value):base.hasLocaleLeak(value,id)}
 export function uiText(key,locale=base.loadLocale()){const id=base.normalizeLocale(locale),source=String(key??"");if(id==="ja"&&JA_EXACT.has(source))return JA_EXACT.get(source);return safePlayerVisibleText(base.uiText(source,id),id)}
