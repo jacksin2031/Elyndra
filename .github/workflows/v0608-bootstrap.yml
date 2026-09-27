@@ -1,0 +1,39 @@
+name: v0.60.8 bootstrap
+on:
+  push:
+    branches: [fix/v0608-runtime-self-repair]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply fail-closed v0.60.8 patch
+        run: python3 scripts/v0608-bootstrap.py
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
+        env:
+          CACHE_BASE_REF: origin/main
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: v0.60.8 recovery regressions
+        run: node --test test/v0608-runtime-self-repair.test.js test/v0607-i18n-turn-recovery.test.js test/trpg-depth-e2e-v060.test.js test/v05908-runtime-recovery.test.js test/version-policy.test.js test/version-ui.test.js
+      - name: Commit verified runtime patch
+        run: |
+          git config user.name "elyndra-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js index.html package.json src/version.js test/version-ui.test.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: harden first-turn recovery and opening visibility (v0.60.8)"
+          git push
