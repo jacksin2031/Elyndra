@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=59010"><link rel="stylesheet" href="creator.css?v=59010"><link rel="stylesheet" href="world-surfaces.css?v=59011"><script type="importmap">{"imports":{"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59011"}}</script></head>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Elyndra — AI 異世界冒險</title><meta name="description" content="AI × TRPG × World Discovery 異世界網頁 RPG"><link rel="stylesheet" href="styles.css?v=59014"><link rel="stylesheet" href="creator.css?v=59010"><link rel="stylesheet" href="world-surfaces.css?v=59011"><script type="importmap">{"imports":{"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59014"}}</script></head>
 <body data-screen="landing"><div id="worldBackdrop" aria-hidden="true"></div><div class="noise"></div><header class="topbar">
 <div class="brand-wrap"><div class="brand">ELYNDRA</div><div class="subtitle">名もなき異世界へ</div></div>
 <div class="topbar-context" aria-live="polite"><span id="topLocation">未知之地</span><span class="topbar-dot">◆</span><span id="topTime">時序未知</span></div>
@@ -117,7 +117,7 @@
 <button class="navbtn more-nav" id="moreBtn"><span>•••</span>更多</button>
 </nav>
 <div class="secondary-actions hidden" aria-hidden="true"><button id="impactBtn">我的影響</button><button id="runtimeBtn">異界狀態</button><button id="helperBtn">旅途助手</button><button id="historyBtn">旅程紀錄</button><button id="debugBtn">Debug 診斷</button></div>
-<div id="npcDock" class="npc-dock hidden"><small class="eyebrow">人物</small><div id="knownNpcList"></div></div></aside>
+</aside>
 <section class="scene">
 <div class="scene-art"><div class="scene-atmosphere" aria-hidden="true"></div><div class="scene-copy">
 <div class="scene-meta"><span id="location" class="location"></span><span id="weather" class="weather-chip" data-danger="0"></span></div>
@@ -126,7 +126,7 @@
 <div class="decision-panel">
 <div class="action-zone"><div class="action-heading"><span class="eyebrow">你的行動</span><small>這些是此刻真正可做的事，不是功能選單</small></div><div id="choices" class="choices" aria-label="情境化建議行動"></div>
 <form id="freeActionForm" class="free-action hidden"><input id="freeAction" maxlength="180" placeholder="自由行動：描述你想做的事……"><button class="primary action-send" type="submit" aria-label="執行行動">➤</button></form></div>
-<div class="dice-box" id="diceBox" aria-live="polite"><div class="dice-stage" aria-hidden="true"><div class="d20" id="d20">20</div></div><div class="dice-copy"><span class="eyebrow">命運判定</span><strong id="rollLabel">等待你的行動</strong><p id="rollResult">世界會記住重要結果。</p></div></div>
+<div class="decision-side"><div class="dice-box" id="diceBox" aria-live="polite"><div class="dice-stage" aria-hidden="true"><div class="d20" id="d20">20</div></div><div class="dice-copy"><span class="eyebrow">命運判定</span><strong id="rollLabel">等待你的行動</strong><p id="rollResult">世界會記住重要結果。</p></div></div><div id="npcDock" class="npc-dock hidden"><small class="eyebrow">人物</small><div id="knownNpcList"></div></div></div>
 </div></section></div>
 <nav class="mobile-bottom-nav" aria-label="手機主要功能">
 <button type="button" data-mobile-target="home" class="active"><span>✦</span><small>冒險</small></button>
@@ -139,4 +139,4 @@
 <input id="importFile" type="file" accept=".elyndra,application/json" hidden><script>
 window.addEventListener("error",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=e.message||"JavaScript failed"}});
 window.addEventListener("unhandledrejection",e=>{const b=document.getElementById("aiBadge");if(b){b.textContent="APP ERROR";b.title=String(e.reason?.message||e.reason||"Promise failed")}});
-</script><script type="module" src="app.js?v=59013"></script></body></html>
+</script><script type="module" src="app.js?v=59014"></script></body></html>

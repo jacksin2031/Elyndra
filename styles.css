@@ -1350,3 +1350,13 @@ button:disabled,.choices button:disabled{cursor:not-allowed;opacity:.48;filter:s
   .activity-status .loading-sigil,.world-gen-progress .loading-sigil,#game .dice-box .d20,#game .dice-box .dice-stage::after{animation:none!important;transition:none!important}
   .world-gen-bar{transition:none}
 }
+
+/* v0.59.14 NPC dialogue dock placement: NPC interaction belongs below dice, never in the sidebar. */
+#game .decision-side{display:flex;flex-direction:column;gap:12px;min-width:0;align-self:stretch}
+#game .decision-side .dice-box{width:100%;min-width:0}
+#game .decision-side .npc-dock{margin-top:0!important;width:100%;min-width:0;max-width:100%;overflow:hidden}
+#game .decision-side #knownNpcList{min-width:0;max-height:220px;overflow:auto}
+#game .decision-side .npc-mini{min-width:0}
+#game .decision-side .npc-mini>div{min-width:0;overflow:hidden}
+#game .decision-side .npc-mini strong,#game .decision-side .npc-mini small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:720px){#game .decision-side{gap:10px}#game .decision-side .npc-dock{position:relative!important;inset:auto!important;margin:0!important}#game .decision-side #knownNpcList{max-height:none}}

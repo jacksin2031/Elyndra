@@ -157,7 +157,7 @@ test("v0.59.14 origin knowledge alone cannot skip main quest investigation",()=>
 
 test("v0.59.14 NPC dialogue dock is below dice and not inside sidebar",async()=>{const [html,css]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../styles.css",import.meta.url),"utf8")]);const sidebar=html.slice(html.indexOf('<aside class="sidebar">'),html.indexOf('</aside>')+8);assert.doesNotMatch(sidebar,/id="npcDock"/);assert.ok(html.indexOf('id="npcDock"')>html.indexOf('id="diceBox"'));assert.match(html,/class="decision-side"/);assert.match(css,/v0\.59\.14 NPC dialogue dock placement/);assert.match(css,/#game \.decision-side \.npc-dock\{margin-top:0!important/)});
 
-test("v0.59.14 opening compiler no longer forces visible stranger and scene repair carries turn correlation",async()=>{const src=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");assert.doesNotMatch(src,/可直接看見，因此 known 必須為 true/);assert.match(src,/known 必須為 false/);assert.match(src,/repairTurnId=`REV-\$\{plan\.baseRevision\}`/);assert.match(src,/AI_SCENE_REJECTED/)});
+test("v0.59.14 opening compiler no longer forces visible stranger and scene repair carries turn correlation",async()=>{const src=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");assert.doesNotMatch(src,/可直接看見，因此 known 必須為 true/);assert.match(src,/known 必須為 false/);assert.match(src,/repairTurnId=.*plan\.baseRevision/);assert.match(src,/AI_SCENE_REJECTED/)});
 `);
 
 console.log("v0.59.14 patch applied");

@@ -21,9 +21,9 @@ import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57025";
 import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=57025";
 import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57029";
 import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57025";
-import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./traditional-chinese-guard.js?v=57025";
+import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./traditional-chinese-guard.js?v=59014";
 import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=59010";
-import {repairAiOutput} from "./ai-output-repair.js?v=59013";
+import {repairAiOutput} from "./ai-output-repair.js?v=59014";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify({...body,locale:normalizeLocale(body?.locale||loadLocale())})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);const data=await r.json();registerLocalizedOutput(data,normalizeLocale(body?.locale||loadLocale()));return data}
@@ -77,7 +77,7 @@ async function worldStage(stage,args){
  const locale=normalizeLocale(args?.locale||loadLocale());
  try{return await withWorldAiSlot(async()=>{
   const system=[String(args?.system||""),languageContract(locale)].filter(Boolean).join("\n");
-  const parsed=parseJSON(await directChat({...args,locale,system,aiTask:args?.aiTask||worldStageTask(stage)})),value=repairAiOutput("WORLD_STAGE",parsed,{stage}).value;
+  const parsed=parseJSON(await directChat({...args,locale,system,aiTask:args?.aiTask||worldStageTask(stage)})),value=repairAiOutput("WORLD_STAGE",parsed,{stage,locale}).value;
   if(locale==="zh-Hant"){
    const leak=simplifiedChineseLeak(value);if(leak)throw new Error(`NON_TRADITIONAL_CHINESE:${leak.character}:${leak.path}`)
   }
@@ -199,7 +199,7 @@ function historyFallback(anchor){
 }
 function geographyFallback(anchor){
  const firstWeather=anchor.weatherPhenomena?.[0]?.id||"",cue=anchor.weatherPhenomena?.[0]?.observableName||"空氣中的流動方向忽然變得不自然";
- return {openingHook:`冰冷而潮濕的地面貼著背脊。遠處傳來一聲延遲的金屬鳴響，${cue}；霧後似乎有腳步靠近，但你無法判斷方向與距離。`,location:{name:anchor.startingLocation,type:"開局地點",region:anchor.startingRegion,description:`位於${anchor.startingRegion}的開局地點，其地貌與${anchor.worldTheme}直接相關。`,known:false,historyRefs:[],weatherProfile:{zone:anchor.startingRegion,affinities:firstWeather?[firstWeather]:[],suppressions:[]},lore:{story:`這個地方留下了與${anchor.centralConflict}有關的痕跡。`,unlockKeywords:["舊痕跡"],minMatches:1}}}
+ return {openingHook:`冰冷而潮濕的地面貼著背脊。遠處傳來一聲延遲的金屬鳴響，${cue}；一段老舊管路忽然出現不規則震動，附近的檢修燈隨即熄滅。`,location:{name:anchor.startingLocation,type:"開局地點",region:anchor.startingRegion,description:`位於${anchor.startingRegion}的開局地點，其地貌與${anchor.worldTheme}直接相關。`,known:false,historyRefs:[],weatherProfile:{zone:anchor.startingRegion,affinities:firstWeather?[firstWeather]:[],suppressions:[]},lore:{story:`這個地方留下了與${anchor.centralConflict}有關的痕跡。`,unlockKeywords:["舊痕跡"],minMatches:1}}}
 }
 function societyFallback(anchor,history,geography){
  const href=history?.[0]?.id||"HIST-1",location=geography?.location?.name||anchor.startingLocation;
@@ -220,7 +220,7 @@ function futureFallback(anchor,history,pacing){
 }
 function castFallback(anchor,history,region,society){
  const location=anchor.startingLocation,faction=society?.faction?.name||"";
- return {npcs:[{name:"當地引路人",role:"居民",behaviorProfile:{mannerisms:["緊張時會先看向出入口"],speechPatterns:["回答前先說自己能確認到哪一步"],habits:["會記住附近人流與出口"],values:["保護自己的生活圈"],fears:["錯誤判斷令身邊的人受害"],contradictions:["對陌生人謹慎，卻又不願放著求助者不管"],promises:[],grudges:[]},description:`生活在${location}、熟悉最基本地方規矩的人。`,personality:"對陌生人謹慎但願意回答眼前問題",goal:"確保自己與聚落安全",locationName:location,factionName:faction,knowledgeScope:(anchor.publicFacts||[]).slice(0,2),historyRefs:[history?.[0]?.id||"HIST-1"],known:true,companionProfile:{joinThreshold:45,leaveThreshold:10,motives:["保護自己的生活圈"],boundaries:["不會為陌生人無條件冒險"]},lore:{story:`家族記憶與「${history?.[0]?.title||"舊歷史"}」有關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}],sideQuests:[],suggestions:["循著剛才的異常聲音找出來源","檢查附近地面有沒有新留下的腳印或拖痕","找一個能看清出入口的人，問他剛才發生了甚麼"]}
+ return {npcs:[{name:"當地引路人",role:"居民",behaviorProfile:{mannerisms:["緊張時會先看向出入口"],speechPatterns:["回答前先說自己能確認到哪一步"],habits:["會記住附近人流與出口"],values:["保護自己的生活圈"],fears:["錯誤判斷令身邊的人受害"],contradictions:["對陌生人謹慎，卻又不願放著求助者不管"],promises:[],grudges:[]},description:`生活在${location}、熟悉最基本地方規矩的人。`,personality:"對陌生人謹慎但願意回答眼前問題",goal:"確保自己與聚落安全",locationName:location,factionName:faction,knowledgeScope:(anchor.publicFacts||[]).slice(0,2),historyRefs:[history?.[0]?.id||"HIST-1"],known:false,companionProfile:{joinThreshold:45,leaveThreshold:10,motives:["保護自己的生活圈"],boundaries:["不會為陌生人無條件冒險"]},lore:{story:`家族記憶與「${history?.[0]?.title||"舊歷史"}」有關。`,unlockKeywords:[history?.[0]?.title||"舊歷史"],minMatches:1}}],sideQuests:[],suggestions:["循著剛才的異常聲音找出來源","檢查附近地面或管路有沒有新留下的痕跡","確認哪一個出入口仍然可以安全通行"]}
 }
 
 async function recoverFallbackWorldCandidate(candidate,diagnostics,report){
@@ -336,7 +336,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
    },()=>({worldHistory:historyFallback(anchor)})),
    resilientWorldStage("GEOGRAPHY",{
     timeoutMs:50000,retryOnTimeout:false,maxOutputTokens:800,
-    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的玩家起源只以 payload.playerOrigin 與 payload.originOpening 為權威；不得自行假設玩家來自現代地球。originOpening.worldNameKnown / calendarKnown / openingMode 決定開場可否直接理解世界名稱、曆法與地方背景；只可使用 playerOrigin.commonKnowledge、initialAssumptions、worldKnowledgeBoundary 及 originOpening 授權內容。未授權異世界專有名詞、歷史、人物、魔法規則或地方文化不可提前知道。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常，例如有人逃跑、鐘聲突然停止、傷者求助、入口封閉、追逐或突發破壞；玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
+    system:`你是 Elyndra Geography Compiler。只生成 openingHook 與唯一開局地點的物理／環境資料，不生成文化、交易、勢力、NPC、任務。location.name 與 region 必須分別等於 anchor.startingLocation / anchor.startingRegion。地貌、建築外觀與 weatherProfile 必須能由 anchor.worldTheme、weatherPhenomena、currentCrisis 解釋；weather id 只能引用 anchor.weatherPhenomena。openingHook 的玩家起源只以 payload.playerOrigin 與 payload.originOpening 為權威；不得自行假設玩家來自現代地球。originOpening.worldNameKnown / calendarKnown / openingMode 決定開場可否直接理解世界名稱、曆法與地方背景；只可使用 playerOrigin.commonKnowledge、initialAssumptions、worldKnowledgeBoundary 及 originOpening 授權內容。未授權異世界專有名詞、歷史、人物、魔法規則或地方文化不可提前知道。openingHook 必須在第一幕就包含一個可見或可聽見、立即、可採取行動、尚未解決的具體異常；優先使用環境、物件、道路、機械、天候或聲音異常，例如鐘聲突然停止、入口封閉、設備故障或突發破壞。禁止模板式地在第一回合自動安排可交談的陌生 NPC；只有 playerOrigin / originOpening 明確要求他人在場時才可把人物作為開場異常。玩家必須能立刻想到至少三種不同反應，不能只有神秘氣氛。只輸出 JSON。`,
     user:JSON.stringify({anchor,playerOrigin:seed.creationV2?.originProfile||null,originOpening,required:{openingHook:"80-160字符合 Origin knowledge boundary 的感官開場；必須有立即可行動的具體異常，且至少暗示三種可採取反應",location:{name:anchor.startingLocation,type:"具體地點用途或形態；不得輸出「地點類型」",region:anchor.startingRegion,description:"40-90字物理環境",known:false,weatherProfile:{zone:"地理天候區",affinities:["anchor weather id"],suppressions:["anchor weather id"]},lore:{story:"40-80字環境留下的歷史痕跡",unlockKeywords:["1-2線索"],minMatches:1}}}})
    },()=>geographyFallback(anchor))
   ]);
@@ -379,8 +379,8 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   report(74,"雙 AI 編譯 Wave 3","前兩波 Canon 關係已鎖定；最後只用一個 AI 生成附近人物與支線");
   let cast=await resilientWorldStage("CAST",{
    timeoutMs:55000,retryOnTimeout:false,maxOutputTokens:2400,
-   system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。這名附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true；這只公開人物存在與外觀，不代表玩家知道其 lore、秘密或知識。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。若 NPC 的 historyRefs 指向百年以上的歷史，不可把 NPC 寫成該時代仍存活至今的初代／始祖／創建本人，除非該 NPC 自己的 chronology 明確提供 LONG_LIVED／STASIS／TIME_DISPLACED；長壽、延命、休眠、時間停滯等非常規存活都必須由這個角色自己的 chronology 綁定，且 mechanismRef 必須指向具體 PUBLIC_FACT:n、HIST-id 或 WORLD_MAGIC_COST 的 Canon 機制；世界其他地方只要出現「長壽」字眼並不算此人物的時間證據。沒有可驗證機制時必須寫成後代、傳承者、繼承人、記錄持有人或其他合理的現代身份。Future Timeline payload 已包含 earliestDay/latestDay/triggerDay/status：任何 earliestDay 大於 1 且未 TRIGGERED 的事件都不可在 NPC description/personality/goal、sideQuest 或 suggestions 寫成 Day 1 已經發生、正在發生或已造成現況；可以寫成擔心、傳聞、預警、準備、防範或可能風險。只有 earliestDay=1 的事件才可作為開局現況。suggestions 必須直接回應 openingHook 裡的具體人物、聲音、痕跡、入口或異常，禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
-   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:openingCastTimelineSnapshot(future)},required:{npcs:[{name:"附近人物",role:"具體身份或職責；不得輸出「角色」",description:"40-80字",personality:"具體人格特徵；不得輸出「簡短」",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:true,chronology:{relation:"CONTEMPORARY|DESCENDANT|LONG_LIVED|STASIS|TIME_DISPLACED",birthEra:"CURRENT 或世界內時代",mechanismRef:"一般角色留空；非常規存活只可 PUBLIC_FACT:n / HIST-id / WORLD_MAGIC_COST",mechanism:"一般角色留空；非常規存活填入對應 Canon 機制"},behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"具體可執行目標；不得輸出「簡短」",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
+   system:`你是 Elyndra Opening Cast Compiler。只生成1個附近 NPC、最多1個支線與3-4個 suggestions。這名 NPC 是開局區域的 canonical 候選人物，不代表第一幕已碰面。known 必須為 false，Engine 之後只有在玩家真的觀察、接觸或事件明確揭露時才可設為 known / encountered。不得因 CAST 階段本身把 NPC 當成「眼前的陌生人」。你必須使用既有 anchor/history/geography/society/future：NPC 必須在 anchor.startingLocation，factionName 只能引用 society.faction.name 或留空；historyRefs 只能引用既有 HIST id。NPC 必須有可觀察且一致的人格：至少給出一項習慣動作、說話模式、日常習慣、價值、恐懼與內在矛盾，寫入 behaviorProfile；不要把這些做成數值。支線必須以 locationName、npcName、factionName 或 historyRefs 至少一項連回前兩波內容。若 NPC 的 historyRefs 指向百年以上的歷史，不可把 NPC 寫成該時代仍存活至今的初代／始祖／創建本人，除非該 NPC 自己的 chronology 明確提供 LONG_LIVED／STASIS／TIME_DISPLACED；長壽、延命、休眠、時間停滯等非常規存活都必須由這個角色自己的 chronology 綁定，且 mechanismRef 必須指向具體 PUBLIC_FACT:n、HIST-id 或 WORLD_MAGIC_COST 的 Canon 機制；世界其他地方只要出現「長壽」字眼並不算此人物的時間證據。沒有可驗證機制時必須寫成後代、傳承者、繼承人、記錄持有人或其他合理的現代身份。Future Timeline payload 已包含 earliestDay/latestDay/triggerDay/status：任何 earliestDay 大於 1 且未 TRIGGERED 的事件都不可在 NPC description/personality/goal、sideQuest 或 suggestions 寫成 Day 1 已經發生、正在發生或已造成現況；可以寫成擔心、傳聞、預警、準備、防範或可能風險。只有 earliestDay=1 的事件才可作為開局現況。suggestions 必須直接回應 openingHook 裡已經可感知的聲音、痕跡、入口、物件或異常；不得引用本階段剛生成但尚未由 Engine reveal 的 NPC 姓名／身份，也不得假定「眼前有陌生人」。禁止「觀察四周」「繼續探索」「確認狀態」等 UI 指令。不得新增新地點／勢力。只輸出 JSON。`,
+   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:openingCastTimelineSnapshot(future)},required:{npcs:[{name:"附近人物",role:"具體身份或職責；不得輸出「角色」",description:"40-80字",personality:"具體人格特徵；不得輸出「簡短」",goal:"與地方社會／危機有關",locationName:anchor.startingLocation,factionName:"society.faction.name 或空",knowledgeScope:["anchor.publicFacts 完整文字"],historyRefs:["0-2個 HIST id"],known:false,chronology:{relation:"CONTEMPORARY|DESCENDANT|LONG_LIVED|STASIS|TIME_DISPLACED",birthEra:"CURRENT 或世界內時代",mechanismRef:"一般角色留空；非常規存活只可 PUBLIC_FACT:n / HIST-id / WORLD_MAGIC_COST",mechanism:"一般角色留空；非常規存活填入對應 Canon 機制"},behaviorProfile:{mannerisms:["1項可觀察習慣動作"],speechPatterns:["1項說話模式"],habits:["1項日常習慣"],values:["1項價值"],fears:["1項恐懼"],contradictions:["1項矛盾"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"具體可執行目標；不得輸出「簡短」",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有 faction 或空",historyRefs:["0-2個 HIST id"],evidenceKeywords:["2個實體線索"],conditions:[],target:2}],suggestions:["3-4個直接引用 openingHook 人物、聲音、物件或痕跡的具體角色扮演行動"]}})
   },()=>castFallback(anchor,history,region,society));
   if(!Array.isArray(cast?.npcs)||!Array.isArray(cast?.sideQuests)||!Array.isArray(cast?.suggestions)||cast.suggestions.length<2||generatedTemplateLeak(cast)){const missing=[!Array.isArray(cast?.npcs)&&"NPCS",!Array.isArray(cast?.sideQuests)&&"SIDE_QUESTS",!Array.isArray(cast?.suggestions)&&"SUGGESTIONS",Array.isArray(cast?.suggestions)&&cast.suggestions.length<2&&"SUGGESTIONS_COUNT"].filter(Boolean);markWorldFallback("CAST",generatedTemplateLeak(cast)?"SEMANTIC_INVALID:TEMPLATE_LEAK":"STRUCTURE_INVALID"+(missing.length?":"+missing.join(","):""));cast=castFallback(anchor,history,region,society)};
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});
@@ -396,7 +396,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
  }
  activeGenerationDiagnostics=null;
  report(42,"世界核心","正在透過伺服器建立世界");
- const candidate=(await post("/api/world",{seed,constitution,seedDirective:directive})).candidate,repaired=repairAiOutput("WORLD_STAGE",candidate,{stage:"WORLD_SERVER_CANDIDATE"}).value;
+ const candidate=(await post("/api/world",{seed,constitution,seedDirective:directive})).candidate,repaired=repairAiOutput("WORLD_STAGE",candidate,{stage:"WORLD_SERVER_CANDIDATE",locale:normalizeLocale(loadLocale())}).value;
  report(85,"AI 世界評審","伺服器已完成世界品質評分與必要的定點修復");
  return repaired
 }
@@ -519,13 +519,14 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
  const basePlan=options?.stateSyncPlan||planStateSync({action,intent:actionIntent,roll,snapshot,kernel,ruleEffects:options?.ruleEffects});
  kernel.dirtyFlags={...(basePlan.dirtyFlags||kernel.dirtyFlags||{})};
  const plan={...basePlan,baseRevision:Number(options?.baseRevision??snapshot?.stateRevision)||0},directorMode=plan.mode,stateMode=plan.mode,immediateStateAI=plan.mode==="FAST"||plan.mode==="DEEP";
+ const repairLocale=normalizeLocale(loadLocale()),repairTurnId=`REV-${plan.baseRevision}`;
  if(hasDirectAI()){
   const sceneInput={action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)};
   const playerAction=directChat({
    aiTask:"scene",signal:options?.signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1100,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
-  }).then(raw=>repairAiOutput("SCENE",parseJSON(raw),{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE"}).value);
+  }).then(raw=>{const fixed=repairAiOutput("SCENE",parseJSON(raw),{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE",locale:repairLocale,turnId:repairTurnId});if(!fixed.value)throw new Error("AI_SCENE_REJECTED:"+(fixed.reasons||[]).join(","));return fixed.value});
   const stateSync=immediateStateAI?directChat({
    aiTask:plan.mode==="DEEP"?"turn_state_deep":"turn_state_fast",signal:options?.signal,
    timeoutMs:plan.mode==="DEEP"?45000:22000,retryOnTimeout:false,
@@ -533,12 +534,12 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
    temperature:plan.mode==="DEEP"?.3:.15,
    system:statePatchDirectorSystem(plan),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
-  }).then(parseJSON).then(rawPatch=>{const patch=repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(rawPatch),{plan,snapshot}).value,v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
+  }).then(parseJSON).then(rawPatch=>{const patch=repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(rawPatch),{plan,snapshot,turnId:repairTurnId}).value,v=validateStatePatch(patch,plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch}):Promise.resolve(null);
   return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"direct"}
  }
  const payload={action,intent:actionIntent,roll,snapshot,plan};
- const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>repairAiOutput("SCENE",x.scene,{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE"}).value);
- const stateSync=immediateStateAI?post("/api/turn-state",payload,{signal:options?.signal}).then(x=>repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(x.patch),{plan,snapshot}).value):Promise.resolve(null);
+ const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>(()=>{const fixed=repairAiOutput("SCENE",x.scene,{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE",locale:repairLocale,turnId:repairTurnId});if(!fixed.value)throw new Error("AI_SCENE_REJECTED:"+(fixed.reasons||[]).join(","));return fixed.value})());
+ const stateSync=immediateStateAI?post("/api/turn-state",payload,{signal:options?.signal}).then(x=>repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(x.patch),{plan,snapshot,turnId:repairTurnId}).value):Promise.resolve(null);
  return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"server"}
 }
 export async function generateStatePatch(action,roll,snapshot,plan,options={}){
@@ -553,10 +554,10 @@ export async function generateStatePatch(action,roll,snapshot,plan,options={}){
    system:statePatchDirectorSystem(resolved),
    user:JSON.stringify({action,intent:actionIntent,kernel,plan:resolved,snapshot:resolved.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)})
   });
-  const patch=repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(parseJSON(raw)),{plan:resolved,snapshot}).value,v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
+  const patch=repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(parseJSON(raw)),{plan:resolved,snapshot,turnId:`REV-${resolved.baseRevision}`}).value,v=validateStatePatch(patch,resolved);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","));return patch
  }
  const response=await post("/api/turn-state",{action,intent:actionIntent,roll,snapshot,plan:resolved},{signal:options?.signal});
- return repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(response.patch),{plan:resolved,snapshot}).value
+ return repairAiOutput("STATE_PATCH",normalizeGeneratedStatePatch(response.patch),{plan:resolved,snapshot,turnId:`REV-${resolved.baseRevision}`}).value
 }
 export function finalizeTurnAIJobs(jobs,scene,statePatch,roll,snapshot,action){
  if(statePatch){const v=validateStatePatch(statePatch,jobs.plan);if(!v.valid)throw new Error("STATE_PATCH_INVALID:"+v.errors.join(","))}
