@@ -1,28 +1,27 @@
-name: Talent 2.0 Bootstrap
+name: Talent 2.0 Validation
 on:
   push:
     branches:
       - feat/trpg-depth-talents-v060
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: talent-v0604-bootstrap
-  cancel-in-progress: false
+  group: talent-v0604-validation-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  patch:
+  validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: 20
-      - name: Apply Talent 2.0 integration
-        run: |
-          python3 scripts/talent-v0604-bootstrap.py
-          python3 scripts/talent-v0604-cache-fix.py
-          python3 scripts/talent-v0604-test-fix.py
+          node-version: ${{ matrix.node }}
       - name: Version contract
         run: npm run version:check
       - name: Browser cache contract
@@ -33,24 +32,5 @@ jobs:
         run: node scripts/check-js.mjs
       - name: Static i18n coverage
         run: python3 scripts/scan-i18n-coverage.py
-      - name: Talent 2.0 regressions
-        run: node --test test/talent-rules-v0604.test.js
-      - name: NPC Agency regressions
-        run: node --test test/npc-agency-v0603.test.js
-      - name: Social Conflict regressions
-        run: node --test test/social-conflict-v0602.test.js
-      - name: Combat 2.0 regressions
-        run: node --test test/combat-v0601.test.js
-      - name: TRPG Depth foundation regressions
-        run: node --test test/trpg-depth-v060.test.js
-      - name: Release and UI contracts
-        run: node --test test/version-ui.test.js test/version-0551-release.test.js
-      - name: Commit validated integration
-        run: |
-          if ! git diff --quiet; then
-            git config user.name "Elyndra CI"
-            git config user.email "actions@users.noreply.github.com"
-            git add app.js index.html package.json src/version.js src/talent-engine.js src/check-engine.js src/game-engine.js src/combat-engine.js src/adventure-engine.js src/npc-agency-engine.js src/npc-conversation.js src/ai-client.js api/npc.js test/talent-rules-v0604.test.js test/version-ui.test.js test/version-0551-release.test.js
-            git commit -m "feat: integrate Talent 2.0 rule-changing abilities"
-            git push origin HEAD:feat/trpg-depth-talents-v060
-          fi
+      - name: Talent and TRPG regressions
+        run: node --test test/talent-rules-v0604.test.js test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
