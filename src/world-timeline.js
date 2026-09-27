@@ -45,9 +45,10 @@ export function timelineAuthoringSlots(pacing=createTimelinePacing()){
  }
  return out
 }
+function timelineSlotFallback(slot,index){return {id:`TL-FALLBACK-${slot.slot}`,title:`世界局勢變化 ${slot.slot}`,category:"WORLD_EVENT",directorTruth:`既有世界矛盾在第 ${slot.slot} 個時間節點累積到足以改變局勢的程度。`,observableEffect:`玩家可從人物行動、資源流動或環境變化觀察到第 ${slot.slot} 個局勢轉折。`,pressure:Math.min(15,3+index),impactScope:"REGIONAL",intensity:Math.min(100,30+index*5),domains:["SECURITY"],activationConditions:[],cancelConditions:[],escalationConditions:[],playerCanPrevent:true,playerCanAccelerate:true,playerCanMitigate:true,playerCanRedirect:true}}
 export function bindTimelineAuthoringSlots(input=[],pacing=createTimelinePacing()){
  const slots=timelineAuthoringSlots(pacing),rows=Array.isArray(input)?input:[];
- return slots.map((slot,i)=>({...((rows[i]&&typeof rows[i]==="object")?rows[i]:{}),earliestDay:slot.earliestDay,latestDay:slot.latestDay}))
+ return slots.map((slot,i)=>{const row=rows[i]&&typeof rows[i]==="object"?rows[i]:{},fallback=timelineSlotFallback(slot,i),usable=clean(row.title,120)&&clean(row.directorTruth,600).length>=8&&clean(row.observableEffect,500).length>=8;return {...(usable?row:{...fallback,...row,title:clean(row.title,120)||fallback.title,directorTruth:clean(row.directorTruth,600).length>=8?row.directorTruth:fallback.directorTruth,observableEffect:clean(row.observableEffect,500).length>=8?row.observableEffect:fallback.observableEffect}),earliestDay:slot.earliestDay,latestDay:slot.latestDay}})
 }
 export function normalizeWorldTimeline(input=[],pacing=createTimelinePacing()){
  const out=[];
@@ -90,7 +91,7 @@ export function applyTimelineImpact(state,effect){
  if(action==="DELAY"){const days=clamp(Math.round(Number(effect?.days)||1),1,5),desired=clamp(beforeDay+days,Math.max(earliest,current+1),latest);timeline.impactOffsetDays=desired-base}
  if(action==="ADVANCE"){const days=clamp(Math.round(Number(effect?.days)||1),1,3),desired=clamp(beforeDay-days,Math.max(earliest,current+1),latest);timeline.impactOffsetDays=desired-base}
  if(action==="WEAKEN")timeline.intensityModifier=clamp(timeline.intensityModifier-clamp(Math.round(Number(effect?.amount)||1),1,5),-10,10);
- if(action==="STRENGTHEN")timeline.intensityModifier=clamp(timeline.intensityModifier+clamp(Math.round(Number(effect?.amount)||1),1,5),-10,10);
+ if(action==="STRENGTHEN")timeline.intensityModifier=clamp(timeline.intensityModifier+clamp(Math.round(Number(effect?.amount)||1,1,5)),-10,10);
  timeline.impactHistory.push({day:current,action,days:Number(effect?.days)||0,amount:Number(effect?.amount)||0,beforeDay,afterDay:effectiveTriggerDay(timeline)});timeline.impactHistory=timeline.impactHistory.slice(-20);
  return {timelineId:timeline.id,action,beforeDay,afterDay:effectiveTriggerDay(timeline),beforePressure,afterPressure:effectiveTimelinePressure(timeline)}
 }
