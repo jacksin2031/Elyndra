@@ -9,7 +9,8 @@ test("all player actions keep a single-flight UI lock until their visible result
  assert.match(app,/beginPlayerActionFlight\(options\?\.suggestion\?\.label\|\|requested\)/);
  assert.match(app,/pending-action-group/);
  assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/);
- assert.match(app,/playerActionFlight\.active\|\|Boolean\(gameState\.combat\?\.active\)/)
+ assert.match(app,/if\(playerActionFlight\.active&&!gameState\?\.combat\?\.active\)/);
+ assert.match(app,/setPlayerActionControlsLocked\(true,uiText\("正在處理已選行動…",activeLocale\)\)/)
 });
 
 test("blocking State Sync rejects repeated actions without an action queue",async()=>{
