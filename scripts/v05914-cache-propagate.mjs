@@ -49,7 +49,9 @@ const patches={
   ["./item-engine.js?v=57025","./item-engine.js?v=59014"]
  ],
  "src/world-engine.js":[["./causal-world-core.js?v=57025","./causal-world-core.js?v=59014"]],
- "src/combat-engine.js":[["./world-engine.js?v=57029","./world-engine.js?v=59014"]]
+ "src/combat-engine.js":[["./world-engine.js?v=57029","./world-engine.js?v=59014"]],
+ "test/version-0551-release.test.js":[["npc-conversation\\.js\\?v=57029","npc-conversation\\.js\\?v=59014"]],
+ "test/version-ui.test.js":[["lazy-generation\\.js\\?v=57025","lazy-generation\\.js\\?v=59014"]]
 };
 let changed=0;
 for(const [path,replacements] of Object.entries(patches)){
