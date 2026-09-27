@@ -18,7 +18,7 @@ jobs:
         run: python3 scripts/v0599_patch_preflight.py
       - name: Apply product patch
         run: python3 scripts/v0599_patch.py
-      - name: Normalize generated regression regex escaping
+      - name: Make generated v0.59.9 source contracts literal
         shell: python
         run: |
           from pathlib import Path
@@ -28,8 +28,31 @@ jobs:
           head,sep,tail=s.partition(marker)
           if not sep:
               raise SystemExit('v0.59.9 regression marker missing')
-          tail=tail.replace(chr(92)*2, chr(92))
-          p.write_text(head+sep+tail)
+          replacement=r'''test("v0.59.9 first-button recovery can bind an unexplored canonical route without exposing its name",async()=>{
+           const src=await read("../src/ai-autotest.js");
+           assert.ok(src.includes("return {target,known:true}"));
+           assert.ok(src.includes("unexplored={target,known:false}"));
+           assert.ok(src.includes("FIRST_BUTTON_UNAVAILABLE_TRAVEL"));
+           assert.ok(src.includes("targetId:destination.target.id"));
+           assert.ok(src.includes("未探索の通行可能な出口または通路"));
+          });
+
+          test("v0.59.9 FIRST_BUTTON turns wait for the prior player action and keep recovery metadata",async()=>{
+           const src=await read("../app.js");
+           assert.ok(src.includes("waitForAutotestActionReady(config.disableTimeout===true?90000:38000)"));
+           assert.ok(src.includes("AUTOTEST_PLAYER_ACTION_STILL_RUNNING"));
+           assert.ok(src.includes('suggestion:{label:decision.action||"",action:decision.action||"",kind:decision.kind'));
+           assert.ok(src.includes("travelSnapshot(gameState,{director:true}).routes.length===0"));
+          });
+
+          test("v0.59.9 Japanese dynamic surfaces use deterministic locale plumbing",async()=>{
+           const extra=await read("../src/ui-translations-extra.js"),fixed=await read("../src/v0594-static-i18n.js"),auto=await read("../src/ai-autotest.js"),app=await read("../app.js");
+           for(const value of ["テストモード","自動テスト開始","プレイ戦略","起源の記憶","成長ルート","既知の世界地図","世界地図"])assert.ok(extra.includes(value)||fixed.includes(value)||auto.includes(value));
+           assert.ok(app.includes("esc(lt(region.region))"));
+           assert.ok(app.includes('staticText("起源決定你一開始能知道甚麼；長期選擇則會形成你自己的做事方式。")'));
+          });
+          '''
+          p.write_text(head+replacement)
       - name: Version policy
         run: npm run version:check
       - name: JavaScript syntax
