@@ -1,1 +1,0 @@
-trigger index cache wiring for v0.60.13
