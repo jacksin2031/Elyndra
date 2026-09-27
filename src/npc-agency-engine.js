@@ -1,9 +1,10 @@
 import {normalizeActionIntent} from "./action-intent.js?v=60000";
 import {buildResolutionOutcome} from "./resolution-engine.js?v=60000";
 import {resolveSocialAction,socialActionDc,socialConflictSnapshot} from "./social-conflict-engine.js?v=60002";
-import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=57025";
+import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=60004";
 import {d20} from "./world-engine.js?v=59014";
 import {ensureNpcCognition,npcCommitmentSnapshot,npcPlannerSnapshot,npcRelationshipSnapshot} from "./npc-cognition.js?v=57025";
+import {commitNpcInsightTalent,planNpcInsightTalent} from "./talent-rules.js?v=60004";
 
 const clean=(v,max=320)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number(n)||0));
@@ -33,11 +34,11 @@ function rollFor(state,message,dc,provided){if(provided&&typeof provided==="obje
 function directive(outcome){return ({REFUSE:"MUST_REFUSE_REQUEST",COUNTEROFFER:"MUST_COUNTEROFFER_WITHOUT_FULL_CONCESSION",WAVER:"MAY_SHOW_DOUBT_BUT_MUST_NOT_FULLY_CONCEDE",CONCEDE:"MUST_CONCEDE_THE_ENGINE_APPROVED_REQUEST",SURRENDER:"MUST_STOP_RESISTING",ESCALATE:"MUST_ESCALATE_DISTRUST_OR_RESISTANCE"})[outcome]||"MUST_NOT_INVENT_CONCESSION"}
 function cloneNpc(state,npc){const copy=structuredClone(state),rows=copy?.world?.registry?.npcs||[];return {state:copy,npc:rows.find(x=>String(x.id)===String(npc?.id))||rows.find(x=>String(x.name)===String(npc?.name))||structuredClone(npc)}}
 export function planNpcConversationAction(state,npc,message,options={}){
- const speechAct=classifyNpcSpeechAct(message),agency=npcAgencySnapshot(state,npc);if(!speechAct.substantive)return {version:2,requiresResolution:false,speechAct,agency,aiContract:{authority:"ENGINE",mode:"CHAT",directive:"ROLEPLAY_ONLY_NO_STATE_CONCESSION",disposition:agency.disposition,policy:agency.policy,mustFollow:true}};
+ const speechAct=classifyNpcSpeechAct(message),agency=npcAgencySnapshot(state,npc),talentInsight=planNpcInsightTalent(state,{npcId:npc?.id||npc?.name||"npc",message,agency});if(talentInsight)return {version:3,requiresResolution:false,requiresCommit:true,speechAct,agency,talentInsight,aiContract:{authority:"ENGINE",mode:"CHAT",directive:"ROLEPLAY_WITH_ENGINE_APPROVED_INSIGHT_ONLY",approvedInsight:talentInsight.clue,insightPolicy:talentInsight.evidencePolicy,disposition:agency.disposition,policy:agency.policy,mustFollow:true}};if(!speechAct.substantive)return {version:3,requiresResolution:false,speechAct,agency,aiContract:{authority:"ENGINE",mode:"CHAT",directive:"ROLEPLAY_ONLY_NO_STATE_CONCESSION",disposition:agency.disposition,policy:agency.policy,mustFollow:true}};
  const preset={intent:"SOCIAL",approach:speechAct.approach,goal:speechAct.goal,targets:[String(npc?.id||npc?.name||"npc")],kind:"SOCIAL",risk:speechAct.kind==="INTIMIDATE"||speechAct.kind==="DECEIVE"?"HIGH":"MEDIUM",raw:clean(message)};
  const intent=normalizeActionIntent(preset,message,"SOCIAL",state),dc=socialActionDc(state,npc,intent,{combat:false}),roll=rollFor(state,message,dc,options.roll),resolution=buildResolutionOutcome({roll,intent,snapshot:{agency}}),preview=cloneNpc(state,npc),social=resolveSocialAction(preview.state,preview.npc,intent,resolution,{combat:false});
- return {version:2,requiresResolution:true,speechAct,agency,intent,dc,roll,resolution,expectedOutcome:social.outcome,expectedSummary:social.summary,aiContract:{authority:"ENGINE",mode:"RESOLVED_SOCIAL_ACTION",speechAct:speechAct.kind,tactic:social.tactic,outcome:social.outcome,goalAchieved:resolution.goalAchieved===true,directive:directive(social.outcome),disposition:agency.disposition,policy:agency.policy,mustFollow:true}}
+ return {version:3,requiresResolution:true,speechAct,agency,intent,dc,roll,resolution,expectedOutcome:social.outcome,expectedSummary:social.summary,aiContract:{authority:"ENGINE",mode:"RESOLVED_SOCIAL_ACTION",speechAct:speechAct.kind,tactic:social.tactic,outcome:social.outcome,goalAchieved:resolution.goalAchieved===true,directive:directive(social.outcome),disposition:agency.disposition,policy:agency.policy,mustFollow:true}}
 }
 export function commitNpcConversationAction(state,npc,plan){
- if(!plan?.requiresResolution)return {committed:false,reason:"CHAT_ONLY",agency:npcAgencySnapshot(state,npc)};const social=resolveSocialAction(state,npc,plan.intent,plan.resolution,{combat:false});const training=trainActionSkill(state,"SOCIAL",plan.roll);return {committed:true,social,training,outcomeMatchesPlan:social.outcome===plan.expectedOutcome,agency:npcAgencySnapshot(state,npc)}
+ if(plan?.talentInsight?.pendingUse){const talentInsight=commitNpcInsightTalent(state,plan.talentInsight);return {committed:talentInsight.applied,talentInsight,agency:npcAgencySnapshot(state,npc)}}if(!plan?.requiresResolution)return {committed:false,reason:"CHAT_ONLY",agency:npcAgencySnapshot(state,npc)};const social=resolveSocialAction(state,npc,plan.intent,plan.resolution,{combat:false});const training=trainActionSkill(state,"SOCIAL",plan.roll);return {committed:true,social,training,outcomeMatchesPlan:social.outcome===plan.expectedOutcome,agency:npcAgencySnapshot(state,npc)}
 }

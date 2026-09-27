@@ -1,5 +1,5 @@
 import {isNpcPresent} from "./world-registry.js?v=57025";
-import {normalizeCheckBonuses} from "./check-engine.js?v=57025";
+import {normalizeCheckBonuses} from "./check-engine.js?v=60004";
 import {ensureSurvival,survivalRules} from "./survival-engine.js?v=57025";
 import {ensureItemHeritage,ensureItemStory,advanceItemKnowledge,materializeHeritageSeed} from "./item-heritage.js?v=57025";
 import {npcItemRecognition,recordNpcItemTestimony} from "./item-recognition.js?v=57025";

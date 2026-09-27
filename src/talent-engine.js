@@ -8,19 +8,19 @@ const PATHS=Object.freeze({
 });
 const OPTIONS=[
  {id:"TAL-SOCIAL",path:"INTEL",tier:1,name:"異文化交涉",kind:"SOCIAL",bonus:1,description:"從語氣、禮俗與利益差異中找到可以繼續談下去的位置。"},
- {id:"TAL-INTEL-2",path:"INTEL",tier:2,name:"讀懂弦外之音",kind:"SOCIAL",bonus:1,description:"長期與不同人物周旋後，更容易察覺迴避、保留與真正底線。"},
+ {id:"TAL-INTEL-2",path:"INTEL",tier:2,name:"讀懂弦外之音",kind:"SOCIAL",bonus:0,rule:{type:"INFORMATION",trigger:"NPC_INSIGHT",scope:"NPC_SCENE",effect:"EVIDENCE_BOUNDED_INTENT_CLUE"},description:"每個 NPC 場景一次，可主動讀取一條只基於 Engine 已知態度、承諾與行動傾向的弦外線索；不會揭露隱藏 Canon。"},
  {id:"TAL-INTEL-3",path:"INTEL",tier:3,name:"交叉求證",kind:"OBSERVE",bonus:1,description:"習慣把人物說法與現場證據互相比對，減少被單一消息帶偏。"},
  {id:"TAL-TRAVEL",path:"SURVIVAL",tier:1,name:"遠行適應",kind:"TRAVEL",bonus:1,description:"適應未知地形、道路與異常天候造成的旅行負擔。"},
  {id:"TAL-SURVIVAL-2",path:"SURVIVAL",tier:2,name:"荒野節奏",kind:"TRAVEL",bonus:1,description:"懂得在疲勞、補給與速度之間作取捨，長途移動更穩定。"},
- {id:"TAL-SURVIVAL-3",path:"SURVIVAL",tier:3,name:"追跡者視野",kind:"OBSERVE",bonus:1,description:"會把地面、路標、人流與環境變化當成同一條路線線索閱讀。"},
+ {id:"TAL-SURVIVAL-3",path:"SURVIVAL",tier:3,name:"追跡者視野",kind:"OBSERVE",bonus:0,rule:{type:"MITIGATION",trigger:"TRAVEL_FAILURE",scope:"SCENE",effect:"DANGER_TO_TIME"},description:"每個場景一次，旅行失敗時可把直接危險／失位代價轉成額外時間；失敗本身不會被改寫成成功。"},
  {id:"TAL-OBSERVE",path:"ARCANE",tier:1,name:"異界洞察",kind:"OBSERVE",bonus:1,description:"長期觀察陌生世界後，能更快辨識環境中的異常與線索。"},
  {id:"TAL-ARCANE-2",path:"ARCANE",tier:2,name:"異常規則拆解",kind:"OBSERVE",bonus:1,description:"面對超常現象時，優先拆成可驗證的現象、條件與代價。"},
  {id:"TAL-ARCANE-3",path:"ARCANE",tier:3,name:"禁忌耐受",kind:"GENERAL",bonus:1,description:"知道某些答案本身就有風險，仍能在壓力下保持判斷與行動。"},
  {id:"TAL-RISKY",path:"VANGUARD",tier:1,name:"危境應對",kind:"RISKY",bonus:1,description:"在戰鬥、陷阱與高風險行動中保持更好的判斷。"},
- {id:"TAL-VANGUARD-2",path:"VANGUARD",tier:2,name:"迎擊姿態",kind:"RISKY",bonus:1,description:"面對明確威脅時不急於退讓，能更穩定地把壓力正面接住。"},
+ {id:"TAL-VANGUARD-2",path:"VANGUARD",tier:2,name:"迎擊姿態",kind:"RISKY",bonus:0,rule:{type:"REACTION",trigger:"COMPANION_HARM",scope:"ROUND",effect:"INTERCEPT_REDUCE_SEVERITY"},description:"每個戰鬥回合一次，同行者將受傷時可迎上攻勢：部分傷害轉到自己，並把剩餘衝擊降低一階。"},
  {id:"TAL-VANGUARD-3",path:"VANGUARD",tier:3,name:"突破線",kind:"RISKY",bonus:1,description:"在必須強行打開缺口時，能把力量與時機集中在最關鍵的一次行動。"},
  {id:"TAL-GENERAL",path:"ADAPT",tier:1,name:"異界生存者",kind:"GENERAL",bonus:1,description:"面對沒有專門技能覆蓋的異世界問題時更能臨場應變。"},
- {id:"TAL-ADAPT-2",path:"ADAPT",tier:2,name:"就地取材",kind:"GENERAL",bonus:1,description:"在工具、情報或時間不足時，仍能用手上已有資源拼出可行方案。"},
+ {id:"TAL-ADAPT-2",path:"ADAPT",tier:2,name:"就地取材",kind:"GENERAL",bonus:0,rule:{type:"PERMISSION",trigger:"IMPROVISE_TOOL",scope:"SCENE",effect:"ORDINARY_ENVIRONMENT_AS_TOOL"},description:"每個場景一次，明確就地取材時可把普通環境物件視為本次行動的合適臨時工具。"},
  {id:"TAL-ADAPT-3",path:"ADAPT",tier:3,name:"轉換節奏",kind:"TRAVEL",bonus:1,description:"懂得在局勢改變時放棄原方案，快速切換到更合適的移動與處理方式。"}
 ];
 const BY_ID=new Map(OPTIONS.map(x=>[x.id,x]));
@@ -85,5 +85,5 @@ export function talentPathDefinitions(){return Object.values(PATHS).map(x=>({...
 
 export function talentContextSnapshot(state){
  const snap=talentSnapshot(state),identity=snap.identity;
- return {points:snap.points,identity:{committed:identity.committed,path:identity.path?{id:identity.path.id,name:identity.path.name,primary:identity.path.primary,secondary:identity.path.secondary}:null,depth:identity.depth,focusedKinds:identity.focusedKinds},owned:snap.owned.map(x=>({id:x.id,name:x.name,path:x.path,tier:x.tier,kind:x.kind,bonus:x.bonus})),available:snap.available.filter(x=>x.available).slice(0,5).map(x=>({id:x.id,name:x.name,path:x.path,tier:x.tier,kind:x.kind,cost:x.cost}))}
+ return {points:snap.points,identity:{committed:identity.committed,path:identity.path?{id:identity.path.id,name:identity.path.name,primary:identity.path.primary,secondary:identity.path.secondary}:null,depth:identity.depth,focusedKinds:identity.focusedKinds},owned:snap.owned.map(x=>({id:x.id,name:x.name,path:x.path,tier:x.tier,kind:x.kind,bonus:x.bonus,rule:x.rule?{...x.rule}:null})),available:snap.available.filter(x=>x.available).slice(0,5).map(x=>({id:x.id,name:x.name,path:x.path,tier:x.tier,kind:x.kind,cost:x.cost,rule:x.rule?{...x.rule}:null}))}
 }

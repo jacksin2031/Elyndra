@@ -3,7 +3,7 @@ import {weatherActionModifier} from "./weather-engine.js?v=57025";
 import {survivalModifier} from "./survival-engine.js?v=57025";
 import {cultureActionModifier} from "./culture-engine.js?v=57025";
 import {magicActionModifier} from "./magic-engine.js?v=57025";
-import {talentActionModifier,specializedSkillGain} from "./talent-engine.js?v=57025";
+import {talentActionModifier,specializedSkillGain} from "./talent-engine.js?v=60004";
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const KINDS=["OBSERVE","SOCIAL","TRAVEL","RISKY","GENERAL"];

@@ -1,5 +1,5 @@
 import {d20} from "./world-engine.js?v=59014";
-import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=57025";
+import {buildActionCheck,trainActionSkill,ensureCheckProfile} from "./check-engine.js?v=60004";
 import {advanceTime,ensureClock} from "./world-clock.js?v=57025";
 import {tickWorld} from "./world-simulation.js?v=57028";
 import {ensureSurvival,tickSurvival,survivalActionGate} from "./survival-engine.js?v=57025";
@@ -8,8 +8,10 @@ import {resolveEconomyAction} from "./economy-engine.js?v=57025";
 import {resolveMagicAction,recoverMagic} from "./magic-engine.js?v=57025";
 import {tickMainQuest,evaluateQuestState} from "./quest-engine.js?v=59014";
 import {exploreDungeon} from "./dungeon-engine.js?v=57025";
-import {resolveTalentAction} from "./talent-engine.js?v=57025";
-import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=59014";
+import {resolveTalentAction} from "./talent-engine.js?v=60004";
+import {buildResolutionOutcome} from "./resolution-engine.js?v=60000";
+import {mitigateTravelFailureWithTalent,useImprovisedToolTalent} from "./talent-rules.js?v=60004";
+import {resolveItemAction,ensureItemRuntime} from "./item-engine.js?v=60004";
 import {findTravelPlan,locationAccessStatus,travelTo} from "./travel-engine.js?v=57025";
 import {isNpcPresent} from "./world-registry.js?v=57025";
 import {markEntityObserved} from "./visibility-lock.js?v=57025";
@@ -160,16 +162,19 @@ export function performAction(state,action="free",customText="",assessment=null)
  const directTravel=deterministicKnownTravel(state,label);if(directTravel?.handled){state.narrative=directTravel.text;return {deterministic:!directTravel.blocked,blocked:Boolean(directTravel.blocked),roll:null,text:directTravel.text,minutes:directTravel.minutes||0,worldEvent:directTravel.worldEvent||null,actionKind:"TRAVEL",check:null,training:null,ruleEffects:{travel:directTravel.travel||null,questProgress:directTravel.questProgress||null,npcInteraction,engineFeasibility}}}
  const gate=survivalActionGate(state,profile.kind);
  if(!gate.ok){state.narrative=gate.message;state.events.push({id:id(),type:"PLAYER_ACTION_BLOCKED",visibility:"PLAYER_KNOWN",action:"free",customText:label,actionKind:profile.kind,reason:gate.reason,day:state.world.state.day,at:Date.now()});return {blocked:true,roll:null,text:gate.message,minutes:0,actionKind:profile.kind,check:null,training:null,ruleEffects:{gate,npcInteraction}}}
- const check=buildActionCheck(state,label,profile),roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
+ const check=buildActionCheck(state,label,profile),improvised=useImprovisedToolTalent(state,{label});if(improvised.applied){check.modifiers.talentRule=Number(improvised.checkBonus)||1;check.bonus=Math.max(-6,Math.min(10,Number(check.bonus||0)+check.modifiers.talentRule))}
+ const roll=d20(check.dc,check.bonus);Object.assign(roll,{profile:{kind:check.kind,attribute:check.attribute,skill:check.skill,skillLabel:check.skillLabel},modifiers:check.modifiers,baseDC:check.baseDC,difficulty:check.difficulty});
+ const actionIntent={...(assessment?.actionIntent||{}),kind:profile.kind,raw:label},resolution=buildResolutionOutcome({roll,intent:actionIntent,snapshot:state}),travelMitigation=profile.kind==="TRAVEL"&&!resolution.goalAchieved?mitigateTravelFailureWithTalent(state,{baseMinutes:profile.minutes,resolution}):{applied:false},effectiveMinutes=profile.minutes+(travelMitigation.applied?Number(travelMitigation.extraMinutes)||0:0);
+ if(travelMitigation.applied){resolution.costs=[...(resolution.costs||[]),{type:"TIME",severity:"MODERATE",source:"TALENT_RULE",committed:true,minutes:travelMitigation.extraMinutes}];resolution.talentRule={talentId:"TAL-SURVIVAL-3",effect:"DANGER_TO_TIME"}}
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
  const npcRelationship=applyLocalNpcRelationshipOutcome(state,npcInteraction,roll,profile.kind,label);
- advanceTime(state,profile.minutes);
+ advanceTime(state,effectiveMinutes);
  const economy=resolveEconomyAction(state,label,roll),paidLodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),restGranted=profile.rest===true&&roll.success&&(!paidLodging||economy?.ok===true);
- const survival=tickSurvival(state,profile.minutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(profile.minutes/20)));
+ const survival=tickSurvival(state,effectiveMinutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(effectiveMinutes/20)));
  const culture=applyCultureAction(state,label,roll),magic=resolveMagicAction(state,label,roll),talent=resolveTalentAction(state,label),dungeon=exploreDungeon(state,label,roll);
- const text=localNarrative(state,label,roll,profile,{npcRelationship});
+ const baseText=localNarrative(state,label,roll,profile,{npcRelationship}),text=[baseText,improvised.applied?improvised.summary:"",travelMitigation.applied?travelMitigation.summary:""].filter(Boolean).join("\n");
  state.narrative=text;
- state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,originalAction:originalLabel,actionAssessment:assessment?{verdict:assessment.verdict,kind:assessment.kind,reason:assessment.reason,confidence:assessment.confidence}:null,actionKind:profile.kind,roll,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:profile.minutes,at:Date.now()});
+ state.events.push({id:id(),type:"PLAYER_ACTION",visibility:"PLAYER_KNOWN",action:"free",customText:label,originalAction:originalLabel,actionAssessment:assessment?{verdict:assessment.verdict,kind:assessment.kind,reason:assessment.reason,confidence:assessment.confidence}:null,actionKind:profile.kind,roll,resolutionTier:resolution.tier,day:state.world.state.day,time:`${String(state.world.state.clock.hour).padStart(2,"0")}:${String(state.world.state.clock.minute).padStart(2,"0")}`,minutes:effectiveMinutes,at:Date.now()});
  const worldEvent=tickWorld(state);const questProgress=evaluateQuestState(state);tickMainQuest(state);
- return {roll,text,minutes:profile.minutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,dungeon,questProgress,npcInteraction,npcRelationship,engineFeasibility}}
+ return {roll,resolution,text,minutes:effectiveMinutes,worldEvent,actionKind:profile.kind,check,training,ruleEffects:{survival,culture,economy,magic,talent,talentRule:{improvised,travelMitigation},dungeon,questProgress,npcInteraction,npcRelationship,engineFeasibility}}
 }
