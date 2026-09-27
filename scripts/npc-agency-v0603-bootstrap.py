@@ -18,6 +18,8 @@ p.write_text(s,encoding='utf-8')
 
 # App plans substantive speech before AI narration and passes only the Engine contract to AI.
 p=Path('app.js');s=p.read_text(encoding='utf-8')
+if './src/version.js?v=60002' not in s: raise SystemExit('APP_VERSION_IMPORT_NOT_60002')
+s=s.replace('./src/version.js?v=60002','./src/version.js?v=60003',1)
 s=s.replace('from "./src/ai-client.js?v=59014";','from "./src/ai-client.js?v=60003";',1)
 s=s.replace('import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=59014";','import {applyNpcConversationTurn} from "./src/npc-conversation.js?v=60003";\nimport {planNpcConversationAction} from "./src/npc-agency-engine.js?v=60003";',1)
 old='if(!npc||!mode)return;const messages=npcConversationMessages(npcId);'
@@ -48,7 +50,6 @@ p.write_text(s,encoding='utf-8')
 # Release/cache contract.
 pkg=Path('package.json');data=json.loads(pkg.read_text(encoding='utf-8'));data['version']='0.60.3';pkg.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 Path('src/version.js').write_text('export const APP_VERSION="0.60.3";\n',encoding='utf-8')
-replace('app.js','./src/version.js?v=60002','./src/version.js?v=60003')
 idx=Path('index.html');x=idx.read_text(encoding='utf-8')
 imports='"./src/ai-client.js?v=59014":"./src/ai-client.js?v=60003","./src/npc-conversation.js?v=59014":"./src/npc-conversation.js?v=60003",'
 marker='"./src/combat-engine.js?v=59014":"./src/combat-engine.js?v=60002",'
