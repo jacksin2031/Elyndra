@@ -1,0 +1,179 @@
+name: Apply v0.59.9 hotfix once
+
+on:
+  push:
+    branches: [fix/v0599-ja-ui-runtime-progress]
+    paths: [.github/workflows/v0599-hotfix-once.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v0599-ja-ui-runtime-progress
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply focused runtime and Japanese UI fixes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              n=text.count(old)
+              if n != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, got {n}')
+              return text.replace(old,new,1)
+
+          app=Path('app.js').read_text()
+          app=replace_once(app,
+            'const staticText=value=>localizedStaticText(value,activeLocale);',
+            'const staticText=value=>localizedStaticText(value,activeLocale);\nconst localeText=(h,s,e,j)=>activeLocale==="ja"?j:activeLocale==="en"?e:activeLocale==="zh-Hans"?s:h;',
+            'localeText helper')
+
+          old='s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};'
+          new='s.quests??={main:{id:"Q-main",title:localeText("在陌生世界活下來","在陌生世界活下来","Survive in an unfamiliar world","見知らぬ世界で生き延びる"),stage:0,status:"ACTIVE",objectives:[localeText("理解自己身處何地","理解自己身处何地","Understand where you are","自分がどこにいるのか把握する"),localeText("尋找安全的落腳處","寻找安全的落脚处","Find a safe place to stay","安全な滞在場所を探す"),localeText("找到第一個可以交流的人","找到第一个可以交流的人","Find the first person you can communicate with","最初に意思疎通できる人物を見つける")]}};'
+          app=replace_once(app,old,new,'default quest localization')
+
+          start=app.index('function openWorldMap(){')
+          end=app.index('$("#worldBtn")?.addEventListener("click",openWorldMap);',start)
+          map_new=r'''function openWorldMap(){
+ const r=ensureWorldRegistry(gameState),map=worldMapSnapshot(gameState),npcs=r.npcs.filter(x=>x.known===true),factions=r.factions.filter(x=>x.known===true),weather=weatherUiSnapshot(gameState);
+ const routeByRegion=map.routes.map(x=>`${esc(lt(x.fromName))} ↔ ${esc(lt(x.toName))} · ${Math.round(x.distanceKm)}km · ${esc(lt(x.terrain))}`);
+ const regionHtml=map.regions.map(region=>`<div class="lore-item"><small>${esc(localeText("地區","地区","REGION","地域"))}</small><h3>${esc(lt(region.region))}</h3><div class="world-map-region">${region.locations.map(loc=>{const full=r.locations.find(x=>x.id===loc.id),access=loc.access||{allowed:true,missing:[]},missing=access.missing||[];return `<div class="faction-row"><strong>${loc.current?"◆ ":""}${esc(lt(loc.name))}</strong><small>${esc(lt(loc.type||localeText("未知地點","未知地点","Unknown location","未知の地点")))}${loc.current?` · ${esc(localeText("目前","当前","CURRENT","現在地"))}`:""}</small>${full?.description?`<span>${esc(lt(full.description))}</span>`:""}${missing.length?`<small>🔒 ${esc(localeText("需要","需要","Requires","必要"))}：${missing.map(x=>esc(lt(x.hint||x.id||x.type))).join(" · ")}</small>`:`<small>${esc(localeText("可進入條件：已滿足","可进入条件：已满足","Entry requirements: satisfied","進入条件：満たしています"))}</small>`}</div>`}).join("")}</div></div>`).join("");
+ openModal(`<div class="eyebrow">${esc(localeText("已知世界地圖","已知世界地图","KNOWN WORLD MAP","既知の世界地図"))}</div><h2>${esc(localeText("世界地圖","世界地图","World Map","世界地図"))}</h2><p class="muted">${esc(localeText("只顯示你已經知道的地點與已確認路線；未知區域不會出現在地圖上。","只显示你已经知道的地点与已确认路线；未知区域不会出现在地图上。","Only locations and confirmed routes you know are shown; unknown areas do not appear on the map.","既知の地点と確認済みの経路だけを表示します。未知の地域は地図に表示されません。"))}</p><div class="lore-list">
+ <div class="lore-item"><small>${esc(localeText("目前天氣","当前天气","CURRENT WEATHER","現在の天気"))}</small><h3>${esc(lt(weather.observableName))}</h3><p>${esc(lt(weather.sensoryCue||""))}</p></div>
+ ${regionHtml||`<div class="lore-item"><p>${esc(localeText("尚未掌握任何可定位的地點。","尚未掌握任何可定位的地点。","No locatable places are known yet.","まだ位置を特定できる地点を把握していません。"))}</p></div>`}
+ <div class="lore-item"><small>${esc(localeText("已知路線","已知路线","KNOWN ROUTES","既知の経路"))}</small><p>${routeByRegion.length?routeByRegion.join("<br>"):esc(localeText("尚未確認地點之間的路線","尚未确认地点之间的路线","No routes between locations have been confirmed.","地点間の経路はまだ確認されていません。"))}</p></div>
+ <div class="lore-item"><small>${esc(localeText("已知人物","已知人物","KNOWN NPCS","既知の人物"))}</small><p>${npcs.map(x=>`<button class="npc-link" data-npc-id="${esc(x.id)}">${esc(lt(playerVisibleNpcName(gameState,x)))} · ${esc(lt(x.role))}</button>`).join("")||esc(localeText("尚未遇到人物","尚未遇到人物","No one has been encountered yet.","まだ人物に出会っていません。"))}</p></div>
+ <div class="lore-item"><small>${esc(localeText("已知勢力","已知势力","KNOWN FACTIONS","既知の勢力"))}</small><p>${factions.map(x=>`<strong>${esc(lt(x.name))}</strong> · ${esc(localeText("關係","关系","Relation","関係"))} ${x.playerReputation??0}<br><small>${esc(lt(x.goal||""))}</small>`).join("<br><br>")||esc(localeText("尚未確認勢力","尚未确认势力","No factions have been confirmed.","まだ勢力を確認していません。"))}</p></div>
+ </div>`);bindNpcLinks()
+}
+'''
+          app=app[:start]+map_new+app[end:]
+
+          cstart=app.index('$("#characterBtn")?.addEventListener("click",()=>{')
+          cend=app.index('$("#runtimeBtn")?.addEventListener("click",()=>{',cstart)
+          char_new=r'''$("#characterBtn")?.addEventListener("click",()=>{
+ const p=checkProfileSnapshot(gameState),survival=survivalSnapshot(gameState),origin=playerOriginSnapshot(gameState.player),magic=gameState.player.magic||{strain:0,capacity:100},active=ensureWorldRegistry(gameState).npcs.filter(x=>x.known===true&&x.alive!==false&&x.companion?.status==="ACTIVE"),talentInfo=talentSnapshot(gameState),identity=talentInfo.identity;
+ const skillLabel=k=>lt(SKILL_LABEL[k]||k),statLabel=k=>lt(STAT_LABEL[k]||k);
+ openModal(`<div class="eyebrow">${esc(localeText("角色狀態","角色状态","CHARACTER STATUS","キャラクター状態"))}</div><h2>${esc(lt(gameState.player.name))}</h2><p class="muted">${esc(lt(origin.label))} · ${esc(localeText("起源決定你一開始能知道甚麼；長期選擇則會形成你自己的做事方式。","起源决定你一开始能知道什么；长期选择则会形成你自己的做事方式。","Your origin determines what you know at the start; long-term choices shape how you act.","起源によって最初に知っていることが決まり、長期的な選択によって自分なりの行動様式が形作られます。"))}</p><div class="lore-list">
+ <div class="lore-item"><small>${esc(localeText("身體狀況","身体状况","Physical condition","身体状態"))}</small><p><strong>${esc(localeText("生命","生命","HP","生命"))}</strong> ${gameState.player.hp}/${gameState.player.maxHp}<br><strong>${esc(localeText("飽食度","饱食度","Satiety","満腹度"))}</strong> ${Math.round(survival.satiety)}/100<br><strong>${esc(localeText("疲勞","疲劳","Fatigue","疲労"))}</strong> ${Math.round(survival.fatigue)}/100<br><strong>${esc(localeText("環境暴露","环境暴露","Exposure","環境曝露"))}</strong> ${Math.round(survival.exposure)}/100<br><strong>${esc(localeText("傷勢","伤势","Injury","負傷"))}</strong> ${Math.round(survival.injury)}/100<br><strong>${esc(localeText("魔法負荷","魔法负荷","Magic strain","魔法負荷"))}</strong> ${Math.round(magic.strain||0)}/${magic.capacity||100}</p></div>
+ <div class="lore-item"><small>${esc(localeText("起源記憶","起源记忆","Origin memory","起源の記憶"))}</small><p>${(origin.commonKnowledge||[]).map(x=>esc(lt(x))).join("<br>")||esc(localeText("沒有可直接帶入這個世界的既有常識。","没有可直接带入这个世界的既有常识。","You have no prior knowledge that can be carried directly into this world.","この世界へ直接持ち込める既知の常識はありません。"))}</p>${origin.defaultValues?.length?`<small>${esc(localeText("原有價值觀","原有价值观","Prior values","元の価値観"))}</small><p>${origin.defaultValues.map(x=>esc(lt(x))).join("<br>")}</p>`:""}</div>
+ <div class="lore-item"><small>${esc(localeText("成長路線","成长路线","Growth path","成長ルート"))}</small><h3>${identity.committed?esc(lt(identity.path.name)):esc(localeText("尚未定型","尚未定型","Not yet defined","まだ定まっていません"))}</h3><p>${esc(lt(identity.description))}${identity.committed?`<br><small>${esc(localeText("較容易成長","较容易成长","Easier to improve","成長しやすい分野"))}：${identity.focusedKinds.map(k=>esc(skillLabel(k))).join("、")}；${esc(localeText("其他方向需要更大投入。","其他方向需要更大投入。","Other directions require more investment.","その他の方向にはより大きな投入が必要です。"))}</small>`:""}</p></div>
+ <div class="lore-item"><small>${esc(localeText("能力基礎","能力基础","Base attributes","基礎能力"))}</small><p>${Object.entries(p.stats).map(([k,v])=>`<strong>${esc(statLabel(k))}</strong> ${v}`).join(" · ")}</p></div>
+ <div class="lore-item"><small>${esc(localeText("累積經驗","累积经验","Accumulated experience","累積経験"))}</small>${Object.entries(p.skills).map(([k,v])=>`<p><strong>${esc(skillLabel(k))}</strong> Lv.${v} · ${esc(localeText("熟練","熟练","Proficiency","熟練度"))} ${p.skillProgress[k]||0}${v<5?` / ${4+v*3}`:" · MAX"}</p>`).join("")}</div>
+ <div class="lore-item"><small>${esc(localeText("已裝備工具","已装备工具","Equipped tools","装備中の道具"))}</small><p>${p.equipped.length?p.equipped.map(x=>`${esc(lt(x.name))} · ${esc(lt(bonusText(x.checkBonuses)))}`).join("<br>"):esc(localeText("目前沒有具判定加成的裝備","目前没有具判定加成的装备","No equipped item currently provides check bonuses.","現在、判定補正のある装備はありません。"))}</p></div>
+ <div class="lore-item"><small>${esc(localeText("同行者","同行者","Companions","同行者"))}</small><p>${active.length?active.map(x=>`${esc(lt(x.name))} · ${esc(lt(x.role||""))} · ${esc(lt(companionLabel(x)||localeText("同行中","同行中","Travelling together","同行中")))}`).join("<br>"):esc(localeText("目前沒有同行夥伴","目前没有同行伙伴","No companions are currently travelling with you.","現在同行している仲間はいません。"))}</p></div>
+ </div>`)
+});
+'''
+          app=app[:cstart]+char_new+app[cend:]
+
+          replacements={
+            '<label>測試模式<select':'<label>${localeText("測試模式","测试模式","Test mode","テストモード")}<select',
+            '<label>隨機世界數量<input':'<label>${localeText("隨機世界數量","随机世界数量","Random worlds","ランダム世界数")}<input',
+            '<label>遊玩難度<select':'<label>${localeText("遊玩難度","游玩难度","Play difficulty","プレイ難易度")}<select',
+            '<label>每個世界最多回合<input':'<label>${localeText("每個世界最多回合","每个世界最多回合","Max turns per world","各世界の最大ターン数")}<input',
+            '<label>停止條件<select':'<label>${localeText("停止條件","停止条件","Stop condition","停止条件")}<select',
+            '<label>條件目標值<input':'<label>${localeText("條件目標值","条件目标值","Condition target","条件目標値")}<input',
+            '<label>輸出內容<select':'<label>${localeText("輸出內容","输出内容","Export content","出力内容")}<select',
+            '>開始自動測試</button>':'>${localeText("開始自動測試","开始自动测试","Start AutoTest","自動テスト開始")}</button>',
+            '>停止測試</button>':'>${localeText("停止測試","停止测试","Stop test","テスト停止")}</button>'
+          }
+          for old,new in replacements.items():
+              if old not in app: raise SystemExit('missing autotest label '+old)
+              app=app.replace(old,new,1)
+
+          old_wait='''async function waitForAutotestActionReady(timeoutMs=38000){\n const started=Date.now();\n while(Date.now()-started<timeoutMs){\n  if(!playerActionFlight.active)return true;\n  await new Promise(r=>setTimeout(r,25))\n }\n if(!playerActionFlight.active)return true;\n recordDebug("AUTOTEST_ACTION_READY_TIMEOUT",{timeoutMs,active:playerActionFlight.active,label:playerActionFlight.label,nonblocking:Boolean(nonblockingScene.controller),aiBusy,turnSyncBusy});\n return false\n}'''
+          new_wait='''async function waitForAutotestActionReady(timeoutMs=38000){\n const started=Date.now();\n while(Date.now()-started<timeoutMs){\n  if(!playerActionFlight.active)return true;\n  await new Promise(r=>setTimeout(r,25))\n }\n if(!playerActionFlight.active)return true;\n recordDebug("AUTOTEST_ACTION_READY_TIMEOUT",{timeoutMs,active:playerActionFlight.active,label:playerActionFlight.label,nonblocking:Boolean(nonblockingScene.controller),aiBusy,turnSyncBusy,recovery:true});\n preemptNonblockingScene();\n if(playerActionFlight.active)finishPlayerActionFlight(playerActionFlight.label||"autotest","autotest_action_timeout");\n if(gameState)await refresh();\n recordDebug("AUTOTEST_ACTION_READY_RECOVERED",{timeoutMs,active:playerActionFlight.active,worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});\n return !playerActionFlight.active\n}'''
+          app=replace_once(app,old_wait,new_wait,'action ready recovery')
+
+          old_exec='''async function executeDeveloperAutotestDecision(decision){\n if(decision.mode==="combat"){await runCombatAction(decision.combatAction||"attack");return}\n if(decision.mode==="suggestion"){\n  const source=gameState?.suggestionIntents?.length?gameState.suggestionIntents:(gameState?.suggestions||[]),chosen=source[Math.max(0,Math.min(source.length-1,Number(decision.suggestionIndex)||0))];\n  if(chosen&&typeof chosen==="object"){await runAction("free",chosen.action||chosen.label||decision.action,{suggestion:chosen});return}\n  if(typeof chosen==="string"){await runAction("free",chosen);return}\n }\n await runAction("free",decision.action||"觀察四周並確認目前最明顯的變化")\n}'''
+          new_exec='''async function executeDeveloperAutotestDecision(decision){\n if(decision.mode==="recovery"){const expanded=await expandDeveloperAutotestWorld(decision.reason||"FIRST_BUTTON_UNAVAILABLE_RECOVERY",{force:true});recordDebug("AUTOTEST_DECISION_RUNTIME_RECOVERY",{expanded,reason:decision.reason||"",worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn});if(gameState)await refresh();return}\n if(decision.mode==="combat"){await runCombatAction(decision.combatAction||"attack");return}\n if(decision.mode==="suggestion"){\n  const source=gameState?.suggestionIntents?.length?gameState.suggestionIntents:(gameState?.suggestions||[]),chosen=source[Math.max(0,Math.min(source.length-1,Number(decision.suggestionIndex)||0))];\n  if(chosen&&typeof chosen==="object"){await runAction("free",chosen.action||chosen.label||decision.action,{suggestion:chosen});return}\n  if(typeof chosen==="string"){await runAction("free",chosen);return}\n }\n if(!String(decision.action||"").trim())throw new Error("AUTOTEST_DECISION_NO_GROUNDED_ACTION");\n await runAction("free",decision.action)\n}'''
+          app=replace_once(app,old_exec,new_exec,'execute recovery')
+          app=app.replace('if(firstButtonFast)await waitForAutotestActionReady(3000);','if(firstButtonFast)await waitForAutotestActionReady(38000);')
+          old_post='await executeDeveloperAutotestDecision(decision);if(firstButtonFast)await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);'
+          new_post='await executeDeveloperAutotestDecision(decision);if(firstButtonFast){const actionReady=await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);if(!actionReady)throw new Error("AUTOTEST_ACTION_FLIGHT_STUCK")}else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);'
+          app=replace_once(app,old_post,new_post,'post action ready assertion')
+          app=app.replace('from "./src/ai-autotest.js?v=59008"','from "./src/ai-autotest.js?v=59009"',1)
+          Path('app.js').write_text(app)
+
+          ai=Path('src/ai-autotest.js').read_text()
+          old=''' const decision={mode:"free",suggestionIndex:null,action:"觀察四周並確認目前最明顯的變化",kind:"OBSERVE",progression:false,targetId:null,combatAction:null,reason:"FIRST_BUTTON_UNAVAILABLE_FALLBACK",goalReached:false,goalEvidence:"",firstButton:true,firstButtonUnavailable:true};recordDebug("AUTOTEST_FIRST_BUTTON_UNAVAILABLE",{worldId,location:snapshot?.world?.location||"",fallbackAction:decision.action,stall});return decision'''
+          new=''' const decision={mode:"recovery",suggestionIndex:null,action:"",kind:"RUNTIME_RECOVERY",progression:true,targetId:null,combatAction:null,reason:"FIRST_BUTTON_UNAVAILABLE_RECOVERY",goalReached:false,goalEvidence:"",firstButton:true,firstButtonUnavailable:true};recordDebug("AUTOTEST_FIRST_BUTTON_UNAVAILABLE",{worldId,location:snapshot?.world?.location||"",fallbackAction:null,stall,recovery:true});return decision'''
+          ai=replace_once(ai,old,new,'first button unavailable recovery')
+          marker=''' if(chosen?.x&&chosen.fresh&&stall<7)return {mode:"suggestion",suggestionIndex:chosen.i,action:text(chosen.x.action||chosen.x.label,180),kind:text(chosen.x.kind||"",30),progression:chosen.x.progression===true,targetId:chosen.x.targetId||null,combatAction:null,reason:`${reason}; deterministic recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true};\n const recovery=deterministicRecoveryCandidates(snapshot,recentActions),hard=stall>=5,pool=hard?(recovery.travelFresh.length?recovery.travelFresh:recovery.travel):(recovery.observeFresh.length?recovery.observeFresh:recovery.observe),index=pool.length?Math.abs((stall+list(recentActions).length)%pool.length):0,candidate=pool[index]||{action:"檢查目前位置附近最新出現的可見變化",kind:"OBSERVE",targetId:null,progression:true};'''
+          repl=''' if(chosen?.x&&chosen.fresh&&stall<7)return {mode:"suggestion",suggestionIndex:chosen.i,action:text(chosen.x.action||chosen.x.label,180),kind:text(chosen.x.kind||"",30),progression:chosen.x.progression===true,targetId:chosen.x.targetId||null,combatAction:null,reason:`${reason}; deterministic recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true};\n const hard=stall>=5;if(hard)return {mode:"recovery",suggestionIndex:null,action:"",kind:"RUNTIME_RECOVERY",progression:true,targetId:null,combatAction:null,reason:`${reason}; runtime expansion recovery stall=${stall}`,goalReached:false,goalEvidence:"",fallback:true};\n const recovery=deterministicRecoveryCandidates(snapshot,recentActions),pool=recovery.observeFresh.length?recovery.observeFresh:recovery.observe,index=pool.length?Math.abs((stall+list(recentActions).length)%pool.length):0,candidate=pool[index]||{action:"檢查目前位置附近最新出現的可見變化",kind:"OBSERVE",targetId:null,progression:true};'''
+          ai=replace_once(ai,marker,repl,'hard stall runtime recovery')
+          old_end='return {mode:"free",suggestionIndex:null,action:"觀察四周並確認目前最明顯的變化",kind:"OBSERVE",targetId:null,combatAction:null,reason:"No suggestion available",goalReached,goalEvidence}}'
+          new_end='return {mode:"recovery",suggestionIndex:null,action:"",kind:"RUNTIME_RECOVERY",progression:true,targetId:null,combatAction:null,reason:"No suggestion available; runtime recovery required",goalReached,goalEvidence}}'
+          ai=replace_once(ai,old_end,new_end,'normalize no suggestion recovery')
+          old_ui="function installAutotestStrategyUi(){if(typeof document===\"undefined\"||typeof MutationObserver===\"undefined\")return;const inject=()=>{const mode=document.querySelector(\"#autotestMode\");if(!mode||document.querySelector(\"#autotestPlayStrategy\"))return;const host=mode.closest(\"label\");if(!host)return;const label=document.createElement(\"label\");label.dataset.autotestStrategyInjected=\"true\";label.innerHTML='遊玩策略<select id=\"autotestPlayStrategy\"><option value=\"AI_DECISION\">AI 自主決策</option><option value=\"FIRST_BUTTON\">固定第一個行動按鈕</option></select>';host.after(label);"
+          new_ui="function installAutotestStrategyUi(){if(typeof document===\"undefined\"||typeof MutationObserver===\"undefined\")return;const inject=()=>{const mode=document.querySelector(\"#autotestMode\");if(!mode||document.querySelector(\"#autotestPlayStrategy\"))return;const host=mode.closest(\"label\");if(!host)return;const locale=String(globalThis.ELYNDRA_LOCALE||\"zh-Hant\"),copy=locale===\"ja\"?[\"プレイ戦略\",\"AI自動判断\",\"最初の行動ボタンを固定\"]:locale===\"en\"?[\"Play strategy\",\"AI autonomous decision\",\"Always use first action button\"]:locale===\"zh-Hans\"?[\"游玩策略\",\"AI 自主决策\",\"固定第一个行动按钮\"]:[\"遊玩策略\",\"AI 自主決策\",\"固定第一個行動按鈕\"];const label=document.createElement(\"label\");label.dataset.autotestStrategyInjected=\"true\";label.innerHTML=`${copy[0]}<select id=\"autotestPlayStrategy\"><option value=\"AI_DECISION\">${copy[1]}</option><option value=\"FIRST_BUTTON\">${copy[2]}</option></select>`;host.after(label);"
+          ai=replace_once(ai,old_ui,new_ui,'strategy UI localization')
+          Path('src/ai-autotest.js').write_text(ai)
+
+          Path('src/version.js').write_text('export const APP_VERSION="0.59.9";\n')
+          idx=Path('index.html').read_text().replace('app.js?v=59008','app.js?v=59009').replace('styles.css?v=59008','styles.css?v=59009').replace('creator.css?v=59008','creator.css?v=59009').replace('world-surfaces.css?v=59008','world-surfaces.css?v=59009')
+          Path('index.html').write_text(idx)
+
+          test=Path('test/v05909-ja-runtime-progress.test.js')
+          test.write_text(r'''import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import {firstButtonAutotestDecision,normalizeAutotestDecision,deterministicAutotestDecision} from "../src/ai-autotest.js";
+
+const emptyState=()=>({world:{id:"W",state:{clock:{totalMinutes:0}},registry:{locations:[],npcs:[]}},player:{location:"Start",hp:10,maxHp:10,status:"ALIVE"},quests:{main:{title:"Q",objectives:["O"]}},suggestions:[],suggestionIntents:[],inventory:[],knowledge:[]});
+
+test("FIRST_BUTTON unavailable requests runtime recovery instead of free observe",()=>{
+ const d=firstButtonAutotestDecision(emptyState(),[]);
+ assert.equal(d.mode,"recovery");
+ assert.equal(d.kind,"RUNTIME_RECOVERY");
+ assert.equal(d.action,"");
+});
+
+test("normalizer with no suggestions requests runtime recovery",()=>{
+ const d=normalizeAutotestDecision({}, {suggestions:[],combat:{active:false}}, []);
+ assert.equal(d.mode,"recovery");
+});
+
+test("hard deterministic stall escalates to runtime recovery",()=>{
+ const recent=Array.from({length:5},(_,i)=>({action:"same",kind:"GENERAL",progressed:false,targetId:null}));
+ const d=deterministicAutotestDecision({world:{location:"Start"},quest:{title:"Q",objectives:["O"]},suggestions:[],combat:{active:false}},recent,"test");
+ assert.equal(d.mode,"recovery");
+});
+
+test("app contains timeout unlock and locale-aware map/character/autotest surfaces",()=>{
+ const app=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
+ assert.match(app,/AUTOTEST_ACTION_READY_RECOVERED/);
+ assert.match(app,/autotest_action_timeout/);
+ assert.match(app,/既知の世界地図/);
+ assert.match(app,/起源の記憶/);
+ assert.match(app,/テストモード/);
+ assert.match(app,/lt\(region\.region\)/);
+ assert.doesNotMatch(app,/decision\.action\|\|"觀察四周並確認目前最明顯的變化"/);
+});
+''')
+
+          wf=Path('.github/workflows/v0599-hotfix-once.yml')
+          wf.unlink()
+      - name: Syntax and regression checks
+        run: |
+          node scripts/check-js.mjs
+          python3 scripts/scan-i18n-coverage.py
+          node --test test/v05909-ja-runtime-progress.test.js test/v05908-runtime-recovery.test.js test/ai-autotest-first-button-hotfix.test.js test/first-button-stall-recovery-v05419.test.js test/version-policy.test.js test/version-ui.test.js
+      - name: Commit hotfix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix: localize Japanese runtime UI and recover AutoTest progress"
+          git push origin HEAD:fix/v0599-ja-ui-runtime-progress
