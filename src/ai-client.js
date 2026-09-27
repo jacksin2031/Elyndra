@@ -1,4 +1,4 @@
-import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=60009";
+import {hasDirectAI,directChat,loadAISettings} from "./ai-settings.js?v=60010";
 import {seedDirective} from "./seed-contract.js?v=57025";
 import {recognitionForNpc} from "./recognition-engine.js?v=57025";
 import {normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "./world-compiler.js?v=57025";
@@ -22,7 +22,7 @@ import {validateLazyGenerationCandidate} from "./lazy-generation.js?v=59014";
 import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-visibility.js?v=57029";
 import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57025";
 import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./traditional-chinese-guard.js?v=59014";
-import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=60009";
+import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=60010";
 import {repairAiOutput} from "./ai-output-repair.js?v=59014";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
