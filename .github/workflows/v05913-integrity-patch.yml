@@ -1,0 +1,35 @@
+name: v0.59.13 runtime integrity integration
+on:
+  push:
+    branches: [feature/v05913-runtime-integrity-observability]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[v05913-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feature/v05913-runtime-integrity-observability
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+      - name: Apply v0.59.13 integration
+        run: |
+          python3 scripts/v05913_integrity_patch.py
+          git checkout HEAD -- .github/workflows/v05913-integrity-patch.yml scripts/v05913_integrity_patch.py
+      - name: Verify focused integrity regressions
+        run: |
+          node scripts/check-js.mjs
+          npm run version:check
+          CACHE_BASE_REF=main npm run cache:check
+          node --test test/v05913-runtime-integrity-observability.test.js test/v05912-ai-output-repair.test.js test/v05911-origin-hud-regressions.test.js test/version-ui.test.js test/version-0551-release.test.js
+      - name: Commit patched product
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "feat: v0.59.13 runtime integrity observability [v05913-patched]"
+          git push origin HEAD:feature/v05913-runtime-integrity-observability
