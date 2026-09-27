@@ -62,10 +62,21 @@ const newBlock=` const evolution=worldEvolutionNeed(gameState),expand=needsExpan
  const reason=pendingPlan?.reason||(enrichment.required?"PROACTIVE_ENRICHMENT":(evolution.required?evolution.reason:(worldBackground.lastReason||"background_gameplay"))),plan=pendingPlan||planLazyGeneration(gameState,{reason,domain:enrichment.required?enrichment.domain:""}),ctrl=new AbortController(),debugStarted=Date.now();
  if(enrichment.required&&!pendingPlan){markWorldEnrichmentScheduled(state,enrichment);recordDebug("WORLD_ENRICHMENT_SCHEDULED",{domain:enrichment.domain,pressure:enrichment.pressure,turn:enrichment.turn,reasons:enrichment.reasons,planId:plan.id});}`;
 need(app.includes(oldBlock),"app background block");app=app.replace(oldBlock,newBlock);
-// Existing successful background apply telemetry is the safest completion hook: enrich only when this run was proactive.
+const startedToken='recordDebug("WORLD_EVOLUTION_BACKGROUND_STARTED",{reason,planId:plan.id});';
+if(app.includes(startedToken))app=app.replace(startedToken,startedToken+'if(reason==="PROACTIVE_ENRICHMENT")recordDebug("WORLD_ENRICHMENT_STARTED",{domain:enrichment.domain,pressure:enrichment.pressure,turn:enrichment.turn,planId:plan.id});');
 const appliedToken='recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",';
 if(app.includes(appliedToken))app=app.replace(appliedToken,'if(reason==="PROACTIVE_ENRICHMENT"){markWorldEnrichmentCompleted(state,enrichment,{domain:enrichment.domain,reason});recordDebug("WORLD_ENRICHMENT_COMPLETED",{domain:enrichment.domain,pressureBefore:enrichment.pressure,pressureAfter:worldEnrichmentPressure(state).pressure,turn:enrichment.turn,planId:plan.id})}'+appliedToken);
 else console.log("WARN: completion token not found; scheduled-turn cooldown remains active");
 write("app.js",app);
+
+// Integration corrections after the base patch.
+let client=read("src/ai-client.js");
+client=client.replace('ai-output-repair.js?v=59013','ai-output-repair.js?v=59014').replace('traditional-chinese-guard.js?v=57025','traditional-chinese-guard.js?v=59014');
+write("src/ai-client.js",client);
+let guard=read("src/traditional-chinese-guard.js");
+if(!guard.includes('"显":"顯"')){need(guard.includes('"该":"該"'),"traditional guard anchor");guard=guard.replace('"该":"該"','"该":"該","显":"顯"')};write("src/traditional-chinese-guard.js",guard);
+let oldTest=read("test/v05911-origin-hud-regressions.test.js").split("\n");
+oldTest=oldTest.map(line=>line.includes('assert.match(html,/"\\.\\/src\\/origin-runtime')?' assert.ok(html.includes(\'"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=59014"\'))':line);write("test/v05911-origin-hud-regressions.test.js",oldTest.join("\n"));
+let release=read("test/version-0551-release.test.js");release=release.split('origin-runtime\\.js\\?v=59011').join('origin-runtime\\.js\\?v=59014');write("test/version-0551-release.test.js",release);
 
 console.log("v0.59.14 proactive enrichment patch applied");
