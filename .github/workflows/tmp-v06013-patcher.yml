@@ -1,4 +1,4 @@
-name: Temporary v0.60.13 branch patcher
+name: Temporary v0.60.13 index patcher
 on:
   push:
     branches: [fix/v06013-ja-fallback-watchdog]
@@ -13,12 +13,11 @@ jobs:
         with:
           ref: fix/v06013-ja-fallback-watchdog
           fetch-depth: 0
-      - name: Patch cache wiring and release gates
+      - name: Patch index cache wiring
         shell: python
         run: |
           import json,re,pathlib
-          root=pathlib.Path('.')
-          p=root/'index.html'
+          p=pathlib.Path('index.html')
           text=p.read_text(encoding='utf-8')
           m=re.search(r'<script type="importmap">(.*?)</script>',text,re.S)
           if not m: raise SystemExit('importmap not found')
@@ -34,19 +33,11 @@ jobs:
           if runtime not in text:
             text=text.replace('<script type="module" src="app.js?v=60011"></script>',runtime+'<script type="module" src="app.js?v=60011"></script>')
           p.write_text(text,encoding='utf-8')
-
-          w=root/'.github/workflows/pages.yml'
-          pages=w.read_text(encoding='utf-8')
-          pages=pages.replace('Focused v0.60.12 regressions','Focused v0.60.13 regressions')
-          needle='run: node --test '
-          pages=pages.replace(needle,needle+'test/v06013-ja-fallback-watchdog-regression.test.js ',1)
-          w.write_text(pages,encoding='utf-8')
-
-          pathlib.Path('.github/workflows/tmp-v06013-patcher.yml').unlink()
-      - name: Commit generated patch
+      - name: Commit index patch
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html .github/workflows/pages.yml .github/workflows/tmp-v06013-patcher.yml
-          git commit -m "v0.60.13: wire runtime hotfix and release gates"
+          git add index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "v0.60.13: wire runtime hotfix cache tokens"
           git push origin HEAD:fix/v06013-ja-fallback-watchdog
