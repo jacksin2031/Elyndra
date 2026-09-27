@@ -23,7 +23,7 @@ import {playerVisibleNpcName,canonicalizeNpcIdentityText} from "./player-entity-
 import {normalizeRuntimeLocation,normalizeRuntimeNpc,normalizeRuntimeSideQuest,bindRuntimeClaims} from "./runtime-generation-normalizer.js?v=57025";
 import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./traditional-chinese-guard.js?v=57025";
 import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=59010";
-import {repairAiOutput} from "./ai-output-repair.js?v=59012";
+import {repairAiOutput} from "./ai-output-repair.js?v=59013";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify({...body,locale:normalizeLocale(body?.locale||loadLocale())})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);const data=await r.json();registerLocalizedOutput(data,normalizeLocale(body?.locale||loadLocale()));return data}

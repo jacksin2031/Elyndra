@@ -1,11 +1,11 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59012";
+import {APP_VERSION} from "./src/version.js?v=59013";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
 import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59010";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59010";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59010";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57029";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59012";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59013";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57029";
 import {maintainSession} from "./src/session-maintenance.js?v=57025";
@@ -61,7 +61,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=57025";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57025";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57025";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57025";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59010";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59013";
 import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot,archiveAutotestExportSnapshot,listAutotestExportSnapshots,loadAutotestExportSnapshot} from "./src/autotest-export.js?v=57025";
 import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory,shareAutotestArtifact} from "./src/autotest-save.js?v=57025";
 import {copyAutotestText} from "./src/autotest-copy.js?v=57025";
@@ -69,6 +69,7 @@ import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransf
 import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57025";
 import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,ensureAutotestDownloadBridge} from "./src/autotest-download.js?v=57025";
 import {validateSceneProvenance,filterSuggestionProvenance} from "./src/scene-provenance.js?v=57025";
+import {auditStateTransition,restoreStateSnapshot} from "./src/runtime-integrity.js?v=59013";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
 let activeLocale=saveLocale(loadLocale()),localeTransitionBusy=false;globalThis.ELYNDRA_LOCALE=activeLocale;const lt=value=>localizedStaticText(gameState?translatedText(gameState,value,activeLocale):String(value??""),activeLocale);
 const ALL_RULE_TAGS="__all__";
@@ -215,13 +216,15 @@ function cancelStateBoundWork(reason="STATE_REPLACED"){
 }
 function replaceGameState(next,reason="STATE_REPLACED"){diceFeedback.reset();$("#rollLabel").textContent=uiText("等待你的行動",activeLocale);$("#rollResult").textContent=uiText("世界會記住重要結果。",activeLocale);cancelStateBoundWork(reason);const cacheBefore={helperHistory:helperHistory.length,rejected:suggestionRefresh.rejected.length,excluded:suggestionRefresh.exclude.length,npcChats:npcChatHistory.size};gameState=next??null;stateSession.replace(gameState);gameplayDebugSnapshot=null;helperHistory=[];npcChatHistory=new Map();suggestionRefresh.message="";suggestionRefresh.error=false;suggestionRefresh.rejected=[];suggestionRefresh.exclude=[];recordDebug("STATE_BOUND_UI_CACHE_RESET",{reason,...cacheBefore});recordDebug("STATE_SESSION_REPLACED",{reason,epoch:stateSession.epoch,worldId:gameState?.world?.id||null});return gameState}
 function commitStatePatch(state,patch,plan,context={}){
- const grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
- if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
- const valid=validateStatePatch(effectivePatch,plan);if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
+ const trace=context?.trace||patch?.__elyndraTrace||{},grounded=groundStatePatch(state,patch,context),effectivePatch=grounded.patch;
+ if(grounded.rejected.length)recordDebug("STATE_PATCH_GROUNDING_REJECTED",{...trace,mode:plan?.mode||"",action:String(context?.action||"").slice(0,180),rejected:grounded.rejected});
+ const valid=validateStatePatch(effectivePatch,plan);recordDebug("STATE_PATCH_VALIDATION",{...trace,status:valid.valid?"PASS":"FAIL",mode:plan?.mode||"",errors:valid.valid?[]:valid.errors});if(!valid.valid)throw new Error("STATE_PATCH_INVALID:"+valid.errors.join(","));
  if(!Array.isArray(effectivePatch.operations)||!effectivePatch.operations.length)return {applied:false,empty:true,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],revision:currentStateRevision(state)};
- const revision=assessPatchRevision(state,effectivePatch,plan); if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],...revision};
- const candidate=statePatchToCandidate(effectivePatch,state);applyTurnCandidate(state,candidate,{...context,directorMode:plan.mode});
- const next=bumpStateRevision(state,"STATE_PATCH_"+plan.mode);
+ const revision=assessPatchRevision(state,effectivePatch,plan);if(!revision.ok)return {applied:false,stale:true,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],...revision};
+ const before=structuredClone(state),candidate=statePatchToCandidate(effectivePatch,state);applyTurnCandidate(state,candidate,{...context,directorMode:plan.mode});
+ const next=bumpStateRevision(state,"STATE_PATCH_"+plan.mode),audit=auditStateTransition(before,state,{patch:effectivePatch,plan,context});recordDebug("STATE_INVARIANT_AUDIT",{...trace,status:audit.ok?"PASS":"FAIL",mode:plan?.mode||"",issues:audit.issues,beforeRevision:audit.beforeRevision,afterRevision:audit.afterRevision,operations:audit.operationCount});
+ if(!audit.ok){restoreStateSnapshot(state,before);recordDebug("UNSAFE_COMMIT_PREVENTED",{...trace,mode:plan?.mode||"",issues:audit.issues,restoredRevision:currentStateRevision(state)});return {applied:false,auditFailed:true,unsafePrevented:true,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],revision:currentStateRevision(state),auditIssues:audit.issues}}
+ recordDebug("STATE_COMMIT_SAFE",{...trace,mode:plan?.mode||"",revision:next,operations:effectivePatch.operations.length,rebased:revision.rebased===true});
  return {applied:true,rebased:revision.rebased===true,rebasedFrom:revision.rebasedFrom??null,rejected:grounded.rejected.length,deferredEvidence:grounded.deferredEvidence||[],revision:next,operations:effectivePatch.operations.length}
 }
 function commitSceneGroundedEvidence(state,operations,plan,context={}){
