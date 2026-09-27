@@ -23,12 +23,11 @@ jobs:
       - name: Patch runtime
         id: patch
         run: |
-          if grep -q 'combatAction,combatSnapshot' app.js && grep -q 'APP_VERSION="0.60.1"' src/version.js && grep -q 'tactical=/假攻' src/combat-engine.js; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          python3 scripts/combat-v0601-cache-fix.py
+          if ! grep -q 'combatAction,combatSnapshot' app.js || ! grep -q 'APP_VERSION="0.60.1"' src/version.js || ! grep -q 'tactical=/假攻' src/combat-engine.js; then
+            python3 scripts/combat-v0601-bootstrap.py
+            python3 scripts/combat-v0601-intent-fix.py
           fi
-          python3 scripts/combat-v0601-bootstrap.py
-          python3 scripts/combat-v0601-intent-fix.py
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
@@ -39,7 +38,7 @@ jobs:
             git config user.name "Elyndra CI"
             git config user.email "actions@users.noreply.github.com"
             git add app.js index.html src/version.js src/combat-engine.js test/combat-v0601.test.js
-            git commit -m "feat: wire Combat 2.0 into player runtime"
+            git commit -m "fix: complete Combat 2.0 cache graph"
             git push origin HEAD:feat/trpg-depth-combat-v060
           fi
   validate:
