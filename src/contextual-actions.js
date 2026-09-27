@@ -4,6 +4,7 @@ import {playerVisibleNpcName,redactUnknownNpcNames} from "./player-entity-visibi
 import {sanitizePlayerText,stripSystemLabels} from "./runtime-guard.js?v=57029";
 import {validateSuggestionProvenance} from "./scene-provenance.js?v=57025";
 import {hasLocaleLeak} from "./locale-runtime.js?v=59010";
+import {rhythmSuggestionBias} from "./story-rhythm-engine.js?v=60006";
 
 const clean=(v,max=180)=>typeof v==="string"?v.normalize("NFC").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,max):"";
 const CONTEXTUAL_LOCALES=new Set(["zh-Hant","zh-Hans","en","ja"]);
@@ -247,7 +248,7 @@ function contextualSuggestionProvenanceScope(state){const registry=state?.world?
 function suggestionMatchesCurrentScene(state,row){const inferred=inferActionKind(row?.action||row?.label||"");const effective=inferred==="TRAVEL"&&String(row?.kind||"").toUpperCase()!=="TRAVEL"?{...row,kind:"TRAVEL"}:row;return validateSuggestionProvenance(effective,contextualSuggestionProvenanceScope(state)).valid}
 export function buildContextualActionSet(state,input=[],options={}){
  const recent=recentPlayerActions(state),excluded=suggestionExclusionSet(options?.exclude),isFresh=x=>freshSuggestion(recent,x)&&!excluded.has(clean(x?.action,180))&&!excluded.has(clean(x?.label,180));
- const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&suggestionMatchesCurrentScene(state,x)&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8);
+ const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&suggestionMatchesCurrentScene(state,x)&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8).sort((a,b)=>rhythmSuggestionBias(state,b)-rhythmSuggestionBias(state,a));
  let progression=raw.find(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk));
  if(!progression){const candidate=progressionSuggestion(state);if(isFresh(candidate))progression=candidate}
  const personalized=personalizedSuggestion(state);
@@ -267,7 +268,7 @@ export function buildContextualActionSet(state,input=[],options={}){
   normalizeContextualSuggestion({label:"找一個能提供現場資訊的人",action:`在${currentLocation(state)}尋找目前可接觸、並可能親眼看過剛才變化的人詢問`,kind:"SOCIAL",risk:"LOW",skillHint:"交涉",approach:"SOCIAL",causalBasis:"公開場景允許尋找目擊者",requirementsSatisfied:true,source:"ENGINE"}),
   normalizeContextualSuggestion({label:"換一個角度測試眼前局勢",action:`利用${currentLocation(state)}可見的遮蔽物、人流或聲音，換一個不需要未知資源的方法測試誰會作出反應`,kind:"GENERAL",risk:"MEDIUM",skillHint:"應變",approach:"CREATIVE",causalBasis:"只使用當前可見環境",requirementsSatisfied:true,source:"ENGINE"})
  ];
- for(const x of genericFill){if(main.length>=3)break;if(x&&isFresh(x)&&!main.some(m=>m.action===x.action))main.push(x)}
+ for(const x of genericFill.sort((a,b)=>rhythmSuggestionBias(state,b)-rhythmSuggestionBias(state,a))){if(main.length>=3)break;if(x&&isFresh(x)&&!main.some(m=>m.action===x.action))main.push(x)}
  if(!main.some(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))){const fallbackProgression=progressionSuggestion(state);if(isFresh(fallbackProgression))main.unshift(fallbackProgression)}
  main.splice(3);
  const high=raw.find(x=>["HIGH","EXTREME"].includes(x.risk))||(()=>{const x=fallbackByApproach(state,"BOLD");return isFresh(x)?x:null})();
