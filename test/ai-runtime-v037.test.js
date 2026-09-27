@@ -24,7 +24,7 @@ test("Outcome Kernel owns roll interpretation before parallel AIs",()=>{
  const kernel=buildTurnOutcomeKernel({action:"檢查石門後面",intent:{intent:"OBSERVE",kind:"OBSERVE"},roll:{success:true,grade:"SUCCESS",natural:17,total:19,dc:14,profile:{kind:"OBSERVE"}},snapshot});
  assert.equal(kernel.result.success,true);
  assert.equal(kernel.result.natural,17);
- assert.match(kernel.confirmedOutcome,/Engine 已確認/);
+ assert.doesNotMatch(kernel.confirmedOutcome,/Engine 已確認|State Director|commit/i);
  assert.ok(kernel.authority.engineOwns.includes("roll"));
  assert.ok(kernel.authority.engineOwns.includes("confirmedOutcome"));
  assert.ok(kernel.forbiddenClaims.some(x=>x.includes("未知建造者")));
