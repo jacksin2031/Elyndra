@@ -67,7 +67,7 @@ test("v0.59.12 every deterministic repair is visible in Debug telemetry",()=>{
 
 test("v0.59.12 ai-client routes world/scene/state model JSON through deterministic repair",async()=>{
  const source=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
- assert.match(source,/ai-output-repair\.js\?v=59012/);
+ assert.match(source,/ai-output-repair\.js\?v=59013/);
  assert.match(source,/repairAiOutput\("WORLD_STAGE"/);
  assert.match(source,/repairAiOutput\("SCENE"/);
  assert.match(source,/repairAiOutput\("STATE_PATCH"/)
