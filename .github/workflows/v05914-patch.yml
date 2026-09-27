@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          node scripts/v05914-patch.mjs > patch-output.txt 2>&1
+          node scripts/v05914-run.mjs > patch-output.txt 2>&1
           code=$?
           cat patch-output.txt
           echo "code=$code" >> "$GITHUB_OUTPUT"
