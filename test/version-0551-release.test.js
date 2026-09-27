@@ -12,8 +12,8 @@ test("v0.60.19 is the canonical app and browser cache release",async()=>{
  ]);
  const pkg=JSON.parse(pkgText);
  assert.equal(pkg.version,"0.60.19");
- assert.match(versionSource,/APP_VERSION="0\.60\.18"/);
- assert.match(html,/app\.js\?v=60014/);
+ assert.match(versionSource,/APP_VERSION="0\.60\.19"/);
+ assert.match(html,/app\.js\?v=60019/);
  assert.match(html,/v06019-runtime-ui-hotfix\.js\?v=60019/);
  assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60019"/);
  assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);
