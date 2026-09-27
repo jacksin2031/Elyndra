@@ -8,7 +8,7 @@ import {ensureNpcCognition,npcCommitmentSnapshot,npcPlannerSnapshot,npcRelations
 const clean=(v,max=320)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number(n)||0));
 const REQUEST=/請你|拜託|讓我|允許|准許|給我|告訴我|帶我|幫我|協助我|跟我走|加入我|放我|借我|賣我|show me|tell me|give me|help me|allow me|let me|join me|come with me/i;
-const INTIMIDATE=/威脅|恐嚇|不然|否則|後果|殺了你|揍你|摧毀|intimidat|threat|or else/i;
+const INTIMIDATE=/威脅|恐嚇|不然|否則|後果|後悔|你會後悔|別逼我|不讓.+(?:就|便|的話)|殺了你|揍你|摧毀|intimidat|threat|or else|you(?:'|’)ll regret/i;
 const DECEIVE=/我騙|我說謊|假稱|謊稱|冒充|假裝自己|欺騙|deceiv|\blie\b|pretend to be/i;
 const BARGAIN=/交換|交易|報酬|付你|給你錢|條件|成交|討價還價|bargain|offer you|pay you|trade|deal/i;
 const PERSUADE=/說服|勸說|勸他|懇求|談判|協商|persuad|convince|plead|negotiate/i;
