@@ -21,6 +21,19 @@ jobs:
       - name: Apply guarded patch
         shell: bash
         run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('scripts/apply-v05910-runtime-integrity.mjs')
+          lines=p.read_text(encoding='utf-8').splitlines()
+          found=0
+          for i,line in enumerate(lines):
+              if line.startswith('const importRe='):
+                  lines[i]=r'''const importRe=/(from\s+["'])(\.{1,2}\/[^"']+?\.js)\?v=(\d+)(["'])/g;'''
+                  found+=1
+          if found != 1:
+              raise SystemExit(f'expected one importRe line, got {found}')
+          p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+          PY
           set +e
           node scripts/apply-v05910-runtime-integrity.mjs > .hotfix-v05910-error.txt 2>&1
           status=$?
