@@ -6,7 +6,7 @@ import {sceneTurnSnapshot,fastTurnStateSnapshot,mergeTurnCandidates} from "./tur
 import {sanitizePlayerText} from "./runtime-guard.js?v=57029";
 import {helperSnapshot} from "./helper-context.js?v=57029";
 import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v=57025";
-import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57025";
+import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=59008";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=57025";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57025";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=57025";
