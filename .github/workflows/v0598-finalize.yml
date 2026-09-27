@@ -19,48 +19,34 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          # Provider backpressure: preserve 6s observability threshold, but wait instead of failing
-          # foreground gameplay; runtime expansion also waits through cooldown.
           p=Path('src/ai-settings.js'); s=p.read_text()
           s=s.replace('const SHED_ON_RATE_LIMIT=new Set(["turn_deferred","runtime_expansion","history_deepening","runtime_quality","quality","quality_repair","runtime_repair"]);','const SHED_ON_RATE_LIMIT=new Set(["turn_deferred","history_deepening","runtime_quality","quality","quality_repair","runtime_repair"]);')
           s=s.replace('const PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000;','const PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000;')
           old='if(PLAYER_CRITICAL_TASKS.has(taskName)&&remaining>PLAYER_CRITICAL_BACKPRESSURE_MAX_MS){recordDebug("AI_PLAYER_CRITICAL_BACKPRESSURE_BYPASS",{provider,task,remainingMs:remaining,limitMs:PLAYER_CRITICAL_BACKPRESSURE_MAX_MS,until:row.until});throw backpressureError(provider,task,row.until)}'
-          new='if(PLAYER_CRITICAL_TASKS.has(taskName)&&remaining>PLAYER_CRITICAL_BACKPRESSURE_MAX_MS)recordDebug("AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT",{provider,task,remainingMs:remaining,limitMs:PLAYER_CRITICAL_BACKPRESSURE_MAX_MS,until:row.until})'
+          new='if(PLAYER_CRITICAL_TASKS.has(taskName)&&remaining>PLAYER_CRITICAL_BACKPRESSURE_MAX_MS)recordDebug("AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT",{provider,task,remainingMs:remaining,limitMs:PLAYER_CRITICAL_BACKPRESSURE_MAX_MS,until:row.until});'
           assert old in s
           p.write_text(s.replace(old,new,1))
 
-          # FUTURE: preserve valid AI-authored slots, fill only malformed/missing slots from the
-          # deterministic fallback, and keep a valid calendar if the model omitted it.
           p=Path('src/ai-client.js'); s=p.read_text()
           s=s.replace('timeoutMs:70000,retryOnTimeout:false,maxOutputTokens:3000,','timeoutMs:75000,retryOnTimeout:false,maxOutputTokens:4200,',1)
           old='const authoredTimeline=bindTimelineAuthoringSlots(futureRaw?.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'
           new='const futureFallbackCandidate=futureFallback(anchor,history,directive.timelinePacing),futureRows=timelineAuthoringSlots(directive.timelinePacing).map((_,i)=>{const x=Array.isArray(futureRaw?.worldTimeline)?futureRaw.worldTimeline[i]:null;return x&&typeof x==="object"&&String(x.title||"").trim()&&String(x.directorTruth||"").trim().length>=8&&String(x.observableEffect||"").trim().length>=8?x:futureFallbackCandidate.worldTimeline[i]}),authoredTimeline=bindTimelineAuthoringSlots(futureRows,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);'
-          assert old in s
-          s=s.replace(old,new,1)
+          assert old in s; s=s.replace(old,new,1)
           old='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:futureRaw.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallback(anchor,history,directive.timelinePacing);'
           new='let future=timelineReport.valid?normalizeFutureLinksToAnchor({worldCalendar:(futureRaw?.worldCalendar&&typeof futureRaw.worldCalendar==="object")?futureRaw.worldCalendar:futureFallbackCandidate.worldCalendar,worldTimeline:timelineReport.timeline},anchor,history):futureFallbackCandidate;'
-          assert old in s
-          s=s.replace(old,new,1)
-
-          # Translation repair: split long Japanese repair inputs into sentence-sized chunks.
-          old='const request={sourceLocale:source,targetLocale:target,strings},system=`${payload?.repair?"Previous translations were rejected because they still contain source-language fragments. Rewrite every fragment fully in the target language; keep proper names but translate descriptive Chinese words. ":""}You are Elyndra\'s lossless runtime translator.'
-          if old in s:
+          assert old in s; s=s.replace(old,new,1)
+          if 'const request={sourceLocale:source,targetLocale:target,strings},system=' in s:
               s=s.replace('const request={sourceLocale:source,targetLocale:target,strings},system=', 'const groups=payload?.repair&&hasDirectAI()?strings.map(value=>value.length>140?value.split(/(?<=[。！？])/u).map(x=>x.trim()).filter(Boolean):[value]):strings.map(value=>[value]),request={sourceLocale:source,targetLocale:target,strings:groups.flat()},system=',1)
               old2='if(rows.length!==strings.length)throw new Error("TRANSLATION_COUNT_MISMATCH");const bundle={translations:strings.map((source,i)=>({source,translated:String(rows[i]??"").trim()||source}))};registerLocalizedOutput(bundle,target);return bundle'
               new2='if(rows.length!==request.strings.length)throw new Error("TRANSLATION_COUNT_MISMATCH");let offset=0;const bundle={translations:strings.map((source,i)=>{const translated=rows.slice(offset,offset+groups[i].length).map(x=>String(x??"").trim()).join("");offset+=groups[i].length;return {source,translated:translated||source}})};registerLocalizedOutput(bundle,target);return bundle'
-              assert old2 in s
-              s=s.replace(old2,new2,1)
+              assert old2 in s; s=s.replace(old2,new2,1)
           p.write_text(s)
 
-          # Deterministic Japanese translations for the two fixed runtime strings observed in
-          # the v0.59.7 AutoTest leak telemetry.
           p=Path('src/locale-runtime.js'); s=p.read_text()
           marker='function sessionCompositeText(value,locale=loadLocale()){const text=String(value??"");if(!text)return text;const exact=sessionTranslatedText(text,locale);if(exact!==text)return exact;const row=sessionLocale(locale);let out=text;const entries=Object.entries(row.sources).map(([key,source])=>[source,row.table[key]]).filter(([source,target])=>source&&target&&source!==target).sort((a,b)=>b[0].length-a[0].length);for(const [source,target] of entries)if(source.length>1&&out.includes(source))out=out.split(source).join(target);return out}\n'
           assert marker in s
           fixed='const JAPANESE_ORIGIN_NAMES=Object.freeze({"穿越":"異世界への転移","轉生":"転生","被召喚":"召喚","附身":"憑依","原住民":"現地出身","失憶":"記憶喪失","完全自訂":"独自設定"});\nfunction fixedWorldTranslation(value,locale){\n if(locale!=="ja")return "";const text=String(value??"").trim();\n if(text==="掌握目前地點、道路與最基本的當地規則。")return "現在地、道筋、現地の基本的な決まりを把握する。";\n const match=text.match(/^(.+?)起源；具體身份、開局位置與因果由 World Compiler 依 World Constitution 建立。$/u);\n return match&&JAPANESE_ORIGIN_NAMES[match[1]]?`${JAPANESE_ORIGIN_NAMES[match[1]]}の出自。具体的な身分、開始地点、因果関係は世界の設定に基づいて決まります。`:""\n}\n'
-          if 'const JAPANESE_ORIGIN_NAMES=' not in s:
-              s=s.replace(marker,marker+fixed,1)
+          if 'const JAPANESE_ORIGIN_NAMES=' not in s: s=s.replace(marker,marker+fixed,1)
           old='const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text)return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];'
           new='const text=String(value??"").trim(),id=normalizeLocale(locale);if(!text||fixedWorldTranslation(text,id))return true;const loc=ensureWorldLocale(state,id),mapped=loc.translations?.[id]?.[translationKey(text)];'
           assert old in s; s=s.replace(old,new,1)
@@ -73,19 +59,15 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('test/v05908-runtime-recovery.test.js')
-          s=p.read_text()
-          start=s.index('test("v0.59.8 timeline authoring')
-          end=s.index('test("v0.59.8 Agnes',start)
+          p=Path('test/v05908-runtime-recovery.test.js'); s=p.read_text()
+          start=s.index('test("v0.59.8 timeline authoring'); end=s.index('test("v0.59.8 Agnes',start)
           replacement='''test("v0.59.8 future compiler fills only missing timeline slots",async()=>{\n const src=await read("../src/ai-client.js");\n assert.match(src,/futureFallbackCandidate=futureFallback/);\n assert.match(src,/futureRows=timelineAuthoringSlots/);\n assert.match(src,/futureFallbackCandidate\.worldTimeline\[i\]/);\n});\n\n'''
           s=s[:start]+replacement+s[end:]
           s=s.replace('assert.match(src,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000/);','assert.match(src,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000/);\n assert.match(src,/AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT/);\n assert.doesNotMatch(src,/SHED_ON_RATE_LIMIT=new Set\\(\\[[^\\]]*runtime_expansion/);')
           s += '''\ntest("v0.59.8 Japanese fixed world strings bypass AI translation repair",async()=>{\n const src=await read("../src/locale-runtime.js");\n assert.match(src,/JAPANESE_ORIGIN_NAMES/);\n assert.match(src,/現在地、道筋、現地の基本的な決まりを把握する/);\n assert.match(src,/具体的な身分、開始地点、因果関係/);\n});\n'''
           p.write_text(s)
-
-          p=Path('test/v05721-runtime-recovery.test.js'); s=p.read_text().replace('PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000','PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000'); p.write_text(s)
-          p=Path('test/v05901-i18n-coverage.test.js'); s=p.read_text().replace('0.59.7','0.59.8').replace('59007','59008').replace(r'0\.59\.7',r'0\.59\.8'); p.write_text(s)
-
+          p=Path('test/v05721-runtime-recovery.test.js'); p.write_text(p.read_text().replace('PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000','PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000'))
+          p=Path('test/v05901-i18n-coverage.test.js'); p.write_text(p.read_text().replace('0.59.7','0.59.8').replace('59007','59008').replace(r'0\.59\.7',r'0\.59\.8'))
           p=Path('.github/workflows/pages.yml'); s=p.read_text(); needle='run: node --test test/version-policy.test.js '
           if needle in s: s=s.replace(needle,'run: node --test test/v05908-runtime-recovery.test.js test/version-policy.test.js ',1)
           p.write_text(s)
@@ -95,47 +77,36 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import json,re,subprocess,posixpath
-          root=Path('.')
-          version=json.loads(Path('package.json').read_text())['version']
-          a,b,c=map(int,version.split('.')); token=str(a*1_000_000+b*1_000+c)
-          modules=['app.js']+[str(p).replace('\\','/') for p in Path('src').rglob('*.js')]
-          mset=set(modules)
+          version=json.loads(Path('package.json').read_text())['version']; a,b,c=map(int,version.split('.')); token=str(a*1_000_000+b*1_000+c)
+          modules=['app.js']+[str(p).replace('\\','/') for p in Path('src').rglob('*.js')]; mset=set(modules)
           def edges(importer):
               text=Path(importer).read_text(); out=[]
               rx=re.compile(r'((?:from\s+|import\s+)["\'])(\.{1,2}/[^"\'?]+\.js)(?:\?v=(\d+))?(["\'])|((?:import\(\s*["\']))(\.{1,2}/[^"\'?]+\.js)(?:\?v=(\d+))?(["\']\s*\))')
               for m in rx.finditer(text):
-                  spec=m.group(2) or m.group(6); old=m.group(3) or m.group(7)
-                  target=posixpath.normpath(posixpath.join(posixpath.dirname(importer),spec))
-                  out.append((target,spec,old))
+                  spec=m.group(2) or m.group(6); target=posixpath.normpath(posixpath.join(posixpath.dirname(importer),spec)); out.append((target,spec))
               return out
-          changed=subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'],text=True).splitlines()
-          impacted={x for x in changed if x in mset}
+          changed=subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'],text=True).splitlines(); impacted={x for x in changed if x in mset}
           reverse={}
           for importer in modules:
-              for target,spec,old in edges(importer): reverse.setdefault(target,[]).append((importer,spec,old))
+              for target,spec in edges(importer): reverse.setdefault(target,[]).append((importer,spec))
           queue=list(impacted)
           while queue:
               target=queue.pop(0)
-              for importer,spec,old in reverse.get(target,[]):
-                  p=Path(importer); text=p.read_text()
-                  pattern=re.escape(spec)+r'(?:\?v=\d+)?'
-                  text2=re.sub(pattern,spec+'?v='+token,text)
+              for importer,spec in reverse.get(target,[]):
+                  p=Path(importer); text=p.read_text(); text2=re.sub(re.escape(spec)+r'(?:\?v=\d+)?',spec+'?v='+token,text)
                   if text2!=text: p.write_text(text2)
                   if importer not in impacted: impacted.add(importer); queue.append(importer)
           p=Path('index.html'); text=p.read_text()
           if 'app.js' in impacted: text=re.sub(r'app\.js\?v=\d+','app.js?v='+token,text)
-          # Keep release-facing static assets aligned to the release token.
-          for asset in ['styles.css','creator.css','world-surfaces.css']:
-              text=re.sub(re.escape(asset)+r'\?v=\d+',asset+'?v='+token,text)
-          p.write_text(text)
-          print('impacted modules:', ', '.join(sorted(impacted)))
+          for asset in ['styles.css','creator.css','world-surfaces.css']: text=re.sub(re.escape(asset)+r'\?v=\d+',asset+'?v='+token,text)
+          p.write_text(text); print('impacted modules:', ', '.join(sorted(impacted)))
           PY
       - name: Align release-token tests
         run: |
           python3 - <<'PY'
           from pathlib import Path
           for name in ['test/version-ui.test.js','test/version-0551-release.test.js']:
-              p=Path(name); s=p.read_text().replace('59007','59008').replace('0.59.7','0.59.8').replace(r'0\.59\.7',r'0\.59\.8'); p.write_text(s)
+              p=Path(name); p.write_text(p.read_text().replace('59007','59008').replace('0.59.7','0.59.8').replace(r'0\.59\.7',r'0\.59\.8'))
           PY
       - name: Version contract
         run: npm run version:check
