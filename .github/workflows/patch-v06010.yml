@@ -29,6 +29,8 @@ jobs:
           PY
       - name: Apply patch
         run: python3 scripts/patch_v06010.py
+      - name: Keep workflow files out of Actions-token commit
+        run: git restore --source=HEAD -- .github/workflows/pages.yml .github/workflows/patch-v06010.yml
       - name: Diff integrity
         run: git diff --check
       - name: JavaScript syntax
