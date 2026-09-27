@@ -22,6 +22,16 @@ jobs:
           node-version: 24
       - name: Apply v0.59.11 patch
         run: python scripts/v05911_patch.py
+      - name: Normalize Unicode regex quoting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for name in ['src/world-registry.js','src/contextual-actions.js','src/scene-provenance.js']:
+              p=Path(name)
+              s=p.read_text(encoding='utf-8')
+              s=s.replace(r'\s\"', r'\s"').replace(r'“\"]', r'“"]').replace(r'”\"]', r'”"]').replace(r'[\"', r'["')
+              p.write_text(s,encoding='utf-8')
+          PY
       - name: Run full regression suite
         run: npm test
       - name: Commit validated patch and remove temporary tooling
