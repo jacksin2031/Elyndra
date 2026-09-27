@@ -1,0 +1,47 @@
+name: Apply runtime integrity hotfix v2
+
+on:
+  push:
+    branches:
+      - fix/v05910-runtime-integrity
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Execute corrected guarded patch
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import textwrap
+          source=Path('.github/workflows/apply-runtime-integrity-hotfix.yml').read_text(encoding='utf-8')
+          marker="          python3 <<'PY'\n"
+          start=source.index(marker)+len(marker)
+          end=source.index("\n          PY",start)
+          code=textwrap.dedent(source[start:end])
+          code=code.replace('touched = False\n                  def repl(match):\n                      nonlocal touched\n','touched = [False]\n                  def repl(match):\n')
+          code=code.replace('touched = True','touched[0] = True').replace('if touched:','if touched[0]:')
+          compile(code,'runtime-integrity-hotfix','exec')
+          exec(code,{'__name__':'__main__'})
+          PY
+          npm test
+          npm run check:cache-bust
+      - name: Commit patched runtime
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: bound deferred state and ground runtime entities"
+          git push origin HEAD:fix/v05910-runtime-integrity
