@@ -35,6 +35,22 @@ function startingLocationRecord(state){
  const name=clean(state.world?.bible?.startingLocation,120)||clean(state.world?.state?.location,120)||clean(state.player?.location,120);
  return (state.world?.registry?.locations||[]).find(x=>x.name===name)||null
 }
+function applyOriginVisibilityBoundary(state,rules){
+ const p=profile(state),originId=String(p.id||"").toLowerCase();
+ if(originId!=="reincarnation"&&rules.knowledgePolicy!=="PARTIAL_LOCAL")return;
+ const r=state.world?.registry;if(!r||typeof r!=="object")return;
+ const start=startingLocationRecord(state),startId=String(start?.id||"");
+ for(const loc of Array.isArray(r.locations)?r.locations:[]){
+  const allowed=Boolean(startId&&String(loc?.id||"")===startId)||loc?.originKnown===true;
+  loc.known=allowed;if(!allowed)loc.visibilityLock="UNSEEN"
+ }
+ for(const npc of Array.isArray(r.npcs)?r.npcs:[]){
+  const allowed=npc?.originKnown===true||npc?.companion?.status==="ACTIVE";
+  npc.known=allowed;if(!allowed){npc.encountered=false;npc.visibilityLock="UNSEEN"}
+ }
+ for(const faction of Array.isArray(r.factions)?r.factions:[]){const allowed=faction?.originKnown===true;faction.known=allowed;if(!allowed)faction.visibilityLock="UNSEEN"}
+ for(const quest of Array.isArray(r.sideQuests)?r.sideQuests:[]){const allowed=quest?.originKnown===true;quest.known=allowed;if(!allowed)quest.visibilityLock="UNSEEN"}
+}
 export function ensureOriginRuntime(state){
  state.player??={};const p=profile(state),rules=policy(state),existing=state.player.originRuntime&&typeof state.player.originRuntime==="object"?state.player.originRuntime:{};
  state.player.originRuntime={
@@ -55,6 +71,8 @@ export function applyOriginRuntime(state,{phase="POST_CANON"}={}){
  state.player.identity={legalStatus:rules.legalStatus,signal:rules.identitySignal,recognizedLocally:["LOCAL","HOST_IDENTITY"].includes(rules.identitySignal),sponsorRef:null};
  state.player.startingEquipmentPolicy=rules.equipmentPolicy;
  if(!post)return rt;
+ const firstPostApply=rt.appliedRevision==null;
+ if(firstPostApply)applyOriginVisibilityBoundary(state,rules);
  state.player.worldNameKnown=rules.worldName===true;state.player.calendarKnown=rules.calendar===true;
  const rows=rankFacts(state,publicFacts(state)).slice(0,Math.max(0,rules.factLimit)),granted=[];
  for(const fact of rows){const ev=grantOriginFact(state,fact);if(ev||state.knowledge.some(x=>x.factId===fact.id&&x.status==="VERIFIED"))granted.push(fact.id)}

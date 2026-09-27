@@ -58,6 +58,22 @@ try{
  throw new Error("CACHE_BASE_DIFF_FAILED: "+e.message)
 }
 
+const html=readFileSync(path.join(root,"index.html"),"utf8");
+const importMapImports={};
+for(const m of html.matchAll(/<script\b[^>]*type=["']importmap["'][^>]*>([\s\S]*?)<\/script>/gi)){
+ try{Object.assign(importMapImports,JSON.parse(m[1])?.imports||{})}catch{}
+}
+function edgeImportMapKey(edge,token){
+ const importerDir=path.posix.dirname(normalizeRepoPath(edge.importer));
+ const target=path.posix.normalize(path.posix.join(importerDir,edge.specifier));
+ return `./${target.replace(/^\.\//,"")}?v=${token}`
+}
+function edgeHasExpectedImportMapOverride(edge){
+ if(!edge?.token)return false;
+ const from=edgeImportMapKey(edge,edge.token),to=String(importMapImports[from]||"");
+ return to===edgeImportMapKey(edge,expected)
+}
+
 const modules=["app.js",...listSrcModules()];
 const moduleSet=new Set(modules);
 const edges=modules.flatMap(moduleEdges);
@@ -72,12 +88,13 @@ const queue=[...impacted],violations=[];
 while(queue.length){
  const target=queue.shift();
  for(const edge of reverse.get(target)||[]){
-  if(edge.token!==expected)violations.push(`${edge.importer} -> ${target} uses v=${edge.token||"MISSING"}, expected v=${expected}`);
+  const remapped=edgeHasExpectedImportMapOverride(edge);
+  if(edge.token!==expected&&!remapped)violations.push(`${edge.importer} -> ${target} uses v=${edge.token||"MISSING"}, expected v=${expected}`);
+  if(remapped)continue;
   if(!impacted.has(edge.importer)){impacted.add(edge.importer);queue.push(edge.importer)}
  }
 }
 
-const html=readFileSync(path.join(root,"index.html"),"utf8");
 if(impacted.has("app.js")){
  const m=html.match(/<script\b[^>]*\bsrc=["']app\.js\?v=(\d+)["']/i);
  if(!m||m[1]!==expected)violations.push(`index.html -> app.js uses v=${m?.[1]||"MISSING"}, expected v=${expected}`)
