@@ -14,21 +14,38 @@ jobs:
         with:
           ref: fix/v0599-ja-ui-runtime-progress
           fetch-depth: 0
-      - run: python3 scripts/v0599_patch_preflight.py
-      - run: python3 scripts/v0599_patch.py
-      - name: Capture runtime regression
-        id: runtime
-        continue-on-error: true
-        run: node --test test/v05908-runtime-recovery.test.js > /tmp/v0599-test-output.txt 2>&1
-      - name: Persist diagnostic on failure
-        if: steps.runtime.outcome == 'failure'
+      - name: Prepare product patch
+        run: python3 scripts/v0599_patch_preflight.py
+      - name: Apply product patch
+        run: python3 scripts/v0599_patch.py
+      - name: Normalize generated regression regex escaping
+        shell: python
         run: |
-          cp /tmp/v0599-test-output.txt v0599-test-output.txt
+          from pathlib import Path
+          p=Path('test/v05908-runtime-recovery.test.js')
+          s=p.read_text()
+          marker='test("v0.59.9 first-button recovery can bind'
+          head,sep,tail=s.partition(marker)
+          if not sep:
+              raise SystemExit('v0.59.9 regression marker missing')
+          tail=tail.replace('\\\\','\\')
+          p.write_text(head+sep+tail)
+      - name: Version policy
+        run: npm run version:check
+      - name: JavaScript syntax
+        run: node scripts/check-js.mjs
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: Runtime recovery regression
+        run: node --test test/v05908-runtime-recovery.test.js
+      - name: First-button regression
+        run: node --test test/ai-autotest-first-button-hotfix.test.js
+      - name: Version UI regression
+        run: node --test test/version-ui.test.js
+      - name: Commit product patch
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add v0599-test-output.txt
-          git commit -m "chore: capture v0.59.9 regression output"
+          git add package.json src/version.js app.js index.html src/ai-autotest.js src/locale-runtime.js src/ui-translations-extra.js src/v0594-static-i18n.js test/v05908-runtime-recovery.test.js
+          git commit -m "fix: v0.59.9 Japanese UI and grounded AutoTest progress"
           git push origin HEAD:fix/v0599-ja-ui-runtime-progress
-      - name: Require runtime regression
-        if: steps.runtime.outcome == 'failure'
-        run: exit 1
