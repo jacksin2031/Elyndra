@@ -80,7 +80,7 @@ jobs:
           assert old in s; p.write_text(s.replace(old,new,1))
 
           p=Path('test/v05721-runtime-recovery.test.js'); p.write_text(p.read_text().replace('PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000','PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000'))
-          p=Path('test/v05901-i18n-coverage.test.js'); p.write_text(p.read_text().replace('0.59.7','0.59.8').replace(r'0\.59\.7',r'0\.59\.8'))
+          p=Path('test/v05901-i18n-coverage.test.js'); s=p.read_text().replace('v0.59.7','v0.59.8').replace('59007','59008').replace('"0.59.7"','"0.59.8"').replace(r'0\.59\.7',r'0\.59\.8'); p.write_text(s)
 
           p=Path('.github/workflows/pages.yml'); s=p.read_text(); needle='run: node --test test/version-policy.test.js '
           if needle in s: s=s.replace(needle,'run: node --test test/v05908-runtime-recovery.test.js test/version-policy.test.js ',1)
@@ -114,6 +114,8 @@ jobs:
                   if importer not in impacted: impacted.add(importer); queue.append(importer)
           p=Path('index.html'); text=p.read_text()
           if 'app.js' in impacted: text=re.sub(r'app\.js\?v=\d+','app.js?v='+token,text)
+          for asset in ['styles.css','creator.css','world-surfaces.css']:
+              text=re.sub(re.escape(asset)+r'\?v=\d+',asset+'?v='+token,text)
           p.write_text(text); print('impacted modules:', ', '.join(sorted(impacted)))
           PY
       - name: Version contract
