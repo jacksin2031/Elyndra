@@ -6,6 +6,11 @@ export * from "./game-engine.js?v=60006&base=1";
 const locale=()=>String(globalThis.ELYNDRA_LOCALE||"zh-Hant");
 const visible=v=>typeof v==="string"?safePlayerVisibleText(v,locale()):v;
 const clean=(v,max=220)=>typeof v==="string"?v.trim().slice(0,max):"";
+function projectionVisible(value){
+ const text=String(value??"");if(locale()!=="ja")return visible(text);
+ let m=text.match(/^你取得了前往「(.+)」的通行許可。$/u);if(m)return `「${m[1]}」への通行許可を得ました。`;
+ return visible(text)
+}
 function localizeArray(rows=[]){return Array.isArray(rows)?rows.map(visible):rows}
 function localizeResult(result){
  if(!result||locale()!=="ja")return result;
@@ -22,12 +27,12 @@ function localizePlayerEvents(state){
  if(locale()!=="ja"||!Array.isArray(state?.events))return;
  for(const event of state.events.slice(-12)){
   if(event?.visibility==="INTERNAL")continue;
-  for(const key of ["summary","text","playerSummary","visibleSummary","reason"])if(typeof event?.[key]==="string")event[key]=visible(event[key])
+  for(const key of ["summary","text","playerSummary","visibleSummary","reason"])if(typeof event?.[key]==="string")event[key]=projectionVisible(event[key])
  }
 }
 export function performAction(state,action="free",customText="",assessment=null){
  const label=clean(assessment?.normalizedAction||customText||action,220)||"free",result=localizeResult(base.performAction(state,action,customText,assessment));
- if(result&&!result.blocked){projectSuccessfulTravel(state,label,result,assessment||{},visible);projectPermissionGrant(state,label,result,assessment||{},visible)}
- if(locale()==="ja"&&state){if(typeof state.narrative==="string")state.narrative=visible(state.narrative);localizePlayerEvents(state)}
+ if(result&&!result.blocked){projectSuccessfulTravel(state,label,result,assessment||{},projectionVisible);projectPermissionGrant(state,label,result,assessment||{},projectionVisible)}
+ if(locale()==="ja"&&state){if(typeof state.narrative==="string")state.narrative=projectionVisible(state.narrative);localizePlayerEvents(state)}
  return result
 }
