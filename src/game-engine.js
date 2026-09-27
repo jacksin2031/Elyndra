@@ -17,7 +17,7 @@ import {isNpcPresent} from "./world-registry.js?v=57025";
 import {markEntityObserved} from "./visibility-lock.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
 import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57029";
-import {adjustNpcRelationship} from "./npc-cognition.js?v=57025";
+import {resolveSocialAction} from "./social-conflict-engine.js?v=60002";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 const AMBIGUOUS_MUTATION=/(?:不想|不要|不打算|不會|別|並非要|不是要|沒有要|無意|如果|假如|若果|若|除非|是否|能否|可否|要不要|[?？]|[「」『』])/i;
@@ -48,16 +48,12 @@ function ensure(state){
  state.discoveries??=0;ensureCheckProfile(state);ensureItemRuntime(state)
 }
 function localNarrative(state,label,roll,profile,effects={}){
- const loc=playerVisibleLocationName(state)||"目前位置",rel=effects.npcRelationship,npc=rel?.npcId?(state.world?.registry?.npcs||[]).find(x=>x.id===rel.npcId):null,who=npc?playerVisibleNpcName(state,npc):"對方",changes=rel?.changes||{};
- if(profile?.kind==="SOCIAL"&&rel){
-  const trust=Number(changes.trust)||0,respect=Number(changes.respect)||0;
-  if(trust>0||respect>0)return `${who}沒有避開這次交涉，態度出現了可確認的正向變化。是否得到新資訊或推進任務，仍只以實際對話與世界狀態為準。`;
-  if(trust<0||respect<0)return `${who}讓你把事情做完，但態度明顯變得更差。行動判定成功不代表關係改善。`;
- }
- if(roll.grade==="CRITICAL_SUCCESS")return `你在${loc}完成了「${label}」，結果十分順利。只有眼前實際出現的變化才算作後續資訊。`;
+ const loc=playerVisibleLocationName(state)||"目前位置",social=effects.npcRelationship;
+ if(profile?.kind==="SOCIAL"&&social?.summary)return social.summary;
+ if(roll.grade==="CRITICAL_SUCCESS")return `你在${loc}完成了「${label}」，結果比預期更順利。`;
  if(roll.grade==="CRITICAL_FAILURE")return `你在${loc}嘗試「${label}」時出了明顯差錯，現場局勢變得更不利。`;
- if(roll.success)return `你在${loc}完成了「${label}」。現場若沒有新的可觀察變化，就不額外推斷線索、信任或任務進展。是否出現新的可確認資訊，仍以實際觀察與世界狀態為準。`;
- return `你在${loc}嘗試「${label}」，但沒有達到目標。眼前沒有憑空出現新線索，你仍可以改用其他可行做法。`
+ if(roll.success)return `你在${loc}完成了「${label}」。`;
+ return `你在${loc}嘗試「${label}」，但沒有達到原本的目的；局勢仍在變化，你可以換一種做法。`
 }
 function localNpcActionTarget(state,label,assessment=null){
  const intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=clean(assessment?.actionIntent?.targetId||assessment?.targetId,120),rows=state?.world?.registry?.npcs||[];
@@ -74,16 +70,11 @@ function markLocalNpcInteraction(state,label,assessment=null){
  state.events??=[];state.events.push({id:id(),type:"NPC_INTERACTION",visibility:"PLAYER_KNOWN",npcId:npc.id,firstEncounter,summary,day:state?.world?.state?.day||1,minute,at:Date.now()});
  return {npcId:npc.id,firstEncounter}
 }
-function applyLocalNpcRelationshipOutcome(state,interaction,roll,kind,label){
- if(!interaction?.npcId||String(kind||"").toUpperCase()!=="SOCIAL"||!roll)return null;
+function applyLocalNpcRelationshipOutcome(state,interaction,resolution,kind,label,assessment=null){
+ if(!interaction?.npcId||String(kind||"").toUpperCase()!=="SOCIAL"||!resolution)return null;
  const npc=(state.world?.registry?.npcs||[]).find(x=>x?.id===interaction.npcId);if(!npc)return null;
- const grade=String(roll.grade||"").toUpperCase();let changes=null;
- if(grade==="CRITICAL_SUCCESS")changes={trust:6,respect:4,fear:-1};
- else if(grade==="SUCCESS")changes={trust:2,respect:1};
- else if(grade==="CRITICAL_FAILURE")changes={trust:-2,respect:-1,fear:2};
- if(!changes)return null;
- const relationship=adjustNpcRelationship(state,npc,{changes,reason:`玩家社交行動「${clean(label,100)}」由 Engine 判定為 ${grade}。`});
- return {npcId:npc.id,grade,changes,relationship,reason:`玩家社交行動「${clean(label,100)}」由 Engine 判定為 ${grade}。`,source:"ENGINE_LOCAL_SOCIAL"}
+ const intent={...(assessment?.actionIntent||{}),raw:clean(label,180)};
+ return resolveSocialAction(state,npc,intent,resolution,{combat:false})
 }
 export function resolveEngineFeasibility(state,label,assessment=null){
  const q=clean(label,180),intent=String(assessment?.actionIntent?.intent||assessment?.intent||"").toUpperCase(),targetId=String(assessment?.actionIntent?.targetId||assessment?.targetId||"");
@@ -167,7 +158,7 @@ export function performAction(state,action="free",customText="",assessment=null)
  const actionIntent={...(assessment?.actionIntent||{}),kind:profile.kind,raw:label},resolution=buildResolutionOutcome({roll,intent:actionIntent,snapshot:state}),travelMitigation=profile.kind==="TRAVEL"&&!resolution.goalAchieved?mitigateTravelFailureWithTalent(state,{baseMinutes:profile.minutes,resolution}):{applied:false},effectiveMinutes=profile.minutes+(travelMitigation.applied?Number(travelMitigation.extraMinutes)||0:0);
  if(travelMitigation.applied){resolution.costs=[...(resolution.costs||[]),{type:"TIME",severity:"MODERATE",source:"TALENT_RULE",committed:true,minutes:travelMitigation.extraMinutes}];resolution.talentRule={talentId:"TAL-SURVIVAL-3",effect:"DANGER_TO_TIME"}}
  const training=trainActionSkill(state,check.kind,roll);if(training.rankUp)roll.skillUp=training;
- const npcRelationship=applyLocalNpcRelationshipOutcome(state,npcInteraction,roll,profile.kind,label);
+ const npcRelationship=applyLocalNpcRelationshipOutcome(state,npcInteraction,resolution,profile.kind,label,assessment);
  advanceTime(state,effectiveMinutes);
  const economy=resolveEconomyAction(state,label,roll),paidLodging=/住宿|旅店|投宿|lodging|inn|stay overnight/i.test(label),restGranted=profile.rest===true&&roll.success&&(!paidLodging||economy?.ok===true);
  const survival=tickSurvival(state,effectiveMinutes,{kind:profile.kind,rest:restGranted});if(restGranted)recoverMagic(state,Math.max(8,Math.round(effectiveMinutes/20)));
