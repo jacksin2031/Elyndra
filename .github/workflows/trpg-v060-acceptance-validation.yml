@@ -1,0 +1,36 @@
+name: TRPG Depth v0.60 Acceptance Validation
+on:
+  push:
+    branches:
+      - test/trpg-depth-v060-acceptance
+permissions:
+  contents: read
+concurrency:
+  group: trpg-v060-acceptance-validation
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
+        env:
+          CACHE_BASE_REF: feat/trpg-depth-rhythm-v060
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: TRPG Depth end-to-end acceptance
+        run: node --test test/trpg-depth-e2e-v060.test.js test/story-rhythm-v0606.test.js test/drive-engine-v0605.test.js test/talent-rules-v0604.test.js test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/version-ui.test.js test/version-0551-release.test.js
