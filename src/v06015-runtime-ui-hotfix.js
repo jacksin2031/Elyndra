@@ -19,6 +19,9 @@ function repairNarrative(){
   const next=lastStableNarrative||v06015JapaneseFallbackNarrative();if(next&&next!==before)narrative.textContent=next;return
  }
  const localized=localizeV06015JapaneseVisibleText(before);if(localized!==before)narrative.textContent=localized;
+ if(JA_LEAK.test(localized)){
+  const next=lastStableNarrative||v06015JapaneseFallbackNarrative();if(next&&next!==localized)narrative.textContent=next;return
+ }
  if(safeStableNarrative(localized))lastStableNarrative=localized
 }
 function repairDebugTelemetry(){
