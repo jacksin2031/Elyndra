@@ -13,6 +13,8 @@ jobs:
         with:
           ref: fix/v0599-ja-ui-runtime-progress
           fetch-depth: 0
+      - name: Prepare product patch
+        run: python3 scripts/v0599_patch_preflight.py
       - name: Apply product patch
         run: python3 scripts/v0599_patch.py
       - name: Validate generated patch
