@@ -6,6 +6,11 @@ def replace(path,old,new):
  if old not in s: raise SystemExit(f'MISSING:{path}:{old[:80]}')
  p.write_text(s.replace(old,new,1),encoding='utf-8')
 
+# Fix the Social 2.0 result contract before integration.
+social=Path('src/social-conflict-engine.js'); sx=social.read_text(encoding='utf-8')
+sx=sx.replace('return {ok:true,tactic,outcome,summary,moraleDelta,relationship:updatedRelationship,','return {ok:true,tactic:t,outcome,summary,moraleDelta,relationship:updatedRelationship,',1)
+social.write_text(sx,encoding='utf-8')
+
 p=Path('src/combat-engine.js'); s=p.read_text(encoding='utf-8')
 needle='import {activeEnemies,advanceEncounterRound,applyEnemyMorale,completeEncounterObjectives,consumeEnvironment,createEncounterFrame,encounterSnapshot,ensureEncounterFrame,movePlayerZone,recordEncounterAction,selectCombatTarget,setPrimaryEnemy,usableEnvironment} from "./encounter-engine.js?v=60001";'
 if 'social-conflict-engine.js?v=60002' not in s:
@@ -25,9 +30,21 @@ Path('src/version.js').write_text('export const APP_VERSION="0.60.2";\n',encodin
 replace('app.js','./src/version.js?v=60001','./src/version.js?v=60002')
 replace('app.js','./src/combat-engine.js?v=60001','./src/combat-engine.js?v=60002')
 idx=Path('index.html'); x=idx.read_text(encoding='utf-8').replace('"./src/combat-engine.js?v=59014":"./src/combat-engine.js?v=60001"','"./src/combat-engine.js?v=59014":"./src/combat-engine.js?v=60002"').replace('app.js?v=60001','app.js?v=60002'); idx.write_text(x,encoding='utf-8')
+
 vu=Path('test/version-ui.test.js'); x=vu.read_text(encoding='utf-8').replace('0.60.1','0.60.2').replace('60001','60002'); vu.write_text(x,encoding='utf-8')
-vr=Path('test/version-0551-release.test.js'); x=vr.read_text(encoding='utf-8'); x=x.replace('Official v0.60.0 release contract','Official v0.60.2 release contract').replace('test("v0.60.0 is the canonical app and browser cache release"','test("v0.60.2 is the canonical app and browser cache release"').replace('assert.equal(pkg.version,"0.60.0")','assert.equal(pkg.version,"0.60.2")').replace('/APP_VERSION="0\\.60\\.0"/','/APP_VERSION="0\\.60\\.2"/').replace('/app\\.js\\?v=60000/','/app\\.js\\?v=60002/').replace('"60000"].includes(x)','"60000","60001","60002"].includes(x)').replace('/\\.\\/src\\/version\\.js\\?v=60000/','/\\.\\/src\\/version\\.js\\?v=60002/').replace('assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59010"));assert.ok(tokens.includes("60000"));','assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59010"));assert.ok(tokens.includes("60000"));assert.ok(tokens.includes("60002"));')
+combat_test=Path('test/combat-v0601.test.js'); x=combat_test.read_text(encoding='utf-8').replace('combat-engine\\.js\\?v=60001','combat-engine\\.js\\?v=60002'); combat_test.write_text(x,encoding='utf-8')
+
+vr=Path('test/version-0551-release.test.js'); x=vr.read_text(encoding='utf-8')
+x=x.replace('Official v0.60.0 release contract','Official v0.60.2 release contract')
+x=x.replace('test("v0.60.0 is the canonical app and browser cache release"','test("v0.60.2 is the canonical app and browser cache release"')
+x=x.replace('assert.equal(pkg.version,"0.60.0")','assert.equal(pkg.version,"0.60.2")')
+x=x.replace('/APP_VERSION="0\\.60\\.0"/','/APP_VERSION="0\\.60\\.2"/')
+x=x.replace('/app\\.js\\?v=60000/','/app\\.js\\?v=60002/')
+x=x.replace('"59015","60000"].includes(x)','"59015","60000","60001","60002"].includes(x)')
+x=x.replace('/\\.\\/src\\/version\\.js\\?v=60000/','/\\.\\/src\\/version\\.js\\?v=60002/')
+x=x.replace('assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59010"));assert.ok(tokens.includes("60000"));','assert.ok(tokens.includes("57029"));assert.ok(tokens.includes("58000"));assert.ok(tokens.includes("59010"));assert.ok(tokens.includes("60002"));')
 vr.write_text(x,encoding='utf-8')
-pages=Path('.github/workflows/pages.yml'); x=pages.read_text(encoding='utf-8').replace('name: Focused v0.59.15 regressions','name: Focused release regressions');
+
+pages=Path('.github/workflows/pages.yml'); x=pages.read_text(encoding='utf-8').replace('name: Focused v0.59.15 regressions','name: Focused release regressions')
 if 'test/social-conflict-v0602.test.js' not in x: x=x.replace('node --test test/combat-v0601.test.js ','node --test test/social-conflict-v0602.test.js test/combat-v0601.test.js ')
 pages.write_text(x,encoding='utf-8')
