@@ -1,11 +1,11 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=59008";
+import {APP_VERSION} from "./src/version.js?v=59009";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
-import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59008";
-import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59004";
-import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59008";
+import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=59009";
+import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59009";
+import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=59009";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=57029";
-import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59008";
+import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=59009";
 import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=57029";
 import {maintainSession} from "./src/session-maintenance.js?v=57025";
@@ -61,7 +61,7 @@ import {applyOriginRuntime} from "./src/origin-runtime.js?v=57025";
 import {historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57025";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57025";
 import {registerHistoryRelicSeeds} from "./src/item-heritage.js?v=57025";
-import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59008";
+import {randomAutotestWorldRaw,decideAutotestAction,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,buildAutotestReport,autotestExportSelection,autotestPlayStrategy,autotestDifficultyPlan} from "./src/ai-autotest.js?v=59009";
 import {buildAutotestExportSnapshot,buildAutotestExportArtifacts,saveLastAutotestExportSnapshot,loadLastAutotestExportSnapshot,archiveAutotestExportSnapshot,listAutotestExportSnapshots,loadAutotestExportSnapshot} from "./src/autotest-export.js?v=57025";
 import {autotestSaveCapability,saveAutotestArtifactWithPicker,saveAutotestArtifactsToDirectory,shareAutotestArtifact} from "./src/autotest-save.js?v=57025";
 import {copyAutotestText} from "./src/autotest-copy.js?v=57025";
@@ -70,7 +70,7 @@ import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile
 import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,ensureAutotestDownloadBridge} from "./src/autotest-download.js?v=57025";
 import {validateSceneProvenance,filterSuggestionProvenance} from "./src/scene-provenance.js?v=57025";
 const $=s=>document.querySelector(s),qsa=s=>Array.from(document.querySelectorAll(s));let gameState=null,aiStatus={ok:false,aiConfigured:false},aiBusy=false,turnSyncBusy=false,turnSyncLabel="",helperHistory=[],npcChatHistory=new Map();
-let activeLocale=saveLocale(loadLocale()),localeTransitionBusy=false;globalThis.ELYNDRA_LOCALE=activeLocale;const lt=value=>gameState?translatedText(gameState,value,activeLocale):String(value??"");
+let activeLocale=saveLocale(loadLocale()),localeTransitionBusy=false;globalThis.ELYNDRA_LOCALE=activeLocale;const lt=value=>localizedStaticText(gameState?translatedText(gameState,value,activeLocale):String(value??""),activeLocale);
 const ALL_RULE_TAGS="__all__";
 const staticText=value=>localizedStaticText(value,activeLocale);
 const ruleCategoryText=value=>value===ALL_RULE_TAGS?(activeLocale==="en"?"All":activeLocale==="ja"?"すべて":"全部"):localizedStaticText(value,activeLocale);
@@ -918,14 +918,14 @@ $("#debugBtn")?.addEventListener("click",openDebugPanel);
 let modalRestoreFocus=null;function closeModal(){const modal=$("#modal");if(!modal||modal.classList.contains("hidden"))return;modal.classList.add("hidden");const target=modalRestoreFocus;modalRestoreFocus=null;if(target&&document.contains(target)&&typeof target.focus==="function")target.focus()}function modalFocusables(){return qsa("#modal button:not([disabled]),#modal input:not([disabled]),#modal select:not([disabled]),#modal textarea:not([disabled]),#modal [href],#modal [tabindex]:not([tabindex=\"-1\"])")}function openModal(html){modalRestoreFocus=document.activeElement instanceof HTMLElement?document.activeElement:null;$("#modalContent").innerHTML=html;$("#modal").classList.remove("hidden");applyDocumentLocale(activeLocale,$("#modal"));if(gameState)applyWorldLocaleToDocument(gameState,activeLocale,$("#modal"));void ensureRenderedLocale("modal",$("#modal"));requestAnimationFrame(()=>{(modalFocusables()[0]||$("#closeModal"))?.focus()})}$("#closeModal").onclick=closeModal;$("#modal").onclick=e=>{if(e.target.id==="modal")closeModal()};document.addEventListener("keydown",e=>{const modal=$("#modal");if(!modal||modal.classList.contains("hidden"))return;if(e.key==="Escape"){e.preventDefault();closeModal();return}if(e.key!=="Tab")return;const items=modalFocusables();if(!items.length)return;const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}});
 function openWorldMap(){
  const r=ensureWorldRegistry(gameState),map=worldMapSnapshot(gameState),npcs=r.npcs.filter(x=>x.known===true),factions=r.factions.filter(x=>x.known===true),weather=weatherUiSnapshot(gameState);
- const routeByRegion=map.routes.map(x=>`${esc(x.fromName)} ↔ ${esc(x.toName)} · ${Math.round(x.distanceKm)}km · ${esc(x.terrain)}`);
- const regionHtml=map.regions.map(region=>`<div class="lore-item"><small>REGION</small><h3>${esc(region.region)}</h3><div class="world-map-region">${region.locations.map(loc=>{const full=r.locations.find(x=>x.id===loc.id),access=loc.access||{allowed:true,missing:[]},missing=access.missing||[];return `<div class="faction-row"><strong>${loc.current?"◆ ":""}${esc(loc.name)}</strong><small>${esc(loc.type||"未知地點")}${loc.current?" · CURRENT":""}</small>${full?.description?`<span>${esc(full.description)}</span>`:""}${missing.length?`<small>🔒 需要：${missing.map(x=>esc(x.hint||x.id||x.type)).join(" · ")}</small>`:`<small>可進入條件：已滿足</small>`}</div>`}).join("")}</div></div>`).join("");
+ const routeByRegion=map.routes.map(x=>`${esc(lt(x.fromName))} ↔ ${esc(lt(x.toName))} · ${Math.round(x.distanceKm)}km · ${esc(staticText(x.terrain))}`);
+ const regionHtml=map.regions.map(region=>`<div class="lore-item"><small>REGION</small><h3>${esc(lt(region.region))}</h3><div class="world-map-region">${region.locations.map(loc=>{const full=r.locations.find(x=>x.id===loc.id),access=loc.access||{allowed:true,missing:[]},missing=access.missing||[];return `<div class="faction-row"><strong>${loc.current?"◆ ":""}${esc(lt(loc.name))}</strong><small>${esc(loc.type?lt(loc.type):staticText("未知地點"))}${loc.current?" · CURRENT":""}</small>${full?.description?`<span>${esc(lt(full.description))}</span>`:""}${missing.length?`<small>🔒 需要：${missing.map(x=>esc(x.hint||x.id||x.type)).join(" · ")}</small>`:`<small>可進入條件：已滿足</small>`}</div>`}).join("")}</div></div>`).join("");
  openModal(`<div class="eyebrow">KNOWN WORLD MAP</div><h2>世界地圖</h2><p class="muted">只顯示你已經知道的地點與已確認路線；未知區域不會出現在地圖上。</p><div class="lore-list">
- <div class="lore-item"><small>CURRENT WEATHER</small><h3>${esc(weather.observableName)}</h3><p>${esc(weather.sensoryCue||"")}</p></div>
+ <div class="lore-item"><small>CURRENT WEATHER</small><h3>${esc(lt(weather.observableName))}</h3><p>${esc(lt(weather.sensoryCue||""))}</p></div>
  ${regionHtml||'<div class="lore-item"><p>尚未掌握任何可定位的地點。</p></div>'}
  <div class="lore-item"><small>KNOWN ROUTES</small><p>${routeByRegion.length?routeByRegion.join("<br>"):"尚未確認地點之間的路線"}</p></div>
- <div class="lore-item"><small>KNOWN NPCS</small><p>${npcs.map(x=>`<button class="npc-link" data-npc-id="${esc(x.id)}">${esc(playerVisibleNpcName(gameState,x))} · ${esc(x.role)}</button>`).join("")||"尚未遇到人物"}</p></div>
- <div class="lore-item"><small>KNOWN FACTIONS</small><p>${factions.map(x=>`<strong>${esc(x.name)}</strong> · 關係 ${x.playerReputation??0}<br><small>${esc(x.goal||"")}</small>`).join("<br><br>")||"尚未確認勢力"}</p></div>
+ <div class="lore-item"><small>KNOWN NPCS</small><p>${npcs.map(x=>`<button class="npc-link" data-npc-id="${esc(x.id)}">${esc(lt(playerVisibleNpcName(gameState,x)))} · ${esc(lt(x.role))}</button>`).join("")||"尚未遇到人物"}</p></div>
+ <div class="lore-item"><small>KNOWN FACTIONS</small><p>${factions.map(x=>`<strong>${esc(lt(x.name))}</strong> · ${esc(staticText("關係"))} ${x.playerReputation??0}<br><small>${esc(lt(x.goal||""))}</small>`).join("<br><br>")||"尚未確認勢力"}</p></div>
  </div>`);bindNpcLinks()
 }
 $("#worldBtn")?.addEventListener("click",openWorldMap);
@@ -938,10 +938,10 @@ const STAT_LABEL={strength:"力量",agility:"敏捷",mind:"心智",presence:"魅
 function bonusText(b={}){const rows=Object.entries(b).filter(([,v])=>Number(v));return rows.length?rows.map(([k,v])=>`${SKILL_LABEL[k]||k} ${signed(v)}`).join(" · "):"沒有判定加成"}
 $("#characterBtn")?.addEventListener("click",()=>{
  const p=checkProfileSnapshot(gameState),survival=survivalSnapshot(gameState),origin=playerOriginSnapshot(gameState.player),magic=gameState.player.magic||{strain:0,capacity:100},active=ensureWorldRegistry(gameState).npcs.filter(x=>x.known===true&&x.alive!==false&&x.companion?.status==="ACTIVE"),talentInfo=talentSnapshot(gameState),identity=talentInfo.identity;
- openModal(`<div class="eyebrow">CHARACTER STATUS</div><h2>${esc(gameState.player.name)}</h2><p class="muted">${esc(origin.label)} · 起源決定你一開始能知道甚麼；長期選擇則會形成你自己的做事方式。</p><div class="lore-list">
+ openModal(`<div class="eyebrow">CHARACTER STATUS</div><h2>${esc(gameState.player.name)}</h2><p class="muted">${esc(lt(origin.label))} · ${esc(staticText("起源決定你一開始能知道甚麼；長期選擇則會形成你自己的做事方式。"))}</p><div class="lore-list">
  <div class="lore-item"><small>身體狀況</small><p><strong>生命</strong> ${gameState.player.hp}/${gameState.player.maxHp}<br><strong>飽食度</strong> ${Math.round(survival.satiety)}/100<br><strong>疲勞</strong> ${Math.round(survival.fatigue)}/100<br><strong>環境暴露</strong> ${Math.round(survival.exposure)}/100<br><strong>傷勢</strong> ${Math.round(survival.injury)}/100<br><strong>魔法負荷</strong> ${Math.round(magic.strain||0)}/${magic.capacity||100}</p></div>
  <div class="lore-item"><small>起源記憶</small><p>${(origin.commonKnowledge||[]).map(x=>esc(x)).join("<br>")||"沒有可直接帶入這個世界的既有常識。"}</p>${origin.defaultValues?.length?`<small>原有價值觀</small><p>${origin.defaultValues.map(x=>esc(x)).join("<br>")}</p>`:""}</div>
- <div class="lore-item"><small>成長路線</small><h3>${identity.committed?esc(identity.path.name):"尚未定型"}</h3><p>${esc(identity.description)}${identity.committed?`<br><small>較容易成長：${identity.focusedKinds.map(k=>esc(SKILL_LABEL[k]||k)).join("、")}；其他方向需要更大投入。</small>`:""}</p></div>
+ <div class="lore-item"><small>成長路線</small><h3>${identity.committed?esc(lt(identity.path.name)):esc(staticText("尚未定型"))}</h3><p>${esc(identity.description)}${identity.committed?`<br><small>較容易成長：${identity.focusedKinds.map(k=>esc(SKILL_LABEL[k]||k)).join("、")}；其他方向需要更大投入。</small>`:""}</p></div>
  <div class="lore-item"><small>能力基礎</small><p>${Object.entries(p.stats).map(([k,v])=>`<strong>${esc(STAT_LABEL[k]||k)}</strong> ${v}`).join(" · ")}</p></div>
  <div class="lore-item"><small>累積經驗</small>${Object.entries(p.skills).map(([k,v])=>`<p><strong>${esc(SKILL_LABEL[k]||k)}</strong> Lv.${v} · 熟練 ${p.skillProgress[k]||0}${v<5?` / ${4+v*3}`:" · MAX"}</p>`).join("")}</div>
  <div class="lore-item"><small>已裝備工具</small><p>${p.equipped.length?p.equipped.map(x=>`${esc(x.name)} · ${esc(bonusText(x.checkBonuses))}`).join("<br>"):"目前沒有具判定加成的裝備"}</p></div>
@@ -1153,7 +1153,7 @@ async function executeDeveloperAutotestDecision(decision){
   if(chosen&&typeof chosen==="object"){await runAction("free",chosen.action||chosen.label||decision.action,{suggestion:chosen});return}
   if(typeof chosen==="string"){await runAction("free",chosen);return}
  }
- await runAction("free",decision.action||"觀察四周並確認目前最明顯的變化")
+ await runAction("free",decision.action||staticText("觀察四周並確認目前最明顯的變化"),{suggestion:{label:decision.action||"",action:decision.action||"",kind:decision.kind||"",progression:decision.progression===true,targetId:decision.targetId||null}})
 }
 async function exportDeveloperAutotestResults(report,results){
  const snapshot=buildAutotestExportSnapshot({appVersion:APP_VERSION,report,results,telemetry:telemetryEntries(),startedAt:developerAutotest.startedAt,exportMode:developerAutotest.config?.exportMode||"both"});developerAutotest.exportSnapshot=snapshot;
@@ -1280,10 +1280,10 @@ async function startDeveloperAutotest(config){
     result.phase="PLAY";const recentActions=[];
     for(let turn=1;turn<=config.maxTurns;turn++){
      if(developerAutotest.stopRequested){result.stopReason="MANUAL_STOP";break}
-     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON",stall=autotestRecentStallCount(recentActions),expansionNeeded=needsExpansion(gameState),sparseWorld=(gameState.world?.registry?.locations||[]).length<=1&&turn>=5;let expansionReason="";
+     developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON",stall=autotestRecentStallCount(recentActions),expansionNeeded=needsExpansion(gameState),sparseWorld=((gameState.world?.registry?.locations||[]).length<=1||travelSnapshot(gameState,{director:true}).routes.length===0)&&turn>=3;let expansionReason="";
      if(stall>=3)expansionReason=firstButtonFast?"FIRST_BUTTON_STALL_RECOVERY":"AUTOTEST_STALL_RECOVERY";else if(expansionNeeded&&(firstButtonFast?sparseWorld:true))expansionReason=firstButtonFast?"FIRST_BUTTON_SPARSE_WORLD":"WORLD_EDGE_UNDERDEFINED";
      if(expansionReason){if(firstButtonFast&&sparseWorld){const last=Number(autotestRuntimeExpansion.lastStartedTurn)||0;if(!autotestRuntimeExpansion.running&&(!last||turn-last>=3)){autotestRuntimeExpansion.lastStartedTurn=turn;const expanded=await expandDeveloperAutotestWorld(expansionReason,{force:true});if(expanded)autotestRuntimeExpansion.lastCompletedTurn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_STALL_SETTLED",{reason:expansionReason,turn,expanded,stall})}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_THROTTLED",{reason:expansionReason,turn,lastStartedTurn:last,minTurnGap:3})}else{const scheduled=scheduleDeveloperAutotestExpansion(expansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:expansionReason,turn,scheduled,stall,expansionNeeded})}}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:firstButtonFast?"FIRST_BUTTON_FAST_PATH":"AI_DECISION_NO_EXPANSION",phase:"TURN",turn,stall,expansionNeeded});
-     if(firstButtonFast)await waitForAutotestActionReady(3000);else await waitForAutotestIdle();
+     if(firstButtonFast){const ready=await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);if(!ready)throw new Error("AUTOTEST_PLAYER_ACTION_STILL_RUNNING")}else await waitForAutotestIdle();
      const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
      try{
       const ctrl=new AbortController();developerAutotest.controller=ctrl;

@@ -1,4 +1,4 @@
-import {EXTRA_UI} from "./ui-translations-extra.js?v=59001";
+import {EXTRA_UI} from "./ui-translations-extra.js?v=59009";
 export const SUPPORTED_LOCALES=Object.freeze({
  "zh-Hant":{label:"繁體中文",htmlLang:"zh-Hant",aiName:"Traditional Chinese"},
  "zh-Hans":{label:"简体中文",htmlLang:"zh-Hans",aiName:"Simplified Chinese"},
