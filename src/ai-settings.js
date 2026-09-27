@@ -18,7 +18,7 @@ export function clearAISettings(provider){if(!provider){localStorage.removeItem(
 export function hasDirectAI(){const s=loadAISettings();return Boolean(s.endpoint&&s.model&&s.apiKey)}
 const AI_TASK_TIER={action:"FAST",narration:"FAST",translation:"FAST",helper:"FAST",npc:"FAST",scene:"FAST",turn_state_fast:"FAST",identity:"FAST",geography:"FAST",society:"FAST",cast:"FAST",core_anchor:"BALANCED",turn_state:"BALANCED",turn_deferred:"BALANCED",runtime_expansion:"BALANCED",turn_state_deep:"IMPORTANT",core_rules:"IMPORTANT",history:"IMPORTANT",future:"BALANCED",quality:"CRITICAL",quality_repair:"CRITICAL",recovery:"CRITICAL",runtime_quality:"CRITICAL",runtime_repair:"CRITICAL"};
 export function optimizationTier(aiTask="general"){return AI_TASK_TIER[String(aiTask||"").toLowerCase()]||"BALANCED"}
-const AGNES_STRUCTURED_OUTPUT_FLOORS={action:800,scene:1100,turn_state_fast:800,identity:900,geography:900,society:1100,cast:1800,core_anchor:1200,core_rules:1100,future:3000,runtime_expansion:1600,runtime_quality:900};
+const AGNES_STRUCTURED_OUTPUT_FLOORS={action:800,scene:1100,turn_state_fast:800,identity:900,geography:900,society:1100,cast:1800,core_anchor:1200,core_rules:1100,future:4096,runtime_expansion:1600,runtime_quality:900};
 const AI_TASK_TIMEOUT_FLOORS={future:70000};
 const agnesStructuredOutputFloor=aiTask=>AGNES_STRUCTURED_OUTPUT_FLOORS[String(aiTask||"").toLowerCase()]||0;
 const taskTimeoutFloor=aiTask=>AI_TASK_TIMEOUT_FLOORS[String(aiTask||"").toLowerCase()]||0;
@@ -40,7 +40,7 @@ const providerAbortError=()=>Object.assign(new Error("AI_ABORTED: request cancel
 const RUNTIME_CONTROL_KEY="__ELYNDRA_DIRECT_AI_RUNTIME_CONTROL__";
 const RATE_LIMIT_KEY="__ELYNDRA_PROVIDER_RATE_LIMITS__";
 const SHED_ON_RATE_LIMIT=new Set(["turn_deferred","runtime_expansion","history_deepening","runtime_quality","quality","quality_repair","runtime_repair"]);
-const PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000;
+const PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000;
 const PLAYER_CRITICAL_TASKS=new Set(["action","scene","turn_state_fast","turn_state_deep"]);
 function rateLimitRoot(){const current=globalThis[RATE_LIMIT_KEY];if(current&&typeof current==="object")return current;const initial={};globalThis[RATE_LIMIT_KEY]=initial;return initial}
 function rateLimitState(provider){const root=rateLimitRoot(),row=root[provider]??=({until:0,count:0,lastStatus:0,nextRequestAt:0,spacingMs:0});row.nextRequestAt=Math.max(0,Number(row.nextRequestAt)||0);row.spacingMs=Math.max(0,Number(row.spacingMs)||0);return row}
