@@ -35,3 +35,14 @@ test("讀懂弦外之音 exposes only an Engine-bounded agency clue and consumes
  assert.ok(plan);assert.equal(plan.pendingUse,true);assert.match(plan.clue,/承諾/);assert.doesNotMatch(JSON.stringify(plan),/trust|respect|fear|obligation|\b\d{2,3}\b/i);assert.equal(talentUseAvailable(state,"TAL-INTEL-2",{scope:"NPC_SCENE",targetId:"npc-a"}),true);
  const committed=commitNpcInsightTalent(state,plan);assert.equal(committed.applied,true);assert.equal(talentUseAvailable(state,"TAL-INTEL-2",{scope:"NPC_SCENE",targetId:"npc-a"}),false);assert.ok(state.events.some(x=>x.type==="TALENT_RULE_USED"&&x.talentId==="TAL-INTEL-2"))
 });
+
+import {readFile} from "node:fs/promises";
+
+test("Talent 2.0 is wired into game, combat and NPC conversation authority",async()=>{
+ const [game,combat,agency,conversation,client,pages]=await Promise.all([
+  readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/combat-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/npc-agency-engine.js",import.meta.url),"utf8"),readFile(new URL("../src/npc-conversation.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8")
+ ]);
+ assert.match(game,/useImprovisedToolTalent/);assert.match(game,/mitigateTravelFailureWithTalent/);assert.match(game,/buildResolutionOutcome/);
+ assert.match(combat,/interceptCompanionHarmWithTalent/);assert.match(agency,/ROLEPLAY_WITH_ENGINE_APPROVED_INSIGHT_ONLY/);assert.match(conversation,/requiresCommit/);assert.match(client,/approvedInsight/);
+ assert.match(pages,/talent-rules-v0604\.test\.js/);
+});

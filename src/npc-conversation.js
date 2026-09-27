@@ -11,7 +11,7 @@ import {markEntityObserved} from "./visibility-lock.js?v=57025";
 import {playerVisibleNpcName,revealNpcNameFromEvidence} from "./player-entity-visibility.js?v=57029";
 import {originNpcContext,originRuntimeSnapshot} from "./origin-runtime.js?v=57025";
 import {recordDebug} from "./debug-telemetry.js?v=57025";
-import {commitNpcConversationAction} from "./npc-agency-engine.js?v=60003";
+import {commitNpcConversationAction} from "./npc-agency-engine.js?v=60004";
 
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const languageSet=value=>new Set((Array.isArray(value)?value:[]).map(x=>String(x||"").trim().toUpperCase()).filter(Boolean));
@@ -22,7 +22,7 @@ export function npcLanguageContext(state,npc){
 }
 export function applyNpcConversationTurn(state,npc,message,answer,options={}){
  const mode=npcInteractionMode(state,npc);if(!mode)throw new Error("NPC_CONTACT_UNAVAILABLE");ensureNpcCognition(state,npc);
- const languageContext=npcLanguageContext(state,npc),agencyResult=options.socialPlan?.requiresResolution?commitNpcConversationAction(state,npc,options.socialPlan):null;recordDebug("NPC_TALK_RESOLUTION",{languageContext,socialOutcome:agencyResult?.social?.outcome||null});
+ const languageContext=npcLanguageContext(state,npc),agencyResult=(options.socialPlan?.requiresResolution||options.socialPlan?.requiresCommit)?commitNpcConversationAction(state,npc,options.socialPlan):null;recordDebug("NPC_TALK_RESOLUTION",{languageContext,socialOutcome:agencyResult?.social?.outcome||null,talentInsight:agencyResult?.talentInsight?.applied===true});
  const firstEncounter=mode==="LOCAL"&&npc.encountered!==true;if(mode==="LOCAL"){npc.known=true;npc.encountered=true;markEntityObserved(state,"npc",npc.id,{reason:"NPC_LOCAL_CONVERSATION"})}
  const minutes=npcConversationMinutes(state,mode),before=state.world.state.clock?.totalMinutes||0;revealNpcNameFromEvidence(state,npc,{answer,reason:"NPC_CONVERSATION_EVIDENCE"});const visibleName=playerVisibleNpcName(state,npc);
  advanceTime(state,minutes);
@@ -30,7 +30,7 @@ export function applyNpcConversationTurn(state,npc,message,answer,options={}){
  const memory=recordNpcMemory(state,npc,{type:"CONVERSATION",summary,importance:firstEncounter?3:1,entityRefs:[npc.id],source:"CONVERSATION",day:state.world.state.day,minute:state.world.state.clock.totalMinutes});
  const progressed=evaluateQuestEvidence(state,String(answer||""),{source:"NPC_TESTIMONY",npcId:npc.id});
  const questInteractions=evaluateNpcQuestInteraction(state,npc.id,{type:"TALK",text:String(message||"")+"\n"+String(answer||"")});
- const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",worldId:state.world?.id||null,location:state.player?.location||state.world?.state?.location||null,npcId:npc.id,mode,firstEncounter,memoryId:memory?.id||null,socialOutcome:agencyResult?.social?.outcome||null,questInteractions:questInteractions.map(x=>({questId:x.questId,action:x.action})),summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
+ const event={id:id(),type:"NPC_CONVERSATION",visibility:"PLAYER_KNOWN",worldId:state.world?.id||null,location:state.player?.location||state.world?.state?.location||null,npcId:npc.id,mode,firstEncounter,memoryId:memory?.id||null,socialOutcome:agencyResult?.social?.outcome||null,talentInsightUsed:agencyResult?.talentInsight?.applied===true,questInteractions:questInteractions.map(x=>({questId:x.questId,action:x.action})),summary,day:state.world.state.day,time:String(state.world.state.clock.hour).padStart(2,"0")+":"+String(state.world.state.clock.minute).padStart(2,"0"),minutes,at:Date.now()};
  state.events.push(event);
  const clueText=progressed?.length?sanitizePlayerText(answer,220,""):"";if(clueText)state.events.push({id:id(),type:"NPC_CLUE_CONFIRMED",visibility:"PLAYER_KNOWN",worldId:state.world?.id||null,location:state.player?.location||state.world?.state?.location||null,npcId:npc.id,sourceEventId:event.id,summary:clueText,day:state.world.state.day,at:Date.now()});
  if(mode==="LOCAL")establishNpcRemoteContact(state,npc);

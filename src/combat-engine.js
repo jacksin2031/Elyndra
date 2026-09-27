@@ -1,9 +1,10 @@
 import {d20} from "./world-engine.js?v=59014";
 import {advanceTime} from "./world-clock.js?v=57025";
 import {tickWorld} from "./world-simulation.js?v=57028";
-import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=57025";
+import {buildActionCheck,trainActionSkill} from "./check-engine.js?v=60004";
 import {applyCompanionCombatSupport,damageCompanion} from "./npc-engine.js?v=57028";
-import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=57025";
+import {grantTalentPoint,ensureTalents} from "./talent-engine.js?v=60004";
+import {interceptCompanionHarmWithTalent} from "./talent-rules.js?v=60004";
 import {normalizeActionIntent} from "./action-intent.js?v=60000";
 import {buildResolutionOutcome} from "./resolution-engine.js?v=60000";
 import {resolveMagicAction} from "./magic-engine.js?v=57025";
@@ -89,8 +90,8 @@ export function combatAction(state,action="attack",context={}){
  if(target&&target.hp<=0&&target.combatState!=="DEFEATED"){target.combatState="DEFEATED";const award=awardEnemy(state,target);if(award?.loot)summary+=(summary?" ":"")+`你取得 ${award.loot.name}。`;applyEnemyMorale(state.combat,target,-100,"defeated")}
  if(target)phaseShift(state,target);
  const early={roll,resolution,intent,damage:damage+environmentDamage+support.damage,playerDamage:damage,environmentDamage,companionDamage:support.damage,won:false,enemyDamage:0,enemyTurns:[],movement,itemResult,magicResult,moraleResult,socialResult,tacticalEffect,phase:target?.phase||1,summary,encounter:null};if(endEncounterIfResolved(state,early)){early.encounter=encounterSnapshot(state);return early}
- const turns=enemyResponses(state,reduction+support.guard),enemyDamage=turns.reduce((n,x)=>n+(Number(x.damage)||0),0),statuses=turns.map(x=>x.status).filter(Boolean);let companionHit=null;if(enemyDamage>=8&&support.events.length)companionHit=damageCompanion(state,Math.max(1,Math.floor(enemyDamage/3)));
+ const turns=enemyResponses(state,reduction+support.guard),enemyDamage=turns.reduce((n,x)=>n+(Number(x.damage)||0),0),statuses=turns.map(x=>x.status).filter(Boolean);let companionHit=null,talentReaction=null;if(enemyDamage>=8&&support.events.length){const intended=Math.max(1,Math.floor(enemyDamage/3));talentReaction=interceptCompanionHarmWithTalent(state,{damage:intended});if(talentReaction.applied){state.player.hp=Math.max(0,state.player.hp-(Number(talentReaction.redirectedToPlayer)||0));if(talentReaction.companionDamage>0)companionHit=damageCompanion(state,talentReaction.companionDamage);summary+=(summary?" ":"")+talentReaction.summary}else companionHit=damageCompanion(state,intended)}
  advanceEncounterRound(state.combat);recordEncounterAction(state.combat,{type:kind,intent:{intent:intent.intent,approach:intent.approach,goal:intent.goal,targetIds:intent.targetIds},resolutionTier:resolution.tier,targetId:target?.id||null});state.combat.log.push(...support.events,...turns.map(x=>x.summary));state.combat.log=state.combat.log.slice(-18);
  if(state.player.hp===0){state.player.status="DOWNED";state.combat.active=false;completeEncounterObjectives(state.combat,"FAILED");tickWorld(state)}else tickWorld(state);if(!summary)summary=resolution.goalAchieved?"你的行動改變了戰場局勢。":"主要目的沒有達成，但戰鬥局勢繼續推進。";
- return {...early,enemyDamage,enemyTurns:turns,status:statuses[0]||null,statuses,companionHit,defeated:state.player.hp===0,summary,encounter:encounterSnapshot(state)}
+ return {...early,enemyDamage,enemyTurns:turns,status:statuses[0]||null,statuses,companionHit,talentReaction,defeated:state.player.hp===0,summary,encounter:encounterSnapshot(state)}
 }
