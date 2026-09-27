@@ -22,6 +22,7 @@ jobs:
         run: |
           python3 scripts/talent-v0604-bootstrap.py
           python3 scripts/talent-v0604-cache-fix.py
+          python3 scripts/talent-v0604-test-fix.py
       - name: Version contract
         run: npm run version:check
       - name: Browser cache contract
