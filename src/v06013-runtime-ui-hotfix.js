@@ -34,7 +34,7 @@ const JA=new Map([
 ]);
 
 const CHINESE_HINT=/(?:這|这|們|们|為|为|與|与|從|从|讓|让|對|对|說|说|處|处|覺|觉|應|应|還|还|暫|暂|無法|无法|目前|尚未|已經|已经|場景|场景|敘述|叙述|選擇|选择|建議|建议|觀察|观察|交涉|冒險|冒险|狀況|状况|條件|条件|世界會|世界会|可進入|可进入|情報確認|信息确认)/u;
-let lastGoodNarrative="",lastGoodSceneTitle="";
+let lastGoodNarrative="",lastGoodSceneTitle="",lastRollSignature="",turnInitialNarrative="",turnInitialSceneTitle="";
 
 function locale(){return String(globalThis.ELYNDRA_LOCALE||document.querySelector("#languageSelect")?.value||"")}
 function dynamicJa(text){return String(text||"")
@@ -50,9 +50,15 @@ function fixTextNodes(root=document.body){
  for(const el of root.querySelectorAll?.("[placeholder],[title],[aria-label]")||[])for(const attr of ["placeholder","title","aria-label"]){const value=el.getAttribute(attr);if(!value)continue;const next=mapText(value);if(next!==value)el.setAttribute(attr,next)}
 }
 function safeNarrativeFallback(){const loc=document.querySelector("#topLocation")?.textContent?.trim()||document.querySelector("#location")?.textContent?.trim()||"現在地";return `Engineで確定した結果を反映しました。${loc}での状況を保ったまま、次の行動を選べます。`}
+function refreshTurnBoundary(narrative,title){
+ const label=document.querySelector("#rollLabel")?.textContent?.trim()||"",result=document.querySelector("#rollResult")?.textContent?.trim()||"",signature=label+"|"+result;
+ if(!signature||signature===lastRollSignature)return;
+ lastRollSignature=signature;turnInitialNarrative=narrative?.textContent?.trim()||"";turnInitialSceneTitle=title?.textContent?.trim()||"";lastGoodNarrative="";lastGoodSceneTitle=""
+}
 function fixGameplaySurface(){
- const narrative=document.querySelector("#narrative");if(narrative){const text=narrative.textContent.trim();if(text&&!leak(text))lastGoodNarrative=text;else if(text&&leak(text)){const replacement=lastGoodNarrative||safeNarrativeFallback();if(text!==replacement)narrative.textContent=replacement}}
- const title=document.querySelector("#sceneTitle");if(title){const text=title.textContent.trim();if(text&&!leak(text))lastGoodSceneTitle=text;else if(text&&leak(text))title.textContent=lastGoodSceneTitle||"現在の状況"}
+ const narrative=document.querySelector("#narrative"),title=document.querySelector("#sceneTitle");refreshTurnBoundary(narrative,title);
+ if(narrative){const text=narrative.textContent.trim();if(text&&!leak(text)&&text!==turnInitialNarrative)lastGoodNarrative=text;else if(text&&leak(text)){const replacement=lastGoodNarrative||safeNarrativeFallback();if(text!==replacement)narrative.textContent=replacement}}
+ if(title){const text=title.textContent.trim();if(text&&!leak(text)&&text!==turnInitialSceneTitle)lastGoodSceneTitle=text;else if(text&&leak(text))title.textContent=lastGoodSceneTitle||"現在の状況"}
  const weather=document.querySelector("#weather");if(weather&&JA.has(weather.textContent.trim()))weather.textContent=JA.get(weather.textContent.trim());
  document.querySelectorAll(".context-action .action-label").forEach((el,index)=>{if(el.textContent.trim()===GENERIC_JA_FALLBACK){const high=el.closest(".danger-action,.risk-actions");el.textContent=high?"危険源を遠くから確認する":index===0?"周囲の状況を詳しく観察する":index===1?"近くの手掛かりを確認する":"安全を確かめながら進む"}})
 }
@@ -60,7 +66,7 @@ function helperGrounding(){
  const modal=document.querySelector("#modal:not(.hidden) #modalContent");if(!modal)return;const heading=modal.querySelector("h2")?.textContent||"";if(!/旅の助手|旅途助手/.test(heading))return;
  const rows=[...modal.querySelectorAll(".lore-item")],users=rows.filter(x=>/^(?:あなた|YOU)$/.test(x.querySelector("small")?.textContent?.trim()||"")),helpers=rows.filter(x=>/^(?:助手|HELPER)$/.test(x.querySelector("small")?.textContent?.trim()||""));
  const q=users.at(-1)?.querySelector("p")?.textContent?.trim()||"",answer=helpers.at(-1)?.querySelector("p");if(!answer||!/情報.*(?:不足|確認でき)|十分な情報|足夠情報/.test(answer.textContent))return;
- if(/天気|天候|天氣/.test(q)){const weather=document.querySelector("#weather")?.textContent?.trim();if(weather&& !/不明|未知/.test(weather))answer.textContent=`現在の天候は「${weather}」です。`}
+ if(/天気|天候|天氣/.test(q)){const weather=document.querySelector("#weather")?.textContent?.trim();if(weather&&!/不明|未知/.test(weather))answer.textContent=`現在の天候は「${weather}」です。`}
  else if(/どこ|在哪|位置/.test(q)){const loc=document.querySelector("#topLocation")?.textContent?.trim()||document.querySelector("#location")?.textContent?.trim();if(loc&&!/不明|未知/.test(loc))answer.textContent=`現在地は「${loc}」です。`}
 }
 function apply(){if(locale()!=="ja")return;fixTextNodes(document.body);fixGameplaySurface();helperGrounding()}
