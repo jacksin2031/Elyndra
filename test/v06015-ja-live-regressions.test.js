@@ -71,7 +71,7 @@ test("v0.60.15 permission projection remains conservative without a grounded NPC
 
 test("v0.60.15 release wiring loads the Japanese UI hotfix and coherent Engine wrapper",async()=>{
  const [index,pkg,version,engine,ui]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06015-runtime-ui-hotfix.js",import.meta.url),"utf8")]);
- assert.equal(JSON.parse(pkg).version,"0.60.15");assert.match(version,/APP_VERSION="0\.60\.15"/);
- assert.match(index,/v06015-runtime-ui-hotfix\.js\?v=60015/);assert.match(index,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60015"/);assert.match(index,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06011-game-engine-hotfix\.js\?v=60015"/);
- assert.match(engine,/coherentActionAssessment/);assert.match(engine,/synchronizePresentedActionIntent/);assert.match(engine,/assessment\.actionIntent=next/);assert.match(engine,/v06015-ja-visible-text\.js\?v=60015/);assert.match(ui,/v06015-ja-visible-text\.js\?v=60015/);assert.match(ui,/MutationObserver/)
+ assert.equal(JSON.parse(pkg).version,"0.60.16");assert.match(version,/APP_VERSION="0\.60\.16"/);
+ assert.match(index,/v06015-runtime-ui-hotfix\.js\?v=60016/);assert.match(index,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60016"/);assert.match(index,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06011-game-engine-hotfix\.js\?v=60016"/);
+ assert.match(engine,/coherentActionAssessment/);assert.match(engine,/synchronizePresentedActionIntent/);assert.match(engine,/assessment\.actionIntent=next/);assert.match(engine,/v06015-ja-visible-text\.js\?v=60016/);assert.match(ui,/v06015-ja-visible-text\.js\?v=60016/);assert.match(ui,/MutationObserver/)
 });
