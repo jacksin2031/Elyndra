@@ -1,4 +1,4 @@
-// v0.60.0 release contract
+// v0.60.1 release contract
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -9,9 +9,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.60.0");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.60.1");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=60000/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60000"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=60001/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60001"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History/Future/character systems remain available after v0.53",async()=>{
@@ -46,8 +46,7 @@ test("v0.53.0 hardens Knowledge, background races, Claims and Ledger causality",
  const [app,client,lazy,claims,ledger,causal,integrity]=await Promise.all([
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
   readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8"),readFile(new URL("../src/generation-claims.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/world-ledger.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/causal-integrity.js",import.meta.url),"utf8")
+  readFile(new URL("../src/world-ledger.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),readFile(new URL("../src/causal-integrity.js",import.meta.url),"utf8")
  ]);
  assert.match(app,/\.\/src\/ai-client\.js\?v=59014/);assert.match(client,/knowledgeCanRevealCanon/);assert.match(client,/visibleFacts\(state\)/);
  assert.match(lazy,/LAZY_STALE_WORLD_VERSION/);assert.match(lazy,/LAZY_STALE_GENERATION_REVISION/);
