@@ -1,0 +1,36 @@
+name: v0.59.14 product patch
+on:
+  push:
+    branches:
+      - fix/v05914-opening-encounter-player-card
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply v0.59.14 patch
+        run: node scripts/v05914-patch.mjs
+      - name: Version contract
+        run: npm run version:check
+      - name: Browser cache contract
+        run: npm run cache:check
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Focused v0.59.14 regressions
+        run: node --test test/v05914-opening-scene-npc-dock-debug-regressions.test.js test/v05913-runtime-integrity-observability.test.js test/v05912-ai-output-repair.test.js test/v05911-origin-hud-regressions.test.js test/v05908-runtime-recovery.test.js test/version-policy.test.js test/version-ui.test.js test/version-0551-release.test.js test/v05901-i18n-coverage.test.js
+      - name: Commit product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json src/version.js index.html styles.css app.js src/traditional-chinese-guard.js src/ai-output-repair.js src/ai-client.js src/origin-runtime.js src/quest-engine.js test/v05914-opening-scene-npc-dock-debug-regressions.test.js test/version-ui.test.js test/version-0551-release.test.js test/v05901-i18n-coverage.test.js test/v05911-origin-hud-regressions.test.js test/v05912-ai-output-repair.test.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: harden opening scene and move npc dock"
+          git push
