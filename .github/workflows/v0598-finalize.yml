@@ -55,11 +55,10 @@ jobs:
           assert old in s; s=s.replace(old,new,1)
           p.write_text(s)
           PY
-      - name: Update regressions and focused CI
+      - name: Update regressions
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           p=Path('test/v05908-runtime-recovery.test.js'); s=p.read_text()
           start=s.index('test("v0.59.8 timeline authoring'); end=s.index('test("v0.59.8 Agnes',start)
           replacement='''test("v0.59.8 future compiler fills only missing timeline slots",async()=>{\n const src=await read("../src/ai-client.js");\n assert.match(src,/futureFallbackCandidate=futureFallback/);\n assert.match(src,/futureRows=timelineAuthoringSlots/);\n assert.match(src,/futureFallbackCandidate\.worldTimeline\[i\]/);\n});\n\n'''
@@ -67,24 +66,10 @@ jobs:
           s=s.replace('assert.match(src,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000/);','assert.match(src,/PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000/);\n assert.match(src,/AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT/);\n assert.doesNotMatch(src,/SHED_ON_RATE_LIMIT=new Set\\(\\[[^\\]]*runtime_expansion/);')
           s += '''\ntest("v0.59.8 Japanese fixed world strings bypass AI translation repair",async()=>{\n const src=await read("../src/locale-runtime.js");\n assert.match(src,/JAPANESE_ORIGIN_NAMES/);\n assert.match(src,/現在地、道筋、現地の基本的な決まりを把握する/);\n assert.match(src,/具体的な身分、開始地点、因果関係/);\n});\n'''
           p.write_text(s)
-
-          p=Path('test/ai-settings.test.js'); s=p.read_text()
-          s=s.replace(r'ai-settings\.js\?v=57025',r'ai-settings\.js\?v=59008')
-          s=s.replace('providerTokenBudget("agnes","adaptive","future",1200),3000','providerTokenBudget("agnes","adaptive","future",1200),4096')
-          s=s.replace('["future",1200,3000]','["future",1200,4096]')
-          p.write_text(s)
-
-          p=Path('test/autotest-resilience-v0572.test.js'); s=p.read_text()
-          old='assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(ai,/control\\?\\.signal\\?1200:0/);'
-          new='assert.match(ai,/requestSpacingMs/);assert.doesNotMatch(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(ai,/AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT/);assert.match(ai,/control\\?\\.signal\\?1200:0/);'
-          assert old in s; p.write_text(s.replace(old,new,1))
-
+          p=Path('test/ai-settings.test.js'); s=p.read_text(); s=s.replace(r'ai-settings\.js\?v=57025',r'ai-settings\.js\?v=59008').replace('providerTokenBudget("agnes","adaptive","future",1200),3000','providerTokenBudget("agnes","adaptive","future",1200),4096').replace('["future",1200,3000]','["future",1200,4096]'); p.write_text(s)
+          p=Path('test/autotest-resilience-v0572.test.js'); s=p.read_text(); old='assert.match(ai,/requestSpacingMs/);assert.match(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(ai,/control\\?\\.signal\\?1200:0/);'; new='assert.match(ai,/requestSpacingMs/);assert.doesNotMatch(ai,/SHED_ON_RATE_LIMIT=new Set\\(\\[.*runtime_expansion/);assert.match(ai,/AI_PLAYER_CRITICAL_BACKPRESSURE_WAIT/);assert.match(ai,/control\\?\\.signal\\?1200:0/);'; assert old in s; p.write_text(s.replace(old,new,1))
           p=Path('test/v05721-runtime-recovery.test.js'); p.write_text(p.read_text().replace('PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=20000','PLAYER_CRITICAL_BACKPRESSURE_MAX_MS=6000'))
           p=Path('test/v05901-i18n-coverage.test.js'); s=p.read_text().replace('v0.59.7','v0.59.8').replace('59007','59008').replace('"0.59.7"','"0.59.8"').replace(r'0\.59\.7',r'0\.59\.8'); p.write_text(s)
-
-          p=Path('.github/workflows/pages.yml'); s=p.read_text(); needle='run: node --test test/version-policy.test.js '
-          if needle in s: s=s.replace(needle,'run: node --test test/v05908-runtime-recovery.test.js test/version-policy.test.js ',1)
-          p.write_text(s)
           PY
       - name: Auto-update browser module cache chain
         run: |
@@ -99,9 +84,7 @@ jobs:
               for m in rx.finditer(text):
                   spec=m.group(2) or m.group(6); target=posixpath.normpath(posixpath.join(posixpath.dirname(importer),spec)); out.append((target,spec))
               return out
-          changed=set(subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'],text=True).splitlines())
-          changed.update(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines())
-          impacted={x for x in changed if x in mset}
+          changed=set(subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'],text=True).splitlines()); changed.update(subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()); impacted={x for x in changed if x in mset}
           reverse={}
           for importer in modules:
               for target,spec in edges(importer): reverse.setdefault(target,[]).append((importer,spec))
@@ -114,9 +97,8 @@ jobs:
                   if importer not in impacted: impacted.add(importer); queue.append(importer)
           p=Path('index.html'); text=p.read_text()
           if 'app.js' in impacted: text=re.sub(r'app\.js\?v=\d+','app.js?v='+token,text)
-          for asset in ['styles.css','creator.css','world-surfaces.css']:
-              text=re.sub(re.escape(asset)+r'\?v=\d+',asset+'?v='+token,text)
-          p.write_text(text); print('impacted modules:', ', '.join(sorted(impacted)))
+          for asset in ['styles.css','creator.css','world-surfaces.css']: text=re.sub(re.escape(asset)+r'\?v=\d+',asset+'?v='+token,text)
+          p.write_text(text)
           PY
       - name: Version contract
         run: npm run version:check
@@ -132,9 +114,8 @@ jobs:
         run: node --test test/v05908-runtime-recovery.test.js test/first-button-stall-recovery-v05419.test.js test/ai-autotest-first-button-hotfix.test.js test/autotest-resilience-v0572.test.js test/ai-settings.test.js test/isekai-runtime-v11.test.js test/v05901-i18n-coverage.test.js test/version-ui.test.js test/version-0551-release.test.js
       - name: Commit verified patch
         run: |
-          rm .github/workflows/v0598-finalize.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
+          git add app.js index.html package.json src test
           git commit -m "fix: finalize v0.59.8 runtime recovery"
           git push origin HEAD:fix/v0598-runtime-recovery
