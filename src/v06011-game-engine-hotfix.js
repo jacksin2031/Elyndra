@@ -39,6 +39,19 @@ function synchronizePresentedActionIntent(assessment,presented){
  if(Array.isArray(intent.subActions)&&intent.subActions.length===1)next.subActions=[presented];
  assessment.actionIntent=next
 }
+function unambiguousPresentNpcId(state){
+ const registry=state?.world?.registry||{},rows=Array.isArray(registry.npcs)?registry.npcs:[],current=clean(state?.player?.location||state?.world?.state?.location,160);if(!current||!rows.length)return "";
+ const loc=(registry.locations||[]).find(x=>x?.id===current||x?.name===current),currentId=String(loc?.id||current),candidates=rows.filter(npc=>{
+  if(!npc||npc.alive===false)return false;const here=String(npc.locationId||npc.location||"");return here===currentId||here===current
+ });
+ return candidates.length===1?String(candidates[0].id||""):""
+}
+function bindUnambiguousJapaneseSocialTarget(state,assessment,presented){
+ const semantic=locale()==="ja"?explicitJapaneseActionSemantics(presented):null;if(!assessment||semantic?.kind!=="SOCIAL")return;
+ const intent=assessment.actionIntent&&typeof assessment.actionIntent==="object"&&!Array.isArray(assessment.actionIntent)?assessment.actionIntent:{};
+ if(clean(intent.targetId||assessment.targetId,160))return;const targetId=unambiguousPresentNpcId(state);if(!targetId)return;
+ assessment.actionIntent={...intent,targetId};assessment.targetId=targetId
+}
 function scalarState(state){
  const s=state?.player?.survival||{};return {hp:Number(state?.player?.hp),satiety:Number(s.satiety),fatigue:Number(s.fatigue),exposure:Number(s.exposure),injury:Number(s.injury)}
 }
@@ -64,8 +77,9 @@ export function coherentActionAssessment(assessment,customText=""){
  return assessment
 }
 export function performAction(state,action="free",customText="",assessment=null){
- const presented=clean(customText||action,220)||"free",before=scalarState(state),coherentAssessment=coherentActionAssessment(assessment,customText),engineAssessment=coherentAssessment&&typeof coherentAssessment==="object"?{...coherentAssessment,actionIntent:coherentAssessment.actionIntent&&typeof coherentAssessment.actionIntent==="object"?{...coherentAssessment.actionIntent}:coherentAssessment.actionIntent}:coherentAssessment;
- if(locale()==="ja"&&engineAssessment&&explicitJapaneseActionSemantics(presented))applyJapaneseActionSemantics(engineAssessment,presented,{engine:true});
+ const presented=clean(customText||action,220)||"free",before=scalarState(state),coherentAssessment=coherentActionAssessment(assessment,customText);bindUnambiguousJapaneseSocialTarget(state,coherentAssessment,presented);
+ const engineAssessment=coherentAssessment&&typeof coherentAssessment==="object"?{...coherentAssessment,actionIntent:coherentAssessment.actionIntent&&typeof coherentAssessment.actionIntent==="object"?{...coherentAssessment.actionIntent}:coherentAssessment.actionIntent}:coherentAssessment,semantic=locale()==="ja"?explicitJapaneseActionSemantics(presented):null;
+ if(engineAssessment&&semantic){applyJapaneseActionSemantics(engineAssessment,presented,{engine:true});if(semantic.intent==="REST"&&semantic.engineAction){engineAssessment.verdict="ADJUST";engineAssessment.normalizedAction=semantic.engineAction;engineAssessment.engineNormalizedAction=semantic.engineAction}}
  const projectionLabel=clean(coherentAssessment?.playerVisibleAction||presented,220)||presented,result=localizeResult(base.performAction(state,action,customText,engineAssessment));
  if(result&&!result.blocked){projectSuccessfulTravel(state,projectionLabel,result,coherentAssessment||{},projectionVisible);projectPermissionGrant(state,projectionLabel,result,coherentAssessment||{},projectionVisible)}
  if(locale()==="ja"&&state){if(typeof result?.text==="string")state.narrative=result.text;else if(typeof state.narrative==="string")state.narrative=projectionVisible(state.narrative);localizePlayerEvents(state)}
