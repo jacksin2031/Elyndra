@@ -37,6 +37,7 @@ const patches={
   ["./quest-engine.js?v=57025","./quest-engine.js?v=59014"],
   ["./npc-quest-interaction.js?v=57025","./npc-quest-interaction.js?v=59014"]
  ],
+ "src/npc-quest-interaction.js":[["./quest-engine.js?v=57025","./quest-engine.js?v=59014"]],
  "src/item-engine.js":[["./npc-quest-interaction.js?v=57025","./npc-quest-interaction.js?v=59014"]],
  "src/progression-ui.js":[
   ["./quest-engine.js?v=57025","./quest-engine.js?v=59014"],
