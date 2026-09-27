@@ -18,7 +18,7 @@ jobs:
         run: python3 scripts/v0599_patch_preflight.py
       - name: Apply product patch
         run: python3 scripts/v0599_patch.py
-      - name: Replace brittle generated source-shape regressions with behavior contracts
+      - name: Normalize v0.59.9 regression contracts
         shell: python
         run: |
           from pathlib import Path
@@ -32,6 +32,7 @@ jobs:
           });
           '''
           p.write_text(head+replacement)
+          v=Path('test/version-ui.test.js'); t=v.read_text().replace('v0.59.8 release contract','v0.59.9 release contract').replace('"0.59.8"','"0.59.9"').replace('59008','59009'); v.write_text(t)
       - name: Version policy
         run: npm run version:check
       - name: JavaScript syntax
@@ -48,6 +49,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json src/version.js app.js index.html src/ai-autotest.js src/locale-runtime.js src/ui-translations-extra.js src/v0594-static-i18n.js test/v05908-runtime-recovery.test.js
+          git add package.json src/version.js app.js index.html src/ai-autotest.js src/locale-runtime.js src/ui-translations-extra.js src/v0594-static-i18n.js test/v05908-runtime-recovery.test.js test/version-ui.test.js
           git commit -m "fix: v0.59.9 Japanese UI and grounded AutoTest progress"
           git push origin HEAD:fix/v0599-ja-ui-runtime-progress
