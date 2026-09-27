@@ -47,7 +47,7 @@ test("v0.59.8 Japanese fixed world strings bypass AI translation repair",async()
 });
 
 
-test("v0.59.9 grounded recovery and Japanese UI contracts",async()=>{
+test("v0.59.10 grounded recovery and Japanese UI contracts",async()=>{
  const auto=await read("../src/ai-autotest.js"),app=await read("../app.js"),extra=await read("../src/ui-translations-extra.js"),fixed=await read("../src/v0594-static-i18n.js");
  for(const value of ["FIRST_BUTTON_UNAVAILABLE_TRAVEL","targetId:destination.target.id","未探索の通行可能な出口または通路"])assert.ok(auto.includes(value),value);
  for(const value of ["waitForAutotestActionReady(config.disableTimeout===true?90000:38000)","AUTOTEST_PLAYER_ACTION_STILL_RUNNING",'suggestion:{label:decision.action||"",action:decision.action||"",kind:decision.kind',"travelSnapshot(gameState,{director:true}).routes.length===0","esc(lt(region.region))",'staticText("起源決定你一開始能知道甚麼；長期選擇則會形成你自己的做事方式。")'])assert.ok(app.includes(value),value);
