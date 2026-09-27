@@ -35,13 +35,16 @@ function repairRestNoRoll(){
  const settled=v06020RestNoRollState(narrative.textContent,label.textContent);if(!settled)return;if(d20)d20.textContent=settled.d20;label.textContent=settled.label;result.textContent=settled.result
 }
 function repairSceneTitle(){const title=document.querySelector("#sceneTitle");if(!title)return;const before=String(title.textContent||"").trim(),next=sanitizeV06020JapaneseSceneTitle(before);if(next&&next!==before)title.textContent=next}
+function repairDriveProgress(){
+ const modal=document.querySelector("#modalContent");if(!modal)return;
+ for(const small of modal.querySelectorAll(".lore-item small")){const text=String(small.textContent||"").trim();if(!/(?:個人的な目標|人物関係|世界への立場|未解決の謎)/u.test(text))continue;const next=text.replace(/(?: · )?(\d+\/\d+)$/u," · 関連する経験 $1");if(next!==text)small.textContent=next}
+}
 function repairDebug(){
  const modal=document.querySelector("#modalContent");if(!modal||!String(modal.textContent||"").includes("ELYNDRA DEBUG"))return;
  for(const row of modal.querySelectorAll("tr")){const cells=row.querySelectorAll("td");if(cells.length<2)continue;const type=String(cells[1].textContent||"").trim(),detail=cells[cells.length-1];if(!detail)continue;if(["NPC_AUTONOMOUS_ACTION","NPC_MOVED","FACTION_ACTION","WORLD_EVENT"].includes(type)){const next=v06020JapaneseDebugEventDetail(type,detail.textContent);if(next!==detail.textContent)detail.textContent=next}}
- for(const small of modal.querySelectorAll(".lore-item small")){const text=String(small.textContent||"").trim();if(/^\d+\/\d+$/.test(text))small.textContent="関連する経験 "+text}
 }
 function repairAiBadge(){const badge=document.querySelector("#aiBadge");if(!badge)return;const text=String(badge.textContent||"").trim(),next=normalizeText(text);if(next!==text)badge.textContent=next}
-function repair(){if(!japanese())return;repairTextNodes(document.body);repairPresentedAction();repairRestNoRoll();repairSceneTitle();repairDebug();repairAiBadge()}
+function repair(){if(!japanese())return;repairTextNodes(document.body);repairPresentedAction();repairRestNoRoll();repairSceneTitle();repairDriveProgress();repairDebug();repairAiBadge()}
 function queue(){if(queued)return;queued=true;queueMicrotask(()=>{queued=false;repair()})}
 document.addEventListener("click",event=>{const button=event.target instanceof Element?event.target.closest("[data-suggestion-index]"):null;if(!button||!japanese())return;const shown=normalizeText(button.querySelector(".action-label")?.textContent||"").trim();if(shown&&!hasV06020JapaneseLeak(shown)){latchedPresentedAction=shown;document.documentElement.dataset.elyndraPresentedAction=shown}},true);
 document.addEventListener("submit",event=>{if(!japanese()||!event.target?.matches?.("#freeActionForm"))return;const shown=normalizeText(document.querySelector("#freeAction")?.value||"").trim();if(shown&&!hasV06020JapaneseLeak(shown)){latchedPresentedAction=shown;document.documentElement.dataset.elyndraPresentedAction=shown}},true);
