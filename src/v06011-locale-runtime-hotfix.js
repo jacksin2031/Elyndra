@@ -39,11 +39,12 @@ const JA_EXACT=new Map([
 ]);
 
 const EXTRA_JA_LEAK=/(?:這|这|們|们|為|为|與|与|從|从|讓|让|對|对|說|说|處|处|覺|觉|應|应|還|还|暫|暂|無法|无法|目前|尚未|已經|已经|場景|场景|敘述|叙述|選擇|选择|建議|建议|確認現場|确认现场|有沒有|有没有|新的具體變化|新的具体变化|恢復操作|恢复操作|保留\s*Engine\s*結果|保留\s*Engine\s*结果)/u;
+const CHINESE_FRAME=/(?:^你在.+?(?:完成了|嘗試|尝试)|^你(?:完成|使用|休息|沿著|沿着)|結果比預期|结果比预期|沒有達到|没有达到|局勢仍在變化|局势仍在变化)/u;
 const chineseRatioLeak=text=>{
  const chars=[...String(text||"")],han=chars.filter(ch=>/[\u3400-\u9fff]/u.test(ch)).length,kana=chars.filter(ch=>/[\u3040-\u30ff]/u.test(ch)).length;
  return chars.length>=12&&han>=6&&kana===0&&/[，；：]|(?:你|這|这|目前|已|未|沒有|没有|可以|需要|世界|場景|场景)/u.test(text)
 };
-function jaLeak(value){const text=String(value??"").trim();return Boolean(text)&&(base.hasLocaleLeak(text,"ja")||EXTRA_JA_LEAK.test(text)||chineseRatioLeak(text))}
+function jaLeak(value){const text=String(value??"").trim();return Boolean(text)&&(base.hasLocaleLeak(text,"ja")||EXTRA_JA_LEAK.test(text)||CHINESE_FRAME.test(text)||chineseRatioLeak(text))}
 const after=(text,prefix)=>String(text||"").startsWith(prefix)?String(text).slice(prefix.length):String(text||"");
 
 function jaDynamic(text){
