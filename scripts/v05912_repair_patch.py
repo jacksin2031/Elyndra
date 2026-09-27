@@ -39,10 +39,11 @@ for p in ['test/v05901-i18n-coverage.test.js','test/version-ui.test.js']:
     s=read(p).replace('0.59.11','0.59.12').replace('59011','59012')
     if p.endswith('version-ui.test.js'):
         s=s.replace('assert.match(app,/import \\{APP_VERSION\\} from "\\.\\/src\\/version\\.js\\?v=59010"/);assert.match(html,/"\\.\\/src\\/version\\.js\\?v=59010":"\\.\\/src\\/version\\.js\\?v=59012"/);','assert.match(app,/import \\{APP_VERSION\\} from "\\.\\/src\\/version\\.js\\?v=59012"/);')
+        s=s.replace('ai-client\\.js\\?v=59010','ai-client\\.js\\?v=59012')
     write(p,s)
 
 p='test/version-0551-release.test.js'; s=read(p)
-s=s.replace('0.59.11','0.59.12').replace('app\\.js\\?v=59011','app\\.js\\?v=59012')
+s=s.replace('0.59.11','0.59.12').replace('0\\.59\\.11','0\\.59\\.12').replace('app\\.js\\?v=59011','app\\.js\\?v=59012')
 s=s.replace(' assert.match(html,/"\\.\\/src\\/version\\.js\\?v=59010":"\\.\\/src\\/version\\.js\\?v=59011"/);\n','')
 s=s.replace('"59008","59010"]','"59008","59010","59012"]')
 s=s.replace('assert.match(app,/\\.\\/src\\/version\\.js\\?v=59010/);','assert.match(app,/\\.\\/src\\/version\\.js\\?v=59012/);')
@@ -54,7 +55,6 @@ s=s.replace('Focused v0.59.11 regressions','Focused v0.59.12 regressions')
 s=s.replace('run: node --test test/v05911-origin-hud-regressions.test.js','run: node --test test/v05912-ai-output-repair.test.js test/v05911-origin-hud-regressions.test.js')
 write(p,s)
 
-# remove one-shot patch machinery from the resulting product commit
 for q in [ROOT/'scripts/v05912_repair_patch.py',ROOT/'.github/workflows/v05912-repair-patch.yml']:
     try:q.unlink()
     except FileNotFoundError:pass
