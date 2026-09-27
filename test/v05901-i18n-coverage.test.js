@@ -23,7 +23,7 @@ test("v0.59.1 i18n coverage remains active in v0.59.12",async()=>{
  assert.match(app,/ensureRenderedLocale\("refresh"/);
  assert.match(index,/app\.js\?v=59012/);
  assert.equal(JSON.parse(pkg).version,"0.59.12");
- assert.match(version,/APP_VERSION="0\.59\.11"/);
+ assert.match(version,/APP_VERSION="0\.59\.12"/);
  assert.match(extra,/"世界建立步驟"/);
  execFileSync("python3",["scripts/scan-i18n-coverage.py"],{stdio:"pipe"});
 });
