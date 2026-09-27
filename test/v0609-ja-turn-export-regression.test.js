@@ -25,6 +25,6 @@ test("creator review and debug export have locale-safe visible feedback",()=>{
  assert.match(app,/foregroundAiLease\+=1/);
  assert.match(app,/safeVisibleText\(playerVisibleLocationName\(gameState\),"location"\)/);
  assert.match(app,/UI_TRANSLATION_BACKOFF/);
- assert.match(app,/locale-runtime\.js\?v=60009/);
+ assert.match(app,/locale-runtime\.js\?v=60010/);
  assert.match(app,/contextual-actions\.js\?v=60009/)
 });

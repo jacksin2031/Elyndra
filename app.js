@@ -1,7 +1,7 @@
 window.__ELYNDRA_BOOTED__=true;
-import {APP_VERSION} from "./src/version.js?v=60009";
+import {APP_VERSION} from "./src/version.js?v=60010";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
-import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,sessionTranslatedText,hasLocaleLeak,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=60009";
+import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,sessionTranslatedText,hasLocaleLeak,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=60010";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59010";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=60009";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=59014";
@@ -29,7 +29,7 @@ import {playerVisibleEvents} from "./src/event-visibility.js?v=57025";
 import {loadJevSettings,saveJevSettings,clearJevSettings,testJev,routeAction} from "./src/jev-router.js?v=57025";
 import {getWorldStylePreset} from "./src/world-style-presets.js?v=57025";
 import {randomWorldSettings} from "./src/world-randomizer.js?v=57025";
-import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=59003";
+import {createWorldCreationDraft,compileWorldCreation,validateWorldCreationCandidate,applyWorldCreationState,buildWorldContract,worldContractHtml,DIFFICULTY_PRESETS} from "./src/world-creation.js?v=60010";
 import {currentTradeProfile,walletSummary} from "./src/world-locality.js?v=57025";
 import {ensureWorldImpact,impactCapability,impactSnapshot,playerImpactRecords} from "./src/world-impact.js?v=57025";
 import {ensureRecognition,recognitionSnapshot} from "./src/recognition-engine.js?v=57025";
@@ -548,6 +548,7 @@ function setAIThinking(on,label=uiText("AI 正在思考…",activeLocale),lease=
 const localeRepairCooldown=new WeakMap();
 async function ensureGameplayLocale(reason="runtime"){
  if(!gameState)return true;if(playerActionFlight.active){recordDebug("LOCALE_REPAIR_DEFERRED_FOR_ACTION",{reason,targetLocale:activeLocale});return true}const state=gameState,sessionToken=captureStateSession(),pending=missingVisibleTranslations(state,activeLocale),loc=ensureWorldLocale(state,activeLocale);if(!pending.strings.length){loc.displayLocale=activeLocale;localeRepairCooldown.delete(state);return true}
+ if(loc.sourceLocale===activeLocale){loc.displayLocale=activeLocale;localeRepairCooldown.delete(state);recordDebug("LOCALE_SAME_SOURCE_REPAIR_NONBLOCKING",{reason,targetLocale:activeLocale,pending:pending.strings.length});return true}
  const cooldown=localeRepairCooldown.get(state);if(cooldown?.locale===activeLocale&&Date.now()<cooldown.until)return false;
  if(localeTransitionBusy)return false;if(!aiStatus.aiConfigured){recordDebug("LOCALE_TRANSLATION_BLOCKED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,pending:pending.strings.length});return false}
  localeTransitionBusy=true;document.body.classList.add("locale-transition");setAIThinking(true,uiText("正在翻譯世界…",activeLocale));
@@ -790,10 +791,10 @@ function requestWorldReadyNotificationPermission(){
  try{void Notification.requestPermission().then(permission=>recordDebug("WORLD_NOTIFICATION_PERMISSION",{permission})).catch(()=>{})}catch{}
 }
 function notifyWorldReady(){
- const message="你的異世界已完成編譯，請先確認世界契約，再決定是否穿越。",existing=$("#worldReadyNotice");if(existing)existing.remove();
- const toast=document.createElement("div");toast.id="worldReadyNotice";toast.className="world-ready-notice";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");toast.innerHTML='<strong>世界生成完成</strong><span>'+message+"</span>";document.body.appendChild(toast);requestAnimationFrame(()=>toast.classList.add("show"));setTimeout(()=>{toast.classList.remove("show");setTimeout(()=>toast.remove(),250)},7000);
+ const message=uiText("你的異世界已完成編譯，請先確認世界契約，再決定是否穿越。",activeLocale),title=uiText("世界生成完成",activeLocale),notificationTitle=uiText("Elyndra · 世界生成完成",activeLocale),existing=$("#worldReadyNotice");if(existing)existing.remove();
+ const toast=document.createElement("div");toast.id="worldReadyNotice";toast.className="world-ready-notice";toast.setAttribute("role","status");toast.setAttribute("aria-live","polite");toast.innerHTML='<strong>'+esc(title)+'</strong><span>'+esc(message)+"</span>";document.body.appendChild(toast);requestAnimationFrame(()=>toast.classList.add("show"));setTimeout(()=>{toast.classList.remove("show");setTimeout(()=>toast.remove(),250)},7000);
  let systemShown=false;
- try{if("Notification" in window&&Notification.permission==="granted"){new Notification("Elyndra · 世界生成完成",{body:message,tag:"elyndra-world-ready"});systemShown=true}}catch{}
+ try{if("Notification" in window&&Notification.permission==="granted"){new Notification(notificationTitle,{body:message,tag:"elyndra-world-ready"});systemShown=true}}catch{}
  recordDebug("WORLD_CREATION_NOTIFICATION",{phase:"CONTRACT_READY",inPage:true,systemShown,documentHidden:document.hidden===true})
 }
 function creatorField(id){return document.getElementById(id)}

@@ -1,4 +1,4 @@
-// v0.60.9 release contract
+// v0.60.10 release contract
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -9,9 +9,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.60.9");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.60.10");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=60009/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60009"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=60010/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60010"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History/Future/character systems remain available after v0.53",async()=>{
@@ -40,7 +40,7 @@ test("v0.50-v0.52 causal protections remain intact after v0.53",async()=>{
  assert.match(app,/\.\/src\/lazy-generation\.js\?v=59014/);assert.match(legacy,/ORAL_TRADITION/);assert.match(legacy,/WEAPON_RELIC/);
  assert.match(visibility,/CANON_LOCKED/);assert.match(quality,/backgroundMutableFields/);assert.match(registry,/WORLD_CONSTITUTION_FORBID/);
  assert.match(lazy,/generationRevision/);assert.match(lazy,/worldSeedFingerprint/);assert.match(causal,/visibilityLockSnapshot/);
- assert.match(app,/\.\/src\/world-creation\.js\?v=59003/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
+ assert.match(app,/\.\/src\/world-creation\.js\?v=60010/);assert.match(creation,/COUNT_REQUIREMENT/);assert.match(claims,/BLUEPRINT_DEFINITION/);assert.match(catalog,/WORLD_CATALOG_KINDS/);
  assert.match(client,/generation\.definitions/);assert.match(client,/forbiddenTerms/)
 });
 
