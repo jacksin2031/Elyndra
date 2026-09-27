@@ -31,10 +31,16 @@ function localizePlayerEvents(state){
   for(const key of ["summary","text","playerSummary","visibleSummary","reason"])if(typeof event?.[key]==="string")event[key]=projectionVisible(event[key])
  }
 }
+function synchronizePresentedActionIntent(assessment,presented){
+ const intent=assessment?.actionIntent;if(!intent||typeof intent!=="object"||Array.isArray(intent))return;
+ const next={...intent,raw:presented};
+ if(Array.isArray(intent.subActions)&&intent.subActions.length===1)next.subActions=[presented];
+ assessment.actionIntent=next
+}
 export function coherentActionAssessment(assessment,customText=""){
  if(!assessment||String(assessment.verdict||"").toUpperCase()!=="ALLOW")return assessment;
  const presented=clean(customText,220);if(!presented)return assessment;
- return {...assessment,normalizedAction:presented,playerVisibleAction:presented}
+ assessment.normalizedAction=presented;assessment.playerVisibleAction=presented;synchronizePresentedActionIntent(assessment,presented);return assessment
 }
 export function performAction(state,action="free",customText="",assessment=null){
  const coherentAssessment=coherentActionAssessment(assessment,customText),label=clean(coherentAssessment?.normalizedAction||customText||action,220)||"free",result=localizeResult(base.performAction(state,action,customText,coherentAssessment));
