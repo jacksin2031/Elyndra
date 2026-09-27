@@ -41,6 +41,7 @@ jobs:
           if [ "$status" -ne 0 ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            printf '\nexit_status=%s\n' "$status" >> .hotfix-v05910-error.txt
             git add .hotfix-v05910-error.txt
             if ! git diff --cached --quiet; then
               git commit -m "chore: record v0.59.10 patch guard failure"
@@ -48,29 +49,17 @@ jobs:
             fi
             exit "$status"
           fi
-          rm -f .hotfix-v05910-error.txt
+          rm -f .hotfix-v05910-error.txt .hotfix-v05910-test.log
       - name: Run focused regression tests
         run: node --test test/v05910-runtime-integrity.test.js
-      - name: Run full suite
-        shell: bash
-        run: |
-          set +e
-          npm test > .hotfix-v05910-test.log 2>&1
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add .hotfix-v05910-test.log
-            if ! git diff --cached --quiet; then
-              git commit -m "chore: record v0.59.10 full-suite failure"
-              git push origin HEAD:fix/v05910-runtime-integrity
-            fi
-            exit "$status"
-          fi
-          rm -f .hotfix-v05910-test.log
-      - name: Verify cache-bust contract
-        run: npm run check:cache-bust
+      - name: Verify version contract
+        run: npm run version:check
+      - name: Verify cache contract
+        run: npm run cache:check
+      - name: Verify JavaScript syntax
+        run: node scripts/check-js.mjs
+      - name: Run complete Node test suite
+        run: node --test
       - name: Commit product changes
         shell: bash
         run: |
