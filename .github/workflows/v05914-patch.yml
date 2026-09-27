@@ -39,7 +39,23 @@ jobs:
       - name: Browser cache contract
         run: npm run cache:check
       - name: JavaScript syntax gate
-        run: node scripts/check-js.mjs
+        id: syntax
+        shell: bash
+        run: |
+          set +e
+          node scripts/check-js.mjs > syntax-output.txt 2>&1
+          code=$?
+          cat syntax-output.txt
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload syntax diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: v05914-syntax-output
+          path: syntax-output.txt
+      - name: Stop on syntax failure
+        if: steps.syntax.outputs.code != '0'
+        run: exit 1
       - name: Focused v0.59.14 regressions
         run: node --test test/v05914-opening-scene-npc-dock-debug-regressions.test.js test/v05913-runtime-integrity-observability.test.js test/v05912-ai-output-repair.test.js test/v05911-origin-hud-regressions.test.js test/v05908-runtime-recovery.test.js test/version-policy.test.js test/version-ui.test.js test/version-0551-release.test.js test/v05901-i18n-coverage.test.js
       - name: Commit product changes
