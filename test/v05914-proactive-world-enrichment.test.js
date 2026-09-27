@@ -1,3 +1,4 @@
+// v0.59.14 PR validation trigger after bot-authored cache propagation.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
