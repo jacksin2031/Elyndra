@@ -9,7 +9,7 @@ function runtime(state){
  if(Array.isArray(state.drives))state.drives={version:1,focusId:null,entries:state.drives,cursor:Array.isArray(state.events)?state.events.length:0};
  const existed=Boolean(state.drives&&typeof state.drives==="object");state.drives??={version:1,focusId:null,entries:[],cursor:Array.isArray(state.events)?state.events.length:0};const r=state.drives;
  r.version=1;r.entries=Array.isArray(r.entries)?r.entries:[];if(!existed||!Number.isFinite(Number(r.cursor)))r.cursor=Array.isArray(state.events)?state.events.length:0;
- r.entries=r.entries.map((raw,i)=>normalizeDrive(raw,i)).filter(Boolean).slice(-16);if(r.focusId&&!r.entries.some(x=>x.id===r.focusId&&["ACTIVE","READY"].includes(x.status)))r.focusId=null;return r
+ r.entries=r.entries.map((raw,i)=>{const normalized=normalizeDrive(raw,i);if(!normalized)return null;Object.assign(raw,normalized);return raw}).filter(Boolean).slice(-16);if(r.focusId&&!r.entries.some(x=>x.id===r.focusId&&["ACTIVE","READY"].includes(x.status)))r.focusId=null;return r
 }
 function normalizeDrive(raw,i=0){
  if(!raw||typeof raw!=="object")return null;const title=clean(raw.title,120);if(!title)return null;const type=TYPES.has(String(raw.type||"").toUpperCase())?String(raw.type).toUpperCase():"PERSONAL",status=STATUSES.has(String(raw.status||"").toUpperCase())?String(raw.status).toUpperCase():"ACTIVE",target=clamp(Math.round(Number(raw.target)||4),2,8),progress=clamp(Math.round(Number(raw.progress)||0),0,target);
@@ -24,7 +24,6 @@ export function createPlayerDrive(state,input={}){
 }
 export function setFocusedDrive(state,driveId){const r=runtime(state),drive=r.entries.find(x=>x.id===driveId&&["ACTIVE","READY"].includes(x.status));if(!drive)return false;r.focusId=drive.id;drive.updatedAt=Date.now();pushEvent(state,"PLAYER_DRIVE_FOCUSED",drive,{summary:`目前最在意：${drive.title}`});r.cursor=state.events.length;return true}
 export function abandonPlayerDrive(state,driveId){const r=runtime(state),drive=r.entries.find(x=>x.id===driveId&&["ACTIVE","READY"].includes(x.status));if(!drive)return false;drive.status="ABANDONED";drive.updatedAt=Date.now();if(r.focusId===drive.id)r.focusId=r.entries.find(x=>x.id!==drive.id&&["ACTIVE","READY"].includes(x.status))?.id||null;pushEvent(state,"PLAYER_DRIVE_ABANDONED",drive,{summary:`你決定暫時放下：${drive.title}`});r.cursor=state.events.length;return true}
-}
 export function fulfillPlayerDrive(state,driveId){const r=runtime(state),drive=r.entries.find(x=>x.id===driveId&&["ACTIVE","READY"].includes(x.status));if(!drive)return {ok:false,reason:"NOT_FOUND"};if(drive.progress<drive.target)return {ok:false,reason:"NOT_READY",drive};drive.status="FULFILLED";drive.updatedAt=Date.now();if(r.focusId===drive.id)r.focusId=r.entries.find(x=>x.id!==drive.id&&["ACTIVE","READY"].includes(x.status))?.id||null;pushEvent(state,"PLAYER_DRIVE_FULFILLED",drive,{summary:`你確認這段追求已經告一段落：${drive.title}`});r.cursor=state.events.length;return {ok:true,drive}
 }
 function normalizeText(v){return clean(v,1200).toLowerCase().replace(/\s+/g," ")}
@@ -37,7 +36,7 @@ function relevance(drive,event,focusId){
  const hay=eventText(event);if(!hay)return {score:0,matches:[]};const sourceTerms=terms(`${drive.title} ${drive.description}`),matches=sourceTerms.filter(x=>hay.includes(x)).slice(0,8);let score=matches.length;
  const entityIds=[event?.npcId,event?.enemyId,event?.targetId,event?.locationId,...(Array.isArray(event?.entityIds)?event.entityIds:[])].filter(Boolean).map(String);if(drive.targetId&&entityIds.includes(drive.targetId))score+=4;
  if(hay.includes(normalizeText(drive.title)))score+=4;
- const type=drive.type,eventType=String(event?.type||"");if(type==="RELATIONSHIP"&&eventType==="NPC_CONVERSATION")score+=1;if(type==="MYSTERY"&&eventType==="NPC_CLUE_CONFIRMED")score+=2;if(type==="WORLD"&&["MAIN_QUEST_STAGE_CHANGED","WORLD_IMPACT_RECORDED","COMBAT_WON","QUEST_COMPLETED"].includes(eventType))score+=1;if(drive.id===focusId)score+=.25;
+ const type=drive.type,eventType=String(event?.type||"");if(type==="RELATIONSHIP"&&eventType==="NPC_CONVERSATION")score+=1;if(type==="MYSTERY"&&eventType==="NPC_CLUE_CONFIRMED")score+=.75;if(type==="WORLD"&&["MAIN_QUEST_STAGE_CHANGED","WORLD_IMPACT_RECORDED","COMBAT_WON","QUEST_COMPLETED"].includes(eventType))score+=1;if(drive.id===focusId)score+=.25;
  return {score,matches}
 }
 function applyEvent(state,event){

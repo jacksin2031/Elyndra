@@ -1,8 +1,8 @@
-import {questSnapshot} from "./quest-engine.js?v=59014";
+import {abandonPlayerDrive,createPlayerDrive,fulfillPlayerDrive,questSnapshot,setFocusedDrive} from "./quest-engine.js?v=60005";
 import {notesSnapshot,addNote,updateNote,deleteNote} from "./notes-engine.js?v=57025";
-import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=60004";
+import {ensureItemRuntime,itemCategoryLabel,itemEffectText,canUseItem,craftingSnapshot} from "./item-engine.js?v=60005";
 import {ensureWorldRegistry,isNpcPresent} from "./world-registry.js?v=57025";
-import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=60004";
+import {saveWorldSlot,loadWorldSlot,listWorldSaves,deleteWorldSlot,exportWorld} from "./storage.js?v=60005";
 import {historyClueSnapshot} from "./history-future.js?v=57025";
 import {playerFutureSignals} from "./future-runtime.js?v=57025";
 import {ensureKnowledgeMetadata} from "./knowledge-model.js?v=57025";
@@ -30,10 +30,15 @@ export function openJournalUI(state,openModal,persist,section="quests"){
  let tabs='<div class="settings-actions"><button class="'+(section==="quests"?"primary":"ghost")+'" data-journal-section="quests">旅途</button><button class="'+(section==="mysteries"?"primary":"ghost")+'" data-journal-section="mysteries">未解之謎</button><button class="'+(section==="knowledge"?"primary":"ghost")+'" data-journal-section="knowledge">線索</button><button class="'+(section==="rumors"?"primary":"ghost")+'" data-journal-section="rumors">傳聞與徵兆</button><button class="'+(section==="notes"?"primary":"ghost")+'" data-journal-section="notes">我的筆記</button></div>';
  let body="";
  if(section==="quests"){
-  const side=qs.side||[];
-  body='<div class="lore-list"><div class="lore-item"><small>目前牽掛</small><h3>'+esc(qs.main.title)+'</h3><p>'+((qs.main.objectives||[]).map(esc).join("<br>")||"眼前還沒有明確方向。")+'</p></div>';
+  const side=qs.side||[],drives=qs.drives?.active||[],archive=qs.drives?.archive||[],typeLabel={PERSONAL:"個人追求",RELATIONSHIP:"人物關係",WORLD:"世界立場",MYSTERY:"未解之謎"};
+  const driveCards=drives.map(d=>'<div class="lore-item"><small>'+esc(typeLabel[d.type]||d.type)+(d.focused?' · FOCUS':'')+' · '+d.progress+'/'+d.target+'</small><h3>'+esc(d.title)+'</h3><p>'+esc(d.description||"這是你自己決定要追下去的事情。")+'</p>'+(d.evidence?.length?'<small>最近進展：'+esc(d.evidence.at(-1).summary)+'</small>':'<small>還沒有足夠相關的經歷形成進展。</small>')+'<div class="settings-actions"><button class="'+(d.focused?'primary':'ghost')+'" data-drive-focus="'+esc(d.id)+'" '+(d.focused?'disabled':'')+'>'+(d.focused?'目前聚焦':'設為聚焦')+'</button><button class="secondary" data-drive-fulfill="'+esc(d.id)+'" '+(d.status==="READY"?'':'disabled')+'>確認告一段落</button><button class="ghost danger-ghost" data-drive-abandon="'+esc(d.id)+'">暫時放下</button></div></div>').join("");
+  const archiveCards=archive.slice().reverse().slice(0,4).map(d=>'<div class="lore-item"><small>'+(d.status==="FULFILLED"?'已告一段落':'已放下')+' · '+esc(typeLabel[d.type]||d.type)+'</small><h3>'+esc(d.title)+'</h3></div>').join("");
+  body='<form id="driveForm" class="settings-grid"><label>牽掛類型<select id="driveType"><option value="PERSONAL">個人追求</option><option value="RELATIONSHIP">人物關係</option><option value="WORLD">世界立場</option><option value="MYSTERY">未解之謎</option></select></label><label>你想追求甚麼<input id="driveTitle" maxlength="120" required placeholder="例如：找到失蹤的妹妹"></label><label class="full">為甚麼／要怎樣才算有進展<textarea id="driveDescription" maxlength="360" placeholder="用你自己的話記下這份牽掛"></textarea></label><button class="primary" type="submit">加入我的牽掛</button></form>';
+  body+='<div class="lore-list">'+(driveCards||'<div class="lore-item"><p>你還沒有指定自己的長期牽掛。世界會繼續運作，但不會自動替你決定人生主線。</p></div>');
+  body+='<div class="lore-item"><small>WORLD CAMPAIGN SCAFFOLD · 世界會自行推進</small><h3>'+esc(qs.scaffold?.title||qs.main.title)+'</h3><p>'+((qs.scaffold?.objectives||qs.main.objectives||[]).map(esc).join("<br>")||"世界目前沒有明顯危機壓力。")+'</p><small>這不是你的強制主線；你可以介入、忽略、延後或以其他目標生活。</small></div>';
   body+=side.map(q=>'<div class="lore-item"><small>'+esc(questProgressLabel(q))+'</small><h3>'+esc(q.title)+'</h3><p>'+esc(q.objective||"")+'</p></div>').join("");
   if(!side.length)body+='<div class="lore-item"><p>目前沒有其他已答應處理的事情。</p></div>';
+  if(archiveCards)body+='<details><summary>已收束／已放下的牽掛</summary>'+archiveCards+'</details>';
   body+='</div>';
  }else if(section==="mysteries"){
   body='<div class="lore-list">'+(mysteries.map(group=>'<div class="lore-item"><small>未解之謎</small><h3>'+esc(group.title)+'</h3>'+(group.clues.map(c=>'<p>• '+esc(c.hint)+'<br><small>'+esc(clueStatusLabel(c.status))+'</small></p>').join("")||'<p>你只知道這件事存在，還沒有摸到任何可靠線索。</p>')+'</div>').join("")||'<div class="lore-item"><p>你還沒有遇到足以形成「未解之謎」的可靠線索。</p></div>')+'</div>';
@@ -47,6 +52,10 @@ export function openJournalUI(state,openModal,persist,section="quests"){
  }
  openModal('<div class="eyebrow">TRAVEL JOURNAL</div><h2>旅途手帳</h2><p class="muted">這裡只保留你能知道、聽到、親眼看見或自己推理出的內容；世界內部數值與隱藏狀態不會出現在手帳。</p>'+tabs+body);
  qsa("#modalContent [data-journal-section]").forEach(b=>b.onclick=()=>openJournalUI(state,openModal,persist,b.dataset.journalSection));
+ $("#driveForm")?.addEventListener("submit",async e=>{e.preventDefault();const r=createPlayerDrive(state,{type:$("#driveType")?.value,title:$("#driveTitle")?.value,description:$("#driveDescription")?.value,focus:true});if(!r.ok){alert(r.reason==="DUPLICATE"?"這份牽掛已經在進行中。":r.reason==="ACTIVE_LIMIT"?"同時最多保留 8 份進行中的牽掛。":"請先寫下你真正想追求的事情。");return}await persist();openJournalUI(state,openModal,persist,"quests")});
+ qsa("#modalContent [data-drive-focus]").forEach(b=>b.onclick=async()=>{if(setFocusedDrive(state,b.dataset.driveFocus)){await persist();openJournalUI(state,openModal,persist,"quests")}});
+ qsa("#modalContent [data-drive-fulfill]").forEach(b=>b.onclick=async()=>{const r=fulfillPlayerDrive(state,b.dataset.driveFulfill);if(r.ok){await persist();openJournalUI(state,openModal,persist,"quests")}});
+ qsa("#modalContent [data-drive-abandon]").forEach(b=>b.onclick=async()=>{if(!confirm("暫時放下這份牽掛？它不會被刪除，仍會保留在旅途紀錄。"))return;if(abandonPlayerDrive(state,b.dataset.driveAbandon)){await persist();openJournalUI(state,openModal,persist,"quests")}});
  $("#noteForm")?.addEventListener("submit",async e=>{e.preventDefault();const r=addNote(state,{title:$("#noteTitle")?.value,text:$("#noteText")?.value});if(!r.ok)return;await persist();openJournalUI(state,openModal,persist,"notes")});
  qsa("#modalContent [data-note-delete]").forEach(b=>b.onclick=async()=>{deleteNote(state,b.dataset.noteDelete);await persist();openJournalUI(state,openModal,persist,"notes")});
  qsa("#modalContent [data-note-edit]").forEach(b=>b.onclick=async()=>{const note=(state.notes||[]).find(x=>x.id===b.dataset.noteEdit);if(!note)return;const title=prompt("筆記標題",note.title);if(title==null)return;const text=prompt("筆記內容",note.text);if(text==null)return;updateNote(state,note.id,{title,text});await persist();openJournalUI(state,openModal,persist,"notes")})
