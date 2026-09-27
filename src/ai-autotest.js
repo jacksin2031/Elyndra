@@ -74,3 +74,16 @@ export async function decideAutotestAction(state,options={}){
  }
  return decision
 }
+
+export function buildAutotestReport(input={}){
+ const report=base.buildAutotestReport(input),telemetry=rows(input?.telemetry),latestReady=Math.max(0,...telemetry.filter(e=>e?.type==="UI_TRANSLATION_READY").map(e=>Number(e.at)||0));
+ const ignorable=issue=>{
+  const type=String(issue?.type||""),message=String(issue?.message||"");
+  if(type==="TELEMETRY_LOCALE_TRANSLATION_FAILED"&&latestReady>0)return true;
+  if(/AI_RATE_LIMIT_BACKPRESSURE/.test(message)&&["TELEMETRY_AUTOTEST_RUNTIME_EXPANSION_FAILED","TELEMETRY_STATE_SYNC_AI_FAILED"].includes(type))return true;
+  return false
+ };
+ const before=rows(report.issues),kept=before.filter(x=>!ignorable(x)),removed=before.length-kept.length;
+ if(removed){report.issues=kept;report.summary.issueDetailCount=Math.max(0,Number(report.summary.issueDetailCount||0)-removed);report.summary.issues=Math.max(0,Number(report.summary.issues||0)-removed);report.summary.recoveredTelemetryIssues=(Number(report.summary.recoveredTelemetryIssues)||0)+removed}
+ return report
+}
