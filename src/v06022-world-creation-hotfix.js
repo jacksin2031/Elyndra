@@ -9,7 +9,7 @@ const nfkc=v=>String(v??"").normalize("NFKC");
 function rareMagicRequirement(term){
  const s=nfkc(term).toLowerCase();
  const magic=/(?:魔法|魔術|魔力|magic)/i.test(s);
- const rare=/(?:希少|稀少|珍しい|稀有|罕見|罕见|rare|scarce)/i.test(s);
+ const rare=/(?:希少|稀少|珍し(?:い|く)|稀有|罕見|罕见|rare|scarce)/i.test(s);
  return magic&&rare
 }
 function ratio20Requirement(term){
@@ -19,11 +19,13 @@ function ratio20Requirement(term){
 function rareMagicPopulation20Requirement(term){return rareMagicRequirement(term)&&ratio20Requirement(term)}
 function rareMagicEvidence(source){
  const s=nfkc(source).toLowerCase();
- return /(?:魔法|魔術|魔力|magic).{0,32}(?:希少|稀少|珍しい|限られて|稀有|罕見|罕见|rare|scarce)|(?:希少|稀少|珍しい|稀有|罕見|罕见|rare|scarce).{0,32}(?:魔法|魔術|魔力|magic)/isu.test(s)
+ const rare="(?:希少|稀少|珍し(?:い|く)|限られて|稀有|罕見|罕见|rare|scarce)";
+ const magic="(?:魔法|魔術|魔力|magic)";
+ return new RegExp(`${magic}.{0,32}${rare}|${rare}.{0,32}${magic}`,"isu").test(s)
 }
 function population20Evidence(source){
  const s=nfkc(source).toLowerCase();
- const people="(?:人口|住民|人々|人びと|使い手|術者|魔法使い|魔術師|施術者|使用者|人口中|居民|使用者|施法者|magic\\s*users?|magic\\s*practitioners?|practitioners?|population|people)";
+ const people="(?:人口|住民|人々|人びと|使い手|術者|魔法使い|魔術師|施術者|使用者|人口中|居民|施法者|magic\\s*users?|magic\\s*practitioners?|practitioners?|population|people)";
  const ratio="(?:約|およそ|ほぼ|大約|大概|约|around|roughly|about)?\\s*(?:二割|2\\s*割|20\\s*%|五分の一|1\\s*\\/\\s*5|one[- ]?fifth|one in five)";
  return new RegExp(`${people}.{0,48}${ratio}|${ratio}.{0,48}${people}`,"isu").test(s)
 }
