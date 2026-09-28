@@ -8,6 +8,7 @@ test("v0.60.27 duplicate scene suggestions are intentionally suppressed by the t
   const preview=sceneTurnPreview({narrative:"状況は続いている。",suggestions:previous},{success:true},{action:"霧を見る",priorSuggestions:previous.map(x=>x.label),priorSuggestionIntents:previous});
   assert.deepEqual(preview.suggestionIntents,[]);
   assert.deepEqual(preview.suggestions,[]);
+  assert.doesNotMatch(JSON.stringify(preview),/\[object Object\]/);
 });
 
 test("v0.60.27 app rebuilds contextual suggestions instead of retaining the previous three when scene suggestions are empty",async()=>{
@@ -17,4 +18,5 @@ test("v0.60.27 app rebuilds contextual suggestions instead of retaining the prev
   assert.match(app,/SCENE_NO_FRESH_SUGGESTIONS/);
   assert.doesNotMatch(app,/if\(source\.length\)\{const contextual=buildContextualActionSet\(state,checked\.accepted\)/);
   assert.match(index,/app\.js\?v=60027/);
+  assert.match(app,/turn-compiler\.js\?v=60027/);
 });
