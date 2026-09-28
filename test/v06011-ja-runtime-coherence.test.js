@@ -41,18 +41,18 @@ test("v0.60.13 background lazy generation safely rebases pure revision drift inc
  const unsafe={...basePlan,id:"P3",worldVersion:1,slots:{...basePlan.slots,locations:0}};const rejected=validateLazyGenerationCandidate(state,{locations:[{id:"L1",name:"越界地點"}],npcs:[],factions:[],sideQuests:[],definitions:[]},unsafe);assert.equal(rejected.valid,false);assert.ok(rejected.errors.includes("LAZY_STALE_WORLD_VERSION"));assert.ok(rejected.errors.some(x=>String(x).startsWith("LAZY_SLOT_EXCEEDED")))
 });
 
-test("v0.60.11 manual-test protections remain wired through the v0.60.27 wrapper chain",async()=>{
+test("v0.60.11 manual-test protections remain wired through the v0.60.28 wrapper chain",async()=>{
  const [html,app,game25,ai25,ai24]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/v06025-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06025-ai-client-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06024-ai-client-hotfix.js",import.meta.url),"utf8")]);
  assert.match(html,/\.\/src\/locale-runtime\.js\?v=60010\"\s*:\s*\"\.\/src\/v06011-locale-runtime-hotfix\.js\?v=60013/);
  assert.match(html,/\.\/src\/player-location-visibility\.js\?v=57025\"\s*:\s*\"\.\/src\/v06011-player-location-hotfix\.js\?v=60011/);
  assert.match(html,/\.\/src\/game-engine\.js\?v=60006\"\s*:\s*\"\.\/src\/v06025-game-engine-hotfix\.js\?v=60025/);
  assert.match(html,/\.\/src\/player-experience\.js\?v=57028\"\s*:\s*\"\.\/src\/v06011-player-experience-hotfix\.js\?v=60011/);
  assert.match(html,/\.\/src\/lazy-generation\.js\?v=59014\"\s*:\s*\"\.\/src\/v06011-lazy-generation-hotfix\.js\?v=60013/);
- assert.match(html,/\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60027/);
+ assert.match(html,/\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60028/);
  assert.match(html,/\.\/src\/contextual-actions\.js\?v=60010\"\s*:\s*\"\.\/src\/v06021-contextual-actions-hotfix\.js\?v=60021/);
  assert.match(html,/\.\/src\/ai-client\.js\?v=60010\"\s*:\s*\"\.\/src\/v06025-ai-client-hotfix\.js\?v=60026/);
  assert.match(game25,/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(ai25,/v06024-ai-client-hotfix\.js\?v=60026/);assert.match(ai24,/v06019-ai-client-hotfix\.js\?v=60026/);
- assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);assert.match(html,/app\.js\?v=60027/);
+ assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);assert.match(html,/app\.js\?v=60028/);
  assert.match(app,/playerActionFlight\.epoch!==actionFlightEpoch\|\|playerActionFlight\.timedOut\|\|actionAiLease!==foregroundAiLease/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/)
 });
