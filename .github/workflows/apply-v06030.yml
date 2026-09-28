@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - scripts/apply-v06030.mjs
+      - .github/workflows/apply-v06030.yml
 permissions:
   contents: write
 jobs:
