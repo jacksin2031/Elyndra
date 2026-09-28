@@ -1,0 +1,35 @@
+name: Apply v0.60.30 hotfix
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply-v06030.mjs
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+      - name: Apply release patch
+        run: node scripts/apply-v06030.mjs
+      - name: Validate patched source
+        run: |
+          node scripts/check-js.mjs
+          node --test test/v06030-debug-world-evolution-regression.test.js test/v06029-world-quality-retry.test.js test/background-world-evolution.test.js test/debug-telemetry.test.js
+      - name: Commit release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js index.html package.json src/version.js src/v06029-world-quality-hotfix.js src/v06030-world-evolution-repair.js test/v06030-debug-world-evolution-regression.test.js test/version-ui.test.js .github/workflows/pages.yml
+          if git diff --cached --quiet; then
+            echo "No release changes to commit"
+            exit 0
+          fi
+          git commit -m "v0.60.30: make debug export verifiable and bound world evolution retries"
+          git push origin HEAD:main
