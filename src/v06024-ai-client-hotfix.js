@@ -1,5 +1,5 @@
-import * as base from "./v06019-ai-client-hotfix.js?v=60019&base=1";
-export * from "./v06019-ai-client-hotfix.js?v=60019&base=1";
+import * as base from "./v06019-ai-client-hotfix.js?v=60026&base=1";
+export * from "./v06019-ai-client-hotfix.js?v=60026&base=1";
 import {helperSnapshot} from "./helper-context.js?v=57029";
 import {directChat,hasDirectAI} from "./ai-settings.js?v=60010";
 import {hasLocaleLeak} from "./locale-runtime.js?v=60010";
