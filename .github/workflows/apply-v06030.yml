@@ -19,16 +19,36 @@ jobs:
           node-version: 20
       - name: Apply release patch
         run: node scripts/apply-v06030.mjs
-      - name: JavaScript syntax gate
-        run: node scripts/check-js.mjs
-      - name: v0.60.30 regression tests
-        run: node --test test/v06030-debug-world-evolution-regression.test.js
-      - name: Existing quality retry tests
-        run: node --test test/v06029-world-quality-retry.test.js
-      - name: Existing background evolution tests
-        run: node --test test/background-world-evolution.test.js
-      - name: Existing debug telemetry tests
-        run: node --test test/debug-telemetry.test.js
+      - name: Validate and capture diagnostics
+        shell: bash
+        run: |
+          set +e
+          : > /tmp/v06030-diagnostics.txt
+          run_check() {
+            label="$1"; shift
+            echo "===== $label =====" | tee -a /tmp/v06030-diagnostics.txt
+            "$@" >> /tmp/v06030-diagnostics.txt 2>&1
+            code=$?
+            echo "EXIT=$code" | tee -a /tmp/v06030-diagnostics.txt
+            echo >> /tmp/v06030-diagnostics.txt
+            return $code
+          }
+          failed=0
+          run_check syntax node scripts/check-js.mjs || failed=1
+          run_check v06030 node --test test/v06030-debug-world-evolution-regression.test.js || failed=1
+          run_check quality node --test test/v06029-world-quality-retry.test.js || failed=1
+          run_check evolution node --test test/background-world-evolution.test.js || failed=1
+          run_check telemetry node --test test/debug-telemetry.test.js || failed=1
+          cat /tmp/v06030-diagnostics.txt
+          if [ "$failed" -ne 0 ]; then
+            cp /tmp/v06030-diagnostics.txt .github/v06030-diagnostics.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/v06030-diagnostics.txt
+            git commit -m "ci: capture v0.60.30 validation diagnostics"
+            git push origin HEAD:main
+            exit 1
+          fi
       - name: Commit release
         run: |
           git config user.name "github-actions[bot]"
