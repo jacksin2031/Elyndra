@@ -1,5 +1,5 @@
 import * as base from "./ai-settings.js?v=60012&base=1";
-import {recordDebug} from "./debug-telemetry.js?v=60029";
+import {recordDebug} from "./debug-telemetry.js?v=57025";
 export * from "./ai-settings.js?v=60012&base=1";
 
 export const V06028_SCENE_TIMEOUT_MS=10500;

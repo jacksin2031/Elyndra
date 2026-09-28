@@ -1,6 +1,6 @@
 import * as base from "./v06024-ai-client-hotfix.js?v=60026&base=1";
 import {canonizeGeneration} from "./world-registry.js?v=57025";
-import {saveWorld} from "./storage.js?v=60029";
+import {saveWorld} from "./storage.js?v=60005";
 import {evolutionBackoff,noteEvolutionFailure,clearEvolutionFailure} from "./v06030-background-backoff.js?v=60029";
 export * from "./v06024-ai-client-hotfix.js?v=60026&base=1";
 
@@ -18,9 +18,9 @@ export function v06025RefineObservationScene(scene,action="",roll={}){if(roll?.s
 export function v06030RepairSparseWorldAnchor(state){
  const world=state?.world,registry=world?.registry;if(!world||!registry||!Array.isArray(registry.locations))return {applied:false,reason:"REGISTRY_UNAVAILABLE",added:0};
  if(registry.locations.length)return {applied:false,reason:"ANCHOR_PRESENT",added:0};
- const bible=world.bible||{},candidates=[{value:state?.player?.location,known:true,source:"PLAYER_LOCATION"},{value:world.state?.location,known:true,source:"WORLD_STATE_LOCATION"},{value:bible.startingLocation,known:false,source:"BIBLE_STARTING_LOCATION"},{value:bible.startingSettlement,known:false,source:"BIBLE_STARTING_SETTLEMENT"}],candidate=candidates.map(x=>({...x,name:clean(x.value,160)})).find(x=>x.name&&!UNKNOWN_LOCATION.test(x.name));
+ const bible=world.bible||{},candidates=[{value:bible.startingLocation,known:false,source:"BIBLE_STARTING_LOCATION"},{value:bible.startingSettlement,known:false,source:"BIBLE_STARTING_SETTLEMENT"},{value:world.state?.location,known:true,source:"WORLD_STATE_LOCATION"},{value:state?.player?.location,known:true,source:"PLAYER_LOCATION"}],candidate=candidates.map(x=>({...x,name:clean(x.value,160)})).find(x=>x.name&&!UNKNOWN_LOCATION.test(x.name));
  if(!candidate)return {applied:false,reason:"CANONICAL_ANCHOR_UNAVAILABLE",added:0};
- const description=clean(state?.narrative,400)||clean(world.summary,400)||candidate.name,generation={locations:[{name:candidate.name,type:"START_ANCHOR",description,region:clean(bible.startingRegion||world.state?.region,120),known:candidate.known,historyRefs:[]}],npcs:[],factions:[],sideQuests:[],definitions:[]};
+ const description=clean(world.summary,400)||candidate.name,generation={locations:[{name:candidate.name,type:"START_ANCHOR",description,region:clean(bible.startingRegion||world.state?.region,120),known:candidate.known,historyRefs:[]}],npcs:[],factions:[],sideQuests:[],definitions:[]};
  const added=canonizeGeneration(state,generation),count=Array.isArray(added?.locations)?added.locations.length:0;
  if(count){state.events??=[];state.events.push({id:globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_SPARSE_ANCHOR_REPAIRED",visibility:"INTERNAL",locationName:candidate.name,source:candidate.source,day:Number(world.state?.day)||1,at:Date.now()})}
  return {applied:count>0,reason:count?"CANONICAL_START_ANCHOR":"NO_CHANGE",added:count,name:candidate.name,known:candidate.known,source:candidate.source}
