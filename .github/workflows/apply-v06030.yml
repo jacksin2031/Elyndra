@@ -1,46 +1,53 @@
-name: Validate v0.60.30 patch targets
+name: Apply and verify v0.60.30 hotfix
 on:
   push:
     branches: [main]
     paths:
       - scripts/apply-v06030.mjs
+      - scripts/apply-v06030-r3.mjs
       - scripts/check-v06030-targets.mjs
       - .github/workflows/apply-v06030.yml
+  workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: apply-v06030-main
+  cancel-in-progress: false
 jobs:
-  imports:
+  apply-and-verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with: {node-version: 20}
-      - run: node scripts/check-v06030-targets.mjs imports
-  debug-ui:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with: {node-version: 20}
-      - run: node scripts/check-v06030-targets.mjs debug
-  schedule:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with: {node-version: 20}
-      - run: node scripts/check-v06030-targets.mjs schedule
-  failure:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with: {node-version: 20}
-      - run: node scripts/check-v06030-targets.mjs failure
-  index:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with: {node-version: 20}
-      - run: node scripts/check-v06030-targets.mjs index
+        with:
+          node-version: 20
+      - name: Verify clean v0.60.29 patch targets
+        run: node scripts/check-v06030-targets.mjs all
+      - name: Verify patch script syntax
+        run: node --check scripts/apply-v06030.mjs && node --check scripts/apply-v06030-r3.mjs
+      - name: Apply v0.60.30 r3 patch
+        run: node scripts/apply-v06030-r3.mjs
+      - name: Verify applied release contract
+        run: node scripts/verify-v06030-applied.mjs
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: Focused regressions
+        run: node --test test/v06030-debug-world-evolution-regression.test.js test/v06029-world-quality-retry.test.js test/background-world-evolution.test.js test/debug-telemetry.test.js test/version-ui.test.js
+      - name: Static i18n coverage
+        run: python3 scripts/scan-i18n-coverage.py
+      - name: Commit verified v0.60.30 product patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js index.html package.json src/version.js src/v06029-world-quality-hotfix.js src/v06030-world-evolution-repair.js test/v06029-world-quality-retry.test.js test/v06030-debug-world-evolution-regression.test.js test/version-ui.test.js scripts/verify-v06030-applied.mjs .github/workflows/pages.yml
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No product changes to commit"
+            exit 0
+          fi
+          git commit -m "fix: release v0.60.30 bounded world evolution recovery"
+          git push origin HEAD:main
