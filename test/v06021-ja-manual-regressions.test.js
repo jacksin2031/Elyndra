@@ -27,12 +27,12 @@ test("v0.60.21 localizes reproduced FACTION_ACTION detail instead of leaking Tra
  assert.equal(v06021JapaneseDebugEventDetail("FACTION_ACTION","倉庫管理者の会 維持現有勢力範圍，等待更合適的時機。"),"倉庫管理者の会 は現在の勢力範囲を維持し、より適切な機会を待っています。");
 });
 
-test("v0.60.21 fixes remain wired through the v0.60.28 release",async()=>{
+test("v0.60.21 fixes remain wired through the v0.60.29 release",async()=>{
  const [html,contextual,runtime,version,pkgText,workflow]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../src/v06021-contextual-actions-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06021-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8")
  ]);
- assert.equal(JSON.parse(pkgText).version,"0.60.28");assert.match(version,/APP_VERSION="0\.60\.28"/);
+ assert.equal(JSON.parse(pkgText).version,"0.60.29");assert.match(version,/APP_VERSION="0\.60\.29"/);
  assert.match(html,/v06021-contextual-actions-hotfix\.js\?v=60021/);assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);
  assert.match(contextual,/cache=new Map/);assert.match(contextual,/set\.all\|\|\[\]/);assert.match(runtime,/repairDebugFaction/);assert.match(runtime,/localizeV06021JapaneseVisibleText/);
- assert.match(workflow,/Focused v0\.60\.28 regressions/);assert.match(workflow,/version\.js\?v=60028/);assert.match(workflow,/v0\\\.60\\\.28/)
+ assert.match(workflow,/Focused v0\.60\.29 regressions/);assert.match(workflow,/version\.js\?v=60029/);assert.match(workflow,/v0\\\.60\\\.29/)
 });
