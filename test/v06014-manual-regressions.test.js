@@ -31,10 +31,10 @@ test("v0.60.14 permission projection does not invent access state when the desti
  assert.equal(projectPermissionGrant(state,"守衛に通行許可を求める",result,assessment),null);assert.equal(locationAccessStatus(state,b).allowed,false);assert.equal(locationAccessStatus(state,c).allowed,false)
 });
 
-test("v0.60.14 fixes remain wired through the v0.60.24 release",async()=>{
- const [ui,engine,index,pkg,version]=await Promise.all([readFile(new URL("../src/v06013-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8")]);
+test("v0.60.14 fixes remain wired through the v0.60.25 release",async()=>{
+ const [ui,engine,index,pkg,version,game25]=await Promise.all([readFile(new URL("../src/v06013-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../src/v06025-game-engine-hotfix.js",import.meta.url),"utf8")]);
  assert.match(ui,/clearPreviousRoll/);assert.match(ui,/今回の判定を処理中/);assert.match(ui,/前の行動の判定結果は引き継ぎません/);assert.match(ui,/freeActionForm/);assert.match(ui,/data-suggestion-index/);assert.match(ui,/WORLD ECHOES/);assert.match(ui,/主な提案/);assert.match(ui,/19500/);
  assert.match(engine,/v06014-turn-projection\.js\?v=60014/);assert.match(engine,/projectSuccessfulTravel/);assert.match(engine,/projectPermissionGrant/);assert.match(engine,/通行許可を得ました/);
- assert.match(index,/\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60024/);assert.match(index,/\.\/src\/game-engine\.js\?v=60006\"\s*:\s*\"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(index,/v06024-runtime-ui-hotfix\.js\?v=60024/);assert.match(index,/app\.js\?v=60019/);
- assert.equal(JSON.parse(pkg).version,"0.60.24");assert.match(version,/APP_VERSION="0\.60\.24"/)
+ assert.match(index,/\.\/src\/version\.js\?v=60010\"\s*:\s*\"\.\/src\/version\.js\?v=60025/);assert.match(index,/\.\/src\/game-engine\.js\?v=60006\"\s*:\s*\"\.\/src\/v06025-game-engine-hotfix\.js\?v=60025/);assert.match(game25,/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(index,/v06024-runtime-ui-hotfix\.js\?v=60024/);assert.match(index,/app\.js\?v=60019/);
+ assert.equal(JSON.parse(pkg).version,"0.60.25");assert.match(version,/APP_VERSION="0\.60\.25"/)
 });
