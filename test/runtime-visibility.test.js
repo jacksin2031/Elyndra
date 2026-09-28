@@ -105,7 +105,7 @@ test("UI keeps wallet assets visible before considering local barter mode",async
  const balances=app.indexOf('if(balances.length)');
  const barter=app.indexOf('else if(trade?.mode==="barter")');
  assert.ok(balances>=0&&barter>balances);
- assert.match(app,/currencyLabel"\)\.textContent="資產"/);
+ assert.match(app,/currencyLabel"\)\.textContent=uiText\("資產",activeLocale\)/);
 });
 
 test("combat uses main action buttons and no longer has an automatic combat modal",async()=>{
