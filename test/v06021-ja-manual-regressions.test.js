@@ -34,5 +34,5 @@ test("v0.60.21 fixes remain wired through the v0.60.30 release",async()=>{
  assert.equal(JSON.parse(pkgText).version,"0.60.30");assert.match(version,/APP_VERSION="0\.60\.30"/);
  assert.match(html,/v06021-contextual-actions-hotfix\.js\?v=60021/);assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);
  assert.match(contextual,/cache=new Map/);assert.match(contextual,/set\.all\|\|\[\]/);assert.match(runtime,/repairDebugFaction/);assert.match(runtime,/localizeV06021JapaneseVisibleText/);
- assert.match(workflow,/Focused v0\.60\.30 regressions/);assert.match(workflow,/version\.js\?v=60030/);assert.match(workflow,/v0\\\.60\\\.29/)
+ assert.match(workflow,/Focused v0\.60\.30 regressions/);assert.match(workflow,/version\.js\?v=60030/);assert.match(workflow,/v0\\\.60\\\.30/)
 });
