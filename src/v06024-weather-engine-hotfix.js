@@ -1,0 +1,11 @@
+import * as base from "./v06023-weather-engine-hotfix.js?v=60023&base=1";
+export * from "./v06023-weather-engine-hotfix.js?v=60023&base=1";
+const compact=value=>String(value??"").normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu,"");
+function bigrams(value){const s=compact(value),out=new Set();for(let i=0;i<s.length-1;i++)out.add(s.slice(i,i+2));return out}
+export function v06024WeatherLocationOverlap(a,b){const x=compact(a),y=compact(b);if(!x||!y)return false;if(Math.min(x.length,y.length)>=8&&(x===y||x.includes(y)||y.includes(x)))return true;if(Math.min(x.length,y.length)<10)return false;const ax=bigrams(x),by=bigrams(y),intersection=[...ax].filter(v=>by.has(v)).length,union=new Set([...ax,...by]).size;return union>0&&intersection/union>=0.72}
+function locationDescription(state){const registry=state?.world?.registry||{},locations=Array.isArray(registry.locations)?registry.locations:[],key=String(state?.player?.location||state?.world?.state?.location||"");const loc=locations.find(row=>String(row?.id||"")===key||String(row?.name||"")===key)||null;return String(loc?.description||state?.world?.currentLocation?.description||"").trim()}
+const japanese=()=>String(globalThis.ELYNDRA_LOCALE||"")==="ja";
+export function sanitizeV06024WeatherSnapshot(snapshot,state){const source=snapshot&&typeof snapshot==="object"?snapshot:{},description=locationDescription(state),contaminated=[];let observableName=String(source.observableName||"").trim(),sensoryCue=String(source.sensoryCue||"").trim();if(description&&v06024WeatherLocationOverlap(observableName,description)){observableName="";contaminated.push("observableName")}if(description&&v06024WeatherLocationOverlap(sensoryCue,description)){sensoryCue="";contaminated.push("sensoryCue")}if(!observableName)observableName=japanese()?"天候の詳細は未確認":"天候細節尚未確認";return {...source,observableName,sensoryCue,source:"WEATHER_RUNTIME",contaminatedFields:contaminated}}
+export function playerWeatherSnapshot(state){return sanitizeV06024WeatherSnapshot(base.playerWeatherSnapshot(state),state)}
+export function weatherUiSnapshot(state){return sanitizeV06024WeatherSnapshot(base.weatherUiSnapshot(state),state)}
+export const __v06024={locationDescription};
