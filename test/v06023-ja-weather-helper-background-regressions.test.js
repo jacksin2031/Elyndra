@@ -28,15 +28,15 @@ test("v0.60.23 drops only malformed optional NPC lore before Canon validation",(
  const hardReport=validateGeneration(hardInvalid);assert.equal(hardReport.valid,false);assert.ok(hardReport.errors.includes("NPC_SHAPE_INVALID"))
 });
 
-test("v0.60.23 fixes remain wired through the v0.60.24 release",async()=>{
+test("v0.60.23 fixes remain wired through the v0.60.25 release",async()=>{
  const [html,pkgText,version,workflow,weather24,visible24]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8"),readFile(new URL("../src/v06024-weather-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06024-ja-visible-text-hotfix.js",import.meta.url),"utf8")
  ]);
- assert.equal(JSON.parse(pkgText).version,"0.60.24");assert.match(version,/APP_VERSION="0\.60\.24"/);
- assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60024"/);
+ assert.equal(JSON.parse(pkgText).version,"0.60.25");assert.match(version,/APP_VERSION="0\.60\.25"/);
+ assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60025"/);
  assert.match(html,/"\.\/src\/weather-engine\.js\?v=57025":"\.\/src\/v06024-weather-engine-hotfix\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/world-registry\.js\?v=57025":"\.\/src\/v06023-world-registry-hotfix\.js\?v=60023"/);
  assert.match(html,/"\.\/src\/v06015-ja-visible-text\.js\?v=60018":"\.\/src\/v06024-ja-visible-text-hotfix\.js\?v=60024"/);
  assert.match(weather24,/v06023-weather-engine-hotfix\.js\?v=60023&base=1/);assert.match(visible24,/v06023-ja-visible-text-hotfix\.js\?v=60023&base=1/);
- assert.match(workflow,/Focused v0\.60\.24 regressions/);assert.match(workflow,/version\.js\?v=60024/);assert.match(workflow,/v0\\\.60\\\.24/)
+ assert.match(workflow,/Focused v0\.60\.25 regressions/);assert.match(workflow,/version\.js\?v=60025/);assert.match(workflow,/v0\\\.60\\\.25/)
 });
