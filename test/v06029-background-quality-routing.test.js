@@ -22,7 +22,7 @@ test("v0.60.29 leaves foreground and non-Agnes task routing unchanged",()=>{
  assert.equal(v06029RouteBackgroundStructuredTask(scene,"agnes"),scene);
  const openai={aiTask:"quality",timeoutMs:45000,maxOutputTokens:1300};
  assert.equal(v06029RouteBackgroundStructuredTask(openai,"openai"),openai);
- assert.equal(V06028_SCENE_TIMEOUT_MS,10500);
+ assert.equal(V06028_SCENE_TIMEOUT_MS,35000);
 });
 
 test("v0.60.29 directChat applies background routing before delegating to the base client",async()=>{

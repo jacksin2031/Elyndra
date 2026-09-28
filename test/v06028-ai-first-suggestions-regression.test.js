@@ -37,11 +37,12 @@ test("v0.60.28 genuinely new Scene AI suggestions take precedence over recovered
  assert.deepEqual(preview.suggestionIntents.map(x=>x.action),["新建議A","新建議B"])
 });
 
-test("v0.60.28 scene provider budget is 10.5 seconds and remains below the 12 second gameplay watchdog",async()=>{
- assert.equal(sceneTimeout,10500);
- assert.ok(sceneTimeout<12000);
+test("scene provider has time to complete before the gameplay watchdog",async()=>{
+ assert.equal(sceneTimeout,35000);
+ assert.ok(sceneTimeout<50000);
  const [settings,app]=await Promise.all([readFile(new URL("../src/v06028-ai-settings-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8")]);
- assert.match(settings,/V06028_SCENE_TIMEOUT_MS=10500/);
+ assert.match(settings,/V06028_SCENE_TIMEOUT_MS=35000/);
  assert.match(settings,/disableTimeout:true/);
- assert.match(app,/PLAYER_ACTION_HARD_DEADLINE_MS=12000/)
+ assert.match(app,/PLAYER_ACTION_HARD_DEADLINE_MS=55000/);
+ assert.match(app,/PLAYER_ACTION_SCENE_DEADLINE_MS=50000/)
 });

@@ -10,13 +10,14 @@ test("v0.60.27 base compiler still marks duplicate structured scene suggestions 
   assert.deepEqual(preview.suggestions,["[object Object]"]);
 });
 
-test("v0.60.27 app fallback rebuild remains available through v0.60.29 underneath the v0.60.28 AI-first compiler wrapper",async()=>{
+test("app retains earlier AI options when a new Scene has no usable suggestions",async()=>{
   const [app,index]=await Promise.all([readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../index.html",import.meta.url),"utf8")]);
-  assert.match(app,/const contextual=buildContextualActionSet\(state,source\.length\?checked\.accepted:\[\]\);state\.suggestionIntents=contextual\.all;state\.suggestions=contextual\.all\.map\(x=>x\.label\)/);
+  assert.match(app,/const candidates=checked\.accepted\.length\?checked\.accepted:recoverPriorAiSuggestions\(previousSuggestionIntents,action\)/);
+  assert.match(app,/restorePriorAiSuggestions\(state,previousSuggestionIntents,action\)/);
   assert.match(app,/PLAYER_ACTION_SUGGESTIONS_REBUILT/);
   assert.match(app,/SCENE_NO_FRESH_SUGGESTIONS/);
   assert.doesNotMatch(app,/if\(source\.length\)\{const contextual=buildContextualActionSet\(state,checked\.accepted\)/);
-  assert.match(index,/app\.js\?v=60029/);
+  assert.match(index,/app\.js\?v=60031/);
   assert.match(index,/"\.\/src\/turn-compiler\.js\?v=57029":"\.\/src\/v06028-turn-compiler-hotfix\.js\?v=60028"/);
   assert.match(app,/turn-compiler\.js\?v=57029/);
   assert.match(app,/rawSource\.filter\(row=>String\(row\?\.action\|\|row\?\.label\|\|row\|\|""\)\.trim\(\)!=="\[object Object\]"\)/);

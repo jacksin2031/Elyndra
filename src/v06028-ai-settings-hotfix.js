@@ -2,7 +2,7 @@ import * as base from "./ai-settings.js?v=60012&base=1";
 import {recordDebug} from "./debug-telemetry.js?v=57025";
 export * from "./ai-settings.js?v=60012&base=1";
 
-export const V06028_SCENE_TIMEOUT_MS=10500;
+export const V06028_SCENE_TIMEOUT_MS=35000;
 export const V06029_AGNES_BACKGROUND_TASK_ALIAS=Object.freeze({quality:"runtime_quality",quality_repair:"runtime_quality"});
 
 export function v06029RouteBackgroundStructuredTask(args={},provider=""){const task=String(args?.aiTask||"").toLowerCase(),route=V06029_AGNES_BACKGROUND_TASK_ALIAS[task];if(String(provider||"").toLowerCase()!=="agnes"||!route)return args;const requested=Math.round(Number(args?.maxOutputTokens)||1300);return {...args,aiTask:route,disableOptimization:true,maxOutputTokens:Math.max(900,Math.min(1600,requested))}}
