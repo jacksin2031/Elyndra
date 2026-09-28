@@ -1,55 +1,46 @@
-name: Validate v0.60.30 hotfix
+name: Validate v0.60.30 patch targets
 on:
   push:
     branches: [main]
     paths:
       - scripts/apply-v06030.mjs
+      - scripts/check-v06030-targets.mjs
       - .github/workflows/apply-v06030.yml
 permissions:
   contents: read
 jobs:
-  syntax:
+  imports:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-      - run: node scripts/apply-v06030.mjs
-      - run: node scripts/check-js.mjs
-  regression:
+        with: {node-version: 20}
+      - run: node scripts/check-v06030-targets.mjs imports
+  debug-ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-      - run: node scripts/apply-v06030.mjs
-      - run: node --test test/v06030-debug-world-evolution-regression.test.js
-  quality:
+        with: {node-version: 20}
+      - run: node scripts/check-v06030-targets.mjs debug
+  schedule:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-      - run: node scripts/apply-v06030.mjs
-      - run: node --test test/v06029-world-quality-retry.test.js
-  evolution:
+        with: {node-version: 20}
+      - run: node scripts/check-v06030-targets.mjs schedule
+  failure:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-      - run: node scripts/apply-v06030.mjs
-      - run: node --test test/background-world-evolution.test.js
-  telemetry:
+        with: {node-version: 20}
+      - run: node scripts/check-v06030-targets.mjs failure
+  index:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-      - run: node scripts/apply-v06030.mjs
-      - run: node --test test/debug-telemetry.test.js
+        with: {node-version: 20}
+      - run: node scripts/check-v06030-targets.mjs index
