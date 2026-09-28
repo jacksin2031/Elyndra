@@ -6,16 +6,25 @@ const clean=(value,max=220)=>String(value??"").trim().slice(0,max);
 const JA_REST=/(?:少し|短く|しばらく|一度)?(?:休む|休もう|休み|休憩|一休み|腰を下ろ|眠る|睡眠|野営|キャンプ)/u;
 const JA_SOCIAL=/(?:呼びかけ|声をかけ|話しかけ|尋ね|訊ね|聞いて|聞く|教えて|知りませんか|質問|会話|交渉|頼む|お願い)/u;
 const JA_TRAVEL=/(?:進む|向かう|歩く|移動|沿って|たどる|辿る|越える|渡る|下る|上る|離れる)/u;
-const JA_OBSERVE=/(?:観察|調べ|確認|探す|見回す|見渡す|痕跡|様子を見る|耳を澄ます|聞き耳)/u;
+const JA_OBSERVE=/(?:観察|調べ|確認|探す|見回す|見渡す|痕跡|様子を見る|耳を澄ます|聞き耳|確かめ|見比べ|記録)/u;
+const JA_TRAVEL_INTENT=/(?:進む|向かう|歩く|移動|たどる|辿る|越える|渡る|下る|上る|離れる)/gu;
+const JA_OBSERVE_INTENT=/(?:観察|調べ|確認|探す|見回す|見渡す|様子を見る|耳を澄ます|聞き耳|確かめ|見比べ|記録)/gu;
 function isJapanese(){return String(globalThis.ELYNDRA_LOCALE||"")==="ja"}
+function lastIntentIndex(pattern,value){let index=-1;pattern.lastIndex=0;for(const match of String(value||"").matchAll(pattern))index=Math.max(index,match.index??-1);pattern.lastIndex=0;return index}
 
 export function classifyJapanesePlayerAction(action=""){
  const q=clean(action);
  if(!q)return null;
  if(JA_REST.test(q))return {kind:"GENERAL",intent:"REST"};
  if(JA_SOCIAL.test(q))return {kind:"SOCIAL",intent:"TALK"};
- if(JA_TRAVEL.test(q))return {kind:"TRAVEL",intent:"TRAVEL"};
- if(JA_OBSERVE.test(q))return {kind:"OBSERVE",intent:"OBSERVE"};
+ const travel=JA_TRAVEL.test(q),observe=JA_OBSERVE.test(q);
+ if(travel&&observe){
+  const travelIndex=lastIntentIndex(JA_TRAVEL_INTENT,q),observeIndex=lastIntentIndex(JA_OBSERVE_INTENT,q);
+  if(observeIndex>travelIndex)return {kind:"OBSERVE",intent:"OBSERVE"};
+  if(travelIndex>observeIndex)return {kind:"TRAVEL",intent:"TRAVEL"};
+ }
+ if(observe)return {kind:"OBSERVE",intent:"OBSERVE"};
+ if(travel)return {kind:"TRAVEL",intent:"TRAVEL"};
  return null
 }
 function visibleIntent(intent,presented,classification=null){
