@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {sceneTurnPreview,recoverPriorAiSuggestions,V06028_SCENE_TIMEOUT_MS} from "../src/v06028-turn-compiler-hotfix.js";
+import {sceneTurnPreview,recoverPriorAiSuggestions} from "../src/v06028-turn-compiler-hotfix.js";
 import {V06028_SCENE_TIMEOUT_MS as sceneTimeout} from "../src/v06028-ai-settings-hotfix.js";
 
 const ai=(label,overrides={})=>({label,action:label,kind:"OBSERVE",risk:"LOW",approach:"STEADY",requirementsSatisfied:true,causalBasis:"目前場景可直接嘗試",source:"AI",...overrides});
