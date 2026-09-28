@@ -2,7 +2,7 @@ import * as base from "./v06024-ai-client-hotfix.js?v=60024&base=1";
 export * from "./v06024-ai-client-hotfix.js?v=60024&base=1";
 
 const clean=(value,max=1200)=>String(value??"").normalize("NFC").trim().slice(0,max);
-const OBSERVE=/(?:観察|調べ|確認|探す|見回す|見渡す|痕跡|足跡|様子を見る|耳を澄ます|聞き耳)/u;
+const OBSERVE=/(?:観察|調べ|確認|探す|見回す|見渡す|痕跡|足跡|様子を見る|耳を澄ます|聞き耳|確かめ|見比べ|記録)/u;
 const WEAK_OBSERVE_NARRATIVE=[
  /Engineで確定した結果が反映されました/u,
  /Engineで確定した判定結果を保持しています/u,
