@@ -10,7 +10,7 @@ test("v0.60.15 suggestion presentation, execution and scene use one action ident
   readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
- assert.match(index,/"\.\/src\/contextual-actions\.js\?v=60010":"\.\/src\/v06020-contextual-actions-hotfix\.js\?v=60020"/);
+ assert.match(index,/"\.\/src\/contextual-actions\.js\?v=60010":"\.\/src\/v06021-contextual-actions-hotfix\.js\?v=60021"/);
  assert.match(currentWrapper,/v06019-contextual-actions-hotfix\.js\?v=60019/);
  assert.match(currentWrapper,/action:visible,label:visible,playerVisibleAction:visible/);
  assert.match(wrapper,/label:action/);assert.match(wrapper,/canonicalAction:action/);
