@@ -79,9 +79,9 @@ test("v0.60.18 permission projection remains conservative without a grounded NPC
  assert.equal(projectPermissionGrant(state,"潮霧津の荷揚げ場への通行許可を求める",result,assessment),null);assert.equal(state.events.some(e=>e.type==="HARBOR_PASS_GRANTED"),false)
 });
 
-test("v0.60.22 release wiring loads Japanese UI, Engine and AI assessment wrappers",async()=>{
+test("v0.60.23 release wiring loads Japanese UI, Engine and AI assessment wrappers",async()=>{
  const [index,pkg,version,engine,ui,aiHotfix]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../src/v06011-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06015-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06017-ai-client-hotfix.js",import.meta.url),"utf8")]);
- assert.equal(JSON.parse(pkg).version,"0.60.22");assert.match(version,/APP_VERSION="0\.60\.22"/);
- assert.match(index,/v06021-runtime-ui-hotfix\.js\?v=60021/);assert.match(index,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60022"/);assert.match(index,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);assert.match(index,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06019-ai-client-hotfix\.js\?v=60019"/);
+ assert.equal(JSON.parse(pkg).version,"0.60.23");assert.match(version,/APP_VERSION="0\.60\.23"/);
+ assert.match(index,/v06021-runtime-ui-hotfix\.js\?v=60021/);assert.match(index,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60023"/);assert.match(index,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);assert.match(index,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06019-ai-client-hotfix\.js\?v=60019"/);
  assert.match(engine,/coherentActionAssessment/);assert.match(engine,/synchronizePresentedActionIntent/);assert.match(engine,/engineNormalizedAction/);assert.match(engine,/v06015-ja-visible-text\.js\?v=60018/);assert.match(ui,/v06015-ja-visible-text\.js\?v=60018/);assert.match(ui,/MutationObserver/);assert.match(aiHotfix,/preservePlayerVisibleAdjustedAction/)
 });
