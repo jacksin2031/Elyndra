@@ -1,0 +1,35 @@
+name: Apply v0.60.29 patch
+on:
+  push:
+    branches: [fix/v06029-action-flight-freeze]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 20
+      - name: Apply patch
+        run: node scripts/apply-v06029-temp.mjs
+      - name: Validate candidate
+        run: |
+          npm run version:check
+          node scripts/check-js.mjs
+          python3 scripts/scan-i18n-coverage.py
+          node --test test/v06029-action-flight-regression.test.js test/nonblocking-turn-sync.test.js test/progressive-world-builder-v05410.test.js test/ai-autotest-controls-v0544.test.js test/v06028-ai-first-suggestions-regression.test.js test/version-0551-release.test.js test/version-ui.test.js
+      - name: Commit patch and remove temporary applicator
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-v06029-temp.yml scripts/apply-v06029-temp.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix v0.60.29 player action flight freeze"
+          git push origin HEAD:fix/v06029-action-flight-freeze
