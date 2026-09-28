@@ -53,7 +53,7 @@ test("v0.60.25 failure narration is not rewritten by the successful-observation 
  assert.match(v06025ObservationNoDetailNarrative(action),/確認済みの事実だけ/);
 });
 
-test("v0.60.26 release wiring keeps v0.60.24 stale-turn, weather and Japanese projections while retaining v0.60.25 observation guards",async()=>{
+test("v0.60.27 release wiring keeps v0.60.24 stale-turn, weather and Japanese projections while retaining v0.60.25 observation guards",async()=>{
  const [html,pkgText,version,workflow,game,client,client24]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),
   readFile(new URL("../package.json",import.meta.url),"utf8"),
@@ -65,7 +65,7 @@ test("v0.60.26 release wiring keeps v0.60.24 stale-turn, weather and Japanese pr
  ]);
  assert.equal(JSON.parse(pkgText).version,"0.60.27");
  assert.match(version,/APP_VERSION="0\.60\.27"/);
- assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60026"/);
+ assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60027"/);
  assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06025-game-engine-hotfix\.js\?v=60025"/);
  assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06025-ai-client-hotfix\.js\?v=60026"/);
  assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);
@@ -75,7 +75,7 @@ test("v0.60.26 release wiring keeps v0.60.24 stale-turn, weather and Japanese pr
  assert.match(game,/v06019-game-engine-hotfix\.js\?v=60019/);
  assert.match(client,/v06024-ai-client-hotfix\.js\?v=60026/);
  assert.match(client24,/v06019-ai-client-hotfix\.js\?v=60026/);
- assert.match(workflow,/Focused v0\.60\.26 regressions/);
- assert.match(workflow,/version\.js\?v=60026/);
- assert.match(workflow,/v0\\\.60\\\.26/);
+ assert.match(workflow,/Focused v0\.60\.27 regressions/);
+ assert.match(workflow,/version\.js\?v=60027/);
+ assert.match(workflow,/v0\\\.60\\\.27/);
 });
