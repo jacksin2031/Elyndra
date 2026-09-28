@@ -1,4 +1,4 @@
-name: Apply v0.60.30 hotfix
+name: Validate v0.60.30 hotfix
 on:
   push:
     branches: [main]
@@ -6,70 +6,56 @@ on:
       - scripts/apply-v06030.mjs
       - .github/workflows/apply-v06030.yml
 permissions:
-  contents: write
+  contents: read
+
+x-common: &common
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      with:
+        node-version: 20
+    - name: Apply release patch in runner
+      run: node scripts/apply-v06030.mjs
+
 jobs:
-  apply:
-    runs-on: ubuntu-latest
+  syntax:
+    <<: *common
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 20
-      - id: apply_patch
-        name: Apply release patch
-        continue-on-error: true
-        run: node scripts/apply-v06030.mjs
-      - id: syntax
-        name: JavaScript syntax gate
-        continue-on-error: true
-        run: node scripts/check-js.mjs
-      - id: regression
-        name: v0.60.30 regression tests
-        continue-on-error: true
-        run: node --test test/v06030-debug-world-evolution-regression.test.js
-      - id: quality
-        name: Existing quality retry tests
-        continue-on-error: true
-        run: node --test test/v06029-world-quality-retry.test.js
-      - id: evolution
-        name: Existing background evolution tests
-        continue-on-error: true
-        run: node --test test/background-world-evolution.test.js
-      - id: telemetry
-        name: Existing debug telemetry tests
-        continue-on-error: true
-        run: node --test test/debug-telemetry.test.js
-      - name: Persist stage outcomes
-        if: always()
-        run: |
-          cat > .github/v06030-stage-outcomes.txt <<'EOF'
-          apply_patch=${{ steps.apply_patch.outcome }}
-          syntax=${{ steps.syntax.outcome }}
-          regression=${{ steps.regression.outcome }}
-          quality=${{ steps.quality.outcome }}
-          evolution=${{ steps.evolution.outcome }}
-          telemetry=${{ steps.telemetry.outcome }}
-          EOF
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/v06030-stage-outcomes.txt
-          if ! git diff --cached --quiet; then
-            git commit -m "ci: record v0.60.30 validation stage outcomes"
-            git push origin HEAD:main
-          fi
-      - name: Fail if validation failed
-        if: steps.apply_patch.outcome != 'success' || steps.syntax.outcome != 'success' || steps.regression.outcome != 'success' || steps.quality.outcome != 'success' || steps.evolution.outcome != 'success' || steps.telemetry.outcome != 'success'
-        run: exit 1
-      - name: Commit release
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app.js index.html package.json src/version.js src/v06029-world-quality-hotfix.js src/v06030-world-evolution-repair.js test/v06030-debug-world-evolution-regression.test.js test/version-ui.test.js .github/workflows/pages.yml
-          if git diff --cached --quiet; then
-            echo "No release changes to commit"
-            exit 0
-          fi
-          git commit -m "v0.60.30: make debug export verifiable and bound world evolution retries"
-          git push origin HEAD:main
+        with: {node-version: 20}
+      - run: node scripts/apply-v06030.mjs
+      - run: node scripts/check-js.mjs
+  regression:
+    <<: *common
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with: {node-version: 20}
+      - run: node scripts/apply-v06030.mjs
+      - run: node --test test/v06030-debug-world-evolution-regression.test.js
+  quality:
+    <<: *common
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with: {node-version: 20}
+      - run: node scripts/apply-v06030.mjs
+      - run: node --test test/v06029-world-quality-retry.test.js
+  evolution:
+    <<: *common
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with: {node-version: 20}
+      - run: node scripts/apply-v06030.mjs
+      - run: node --test test/background-world-evolution.test.js
+  telemetry:
+    <<: *common
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with: {node-version: 20}
+      - run: node scripts/apply-v06030.mjs
+      - run: node --test test/debug-telemetry.test.js
