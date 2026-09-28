@@ -24,6 +24,6 @@ test("v0.60.7 rate limit and slow scene paths release player control determinist
  assert.match(app,/TURN_RATE_LIMIT_FAST_FALLBACK/);
  assert.match(app,/foregroundSceneCtrl\.abort\(\)/);
  assert.match(app,/PLAYER_ACTION_SCENE_DEADLINE_FALLBACK/);
- assert.match(app,/deadlineMs:18000/);
+ assert.match(app,/deadlineMs:PLAYER_ACTION_SCENE_DEADLINE_MS/);
  assert.match(app,/rate_limit_fallback/);
 });

@@ -282,7 +282,7 @@ export function buildContextualActionSet(state,input=[],options={}){
   normalizeContextualSuggestion({label:"換一個角度測試眼前局勢",action:`利用${currentLocation(state)}可見的遮蔽物、人流或聲音，換一個不需要未知資源的方法測試誰會作出反應`,kind:"GENERAL",risk:"MEDIUM",skillHint:"應變",approach:"CREATIVE",causalBasis:"只使用當前可見環境",requirementsSatisfied:true,source:"ENGINE"})
  ];
  for(const x of genericFill.sort((a,b)=>rhythmSuggestionBias(state,b)-rhythmSuggestionBias(state,a))){if(main.length>=3)break;if(x&&isFresh(x)&&!main.some(m=>m.action===x.action))main.push(x)}
- if(main.length<3&&!main.some(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))){const fallbackProgression=progressionSuggestion(state);if(isFresh(fallbackProgression))main.unshift(fallbackProgression)}
+ if(!main.some(x=>x.progression&&!["HIGH","EXTREME"].includes(x.risk))){const fallbackProgression=progressionSuggestion(state);if(isFresh(fallbackProgression)){if(main.length>=3)main.pop();main.unshift(fallbackProgression)}}
  main.splice(3);
  const high=raw.find(x=>["HIGH","EXTREME"].includes(x.risk))||(()=>{const x=fallbackByApproach(state,"BOLD");return isFresh(x)?x:null})();
  const selected=uniq([...main.slice(0,3),high],4).map(x=>seal(state,x)).filter(Boolean);
