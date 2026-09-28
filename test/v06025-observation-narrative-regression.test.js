@@ -31,6 +31,15 @@ test("v0.60.25 weak successful observation scene is made explicit instead of inv
  assert.equal(out.outcome,"SUCCESS");
 });
 
+test("v0.60.26 compare-and-record Japanese observation wording is protected by the successful-observation scene guard",()=>{
+ const compareAction="金色の光が消える瞬間と霧の流れを見比べ、変化が起きる条件を記録する。";
+ const weak={narrative:`塩霧の崖道で「${compareAction}」を達成しました。`,outcome:"SUCCESS",sceneTitle:"変化を記録する",suggestions:[]};
+ const out=v06025RefineObservationScene(weak,compareAction,{success:true,grade:"SUCCESS"});
+ assert.match(out.narrative,/観察判定は成功しました/);
+ assert.match(out.narrative,/新しい具体的な発見内容は確定できませんでした/);
+ assert.doesNotMatch(out.narrative,/達成しました/);
+});
+
 test("v0.60.25 concrete grounded observation narration is preserved",()=>{
  const concrete={narrative:"濡れた石の上に、すでに画面上で確認済みの足跡が途切れず残っている。",outcome:"SUCCESS",sceneTitle:"足跡を見る",suggestions:[]};
  assert.equal(v06025WeakObservationNarrative(concrete.narrative),false);
