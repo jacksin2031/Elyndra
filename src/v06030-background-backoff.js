@@ -1,0 +1,34 @@
+const STORAGE_PREFIX="elyndra:background-backoff:v06030:";
+export const QUALITY_RETRY_BASE_MS=30000;
+export const QUALITY_RETRY_MAX_MS=300000;
+export const EVOLUTION_RETRY_BASE_MS=120000;
+export const EVOLUTION_RETRY_MAX_MS=900000;
+const PROVIDER_FAILURE=/AI_TIMEOUT|AI_HTTP_(?:429|5\d\d)|Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|PROVIDER/i;
+
+const safeStorage=()=>{try{return globalThis.localStorage||null}catch{return null}};
+const clean=(value,max=300)=>String(value??"").trim().slice(0,max);
+const worldId=state=>clean(state?.world?.id,160);
+const storageKey=state=>{const id=worldId(state);return id?STORAGE_PREFIX+id:""};
+const boundedDelay=(base,max,failures)=>Math.min(max,base*(2**Math.max(0,Math.min(5,Number(failures||1)-1))));
+function readRow(state){const key=storageKey(state),storage=safeStorage();if(!key||!storage)return {};try{const raw=storage.getItem(key),row=raw?JSON.parse(raw):{};return row&&typeof row==="object"&&!Array.isArray(row)?row:{}}catch{return {}}}
+function writeRow(state,row){const key=storageKey(state),storage=safeStorage();if(!key||!storage)return false;try{const value={version:1,quality:row?.quality||null,evolution:row?.evolution||null,updatedAt:Date.now()};if(!value.quality&&!value.evolution)storage.removeItem(key);else storage.setItem(key,JSON.stringify(value));return true}catch{return false}}
+function qualityRoot(state){state.world??={};state.world.quality??={};state.world.quality.background??={};return state.world.quality.background}
+function enrichmentRoot(state){state.world??={};state.world.enrichment??={version:1,count:0,lastCompletedTurn:0,lastScheduledTurn:0,lastDomain:"",lastReason:"",providerBackoffUntil:0,lastPressure:0};return state.world.enrichment}
+function mirrorGlobalEvolution(state,retryAt){const id=worldId(state);if(!id)return;const until=Math.max(0,Number(retryAt)||0);if(until>Date.now())globalThis.__ELYNDRA_EVOLUTION_BACKOFF__={worldId:id,retryAt:until};else if(globalThis.__ELYNDRA_EVOLUTION_BACKOFF__?.worldId===id)delete globalThis.__ELYNDRA_EVOLUTION_BACKOFF__}
+
+export function providerFailure(error=""){return PROVIDER_FAILURE.test(String(error?.message||error||""))}
+export function hydrateBackgroundBackoff(state,{now=Date.now()}={}){
+ if(!state?.world)return {quality:null,evolution:null};
+ const persisted=readRow(state),bg=qualityRoot(state),enrichment=enrichmentRoot(state),pq=persisted.quality&&typeof persisted.quality==="object"?persisted.quality:null,pe=persisted.evolution&&typeof persisted.evolution==="object"?persisted.evolution:null;
+ if(pq){bg.consecutiveFailures=Math.max(Number(bg.consecutiveFailures)||0,Number(pq.failures)||0);bg.nextRetryAt=Math.max(Number(bg.nextRetryAt)||0,Number(pq.nextRetryAt)||0);bg.lastAttemptAt=Math.max(Number(bg.lastAttemptAt)||0,Number(pq.lastAttemptAt)||0);if(!bg.lastError&&pq.lastError)bg.lastError=clean(pq.lastError);if(!bg.error&&pq.lastError)bg.error=clean(pq.lastError)}
+ if(pe){enrichment.providerFailureCount=Math.max(Number(enrichment.providerFailureCount)||0,Number(pe.failures)||0);enrichment.providerBackoffUntil=Math.max(Number(enrichment.providerBackoffUntil)||0,Number(pe.nextRetryAt)||0);enrichment.lastProviderFailureAt=Math.max(Number(enrichment.lastProviderFailureAt)||0,Number(pe.lastAttemptAt)||0);if(pe.lastError)enrichment.lastProviderError=clean(pe.lastError);if(!enrichment.lastReason&&pe.lastError)enrichment.lastReason=clean(pe.lastError)}
+ mirrorGlobalEvolution(state,enrichment.providerBackoffUntil);
+ return {quality:pq,evolution:pe,now}
+}
+export function qualityBackoff(state,{now=Date.now()}={}){hydrateBackgroundBackoff(state,{now});const bg=state?.world?.quality?.background||{},retryAt=Math.max(0,Number(bg.nextRetryAt)||0);return {active:retryAt>now,retryAt,remainingMs:Math.max(0,retryAt-now),failures:Math.max(0,Number(bg.consecutiveFailures)||0),lastError:clean(bg.lastError||bg.error)}}
+export function noteQualityFailure(state,error="",{now=Date.now()}={}){const row=readRow(state),bg=qualityRoot(state),prior=Math.max(Number(bg.consecutiveFailures)||0,Number(row.quality?.failures)||0),failures=Math.min(6,prior+1),backoffMs=boundedDelay(QUALITY_RETRY_BASE_MS,QUALITY_RETRY_MAX_MS,failures),nextRetryAt=now+backoffMs,lastError=clean(error?.message||error);bg.consecutiveFailures=failures;bg.nextRetryAt=nextRetryAt;bg.lastAttemptAt=now;bg.lastError=lastError;bg.error=lastError||bg.error;row.quality={failures,nextRetryAt,lastAttemptAt:now,lastError};writeRow(state,row);return {failures,nextRetryAt,backoffMs,lastError}}
+export function clearQualityFailure(state){const row=readRow(state),bg=qualityRoot(state);bg.consecutiveFailures=0;bg.nextRetryAt=0;bg.lastError="";row.quality=null;writeRow(state,row);return bg}
+export function evolutionBackoff(state,{now=Date.now()}={}){hydrateBackgroundBackoff(state,{now});const enrichment=state?.world?.enrichment||{},retryAt=Math.max(0,Number(enrichment.providerBackoffUntil)||0);mirrorGlobalEvolution(state,retryAt);return {active:retryAt>now,retryAt,remainingMs:Math.max(0,retryAt-now),failures:Math.max(0,Number(enrichment.providerFailureCount)||0),lastError:clean(enrichment.lastProviderError||enrichment.lastReason)}}
+export function noteEvolutionFailure(state,error="",{now=Date.now(),backoffMs=0}={}){if(!providerFailure(error))return {applied:false,reason:"NON_PROVIDER_FAILURE"};const row=readRow(state),enrichment=enrichmentRoot(state),prior=Math.max(Number(enrichment.providerFailureCount)||0,Number(row.evolution?.failures)||0),failures=Math.min(6,prior+1),delay=Math.min(EVOLUTION_RETRY_MAX_MS,Math.max(EVOLUTION_RETRY_BASE_MS,Number(backoffMs)||boundedDelay(EVOLUTION_RETRY_BASE_MS,EVOLUTION_RETRY_MAX_MS,failures))),nextRetryAt=now+delay,lastError=clean(error?.message||error);enrichment.providerFailureCount=failures;enrichment.providerBackoffUntil=Math.max(Number(enrichment.providerBackoffUntil)||0,nextRetryAt);enrichment.lastProviderFailureAt=now;enrichment.lastProviderError=lastError;enrichment.lastReason=lastError||enrichment.lastReason;row.evolution={failures,nextRetryAt:enrichment.providerBackoffUntil,lastAttemptAt:now,lastError};writeRow(state,row);mirrorGlobalEvolution(state,enrichment.providerBackoffUntil);return {applied:true,failures,nextRetryAt:enrichment.providerBackoffUntil,backoffMs:delay,lastError}}
+export function clearEvolutionFailure(state){const row=readRow(state),enrichment=enrichmentRoot(state);enrichment.providerFailureCount=0;enrichment.providerBackoffUntil=0;enrichment.lastProviderError="";row.evolution=null;writeRow(state,row);mirrorGlobalEvolution(state,0);return enrichment}
+export const __v06030BackgroundBackoff={STORAGE_PREFIX,QUALITY_RETRY_BASE_MS,QUALITY_RETRY_MAX_MS,EVOLUTION_RETRY_BASE_MS,EVOLUTION_RETRY_MAX_MS};

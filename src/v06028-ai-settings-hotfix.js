@@ -1,36 +1,31 @@
 import * as base from "./ai-settings.js?v=60012&base=1";
+import {recordDebug} from "./debug-telemetry.js?v=60029";
 export * from "./ai-settings.js?v=60012&base=1";
 
 export const V06028_SCENE_TIMEOUT_MS=10500;
 export const V06029_AGNES_BACKGROUND_TASK_ALIAS=Object.freeze({quality:"runtime_quality",quality_repair:"runtime_quality"});
 
-export function v06029RouteBackgroundStructuredTask(args={},provider=""){
- const task=String(args?.aiTask||"").toLowerCase(),route=V06029_AGNES_BACKGROUND_TASK_ALIAS[task];
- if(String(provider||"").toLowerCase()!=="agnes"||!route)return args;
- const requested=Math.round(Number(args?.maxOutputTokens)||1300);
- return {...args,aiTask:route,disableOptimization:true,maxOutputTokens:Math.max(900,Math.min(1600,requested))}
-}
+export function v06029RouteBackgroundStructuredTask(args={},provider=""){const task=String(args?.aiTask||"").toLowerCase(),route=V06029_AGNES_BACKGROUND_TASK_ALIAS[task];if(String(provider||"").toLowerCase()!=="agnes"||!route)return args;const requested=Math.round(Number(args?.maxOutputTokens)||1300);return {...args,aiTask:route,disableOptimization:true,maxOutputTokens:Math.max(900,Math.min(1600,requested))}}
+function sceneTimeoutError(){const error=new Error(`AI_TIMEOUT: provider did not complete within ${Math.round(V06028_SCENE_TIMEOUT_MS/1000*10)/10} seconds`);error.code="AI_TIMEOUT";return error}
+export async function directChat(args={}){const provider=base.loadAISettings?.().provider||"",routed=v06029RouteBackgroundStructuredTask(args,provider);if(String(routed?.aiTask||"").toLowerCase()!=="scene"||routed?.disableTimeout===true)return base.directChat(routed);const parent=routed?.signal;if(parent?.aborted)return base.directChat(routed);const controller=new AbortController(),onParentAbort=()=>{try{controller.abort(parent?.reason)}catch{}};parent?.addEventListener?.("abort",onParentAbort,{once:true});let timer=0;const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{const error=sceneTimeoutError();try{controller.abort(error)}catch{}reject(error)},V06028_SCENE_TIMEOUT_MS)});try{return await Promise.race([base.directChat({...routed,signal:controller.signal,disableTimeout:true}),timeout])}finally{if(timer)clearTimeout(timer);parent?.removeEventListener?.("abort",onParentAbort)}}
 
-function sceneTimeoutError(){
- const error=new Error(`AI_TIMEOUT: provider did not complete within ${Math.round(V06028_SCENE_TIMEOUT_MS/1000*10)/10} seconds`);
- error.code="AI_TIMEOUT";
- return error
+function installV06030WorldEvolutionTimerGuard(){
+ if(globalThis.__ELYNDRA_WORLD_EVOLUTION_TIMER_GUARD__||typeof globalThis.setTimeout!=="function")return;globalThis.__ELYNDRA_WORLD_EVOLUTION_TIMER_GUARD__=true;
+ const nativeSetTimeout=globalThis.setTimeout.bind(globalThis);
+ globalThis.setTimeout=function(callback,delay,...args){let wait=Math.max(0,Number(delay)||0);try{const source=typeof callback==="function"?Function.prototype.toString.call(callback):"",retryAt=Number(globalThis.__ELYNDRA_EVOLUTION_BACKOFF__?.retryAt)||0;if(source.includes("runBackgroundWorldEvolution")&&retryAt>Date.now())wait=Math.max(wait,retryAt-Date.now()+100)}catch{}return nativeSetTimeout(callback,wait,...args)}
 }
+installV06030WorldEvolutionTimerGuard();
 
-export async function directChat(args={}){
- const provider=base.loadAISettings?.().provider||"",routed=v06029RouteBackgroundStructuredTask(args,provider);
- if(String(routed?.aiTask||"").toLowerCase()!=="scene"||routed?.disableTimeout===true)return base.directChat(routed);
- const parent=routed?.signal;
- if(parent?.aborted)return base.directChat(routed);
- const controller=new AbortController();
- const onParentAbort=()=>{try{controller.abort(parent?.reason)}catch{}};
- parent?.addEventListener?.("abort",onParentAbort,{once:true});
- let timer=0;
- const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{const error=sceneTimeoutError();try{controller.abort(error)}catch{}reject(error)},V06028_SCENE_TIMEOUT_MS)});
- try{
-  return await Promise.race([base.directChat({...routed,signal:controller.signal,disableTimeout:true}),timeout])
- }finally{
-  if(timer)clearTimeout(timer);
-  parent?.removeEventListener?.("abort",onParentAbort)
- }
+function installV06030DebugJsonBridge(){
+ if(typeof document==="undefined"||globalThis.__ELYNDRA_DEBUG_JSON_BRIDGE__)return;globalThis.__ELYNDRA_DEBUG_JSON_BRIDGE__=true;
+ const nativeCreateObjectURL=globalThis.URL?.createObjectURL?.bind(globalThis.URL),nativeAnchorClick=globalThis.HTMLAnchorElement?.prototype?.click;let suppressDebugDownload=false;const debugUrls=new Set();
+ if(nativeCreateObjectURL)globalThis.URL.createObjectURL=function(blob){const url=nativeCreateObjectURL(blob);try{if(blob instanceof Blob&&/application\/json/i.test(String(blob.type||"")))void blob.text().then(text=>{try{const parsed=JSON.parse(text);if(parsed?.schema!=="elyndra-debug-v1")return;globalThis.__ELYNDRA_LAST_DEBUG_JSON__=text;debugUrls.add(url);globalThis.dispatchEvent(new CustomEvent("elyndra-debug-json-captured",{detail:{text,chars:text.length,url}}))}catch{}})}catch{}return url};
+ if(nativeAnchorClick&&globalThis.HTMLAnchorElement)globalThis.HTMLAnchorElement.prototype.click=function(...args){if(suppressDebugDownload&&debugUrls.has(String(this.href||"")))return;return nativeAnchorClick.apply(this,args)};
+ const capture=()=>new Promise((resolve,reject)=>{const button=document.querySelector("#debugExportJson");if(!button){reject(new Error("DEBUG_EXPORT_BUTTON_UNAVAILABLE"));return}let timer=0;const done=event=>{clearTimeout(timer);suppressDebugDownload=false;globalThis.removeEventListener("elyndra-debug-json-captured",done);resolve(event.detail.text)};globalThis.addEventListener("elyndra-debug-json-captured",done,{once:true});suppressDebugDownload=true;timer=setTimeout(()=>{suppressDebugDownload=false;globalThis.removeEventListener("elyndra-debug-json-captured",done);reject(new Error("DEBUG_JSON_CAPTURE_TIMEOUT"))},1800);button.click()});
+ const labels=()=>String(document.documentElement?.lang||globalThis.ELYNDRA_LOCALE||"").startsWith("ja")?{copy:"JSONをコピー",view:"JSONを表示",copied:"Debug JSON をコピーしました。",failed:"Debug JSON を取得できませんでした。",close:"閉じる",copyAll:"すべてコピー",hint:"ダウンロード不要。Ctrl+A / Ctrl+C でも取得できます。"}:{copy:"Copy JSON",view:"View JSON",copied:"Debug JSON copied.",failed:"Debug JSON capture failed.",close:"Close",copyAll:"Copy all",hint:"No download required. Ctrl+A / Ctrl+C also works."};
+ const copyText=async text=>{try{await navigator.clipboard.writeText(text);return true}catch{const area=document.createElement("textarea");area.value=text;area.style.position="fixed";area.style.opacity="0";document.body.appendChild(area);area.select();let ok=false;try{ok=document.execCommand("copy")}catch{}area.remove();return ok}};
+ const showOverlay=text=>{document.querySelector("#debugJsonOverlay")?.remove();const l=labels(),overlay=document.createElement("div");overlay.id="debugJsonOverlay";overlay.style.cssText="position:fixed;inset:3vh 3vw;z-index:2147483647;background:#111;color:#eee;border:1px solid #666;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 48px #000a";const head=document.createElement("div");head.textContent="ELYNDRA DEBUG JSON — "+l.hint;const area=document.createElement("textarea");area.id="debugRawJson";area.readOnly=true;area.value=text;area.style.cssText="flex:1;width:100%;min-height:65vh;background:#090909;color:#eee;font:12px ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;resize:vertical";const actions=document.createElement("div"),copy=document.createElement("button"),close=document.createElement("button");copy.textContent=l.copyAll;close.textContent=l.close;copy.onclick=async()=>{const ok=await copyText(text);recordDebug(ok?"DEBUG_JSON_COPIED":"DEBUG_JSON_COPY_FAILED",{source:"in_page_view",chars:text.length})};close.onclick=()=>overlay.remove();actions.append(copy,close);overlay.append(head,area,actions);document.body.appendChild(overlay);recordDebug("DEBUG_JSON_DISPLAYED",{chars:text.length});area.focus();area.setSelectionRange(0,0)};
+ const inject=()=>{const exportButton=document.querySelector("#debugExportJson");if(!exportButton||document.querySelector("#debugCopyJson"))return;const parent=exportButton.parentElement;if(!parent)return;const l=labels(),copy=document.createElement("button"),view=document.createElement("button"),status=document.createElement("span");copy.id="debugCopyJson";copy.className="secondary";copy.textContent=l.copy;view.id="debugShowJson";view.className="secondary";view.textContent=l.view;status.id="debugBridgeStatus";status.setAttribute("role","status");status.className="muted";copy.onclick=async()=>{try{const text=await capture(),ok=await copyText(text);status.textContent=ok?l.copied:l.failed;recordDebug(ok?"DEBUG_JSON_COPIED":"DEBUG_JSON_COPY_FAILED",{source:"debug_panel",chars:text.length})}catch(error){status.textContent=l.failed;recordDebug("DEBUG_JSON_COPY_FAILED",{source:"debug_panel",error:error?.message||String(error)})}};view.onclick=async()=>{try{showOverlay(await capture());status.textContent=""}catch(error){status.textContent=l.failed;recordDebug("DEBUG_JSON_DISPLAY_FAILED",{error:error?.message||String(error)})}};parent.append(copy,view,status)};
+ const start=()=>{inject();new MutationObserver(inject).observe(document.documentElement,{childList:true,subtree:true})};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start()
 }
+installV06030DebugJsonBridge();
