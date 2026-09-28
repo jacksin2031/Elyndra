@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-// Official v0.60.23 release contract; this file also anchors the final Pages deployment check.
-test("v0.60.23 is the canonical app and browser cache release",async()=>{
+// Official v0.60.24 release contract; this file also anchors the final Pages deployment check.
+test("v0.60.24 is the canonical app and browser cache release",async()=>{
  const [pkgText,versionSource,html,app]=await Promise.all([
   readFile(new URL("../package.json",import.meta.url),"utf8"),
   readFile(new URL("../src/version.js",import.meta.url),"utf8"),
@@ -11,20 +11,21 @@ test("v0.60.23 is the canonical app and browser cache release",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText);
- assert.equal(pkg.version,"0.60.23");
- assert.match(versionSource,/APP_VERSION="0\.60\.23"/);
+ assert.equal(pkg.version,"0.60.24");
+ assert.match(versionSource,/APP_VERSION="0\.60\.24"/);
  assert.match(html,/app\.js\?v=60019/);
- assert.match(html,/v06021-runtime-ui-hotfix\.js\?v=60021/);
- assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60023"/);
+ assert.match(html,/v06024-runtime-ui-hotfix\.js\?v=60024/);
+ assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);
- assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06019-ai-client-hotfix\.js\?v=60019"/);
+ assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06024-ai-client-hotfix\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/contextual-actions\.js\?v=60010":"\.\/src\/v06021-contextual-actions-hotfix\.js\?v=60021"/);
  assert.match(html,/"\.\/src\/locale-runtime\.js\?v=60010":"\.\/src\/v06011-locale-runtime-hotfix\.js\?v=60013"/);
  assert.match(html,/"\.\/src\/lazy-generation\.js\?v=59014":"\.\/src\/v06011-lazy-generation-hotfix\.js\?v=60013"/);
  assert.match(html,/"\.\/src\/ai-settings\.js\?v=60010":"\.\/src\/ai-settings\.js\?v=60012"/);
- assert.match(html,/"\.\/src\/weather-engine\.js\?v=57025":"\.\/src\/v06023-weather-engine-hotfix\.js\?v=60023"/);
+ assert.match(html,/"\.\/src\/weather-engine\.js\?v=57025":"\.\/src\/v06024-weather-engine-hotfix\.js\?v=60024"/);
+ assert.match(html,/"\.\/src\/talent-engine\.js\?v=60004":"\.\/src\/v06024-talent-engine-hotfix\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/world-registry\.js\?v=57025":"\.\/src\/v06023-world-registry-hotfix\.js\?v=60023"/);
- assert.match(html,/"\.\/src\/v06015-ja-visible-text\.js\?v=60018":"\.\/src\/v06023-ja-visible-text-hotfix\.js\?v=60023"/);
+ assert.match(html,/"\.\/src\/v06015-ja-visible-text\.js\?v=60018":"\.\/src\/v06024-ja-visible-text-hotfix\.js\?v=60024"/);
  assert.match(html,/styles\.css\?v=59014/);assert.match(html,/creator\.css\?v=59010/);assert.match(html,/world-surfaces\.css\?v=59011/);assert.match(html,/"\.\/src\/origin-runtime\.js\?v=57025":"\.\/src\/origin-runtime\.js\?v=59014"/);
  const tokens=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
  assert.ok(tokens.length>20);
