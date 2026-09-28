@@ -18,10 +18,16 @@ jobs:
           node-version: 20
       - name: Apply release patch
         run: node scripts/apply-v06030.mjs
-      - name: Validate patched source
-        run: |
-          node scripts/check-js.mjs
-          node --test test/v06030-debug-world-evolution-regression.test.js test/v06029-world-quality-retry.test.js test/background-world-evolution.test.js test/debug-telemetry.test.js
+      - name: JavaScript syntax gate
+        run: node scripts/check-js.mjs
+      - name: v0.60.30 regression tests
+        run: node --test test/v06030-debug-world-evolution-regression.test.js
+      - name: Existing quality retry tests
+        run: node --test test/v06029-world-quality-retry.test.js
+      - name: Existing background evolution tests
+        run: node --test test/background-world-evolution.test.js
+      - name: Existing debug telemetry tests
+        run: node --test test/debug-telemetry.test.js
       - name: Commit release
         run: |
           git config user.name "github-actions[bot]"
