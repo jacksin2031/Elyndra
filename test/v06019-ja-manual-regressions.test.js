@@ -24,7 +24,7 @@ test("v0.60.19 runtime wiring covers suggestion identity, rest execution, vitals
   readFile(new URL("../src/v06019-contextual-actions-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06019-game-engine-hotfix.js",import.meta.url),"utf8"),
   readFile(new URL("../src/v06019-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
- assert.equal(JSON.parse(pkgText).version,"0.60.22");assert.match(version,/APP_VERSION="0\.60\.22"/);
+ assert.equal(JSON.parse(pkgText).version,"0.60.23");assert.match(version,/APP_VERSION="0\.60\.23"/);
  assert.match(html,/v06019-ai-client-hotfix\.js\?v=60019/);assert.match(html,/v06021-contextual-actions-hotfix\.js\?v=60021/);assert.match(html,/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(html,/v06021-runtime-ui-hotfix\.js\?v=60021/);
  assert.match(contextual,/engineAction/);assert.match(contextual,/action:visible,label:visible/);assert.match(engine,/engineNormalizedAction:"休息"/);
  assert.match(app,/const effective=assessment\?\.playerVisibleAction\|\|requested/);assert.match(app,/GAME_PLAYER_STATE_CHANGED/);assert.match(app,/debugEventDetail/);
