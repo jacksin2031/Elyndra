@@ -1,5 +1,5 @@
-import * as base from "./world-registry.js?v=57025&base=1";
-export * from "./world-registry.js?v=57025&base=1";
+import * as base from "./v06023-world-registry-hotfix.js?v=60023&base=1";
+export * from "./v06023-world-registry-hotfix.js?v=60023&base=1";
 
 const clean=(value,max=160)=>String(value??"").normalize("NFC").trim().slice(0,max);
 
