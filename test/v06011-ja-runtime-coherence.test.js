@@ -52,7 +52,7 @@ test("v0.60.11 manual-test protections remain wired through the v0.60.26 wrapper
  assert.match(html,/\.\/src\/contextual-actions\.js\?v=60010\"\s*:\s*\"\.\/src\/v06021-contextual-actions-hotfix\.js\?v=60021/);
  assert.match(html,/\.\/src\/ai-client\.js\?v=60010\"\s*:\s*\"\.\/src\/v06025-ai-client-hotfix\.js\?v=60026/);
  assert.match(game25,/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(ai25,/v06024-ai-client-hotfix\.js\?v=60026/);assert.match(ai24,/v06019-ai-client-hotfix\.js\?v=60026/);
- assert.match(html,/v06024-runtime-ui-hotfix\.js\?v=60024/);assert.match(html,/app\.js\?v=60019/);
+ assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);assert.match(html,/app\.js\?v=60019/);
  assert.match(app,/playerActionFlight\.epoch!==actionFlightEpoch\|\|playerActionFlight\.timedOut\|\|actionAiLease!==foregroundAiLease/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/)
 });

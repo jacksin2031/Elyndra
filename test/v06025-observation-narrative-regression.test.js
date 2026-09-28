@@ -63,12 +63,12 @@ test("v0.60.26 release wiring keeps v0.60.24 stale-turn, weather and Japanese pr
   readFile(new URL("../src/v06025-ai-client-hotfix.js",import.meta.url),"utf8"),
   readFile(new URL("../src/v06024-ai-client-hotfix.js",import.meta.url),"utf8")
  ]);
- assert.equal(JSON.parse(pkgText).version,"0.60.26");
- assert.match(version,/APP_VERSION="0\.60\.26"/);
+ assert.equal(JSON.parse(pkgText).version,"0.60.27");
+ assert.match(version,/APP_VERSION="0\.60\.27"/);
  assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60026"/);
  assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06025-game-engine-hotfix\.js\?v=60025"/);
  assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06025-ai-client-hotfix\.js\?v=60026"/);
- assert.match(html,/v06024-runtime-ui-hotfix\.js\?v=60024/);
+ assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=60027/);
  assert.match(html,/"\.\/src\/weather-engine\.js\?v=57025":"\.\/src\/v06024-weather-engine-hotfix\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/talent-engine\.js\?v=60004":"\.\/src\/v06024-talent-engine-hotfix\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/v06015-ja-visible-text\.js\?v=60018":"\.\/src\/v06024-ja-visible-text-hotfix\.js\?v=60024"/);

@@ -28,11 +28,11 @@ test("v0.60.23 drops only malformed optional NPC lore before Canon validation",(
  const hardReport=validateGeneration(hardInvalid);assert.equal(hardReport.valid,false);assert.ok(hardReport.errors.includes("NPC_SHAPE_INVALID"))
 });
 
-test("v0.60.23 fixes remain wired through the v0.60.26 release",async()=>{
+test("v0.60.23 fixes remain wired through the v0.60.27 release",async()=>{
  const [html,pkgText,version,workflow,weather24,visible24]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8"),readFile(new URL("../src/v06024-weather-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06024-ja-visible-text-hotfix.js",import.meta.url),"utf8")
  ]);
- assert.equal(JSON.parse(pkgText).version,"0.60.26");assert.match(version,/APP_VERSION="0\.60\.26"/);
+ assert.equal(JSON.parse(pkgText).version,"0.60.27");assert.match(version,/APP_VERSION="0\.60\.27"/);
  assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60026"/);
  assert.match(html,/"\.\/src\/weather-engine\.js\?v=57025":"\.\/src\/v06024-weather-engine-hotfix\.js\?v=60024"/);
  assert.match(html,/"\.\/src\/world-registry\.js\?v=57025":"\.\/src\/v06023-world-registry-hotfix\.js\?v=60023"/);
