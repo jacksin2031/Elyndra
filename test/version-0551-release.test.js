@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
-// Official v0.60.24 release contract; this file also anchors the final Pages deployment check.
-test("v0.60.24 is the canonical app and browser cache release",async()=>{
+// Official v0.60.25 release contract; this file also anchors the final Pages deployment check.
+test("v0.60.25 is the canonical app and browser cache release",async()=>{
  const [pkgText,versionSource,html,app]=await Promise.all([
   readFile(new URL("../package.json",import.meta.url),"utf8"),
   readFile(new URL("../src/version.js",import.meta.url),"utf8"),
@@ -11,13 +11,13 @@ test("v0.60.24 is the canonical app and browser cache release",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText);
- assert.equal(pkg.version,"0.60.24");
- assert.match(versionSource,/APP_VERSION="0\.60\.24"/);
+ assert.equal(pkg.version,"0.60.25");
+ assert.match(versionSource,/APP_VERSION="0\.60\.25"/);
  assert.match(html,/app\.js\?v=60019/);
  assert.match(html,/v06024-runtime-ui-hotfix\.js\?v=60024/);
- assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60024"/);
- assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06019-game-engine-hotfix\.js\?v=60019"/);
- assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06024-ai-client-hotfix\.js\?v=60024"/);
+ assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=60025"/);
+ assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06025-game-engine-hotfix\.js\?v=60025"/);
+ assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06025-ai-client-hotfix\.js\?v=60025"/);
  assert.match(html,/"\.\/src\/contextual-actions\.js\?v=60010":"\.\/src\/v06021-contextual-actions-hotfix\.js\?v=60021"/);
  assert.match(html,/"\.\/src\/locale-runtime\.js\?v=60010":"\.\/src\/v06011-locale-runtime-hotfix\.js\?v=60013"/);
  assert.match(html,/"\.\/src\/lazy-generation\.js\?v=59014":"\.\/src\/v06011-lazy-generation-hotfix\.js\?v=60013"/);
