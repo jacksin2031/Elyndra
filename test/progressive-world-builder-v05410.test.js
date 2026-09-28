@@ -45,5 +45,5 @@ test("v0.54.10 selected player action remains frozen through intermediate refres
  assert.match(app,/if\(playerActionFlight\.active&&!gameState\?\.combat\?\.active\)/);
  assert.match(app,/已選行動 · AI 處理中/);
  assert.match(app,/free\.disabled=aiBusy\|\|turnSyncBusy\|\|playerActionFlight\.active/);
- assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/)
+ assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled",actionFlightEpoch\)/)
 });

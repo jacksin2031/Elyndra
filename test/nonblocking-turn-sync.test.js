@@ -8,7 +8,7 @@ test("all player actions keep a single-flight UI lock until their visible result
  assert.match(app,/const playerActionFlight=\{active:false,label:"",startedAt:0,watchdog:0,timedOut:false,epoch:0\}/);
  assert.match(app,/beginPlayerActionFlight\(options\?\.suggestion\?\.label\|\|requested\)/);
  assert.match(app,/pending-action-group/);
- assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/);
+ assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled",actionFlightEpoch\)/);
  assert.match(app,/if\(playerActionFlight\.active&&!gameState\?\.combat\?\.active\)/);
  assert.match(app,/setPlayerActionControlsLocked\(true,uiText\("正在處理已選行動…",activeLocale\)\)/)
 });
@@ -25,7 +25,7 @@ test("ENGINE_ONLY and DEFERRED narration remains async internally but keeps play
  assert.match(app,/function startNonblockingPlayerNarration/);assert.match(app,/isCurrentStateSession\(sessionToken\)/);assert.match(app,/applyPlayerActionScene\(scene,\{worldId,baseRevision,roll,action,previousSuggestions,previousSuggestionIntents,state,sessionToken\}\)/);
  assert.match(app,/PLAYER_ACTION_AI_STALE_DISCARDED/);assert.match(app,/preemptNonblockingScene\(\)/);
  assert.match(app,/STATE_SYNC_ENGINE_ONLY/);assert.match(app,/STATE_SYNC_DEFERRED/);
- assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled"\)/)
+ assert.match(app,/finishPlayerActionFlight\(action,ctrl\.signal\.aborted\?"scene_aborted":"scene_settled",actionFlightEpoch\)/)
 });
 
 test("FAST and DEEP commit StatePatch without waiting for Player Action narration",async()=>{

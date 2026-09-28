@@ -310,7 +310,7 @@ function applyPlayerActionScene(scene,{worldId,baseRevision,expectedRevision,rol
  return true
 }
 
-function startNonblockingPlayerNarration({action,roll,snapshot,plan,intent,previousSuggestions,previousSuggestionIntents,startedAt,state=gameState,sessionToken=captureStateSession()}){
+function startNonblockingPlayerNarration({action,roll,snapshot,plan,intent,previousSuggestions,previousSuggestionIntents,startedAt,state=gameState,sessionToken=captureStateSession(),actionFlightEpoch=null}){
  preemptNonblockingScene();const ctrl=new AbortController(),worldId=state?.world?.id,baseRevision=Number(plan?.baseRevision)||currentStateRevision(state);
  nonblockingScene.controller=ctrl;nonblockingScene.worldId=worldId;nonblockingScene.revision=baseRevision;updateAIStatusBadge("Player Action AI 正在背景生成玩家可見結果");
  const jobs=startTurnAIJobs(action,roll,snapshot,{intent,stateSyncPlan:plan,baseRevision,signal:ctrl.signal});
@@ -318,7 +318,7 @@ function startNonblockingPlayerNarration({action,roll,snapshot,plan,intent,previ
   if(ctrl.signal.aborted||!isCurrentStateSession(sessionToken))return;const applied=applyPlayerActionScene(scene,{worldId,baseRevision,roll,action,previousSuggestions,previousSuggestionIntents,state,sessionToken});
   recordDebug(applied?"PLAYER_ACTION_AI_COMPLETED":"PLAYER_ACTION_AI_STALE_DISCARDED",{action,mode:plan.mode,baseRevision,currentRevision:isCurrentStateSession(sessionToken)?currentStateRevision(state):null,elapsedMs:Date.now()-startedAt});
   if(applied){await persist(state,sessionToken);if(isCurrentStateSession(sessionToken))await refresh()}
- }).catch(async e=>{if(!ctrl.signal.aborted&&isCurrentStateSession(sessionToken)){const safe=buildContextualActionSet(state,[]);state.suggestionIntents=safe.all;state.suggestions=safe.all.map(x=>x.label);recordDebug("PLAYER_ACTION_AI_FAILED",{action,mode:plan.mode,error:e?.message||String(e),elapsedMs:Date.now()-startedAt});recordDebug("PLAYER_ACTION_FALLBACK_REBUILT",{action,reason:"SCENE_AI_FAILED",suggestions:safe.all.length});await persist(state,sessionToken)}}).finally(()=>{if(nonblockingScene.controller===ctrl){nonblockingScene.controller=null;nonblockingScene.worldId=null;nonblockingScene.revision=null}finishPlayerActionFlight(action,ctrl.signal.aborted?"scene_aborted":"scene_settled");updateAIStatusBadge();if(gameState)void refresh()});
+ }).catch(async e=>{if(!ctrl.signal.aborted&&isCurrentStateSession(sessionToken)){const safe=buildContextualActionSet(state,[]);state.suggestionIntents=safe.all;state.suggestions=safe.all.map(x=>x.label);recordDebug("PLAYER_ACTION_AI_FAILED",{action,mode:plan.mode,error:e?.message||String(e),elapsedMs:Date.now()-startedAt});recordDebug("PLAYER_ACTION_FALLBACK_REBUILT",{action,reason:"SCENE_AI_FAILED",suggestions:safe.all.length});await persist(state,sessionToken)}}).finally(()=>{if(nonblockingScene.controller===ctrl){nonblockingScene.controller=null;nonblockingScene.worldId=null;nonblockingScene.revision=null}finishPlayerActionFlight(action,ctrl.signal.aborted?"scene_aborted":"scene_settled",actionFlightEpoch);updateAIStatusBadge();if(gameState)void refresh()});
  return jobs
 }
 function removePersistedDeferredTurn(taskId){
@@ -497,14 +497,15 @@ async function runBackgroundWorldEvolution(){
 function beginPlayerActionFlight(label){
  clearTimeout(playerActionFlight.watchdog);playerActionFlight.epoch+=1;foregroundAiLease+=1;const epoch=playerActionFlight.epoch,aiLease=foregroundAiLease;
  playerActionFlight.active=true;playerActionFlight.timedOut=false;playerActionFlight.label=localizedStaticText(lt(String(label||"").trim().slice(0,240)),activeLocale)||uiText("處理目前行動",activeLocale);playerActionFlight.startedAt=Date.now();
- playerActionFlight.watchdog=setTimeout(()=>{if(!playerActionFlight.active||playerActionFlight.epoch!==epoch)return;playerActionFlight.timedOut=true;foregroundAiLease+=1;preemptNonblockingScene();setTurnSyncing(false);setAIThinking(false);recordDebug("PLAYER_ACTION_GLOBAL_WATCHDOG",{action:playerActionFlight.label,deadlineMs:PLAYER_ACTION_HARD_DEADLINE_MS,elapsedMs:Date.now()-playerActionFlight.startedAt,expiredAiLease:aiLease});showActionRecoveryNotice(actionRecoveryText("watchdog"));const state=gameState,sessionToken=captureStateSession();finishPlayerActionFlight(playerActionFlight.label,"global_watchdog");if(state)void persist(state,sessionToken).catch(error=>recordDebug("PLAYER_ACTION_WATCHDOG_PERSIST_FAILED",{error:error?.message||String(error)})).finally(()=>{if(isCurrentStateSession(sessionToken))void refresh({skipLocale:true,skipRenderedLocale:true})})},PLAYER_ACTION_HARD_DEADLINE_MS);
+ playerActionFlight.watchdog=setTimeout(()=>{if(!playerActionFlight.active||playerActionFlight.epoch!==epoch)return;playerActionFlight.timedOut=true;foregroundAiLease+=1;preemptNonblockingScene();setTurnSyncing(false);setAIThinking(false);recordDebug("PLAYER_ACTION_GLOBAL_WATCHDOG",{action:playerActionFlight.label,deadlineMs:PLAYER_ACTION_HARD_DEADLINE_MS,elapsedMs:Date.now()-playerActionFlight.startedAt,expiredAiLease:aiLease});showActionRecoveryNotice(actionRecoveryText("watchdog"));const state=gameState,sessionToken=captureStateSession();finishPlayerActionFlight(playerActionFlight.label,"global_watchdog",epoch);if(state)void persist(state,sessionToken).catch(error=>recordDebug("PLAYER_ACTION_WATCHDOG_PERSIST_FAILED",{error:error?.message||String(error)})).finally(()=>{if(isCurrentStateSession(sessionToken))void refresh({skipLocale:true,skipRenderedLocale:true})})},PLAYER_ACTION_HARD_DEADLINE_MS);
  recordDebug("PLAYER_ACTION_UI_LOCKED",{action:playerActionFlight.label,deadlineMs:PLAYER_ACTION_HARD_DEADLINE_MS});renderSuggestions();setPlayerActionControlsLocked(true,"正在處理已選行動…");updateAIStatusBadge();return {epoch,aiLease}
 }
-function finishPlayerActionFlight(action="",reason="completed"){
- if(!playerActionFlight.active)return;clearTimeout(playerActionFlight.watchdog);playerActionFlight.watchdog=0;
+function finishPlayerActionFlight(action="",reason="completed",expectedEpoch=null){
+ if(expectedEpoch!=null&&playerActionFlight.epoch!==expectedEpoch){recordDebug("PLAYER_ACTION_UNLOCK_STALE_IGNORED",{action:String(action||"").slice(0,240),reason,expectedEpoch,currentEpoch:playerActionFlight.epoch,active:playerActionFlight.active});return false}
+ if(!playerActionFlight.active)return false;clearTimeout(playerActionFlight.watchdog);playerActionFlight.watchdog=0;
  const label=playerActionFlight.label,elapsedMs=Date.now()-playerActionFlight.startedAt;playerActionFlight.active=false;playerActionFlight.label="";playerActionFlight.startedAt=0;
  recordDebug("PLAYER_ACTION_UI_UNLOCKED",{action:String(action||label).slice(0,240),reason,elapsedMs});
- setPlayerActionControlsLocked(aiBusy||turnSyncBusy,aiBusy?"AI 正在處理你的行動…":turnSyncBusy?"STATE SYNC：完成後即可繼續行動":"");updateAIStatusBadge()
+ setPlayerActionControlsLocked(aiBusy||turnSyncBusy,aiBusy?"AI 正在處理你的行動…":turnSyncBusy?"STATE SYNC：完成後即可繼續行動":"");updateAIStatusBadge();return true
 }
 function setPlayerActionControlsLocked(locked,reason=""){
  const on=Boolean(locked);
@@ -663,14 +664,14 @@ async function runAction(action,customText="",options={}){
  const rawRequested=String(customText||action||"").trim()||"觀察目前環境",requested=options?.suggestion?localizedActionText(rawRequested,options.suggestion?.kind):rawRequested,debugTurnStarted=Date.now(),prevalidatedAssessment=options?.suggestion?trustedSuggestionAssessment(actionState,options.suggestion):null;const actionFlight=beginPlayerActionFlight(options?.suggestion?.label||requested),actionFlightEpoch=actionFlight.epoch,actionAiLease=actionFlight.aiLease;recordDebug("PLAYER_ACTION_START",{action,customText,requested,day:actionState.world?.state?.day||1,location:actionState.player?.location||""});if(markOpeningEngaged(actionState,requested))recordDebug("OPENING_HOOK_ENGAGED",{action:requested,day:actionState.world?.state?.day||1,location:actionState.player?.location||""});
  let assessment=prevalidatedAssessment;if(assessment)recordDebug("SUGGESTED_ACTION_PREVALIDATED",{action:requested,kind:assessment.kind,progression:options.suggestion?.progression===true,risk:options.suggestion?.risk,approach:options.suggestion?.approach,source:assessment.source});if(!assessment)assessment=fastLocalActionAssessment(actionState,requested);
  if(!assessment){
-  if(!aiStatus.aiConfigured){actionState.narrative="這個行動需要語義判斷，但目前沒有可用的 AI Provider。基本觀察、查看背包、休息、使用明確物品與前往已知地點仍可由 Engine 直接處理。";finishPlayerActionFlight(requested,"no_provider");await refresh();return}
+  if(!aiStatus.aiConfigured){actionState.narrative="這個行動需要語義判斷，但目前沒有可用的 AI Provider。基本觀察、查看背包、休息、使用明確物品與前往已知地點仍可由 Engine 直接處理。";finishPlayerActionFlight(requested,"no_provider",actionFlightEpoch);await refresh();return}
   setAIThinking(true,"AI 正在解析 Action Intent 並判斷必要前提…",actionAiLease);
   try{assessment=await assessPlayerAction(actionState,requested);if(!isCurrentStateSession(actionSession)||playerActionFlight.epoch!==actionFlightEpoch||playerActionFlight.timedOut)return}
   catch(e){if(playerActionFlight.epoch!==actionFlightEpoch||playerActionFlight.timedOut){recordDebug("PLAYER_ACTION_LATE_ASSESSMENT_DISCARDED",{action:requested,error:e?.message||String(e)});return}
    console.warn("action feasibility failed",e);
    actionState.narrative="行動可行性判定暫時失敗，因此這次行動沒有執行，也沒有消耗時間。";
    actionState.events??=[];actionState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"ACTION_ASSESSMENT_FAILED",visibility:"INTERNAL",action:requested,reason:e?.message||String(e),day:actionState.world?.state?.day||1,at:Date.now()});
-   finishPlayerActionFlight(requested,"assessment_failed");await persist(actionState,actionSession);await refresh();return
+   finishPlayerActionFlight(requested,"assessment_failed",actionFlightEpoch);await persist(actionState,actionSession);await refresh();return
   }finally{setAIThinking(false,"",actionAiLease)}
  }
  if(playerActionFlight.epoch!==actionFlightEpoch||playerActionFlight.timedOut||actionAiLease!==foregroundAiLease){recordDebug("PLAYER_ACTION_STALE_CONTINUATION_DISCARDED",{action:requested,phase:"post_assessment"});return}
@@ -683,7 +684,7 @@ async function runAction(action,customText="",options={}){
   const socialAction=assessment?.intent==="TALK"||assessment?.kind==="SOCIAL"||/(詢問|請教|交談|對話|攀談|問(?:他|她|對方|.+?怎樣|.+?如何)|告訴|回答|talk|ask|speak|tell)/i.test(effective);
   if(!socialAction){
    const localLore=resolveLocalLoreAction(actionState,effective);
-   if(localLore){actionState.narrative=localLore.text;actionState.sceneTitle=deriveSceneTitle(actionState,effective);actionState.suggestions=fallbackActionButtons(effective);actionState.suggestionIntents=[];actionState.events??=[];actionState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:actionState.world?.state?.day||1,at:Date.now()});bumpStateRevision(actionState,"LOCAL_LORE_ACTION");finishPlayerActionFlight(effective,"local_engine");await persist(actionState,actionSession);await refresh();return}
+   if(localLore){actionState.narrative=localLore.text;actionState.sceneTitle=deriveSceneTitle(actionState,effective);actionState.suggestions=fallbackActionButtons(effective);actionState.suggestionIntents=[];actionState.events??=[];actionState.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"PLAYER_ACTION_ASSESSED",visibility:"INTERNAL",action:requested,normalizedAction:effective,assessment,day:actionState.world?.state?.day||1,at:Date.now()});bumpStateRevision(actionState,"LOCAL_LORE_ACTION");finishPlayerActionFlight(effective,"local_engine",actionFlightEpoch);await persist(actionState,actionSession);await refresh();return}
   }
  }
  const actionResult=performAction(actionState,action,customText,assessment),{roll,text:localText}=actionResult;actionState.narrative=localText;
@@ -703,7 +704,7 @@ async function runAction(action,customText="",options={}){
     }catch(e){console.warn("item npc reaction fallback",e)}finally{setAIThinking(false)}
    }
   }
-  actionState.sceneTitle=deriveSceneTitle(actionState,effective);actionState.suggestions=fallbackActionButtons(effective);actionState.suggestionIntents=[];finishPlayerActionFlight(effective,actionResult.blocked?"blocked":"deterministic");await persist(actionState,actionSession);await refresh();return
+  actionState.sceneTitle=deriveSceneTitle(actionState,effective);actionState.suggestions=fallbackActionButtons(effective);actionState.suggestionIntents=[];finishPlayerActionFlight(effective,actionResult.blocked?"blocked":"deterministic",actionFlightEpoch);await persist(actionState,actionSession);await refresh();return
  }
  renderRoll(roll,actionResult.ruleEffects?.npcRelationship||null);
  actionState.sceneTitle=deriveSceneTitle(actionState,effective);actionState.suggestions=fallbackActionButtons(effective);actionState.suggestionIntents=[];
@@ -719,15 +720,15 @@ async function runAction(action,customText="",options={}){
  if(playerActionFlight.epoch!==actionFlightEpoch||playerActionFlight.timedOut){recordDebug("PLAYER_ACTION_WATCHDOG_RETURN",{action:effective,elapsedMs:Date.now()-debugTurnStarted});await persist(actionState,actionSession);return}
 
  if(!aiStatus.aiConfigured){
-  recordDebug("STATE_SYNC_SKIPPED_NO_PROVIDER",{action:effective,mode:syncPlan.mode,revision:baseRevision});finishPlayerActionFlight(effective,"no_provider_scene");await persist(actionState,actionSession);await refresh();scheduleWorldEvolution(effective||"player_exploration",BACKGROUND_IDLE_GRACE_MS);return
+  recordDebug("STATE_SYNC_SKIPPED_NO_PROVIDER",{action:effective,mode:syncPlan.mode,revision:baseRevision});finishPlayerActionFlight(effective,"no_provider_scene",actionFlightEpoch);await persist(actionState,actionSession);await refresh();scheduleWorldEvolution(effective||"player_exploration",BACKGROUND_IDLE_GRACE_MS);return
  }
  if(syncPlan.mode==="ENGINE_ONLY"){
   recordDebug("STATE_SYNC_ENGINE_ONLY",{action:effective,revision:baseRevision,dirtyFlags:syncPlan.dirtyFlags});
-  startNonblockingPlayerNarration({action:effective,roll,snapshot:turnSnapshot,plan:syncPlan,intent:assessment?.actionIntent,previousSuggestions,previousSuggestionIntents,startedAt:debugTurnStarted,state:actionState,sessionToken:actionSession});
+  startNonblockingPlayerNarration({action:effective,roll,snapshot:turnSnapshot,plan:syncPlan,intent:assessment?.actionIntent,previousSuggestions,previousSuggestionIntents,startedAt:debugTurnStarted,state:actionState,sessionToken:actionSession,actionFlightEpoch});
   await persist(actionState,actionSession);await refresh();scheduleWorldEvolution(effective||"player_exploration",BACKGROUND_IDLE_GRACE_MS);return
  }
  if(syncPlan.mode==="DEFERRED"){
-  startNonblockingPlayerNarration({action:effective,roll,snapshot:turnSnapshot,plan:syncPlan,intent:assessment?.actionIntent,previousSuggestions,previousSuggestionIntents,startedAt:debugTurnStarted,state:actionState,sessionToken:actionSession});
+  startNonblockingPlayerNarration({action:effective,roll,snapshot:turnSnapshot,plan:syncPlan,intent:assessment?.actionIntent,previousSuggestions,previousSuggestionIntents,startedAt:debugTurnStarted,state:actionState,sessionToken:actionSession,actionFlightEpoch});
   scheduleDeferredDirector({action:effective,roll,intent:assessment?.actionIntent,plan:syncPlan,queuedAt:Date.now()},1200);
   recordDebug("STATE_SYNC_DEFERRED",{action:effective,revision:baseRevision,capabilities:syncPlan.capabilities});
   await persist(actionState,actionSession);await refresh();scheduleWorldEvolution(effective||"player_exploration",BACKGROUND_IDLE_GRACE_MS);return
@@ -774,7 +775,7 @@ async function runAction(action,customText="",options={}){
  finally{scheduleWorldEvolution(effective||"player_exploration",BACKGROUND_IDLE_GRACE_MS);scheduleWorldQualityCritic("post_player_action",9000);scheduleHistoryDeepening("post_player_action",11000)}
  if(pendingPlayerActionResult&&foregroundSceneCtrl&&!foregroundSceneCtrl.signal.aborted){
   const ctrl=foregroundSceneCtrl,expectedRevision=pendingSceneRevision,transport=pendingSceneTransport,sceneDeadlineMs=Math.max(1200,18000-(Date.now()-debugTurnStarted));
-  const sceneDeadline=setTimeout(()=>{if(!ctrl.signal.aborted&&isCurrentStateSession(actionSession)){ctrl.abort();recordDebug("PLAYER_ACTION_SCENE_DEADLINE_FALLBACK",{action:effective,elapsedMs:Date.now()-debugTurnStarted,deadlineMs:18000});finishPlayerActionFlight(effective,"scene_deadline_fallback");showActionRecoveryNotice(actionRecoveryText("sceneSlow"));void refresh()}},sceneDeadlineMs);
+  const sceneDeadline=setTimeout(()=>{if(!ctrl.signal.aborted&&isCurrentStateSession(actionSession)){ctrl.abort();recordDebug("PLAYER_ACTION_SCENE_DEADLINE_FALLBACK",{action:effective,elapsedMs:Date.now()-debugTurnStarted,deadlineMs:18000});finishPlayerActionFlight(effective,"scene_deadline_fallback",actionFlightEpoch);showActionRecoveryNotice(actionRecoveryText("sceneSlow"));void refresh()}},sceneDeadlineMs);
   void pendingPlayerActionResult.then(async playerResult=>{
    if(ctrl.signal.aborted||!isCurrentStateSession(actionSession))return;
    if(playerResult.status==="fulfilled"){
@@ -782,8 +783,8 @@ async function runAction(action,customText="",options={}){
     recordDebug(applied?"PLAYER_ACTION_AI_COMPLETED":"PLAYER_ACTION_AI_STALE_DISCARDED",{action:effective,mode:syncPlan.mode,baseRevision,expectedRevision,currentRevision:currentStateRevision(actionState),elapsedMs:Date.now()-debugTurnStarted,transport});
     if(applied){const observableText=String(playerResult.value?.narrative||actionState.narrative||"");const evidence=commitSceneGroundedEvidence(actionState,pendingEvidenceOperations,syncPlan,{action:effective,roll,observableText,evidencePhase:"SCENE"});const pickup=commitGroundedPickupFallback(actionState,{...syncPlan,baseRevision:currentStateRevision(actionState)},{action:effective,roll,observableText});recordDebug("SCENE_GROUNDED_ACQUISITIONS",{action:effective,evidenceApplied:evidence.applied===true,evidenceOperations:evidence.operations||0,evidenceRejected:evidence.rejected||0,pickupApplied:pickup.applied===true});await persist(actionState,actionSession);await refresh()}
    }else{const safe=buildContextualActionSet(actionState,[]);actionState.suggestionIntents=safe.all;actionState.suggestions=safe.all.map(x=>x.label);recordDebug("PLAYER_ACTION_AI_FAILED",{action:effective,mode:syncPlan.mode,error:playerResult.reason?.message||String(playerResult.reason),elapsedMs:Date.now()-debugTurnStarted});recordDebug("PLAYER_ACTION_FALLBACK_REBUILT",{action:effective,reason:"SCENE_AI_FAILED",suggestions:safe.all.length});showActionRecoveryNotice("AI 場景敘述未完成；已保留 Engine 的可見結果並重建安全行動。");await persist(actionState,actionSession);await refresh()}
-  }).finally(()=>{clearTimeout(sceneDeadline);if(nonblockingScene.controller===ctrl){nonblockingScene.controller=null;nonblockingScene.worldId=null;nonblockingScene.revision=null}finishPlayerActionFlight(effective,ctrl.signal.aborted?"scene_aborted":"scene_settled");updateAIStatusBadge();if(actionState)void refresh()})
- }else{finishPlayerActionFlight(effective,rateLimitFastFallback?"rate_limit_fallback":"scene_unavailable");await refresh()}
+  }).finally(()=>{clearTimeout(sceneDeadline);if(nonblockingScene.controller===ctrl){nonblockingScene.controller=null;nonblockingScene.worldId=null;nonblockingScene.revision=null}finishPlayerActionFlight(effective,ctrl.signal.aborted?"scene_aborted":"scene_settled",actionFlightEpoch);updateAIStatusBadge();if(actionState)void refresh()})
+ }else{finishPlayerActionFlight(effective,rateLimitFastFallback?"rate_limit_fallback":"scene_unavailable",actionFlightEpoch);await refresh()}
 }
 $("#newWorldBtn").onclick=()=>{renderRuleTagBuilder();show("creator")};$("#continueBtn").onclick=async()=>{replaceGameState(migrate(await loadWorld()),"CONTINUE_AUTOSAVE");if(!gameState)return;const report=validateWorld(gameState.world);if(!report.valid)return alert(uiFormat("validationFailed",{error:report.errors.join(", ")},activeLocale));aiStatus=await aiHealth();const ready=await refresh();if(!ready)return alert(uiText("需要 AI 才能把目前世界切換到所選語言。",activeLocale));const gameLocaleReady=activeLocale==="zh-Hant"||await ensureRenderedLocale("continue_game",$("#game"));if(!gameLocaleReady)return alert(uiText("需要 AI 才能把目前世界切換到所選語言。",activeLocale));show("game");scheduleWorldQualityCritic("continue_world",1200);scheduleHistoryDeepening("continue_world",1500)};qsa("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go==="creator")renderRuleTagBuilder();show(b.dataset.go)});
 const languageSelect=$("#languageSelect");if(languageSelect){languageSelect.value=activeLocale;languageSelect.onchange=async()=>{const previous=activeLocale,next=normalizeLocale(languageSelect.value);if(next===previous)return;activeLocale=saveLocale(next);applyDocumentLocale(activeLocale);if(document.body.dataset.screen==="creator"){initRuleTagBuilder();renderCreatorReview()}helperHistory=[];npcChatHistory.clear();closeModal();recordDebug("LOCALE_SWITCH_REQUESTED",{from:previous,to:next,worldId:gameState?.world?.id||null});if(!gameState){applyDocumentLocale(activeLocale);return}aiStatus=await aiHealth();const ready=await ensureGameplayLocale("language_switch");if(!ready){activeLocale=saveLocale(previous);languageSelect.value=previous;applyDocumentLocale(previous);if(document.body.dataset.screen==="creator"){initRuleTagBuilder();renderCreatorReview()}await refresh({skipLocale:true});alert(uiText("需要 AI 才能把目前世界切換到所選語言。",previous));return}await saveWorld(gameState);await refresh({skipLocale:true});recordDebug("LOCALE_SWITCH_APPLIED",{from:previous,to:next})}}
@@ -1113,7 +1114,7 @@ $("#autotestReloadExport")?.addEventListener("click",()=>void reloadDeveloperAut
 function openDeveloperAutotestPanel(){openModal(developerAutotestPanelHtml());bindDeveloperAutotestPanel()}
 $("#developerBtn")?.addEventListener("click",openDeveloperAutotestPanel);
 
-function autotestForegroundIdle(){return !aiBusy&&!turnSyncBusy&&!nonblockingScene.controller&&!deferredDirector.running}
+function autotestForegroundIdle(){return !aiBusy&&!turnSyncBusy&&!playerActionFlight.active&&!nonblockingScene.controller&&!deferredDirector.running}
 async function waitForAutotestIdle(timeoutMs=12000){
  const started=Date.now();
  while(Date.now()-started<timeoutMs){
@@ -1351,7 +1352,7 @@ async function startDeveloperAutotest(config){
      developerAutotest.turn=turn;const firstButtonFast=config.playStrategy==="FIRST_BUTTON",stall=autotestRecentStallCount(recentActions),expansionNeeded=needsExpansion(gameState),sparseWorld=((gameState.world?.registry?.locations||[]).length<=1||travelSnapshot(gameState,{director:true}).routes.length===0)&&turn>=3;let expansionReason="";
      if(stall>=3)expansionReason=firstButtonFast?"FIRST_BUTTON_STALL_RECOVERY":"AUTOTEST_STALL_RECOVERY";else if(expansionNeeded&&(firstButtonFast?sparseWorld:true))expansionReason=firstButtonFast?"FIRST_BUTTON_SPARSE_WORLD":"WORLD_EDGE_UNDERDEFINED";
      if(expansionReason){if(firstButtonFast&&sparseWorld){const last=Number(autotestRuntimeExpansion.lastStartedTurn)||0;if(!autotestRuntimeExpansion.running&&(!last||turn-last>=3)){autotestRuntimeExpansion.lastStartedTurn=turn;const expanded=await expandDeveloperAutotestWorld(expansionReason,{force:true});if(expanded)autotestRuntimeExpansion.lastCompletedTurn=turn;recordDebug("AUTOTEST_RUNTIME_EXPANSION_STALL_SETTLED",{reason:expansionReason,turn,expanded,stall})}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_THROTTLED",{reason:expansionReason,turn,lastStartedTurn:last,minTurnGap:3})}else{const scheduled=scheduleDeveloperAutotestExpansion(expansionReason,turn);recordDebug("AUTOTEST_RUNTIME_EXPANSION_DEFERRED",{reason:expansionReason,turn,scheduled,stall,expansionNeeded})}}else recordDebug("AUTOTEST_RUNTIME_EXPANSION_SKIPPED",{reason:firstButtonFast?"FIRST_BUTTON_FAST_PATH":"AI_DECISION_NO_EXPANSION",phase:"TURN",turn,stall,expansionNeeded});
-     if(firstButtonFast){const ready=await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);if(!ready)throw new Error("AUTOTEST_PLAYER_ACTION_STILL_RUNNING")}else await waitForAutotestIdle();
+     if(firstButtonFast){const ready=await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);if(!ready)throw new Error("AUTOTEST_PLAYER_ACTION_STILL_RUNNING")}else{const ready=await waitForAutotestIdle(config.disableTimeout===true?90000:38000);if(!ready)throw new Error("AUTOTEST_FOREGROUND_STILL_RUNNING")}
      const beforeFingerprint=autotestStateFingerprint(gameState),turnStartedAt=Date.now(),row={worldIndex:i,turn,beforeFingerprint,afterFingerprint:"",decision:null,error:"",durationMs:0};
      try{
       const ctrl=new AbortController();developerAutotest.controller=ctrl;
@@ -1359,7 +1360,7 @@ async function startDeveloperAutotest(config){
       appendDeveloperAutotestLog(`世界 ${i} · Turn ${turn}: ${decision.mode==="suggestion"?"[按鈕] ":decision.mode==="combat"?"[戰鬥] ":"[自由] "}${decision.action||decision.combatAction}`);
       recordDebug("AUTOTEST_TURN_STARTED",{worldIndex:i,turn,decision});
       if(config.stopCondition==="CUSTOM_AI"&&decision.goalReached===true){result.stopReason="CUSTOM_AI";row.afterFingerprint=beforeFingerprint;row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;break}
-      await executeDeveloperAutotestDecision(decision);if(firstButtonFast)await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);else await waitForAutotestIdle(config.disableTimeout===true?90000:38000);
+      await executeDeveloperAutotestDecision(decision);if(firstButtonFast){const ready=await waitForAutotestActionReady(config.disableTimeout===true?90000:38000);if(!ready)throw new Error("AUTOTEST_PLAYER_ACTION_STILL_RUNNING")}else{const ready=await waitForAutotestIdle(config.disableTimeout===true?90000:38000);if(!ready)throw new Error("AUTOTEST_FOREGROUND_STILL_RUNNING")}
       row.afterFingerprint=autotestStateFingerprint(gameState);row.durationMs=Date.now()-turnStartedAt;result.actions.push(row);result.turns=turn;recentActions.push({action:decision.action||decision.combatAction||"",mode:decision.mode,kind:decision.kind||"",progression:decision.progression===true,targetId:decision.targetId||null,progressed:row.beforeFingerprint!==row.afterFingerprint,location:gameState?.player?.location||"",questStage:Number(gameState?.quests?.main?.stage)||0});if(recentActions.length>12)recentActions.shift();
       recordDebug("AUTOTEST_TURN_COMPLETED",{worldIndex:i,turn,durationMs:row.durationMs,stateChanged:row.beforeFingerprint!==row.afterFingerprint,action:decision.action||decision.combatAction});
       const stop=autotestStopReason(gameState,{turns:turn,errorCount:autotestTelemetryErrors(worldStartedAt),stopRequested:developerAutotest.stopRequested},config,decision);if(stop){result.stopReason=stop;break}
