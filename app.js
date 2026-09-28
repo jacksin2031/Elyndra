@@ -6,7 +6,7 @@ import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59010";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=60010";
 import {newGame,validateWorld,applyWorldCandidate,WORLD_CONSTITUTION} from "./src/world-engine.js?v=59014";
 import {aiHealth,generateWorldCandidate,talkToDynamicNpc,startTurnAIJobs,generateStatePatch,generateRegionExpansion,runWorldQualityCritic,generateHistoryDeepening,askTravelHelper,assessPlayerAction,fastLocalActionAssessment,translateVisibleWorld} from "./src/ai-client.js?v=60010";
-import {sceneTurnPreview} from "./src/turn-compiler.js?v=60027";
+import {sceneTurnPreview} from "./src/turn-compiler.js?v=57029";
 import {buildSnapshot,applyTurnCandidate} from "./src/adventure-engine.js?v=60010";
 import {maintainSession} from "./src/session-maintenance.js?v=60006";
 import {performAction} from "./src/game-engine.js?v=60006";
@@ -304,7 +304,7 @@ function applyPlayerActionScene(scene,{worldId,baseRevision,expectedRevision,rol
  const preview=sceneTurnPreview(scene,roll,{action,priorSuggestions:previousSuggestions,priorSuggestionIntents:previousSuggestionIntents}),scope=playerSceneProvenanceScope(state),sceneCheck=validateSceneProvenance(preview,scope);
  if(!sceneCheck.valid){const safe=buildContextualActionSet(state,[]);state.suggestionIntents=safe.all;state.suggestions=safe.all.map(x=>x.label);recordDebug("SCENE_PROVENANCE_REJECTED",{action:String(action||"").slice(0,180),worldId,currentLocation:scope.currentLocation,issues:sceneCheck.issues,narrative:String(preview.narrative||"").slice(0,500),sceneTitle:String(preview.sceneTitle||"")});showActionRecoveryNotice("AI 場景內容與目前地點／人物狀態不一致；已保留 Engine 結果並重新建立當前場景建議。");return false}
  if(preview.narrative)state.narrative=preview.narrative;if(preview.sceneTitle)state.sceneTitle=preview.sceneTitle;
- const source=preview.suggestionIntents?.length?preview.suggestionIntents:(preview.suggestions||[]),checked=filterSuggestionProvenance(source,scope);if(checked.rejected.length)recordDebug("SUGGESTION_PROVENANCE_REJECTED",{action:String(action||"").slice(0,180),worldId,currentLocation:scope.currentLocation,rejected:checked.rejected.map(x=>({action:String(x.row?.action||x.row?.label||x.row||"").slice(0,220),issues:x.issues}))});
+ const rawSource=preview.suggestionIntents?.length?preview.suggestionIntents:(preview.suggestions||[]),source=rawSource.filter(row=>String(row?.action||row?.label||row||"").trim()!=="[object Object]"),checked=filterSuggestionProvenance(source,scope);if(checked.rejected.length)recordDebug("SUGGESTION_PROVENANCE_REJECTED",{action:String(action||"").slice(0,180),worldId,currentLocation:scope.currentLocation,rejected:checked.rejected.map(x=>({action:String(x.row?.action||x.row?.label||x.row||"").slice(0,220),issues:x.issues}))});
  const contextual=buildContextualActionSet(state,source.length?checked.accepted:[]);state.suggestionIntents=contextual.all;state.suggestions=contextual.all.map(x=>x.label);
  if(!source.length)recordDebug("PLAYER_ACTION_SUGGESTIONS_REBUILT",{action:String(action||"").slice(0,180),reason:"SCENE_NO_FRESH_SUGGESTIONS",suggestions:contextual.all.length});
  return true
