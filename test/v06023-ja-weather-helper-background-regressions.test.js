@@ -38,5 +38,5 @@ test("v0.60.23 fixes remain wired through the v0.60.31 release",async()=>{
  assert.match(html,/"\.\/src\/world-registry\.js\?v=57025":"\.\/src\/v06023-world-registry-hotfix\.js\?v=60023"/);
  assert.match(html,/"\.\/src\/v06015-ja-visible-text\.js\?v=60018":"\.\/src\/v06024-ja-visible-text-hotfix\.js\?v=60024"/);
  assert.match(weather24,/v06023-weather-engine-hotfix\.js\?v=60023&base=1/);assert.match(visible24,/v06023-ja-visible-text-hotfix\.js\?v=60023&base=1/);
- assert.match(workflow,/Focused v0\.60\.31 regressions/);assert.match(workflow,/version\.js\?v=60031/);assert.match(workflow,/v0\\\.60\\\.31/)
+ assert.match(workflow,/run: node --test [^\r\n]*v06031-ai-scene-delivery\.test\.js[^\r\n]*v06023-ja-weather-helper-background-regressions\.test\.js/);assert.match(workflow,/version\.js\?v=60031/);assert.match(workflow,/v0\\\.60\\\.31/)
 });
