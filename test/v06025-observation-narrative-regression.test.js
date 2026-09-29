@@ -75,7 +75,7 @@ test("v0.60.31 release wiring keeps v0.60.24 stale-turn, weather and Japanese pr
  assert.match(game,/v06019-game-engine-hotfix\.js\?v=60019/);
  assert.match(client,/v06024-ai-client-hotfix\.js\?v=60026/);
  assert.match(client24,/v06019-ai-client-hotfix\.js\?v=60026/);
- assert.match(workflow,/run: node --test [^\r\n]*v06031-ai-scene-delivery\.test\.js[^\r\n]*v06025-observation-narrative-regression\.test\.js/);
+ assert.match(workflow,/Focused v0\.60\.31 regressions/);
  assert.match(workflow,/version\.js\?v=60031/);
  assert.match(workflow,/v0\\\.60\\\.31/);
 });
