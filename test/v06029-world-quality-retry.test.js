@@ -12,6 +12,8 @@ test("v0.60.29 failed background quality attempt remains retry-eligible",()=>{
  assert.equal(bg.reviewedWorldVersion,0);
  assert.equal(bg.lastAttemptWorldVersion,4);
  assert.match(bg.lastError,/AI_TIMEOUT/);
+ assert.equal(backgroundQualityNeed(s).reason,"FAILURE_BACKOFF");
+ bg.nextRetryAt=Date.now()-1;
  assert.deepEqual(backgroundQualityNeed(s),{required:true,reason:"RETRY_AFTER_FAILURE"});
  assert.equal(s.world.quality.status,"UNAVAILABLE");
 });
@@ -30,5 +32,7 @@ test("v0.60.29 preserves last successful review when a later attempt fails",()=>
  s.world.version=5;
  recordBackgroundQualityReview(s,{error:"AI_TIMEOUT"});
  assert.equal(s.world.quality.background.reviewedWorldVersion,4);
+ assert.equal(backgroundQualityNeed(s).reason,"FAILURE_BACKOFF");
+ s.world.quality.background.nextRetryAt=Date.now()-1;
  assert.equal(backgroundQualityNeed(s).reason,"RETRY_AFTER_FAILURE");
 });

@@ -71,7 +71,11 @@ function edgeImportMapKey(edge,token){
 function edgeHasExpectedImportMapOverride(edge){
  if(!edge?.token)return false;
  const from=edgeImportMapKey(edge,edge.token),to=String(importMapImports[from]||"");
- return to===edgeImportMapKey(edge,expected)
+ const fresh=edgeImportMapKey(edge,expected);
+ if(to===fresh)return true;
+ // A wrapped module can import the original through an explicit &base=1 URL.
+ // Require that base URL to point at the new bytes before accepting the wrapper.
+ return Boolean(to&&to!==from&&importMapImports[from+"&base=1"]===fresh+"&base=1")
 }
 
 const modules=["app.js",...listSrcModules()];

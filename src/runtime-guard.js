@@ -8,13 +8,19 @@ const HAN=/[\u3400-\u9fff]/g;
 const LATIN=/[A-Za-z]/g;
 const SIMPLIFIED_MARKER=/[这转询问当视现节轻触锋锐属边缘测试温质闭仪监为从发确认记录状态细详标围环参见续验证获长设仅报断体统网络灵气区门进观点线导级结构开关与动无处应术觉话资对轮暂时铁栅握紧简短紧盯后]/g;
 const SAFE_TRADITIONAL_MAP=Object.freeze({"对":"對","轮":"輪","暂":"暫","时":"時","铁":"鐵","栅":"柵","握":"握","紧":"緊","简":"簡","短":"短","盯":"盯","后":"後"});
+const playerLocale=()=>String(globalThis.ELYNDRA_LOCALE||globalThis.document?.documentElement?.lang||"zh-Hant");
 const ENGLISH_PROSE_MARKER=/\b(?:previously|before|after|toward|towards|through|around|where|there|follow|trace|check|inspect|investigate|search|find|look|wall|area|point|direction)\b/i;
 const CHOICE_LEAD=/(?:你(?:現在)?可以|你可(?:以)?選擇|可選(?:擇)?|建議行動|下一步(?:可以|可)?|你(?:現在)?能做的(?:是|有))\s*[:：]?/;
 const ENUM_CHOICE=/(?:^|[\s；;])(?:\(?[1-9一二三四五六七八九][.)、：:]|[-•])\s*/;
 const PROSE_CHOICE_LIST=/(?:立即|直接|先|嘗試)?[^。！？!?\n]{1,48}(?:，|、|；|;|或(?:者)?)[^。！？!?\n]{1,48}(?:，|、|；|;|或(?:者)?)[^。！？!?\n]{1,80}/;
-export function normalizePlayerFacingLocale(value,max=1600){return clean(value,max).replace(/[对轮暂时铁栅紧简后]/g,ch=>SAFE_TRADITIONAL_MAP[ch]||ch).replace(/\bpreviously\b/gi,"先前")}
+export function normalizePlayerFacingLocale(value,max=1600){const valueText=clean(value,max);return playerLocale()==="zh-Hant"?valueText.replace(/[对轮暂时铁栅紧简后]/g,ch=>SAFE_TRADITIONAL_MAP[ch]||ch).replace(/\bpreviously\b/gi,"先前"):valueText}
 export function stripSystemLabels(value,max=1200){let s=clean(value,max);s=s.replace(/^```(?:json|text|markdown)?\s*/i,"").replace(/```$/,"").trim();const lines=s.split(/\r?\n/).map(x=>x.replace(SYSTEM_LINE,"").replace(ROLE_LINE,"").trim()).filter(Boolean);return lines.join("\n").replace(SYSTEM_LINE,"").replace(ROLE_LINE,"").trim().slice(0,max)}
-export function isPlayerFacingLanguageSafe(value,{allowShortName=false}={}){const s=normalizePlayerFacingLocale(value,1600);if(!s)return false;const foreign=(s.match(FOREIGN)||[]).length;if(foreign>Math.max(1,Math.floor(s.length*.03)))return false;if((s.match(SIMPLIFIED_MARKER)||[]).length)return false;const han=(s.match(HAN)||[]).length,latin=(s.match(LATIN)||[]).length;if(han>=2&&ENGLISH_PROSE_MARKER.test(s))return false;if(allowShortName&&s.length<=24)return foreign===0;if(s.length>=24&&han<4&&latin>12)return false;if(latin>Math.max(30,han*1.2))return false;return true}
+export function isPlayerFacingLanguageSafe(value,{allowShortName=false}={}){const s=normalizePlayerFacingLocale(value,1600);if(!s)return false;const locale=playerLocale(),han=(s.match(HAN)||[]).length,latin=(s.match(LATIN)||[]).length,kana=(s.match(/[\u3040-\u30ff]/g)||[]).length;
+ if(locale==="ja")return !/[\uac00-\ud7af\u0400-\u04ff]/u.test(s)&&(!latin||latin<=Math.max(30,(han+kana)*1.2))&&(allowShortName||kana>0||s.length<24);
+ if(locale==="en")return !/[\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/u.test(s)&&(allowShortName||latin>0);
+ const foreign=(s.match(FOREIGN)||[]).length;if(foreign>Math.max(1,Math.floor(s.length*.03)))return false;
+ if(locale==="zh-Hant"&&(s.match(SIMPLIFIED_MARKER)||[]).length)return false;
+ if(han>=2&&ENGLISH_PROSE_MARKER.test(s))return false;if(allowShortName&&s.length<=24)return foreign===0;if(s.length>=24&&han<4&&latin>12)return false;if(latin>Math.max(30,han*1.2))return false;return true}
 export function sanitizePlayerText(value,max=1200,fallback=""){const s=normalizePlayerFacingLocale(stripSystemLabels(value,max),max);return s&&isPlayerFacingLanguageSafe(s)?s:normalizePlayerFacingLocale(fallback,max)}
 export function sanitizeNarrativeText(value,max=1200,fallback=""){let s=sanitizePlayerText(value,max,"");if(!s)return normalizePlayerFacingLocale(fallback,max);const lead=s.match(CHOICE_LEAD);if(lead){const before=s.slice(0,lead.index).trim(),after=s.slice((lead.index||0)+lead[0].length);if(ENUM_CHOICE.test(after)||PROSE_CHOICE_LIST.test(after))s=before}s=s.split(/\r?\n/).filter(line=>!/^\s*(?:[1-9一二三四五六七八九][.)、：:]|[-•])\s*/.test(line)).join("\n").trim();return s||normalizePlayerFacingLocale(fallback,max)}
 export function sanitizeSuggestion(value,max=120){const s=sanitizePlayerText(value,max,"").replace(/^[\-•·\d.)、\s]+/,"").trim();return s.length>=2?s:""}
