@@ -7,6 +7,9 @@ import {normalizeCommunicationSystem,normalizeCivilizationProfile} from "./commu
 import {validateWorldHistory} from "./world-history.js?v=57025";
 import {normalizeWeatherSystem,initializeWeather} from "./weather-engine.js?v=57025";
 import {modernEarthOriginProfile} from "./player-origin.js?v=57025";
+import {originOpeningContract} from "./origin-runtime.js?v=57025";
+import {evaluateOriginOpeningCompliance} from "./origin-opening-compliance.js?v=61002";
+import {compileWorldGenesis,evaluateWorldGenesis} from "./world-genesis-evaluator.js?v=61002";
 import {applyOpeningExperience} from "./player-experience.js?v=57028";
 import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=59014";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
@@ -24,7 +27,8 @@ export const WORLD_CONSTITUTION=[
  {id:"C-009",text:"世界未來事件在創世時只 Canonize 為 Director 層的潛在事件；Engine 必須同時檢查 activation／cancel／escalation conditions，玩家可以在規則允許時阻止、延遲或加速，不得把偏好當成必然劇情"},
  {id:"C-010",text:"世界過去歷史 Skeleton 在創世時 Canonize 並不可改寫；玩家研究後可 Lazy Deepen 尚未定義的人物、文獻、遺物、地點痕跡與不同記錄版本，但不得改變既有 title、summary、causes、legacies、era、category 或已發生因果；生成隱藏細節本身不等於玩家已知。"},
  {id:"C-011",text:"天氣由世界 Canon 定義並由 Engine 按世界時間與地區推進；天氣可為異世界獨有現象，不得被敘事 AI 臨時改寫"},
- {id:"C-012",text:"角色年齡、世代與世界歷史必須時間一致；若仍存活角色被設定為百年前、數百年前或更早時期的第一代、始祖、創建者或直接見證者，Canon 必須明確定義足以解釋其存活的長壽、延命、不老、休眠或等價機制，否則必須改為後代、傳承者或記錄持有人"}
+ {id:"C-012",text:"角色年齡、世代與世界歷史必須時間一致；若仍存活角色被設定為百年前、數百年前或更早時期的第一代、始祖、創建者或直接見證者，Canon 必須明確定義足以解釋其存活的長壽、延命、不老、休眠或等價機制，否則必須改為後代、傳承者或記錄持有人"},
+ {id:"C-013",text:"Opening 必須同時符合 Epistemic、World-State、Opening Legality、Narrative Identity 四層 Origin Contract；Narrative Identity 只能塑造敘事張力與可感知信號，不得覆寫 Canon、知識邊界或 Engine 規則"}
 ];
 function hash(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return h}
 function localWorldName(seed){const a=["艾","賽","諾","維","伊","洛","瑟","亞"],b=["蘭","爾","恩","斯","姆","亞","里","德"],c=["達","拉","恩","亞","爾","斯"];const h=Math.abs(hash(JSON.stringify(seed)));return a[h%a.length]+b[Math.floor(h/a.length)%b.length]+c[Math.floor(h/(a.length*b.length))%c.length]}
@@ -73,7 +77,9 @@ export function discover(state,item,score=3){
 }
 export function applyWorldCandidate(state,candidate){
  if(!candidate||!candidate.summary||!Array.isArray(candidate.publicFacts)||!Array.isArray(candidate.hiddenFacts))throw new Error("INVALID_WORLD_CANDIDATE");if(!candidate.worldCalendar||typeof candidate.worldCalendar!=="object"||Array.isArray(candidate.worldCalendar))throw new Error("WORLD_CALENDAR_REQUIRED");if(!candidate.worldBible?.weatherSystem)throw new Error("WORLD_WEATHER_REQUIRED");candidate.worldBible.weatherSystem=normalizeWeatherSystem(candidate.worldBible.weatherSystem,state.world.seedContract||state.world.seed);
+ const openingContract=originOpeningContract(state),originCompliance=evaluateOriginOpeningCompliance({openingHook:candidate.openingHook,originOpening:openingContract,playerOrigin:state.player?.origin||{},anchor:{worldName:candidate.worldName,hiddenFacts:candidate.hiddenFacts},reported:candidate.originOpeningCompliance});if(state.player?.origin?.narrativeIdentity&&!originCompliance.valid)throw new Error("PLAYER_ORIGIN_NARRATIVE_INVALID:"+originCompliance.errors.join(","));candidate.originOpeningCompliance=originCompliance;
  const compliance=validateSeedCompliance(state.world.seed,candidate);if(!compliance.valid)throw new Error("SEED_COMPLIANCE_FAILED:"+compliance.errors.join(","));const pacing=createTimelinePacing(compliance.expected.targetPlayHours);const timelineReport=validateWorldTimeline(candidate.worldTimeline,pacing);if(!timelineReport.valid)throw new Error("WORLD_TIMELINE_FAILED:"+timelineReport.errors.join(","));const historyReport=validateWorldHistory(candidate.worldHistory);if(!historyReport.valid)throw new Error("WORLD_HISTORY_FAILED:"+historyReport.errors.join(","));
+ const creation=state.world?.creation||state.world?.seed?.creationV2||null,genesisEvaluation=creation?.blueprint?evaluateWorldGenesis({candidate,blueprint:creation,originProfile:creation.originProfile||state.player?.origin||{}}):null;
  state.world.seedContract=compliance.expected;state.world.seedCompliance=structuredClone(candidate.seedCompliance);state.world.theme=clean(candidate.worldTheme,160)||compliance.expected.theme;state.world.timelinePacing=timelineReport.pacing;state.world.timeline=timelineReport.timeline;state.world.history=historyReport.history;state.world.calendar=normalizeCalendar(candidate.worldCalendar);
  const worldName=clean(candidate.worldName,80);if(worldName)state.world.name=worldName;
  const aiName=clean(candidate.playerName,40);if(state.player?.nameSource==="AI_PENDING"&&aiName){state.player.name=aiName;state.player.nameSource="AI"}
@@ -82,13 +88,14 @@ export function applyWorldCandidate(state,candidate){
   if(typeof bible!=="object"||Array.isArray(bible))throw new Error("INVALID_WORLD_BIBLE");
   const economy=normalizeEconomy(null);
   state.world.economy=economy;state.player.gold=0;
-  const civilization=normalizeCivilizationProfile(bible.civilization);state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),startingLocation:clean(bible.startingLocation,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200),civilization,communication:normalizeCommunicationSystem(bible.communication,state.world.seedContract||state.world.seed,civilization),weatherSystem:normalizeWeatherSystem(bible.weatherSystem,state.world.seedContract||state.world.seed)}
+  const civilization=normalizeCivilizationProfile(bible.civilization);state.world.bible={era:clean(bible.era,120),centralConflict:clean(bible.centralConflict,500),magicCost:clean(bible.magicCost,400),startingRegion:clean(bible.startingRegion,120),startingSettlement:clean(bible.startingSettlement,120),startingLocation:clean(bible.startingLocation,120),ancientTruth:clean(bible.ancientTruth,500),currentCrisis:clean(bible.currentCrisis,500),tone:clean(bible.tone,200),civilization,communication:normalizeCommunicationSystem(bible.communication,state.world.seedContract||state.world.seed,civilization),designLogic:bible.designLogic&&typeof bible.designLogic==="object"&&!Array.isArray(bible.designLogic)?structuredClone(bible.designLogic):null,weatherSystem:normalizeWeatherSystem(bible.weatherSystem,state.world.seedContract||state.world.seed)}
  }
  const existing=new Set(state.world.canon.facts.map(f=>f.text));let n=0;
  for(const [visibility,list] of [["public",candidate.publicFacts],["hidden",candidate.hiddenFacts]])for(const text of list.slice(0,8)){if(typeof text!=="string"||text.length<3||text.length>500||existing.has(text))continue;state.world.canon.facts.push({id:`AI-F-${Date.now()}-${n++}`,type:"ai_candidate",visibility,text,canonical:true});existing.add(text)}
  state.world.summary=String(candidate.summary).slice(0,1000);
  if(candidate.generationDiagnostics&&typeof candidate.generationDiagnostics==="object")state.world.generationDiagnostics=structuredClone(candidate.generationDiagnostics);
- if(candidate.worldQuality&&typeof candidate.worldQuality==="object")state.world.quality=structuredClone(candidate.worldQuality);
+ if(candidate.worldQuality&&typeof candidate.worldQuality==="object")state.world.quality=structuredClone(candidate.worldQuality);if(candidate.originOpeningCompliance&&typeof candidate.originOpeningCompliance==="object")state.world.originOpeningCompliance=structuredClone(candidate.originOpeningCompliance);
+ if(genesisEvaluation){state.world.genesisEvaluation=structuredClone(genesisEvaluation);state.world.genesisPlan=compileWorldGenesis(creation,creation.originProfile||state.player?.origin||{})}
  state.world.evolution??={lastMinute:-9999,lastVersion:0,count:0,lastReason:""};
  if(candidate.worldBible?.startingRegion)state.world.state.region=clean(candidate.worldBible.startingRegion,120);
  const trueStart=sanitizeLocationName(candidate.generation?.locations?.[0]?.name)||sanitizeLocationName(candidate.worldBible?.startingLocation);if(trueStart)state.world.state.location=trueStart;state.world.weather.legacyNeutral=false;initializeWeather(state,{force:true})

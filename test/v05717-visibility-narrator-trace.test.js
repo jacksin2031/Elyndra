@@ -36,8 +36,8 @@ test("v0.57.18 main UI uses one location projection and keeps free action alongs
 
 test("v0.57.18 relationship modifier and mutation outcome are distinct and traced",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8"),game=await readFile(new URL("../src/game-engine.js",import.meta.url),"utf8"),adventure=await readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8");
- assert.match(app,/關係修正/);assert.match(app,/互動後：/);assert.match(app,/npcRelationship:actionResult\.ruleEffects\?\.npcRelationship/);
- assert.match(game,/SUCCESS"\)changes=\{trust:2,respect:1\}/);assert.match(game,/source:"ENGINE_LOCAL_SOCIAL"/);
+ assert.match(app,/uiText\("關係修正",activeLocale\)/);assert.match(app,/uiText\("互動後",activeLocale\)/);assert.match(app,/npcRelationship:actionResult\.ruleEffects\?\.npcRelationship/);
+ assert.match(game,/resolveSocialAction\(state,npc,intent,resolution,\{combat:false\}\)/);
  assert.match(adventure,/NPC_RELATIONSHIP_CHANGED/);assert.match(adventure,/source:"SCENE_TURN"/);assert.match(adventure,/adjustNpcRelationship/);
 });
 

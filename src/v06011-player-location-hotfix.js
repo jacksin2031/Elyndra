@@ -5,7 +5,11 @@ const UNKNOWN_TOKEN=/^(?:未知地點|未知地点|未知之地|不明な場所|
 const BROKEN_TOKEN=/\uFFFD|\[bad-location\]/iu;
 function rows(state){return Array.isArray(state?.world?.registry?.locations)?state.world.registry.locations:[]}
 function token(state){return clean(state?.player?.location||state?.world?.state?.location,160)}
-function record(state,value=token(state)){return rows(state).find(x=>String(x?.id||"")===value||String(x?.name||"")===value)||null}
+function record(state,value=token(state)){
+ if(value!==token(state))return rows(state).find(x=>String(x?.id||"")===value||String(x?.name||"")===value)||null;
+ const playerId=String(state?.player?.locationId||""),worldId=String(state?.world?.state?.locationId||"");
+ return rows(state).find(x=>playerId&&String(x?.id||"")===playerId)||rows(state).find(x=>worldId&&String(x?.id||"")===worldId)||rows(state).find(x=>String(x?.id||"")===value||String(x?.name||"")===value)||null
+}
 function stripCanonical(value,name){const n=clean(name,100);return n?String(value||"").split(n).join(""):String(value||"")}
 function aliasJa(loc){
  const source=stripCanonical(clean(loc?.visibilityHint?.summary||loc?.description,240),loc?.name),type=clean(loc?.type,40),all=source+" "+type;

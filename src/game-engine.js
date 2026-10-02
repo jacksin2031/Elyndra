@@ -52,6 +52,7 @@ function localNarrative(state,label,roll,profile,effects={}){
  if(profile?.kind==="SOCIAL"&&social?.summary)return social.summary;
  if(roll.grade==="CRITICAL_SUCCESS")return `你在${loc}完成了「${label}」，結果比預期更順利。`;
  if(roll.grade==="CRITICAL_FAILURE")return `你在${loc}嘗試「${label}」時出了明顯差錯，現場局勢變得更不利。`;
+ if(roll.success&&profile?.kind==="OBSERVE")return `你在${loc}完成了「${label}」。眼前是否真的出現新線索，還要看你實際觀察到甚麼。`;
  if(roll.success)return `你在${loc}完成了「${label}」。`;
  return `你在${loc}嘗試「${label}」，但沒有達到原本的目的；局勢仍在變化，你可以換一種做法。`
 }

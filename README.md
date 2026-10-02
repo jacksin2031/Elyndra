@@ -2,7 +2,7 @@
 
 **Elyndra** 是一款以瀏覽器運行的 **AI × TRPG × World Discovery** 異世界 RPG。
 
-目前版本：**v0.60.29**
+目前版本：**v0.61.3**（復原整合版；完整歷史復原仍待核實）
 
 > 每一個世界，都有自己的真相。
 >
@@ -11,6 +11,8 @@
 線上版本：<https://a24dc523.github.io/Elyndra/>
 
 ## 核心特色
+
+世界生成設定採用 Stellaris 參考的分組參數工作台，包含五步導覽、即時世界風格預覽及 11 個 World Genesis 設定。獨立圖鑑展示 11 款風格，模板可保存名稱、故事及進階參數；六款專屬圖片同時用於圖鑑、預覽與遊玩背景。自訂內容統一由模板流程處理，保留舊模板與存檔契約。介面支援手機排版、四種語言、背景動畫與減少動態效果。使用方式見 [世界生成設定 UI](docs/creator-console-ui.md)及[世界風格工作室](docs/world-style-library.md)。
 
 - **Progressive World Building**：世界由 Seed / Blueprint / Constitution 逐步編譯成 Canon、History、Future、Society、Cast 等結構。
 - **Engine-owned rules**：D20、能力、技能、裝備、生存、旅行、魔法、經濟、地下城、世界影響與角色成長由 deterministic Engine 裁決。

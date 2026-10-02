@@ -1,6 +1,11 @@
 window.__ELYNDRA_BOOTED__=true;
+import {WORLD_STYLE_CUSTOM_CANONICAL_NAME,getTemplateStyleLabel} from "./src/world-style-art.js?v=61002";
+import {translationRepairDiagnosticSamples} from "./src/locale-diagnostics.js?v=61002";
 import {APP_VERSION} from "./src/version.js?v=60010";
 import {createDiceFeedback} from "./src/dice-feedback.js?v=59004";
+import {initCreatorConsole,setCreatorConsoleStep,syncCreatorConsolePreview} from "./src/creator-console.js?v=61002";
+import {initWorldStyleLibrary} from "./src/world-style-library.js?v=61002";
+import {initWorldAmbience} from "./src/world-ambience.js?v=61002";
 import {SUPPORTED_LOCALES,loadLocale,saveLocale,normalizeLocale,uiText,uiFormat,applyDocumentLocale,ensureWorldLocale,translatedText,sessionTranslatedText,hasLocaleLeak,missingVisibleTranslations,applyTranslationBundle,applyWorldLocaleToDocument,applySessionTranslationBundle,applySessionLocaleToDocument,documentTranslationCandidates} from "./src/locale-runtime.js?v=60010";
 import {localizedStaticText} from "./src/v0594-static-i18n.js?v=59010";
 import {loadAISettings,saveAISettings,selectAIProvider,clearAISettings,testDirectAI,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,PROVIDERS} from "./src/ai-settings.js?v=60010";
@@ -58,7 +63,7 @@ import {maybeJourneyCheckpoint,recentJourneyCheckpoints} from "./src/journey-clo
 import {buildContextualActionSet,regenerateContextualActionSet,trustedSuggestionAssessment,suggestionPresentation,groundedSuggestionFailForward,groundedTravelDestination} from "./src/contextual-actions.js?v=60010";
 import {planStateSync,deferredPlanFrom,ensureStateSyncRuntime,currentStateRevision,bumpStateRevision,validateStatePatch,groundStatePatch,projectDeferredSceneEvidence,groundedPickupItemFromAction,statePatchToCandidate,assessPatchRevision} from "./src/state-sync.js?v=57025";
 import {createStateSessionGuard} from "./src/state-session.js?v=57025";
-import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint} from "./src/lazy-generation.js?v=59014";
+import {planLazyGeneration,validateLazyGenerationCandidate,commitLazyGeneration,abortLazyGeneration,recordLazyGenerationCheckpoint,hasLazyGenerationCheckpoint,reconcileLazyGenerationLifecycle,failLazyGenerationTerminal} from "./src/lazy-generation.js?v=59014";
 import {applyOriginRuntime} from "./src/origin-runtime.js?v=57025";
 import {ensureHistoryDepth,signalHistoryResearch,historyDeepeningNeed,planHistoryDeepening,validateHistoryDeepeningCandidate,commitHistoryDeepening,abortHistoryDeepening} from "./src/history-depth.js?v=57025";
 import {registerHistoryDeepeningDocuments} from "./src/document-engine.js?v=57025";
@@ -70,6 +75,7 @@ import {copyAutotestText} from "./src/autotest-copy.js?v=57025";
 import {buildAutotestTextTransfer,reconstructAutotestTextTransfer,autotestTransferManifest} from "./src/autotest-transfer.js?v=57025";
 import {buildAutotestDragPayload,applyAutotestDragPayload,verifyAutotestDragFile} from "./src/autotest-drag-export.js?v=57025";
 import {buildAutotestDownloadPayload,createAutotestDownloadLease,verifyAutotestDownloadedFile,ensureAutotestDownloadBridge} from "./src/autotest-download.js?v=57025";
+import {installAutotestCodexBridge} from "./src/autotest-codex-bridge.js?v=61002";
 import {validateSceneProvenance,filterSuggestionProvenance} from "./src/scene-provenance.js?v=57025";
 import {auditStateTransition,restoreStateSnapshot} from "./src/runtime-integrity.js?v=59013";
 import {repairRuntimeState} from "./src/runtime-self-repair.js?v=60009";
@@ -442,6 +448,15 @@ async function runBackgroundWorldQualityCritic(options={}){
 function pendingRuntimeGenerationPlan(state=gameState){
  return state?.world?.lazyGeneration?.plans?.find(x=>x?.status==="PLANNED"&&x?.checkpoint?.stage)||null
 }
+const TERMINAL_LAZY_CHECKPOINT_ERROR_CODES=new Set(["LAZY_CHECKPOINT_RESTORE_FAILED","LAZY_CHECKPOINT_INVALID","LAZY_CHECKPOINT_STAGE_UNKNOWN","LAZY_CHECKPOINT_GENERATION_MISSING","RUNTIME_EXPANSION_CONTRACT_FAILED","RUNTIME_EXPANSION_PROVENANCE_FAILED","LAZY_GENERATION_CONTRACT_FAILED","LAZY_GENERATION_COMMIT_FAILED","AUTOTEST_LAZY_GENERATION_CONTRACT_FAILED","AUTOTEST_LAZY_GENERATION_COMMIT_FAILED"]);
+function settleLazyGenerationFailure(state,plan,error,fallbackReason="LAZY_GENERATION_FAILED"){
+ const message=String(error?.message||error||fallbackReason),errorCode=message.split(":")[0].trim(),checkpointed=hasLazyGenerationCheckpoint(plan),storedCheckpoint=Boolean(plan?.checkpoint&&typeof plan.checkpoint==="object");let terminalized=false;
+ if(plan?.status==="PLANNED"){
+  if(storedCheckpoint&&TERMINAL_LAZY_CHECKPOINT_ERROR_CODES.has(errorCode))terminalized=failLazyGenerationTerminal(state,plan,errorCode).ok===true;
+  else if(!checkpointed)abortLazyGeneration(state,plan,message)
+ }
+ return {message,errorCode,checkpointed,terminalized}
+}
 function runtimeStageDelta(stage,generation){
  const empty={locations:[],npcs:[],factions:[],sideQuests:[],definitions:[]};
  if(stage==="RUNTIME_GEOGRAPHY")return {...empty,locations:generation?.locations||[],definitions:generation?.definitions||[]};
@@ -492,9 +507,9 @@ async function runBackgroundWorldEvolution(){
   const added=plan.checkpoint?.added||canonizeGeneration(state,ex.generation),committed=commitLazyGeneration(state,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
   recordExpansion(state,ex.region||plan.region||"未知邊境",ex.reason||reason);state.world.state.flags.requestExpansion=false;if(ex.quality)state.world.quality={...(state.world.quality||{}),runtimeLastExpansion:ex.quality};markWorldEvolution(state,{reason});bumpStateRevision(state,"BACKGROUND_WORLD_EVOLUTION");worldBackground.failures=0;worldBackground.cooldownUntil=0;state.events.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_APPLIED",visibility:"INTERNAL",reason,planId:plan.id,claimIds:committed.claimIds,day:state.world?.state?.day||1,at:Date.now()});if(reason==="PROACTIVE_ENRICHMENT"){markWorldEnrichmentCompleted(state,enrichment,{domain:enrichment.domain,reason});recordDebug("WORLD_ENRICHMENT_COMPLETED",{domain:enrichment.domain,pressureBefore:enrichment.pressure,pressureAfter:worldEnrichmentPressure(state).pressure,turn:enrichment.turn,planId:plan.id})}recordDebug("WORLD_EVOLUTION_BACKGROUND_APPLIED",{reason,planId:plan.id,elapsedMs:Date.now()-debugStarted,quality:ex.quality?.overall??null});await persist(state,sessionToken);scheduleWorldQualityCritic("post_world_evolution",1800)
  }catch(e){
-  const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(state,plan,e?.message||"BACKGROUND_FAILED");
-  if(!ctrl.signal.aborted){
-   const error=e?.message||String(e),timedOut=/AI_TIMEOUT/.test(error);worldBackground.failures=Math.min(6,(Number(worldBackground.failures)||0)+1);
+   const failure=settleLazyGenerationFailure(state,plan,e,"BACKGROUND_FAILED"),checkpointed=failure.checkpointed;if(failure.terminalized)recordDebug("WORLD_EVOLUTION_CHECKPOINT_TERMINALIZED",{planId:plan.id,errorCode:failure.errorCode,checkpointed,resumeStage:plan.checkpoint?.stage||null});
+   if(!ctrl.signal.aborted){
+    const error=failure.message,timedOut=/AI_TIMEOUT/.test(error);worldBackground.failures=Math.min(6,(Number(worldBackground.failures)||0)+1);
    const cooldownMs=checkpointed?12000:(timedOut?Math.min(15*60*1000,2*60*1000*(2**(worldBackground.failures-1))):60*1000);worldBackground.cooldownUntil=Date.now()+cooldownMs;
    console.warn("background world evolution fallback",e);state?.events?.push({id:crypto.randomUUID?.()||Math.random().toString(36).slice(2),type:"WORLD_EVOLUTION_BACKGROUND_FAILED",visibility:"INTERNAL",reason:error,planId:plan.id,cooldownMs,day:state?.world?.state?.day||1,at:Date.now()});recordDebug("WORLD_EVOLUTION_BACKGROUND_FAILED",{reason,planId:plan.id,error,elapsedMs:Date.now()-debugStarted,cooldownMs,failures:worldBackground.failures})
   }
@@ -563,7 +578,7 @@ async function ensureGameplayLocale(reason="runtime"){
  const cooldown=localeRepairCooldown.get(state);if(cooldown?.locale===activeLocale&&Date.now()<cooldown.until)return false;
  if(localeTransitionBusy)return false;if(!aiStatus.aiConfigured){recordDebug("LOCALE_TRANSLATION_BLOCKED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,pending:pending.strings.length});return false}
  localeTransitionBusy=true;document.body.classList.add("locale-transition");setAIThinking(true,uiText("正在翻譯世界…",activeLocale));
- try{const bundle=await translateVisibleWorld(pending,activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,bundle);let left=missingVisibleTranslations(state,activeLocale);if(left.strings.length){recordDebug("LOCALE_TRANSLATION_REPAIR",{reason,targetLocale:activeLocale,pending:left.strings.length,samples:left.strings.slice(0,3).map(x=>x.slice(0,100))});const repair=await translateVisibleWorld({...left,repair:true},activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,repair);left=missingVisibleTranslations(state,activeLocale)}if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(state);localeRepairCooldown.delete(state);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
+ try{const bundle=await translateVisibleWorld(pending,activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,bundle);let left=missingVisibleTranslations(state,activeLocale);if(left.strings.length){recordDebug("LOCALE_TRANSLATION_REPAIR",{reason,targetLocale:activeLocale,pending:left.strings.length,samples:translationRepairDiagnosticSamples(left.strings)});const repair=await translateVisibleWorld({...left,repair:true},activeLocale);if(!isCurrentStateSession(sessionToken))return false;applyTranslationBundle(state,activeLocale,repair);left=missingVisibleTranslations(state,activeLocale)}if(left.strings.length)throw new Error("TRANSLATION_INCOMPLETE:"+left.strings.length);await saveWorld(state);localeRepairCooldown.delete(state);recordDebug("LOCALE_TRANSLATION_READY",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,count:bundle.translations?.length||0});return true}
  catch(error){localeRepairCooldown.set(state,{locale:activeLocale,until:Date.now()+30000});recordDebug("LOCALE_TRANSLATION_FAILED",{reason,targetLocale:activeLocale,sourceLocale:loc.sourceLocale,error:error?.message||String(error)});return false}
  finally{localeTransitionBusy=false;document.body.classList.remove("locale-transition");setAIThinking(false)}
 }
@@ -596,7 +611,7 @@ function scheduleGameStageFit(){
  gameStageFitFrame=requestAnimationFrame(fitGameStage)
 }
 function show(id){qsa(".screen").forEach(x=>x.classList.remove("active"));$("#"+id).classList.add("active");document.body.dataset.screen=id;void ensureRenderedLocale("screen:"+id,$("#"+id));if(id==="game"){scheduleGameStageFit();requestAnimationFrame(()=>$(".scene")?.scrollIntoView({block:"start"}));resumeDeferredDirectorQueue();scheduleWorldEvolution("gameplay_idle",1800)}}
-function migrate(s){ensureWorldLocale(s,activeLocale);ensureStateSyncRuntime(s);ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureHistoryDepth(s);ensureWorldEnrichment(s);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);const selfRepair=repairRuntimeState(s,{phase:"MIGRATE"});if(selfRepair.changed||selfRepair.rolledBack||selfRepair.issues.length)recordDebug("RUNTIME_SELF_REPAIR_APPLIED",{changed:selfRepair.changed,rolledBack:selfRepair.rolledBack,repaired:selfRepair.repaired,issues:selfRepair.issues.map(x=>x.code)});initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);ensurePlayerExperience(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
+function migrate(s){ensureWorldLocale(s,activeLocale);ensureStateSyncRuntime(s);ensureClock(s);ensureWorldSimulation(s);ensureWorldRegistry(s);reconcileLazyGenerationLifecycle(s);ensureNpcRuntime(s);ensureFactionRuntime(s);bootstrapKnowledgeGraph(s);ensureCharacter(s);ensureTalents(s);ensureQuestProgress(s);ensureMainQuest(s);ensureCrisis(s);ensureWorldImpact(s);ensureRecognition(s);ensureCheckProfile(s);ensurePlayerOrigin(s.player);ensureHistoryDepth(s);ensureWorldEnrichment(s);ensureItemRuntime(s);ensureNotes(s);repairPlayerLocation(s);const selfRepair=repairRuntimeState(s,{phase:"MIGRATE"});if(selfRepair.changed||selfRepair.rolledBack||selfRepair.issues.length)recordDebug("RUNTIME_SELF_REPAIR_APPLIED",{changed:selfRepair.changed,rolledBack:selfRepair.rolledBack,repaired:selfRepair.repaired,issues:selfRepair.issues.map(x=>x.code)});initializeWeather(s);ensureSurvival(s);ensureMagicRuntime(s);ensureTravelNetwork(s);ensureDungeonSites(s);ensurePlayerExperience(s);s.player.wallet??={};s.player.calendarKnown??=false;s.world.deferredTurns??=[];s.quests??={main:{id:"Q-main",title:"在陌生世界活下來",stage:0,status:"ACTIVE",objectives:["理解自己身處何地","尋找安全的落腳處","找到第一個可以交流的人"]}};s.discoveries??=0;if(!s.sceneTitle||s.sceneTitle==="陌生世界的第一天")s.sceneTitle=deriveSceneTitle(s);return s}
 async function refresh({skipLocale=false,skipRenderedLocale=false}={}){const exists=await hasWorld().catch(()=>false);$("#continueBtn").disabled=!exists;updateAIStatusBadge();if(!gameState){applyDocumentLocale(activeLocale);await ensureRenderedLocale("refresh_no_world",document.querySelector(".screen.active")||document.body);return true}migrate(gameState);if(!skipLocale){const ready=await ensureGameplayLocale("refresh");if(!ready)return false}recordGameplayStateChanges(gameState);document.body.dataset.worldGenre=gameState.world?.seedContract?.genre||"";$("#worldName").textContent=gameState.player?.worldNameKnown?safeVisibleText(gameState.world.name,"world"):uiText("未知世界",activeLocale);$("#worldMeta").textContent=formatWorldTime(gameState);if($("#topLocation"))$("#topLocation").textContent=safeVisibleText(playerVisibleLocationName(gameState),"location");if($("#topTime"))$("#topTime").textContent=formatWorldTime(gameState);$("#knowledgePct").textContent=`${gameState.player.knowledgeScore}%`;const impactCap=impactCapability(gameState),recognition=recognitionSnapshot(gameState);if($("#impactStat"))$("#impactStat").textContent=impactLabel(impactCap.maxScope);if($("#renownStat"))$("#renownStat").textContent=`${renownLabel(recognition.tier)} · ${recognition.renown}`;$("#hpStat").textContent=`${gameState.player.hp} / ${gameState.player.maxHp}`;const trade=currentTradeProfile(gameState),balances=walletSummary(gameState);$("#currencyLabel").textContent=uiText("資產",activeLocale);if(balances.length)$("#goldStat").textContent=balances.slice(0,3).map(x=>`${x.currency?.symbol||""}${x.amount} ${x.currency?.name||x.id}`).join(" · ");else if(trade?.currencies?.length){const cur=trade.currencies[0];$("#goldStat").textContent=`${cur.symbol||""}${gameState.player.wallet?.[cur.id]||0} ${cur.name}`}else if(trade?.mode==="barter")$("#goldStat").textContent="以物易物";else $("#goldStat").textContent="—";$("#playerNameStat").textContent=gameState.player.name||"無名者";if($("#playerInitial"))$("#playerInitial").textContent=(gameState.player.name||"?").trim().slice(0,1)||"?";const talentInfo=talentSnapshot(gameState),survivalInfo=survivalSnapshot(gameState);$("#levelStat").textContent=`Lv.${gameState.player.level} · XP ${gameState.player.xp}/${xpNeeded(gameState.player.level)}${talentInfo.points?` · TP ${talentInfo.points}`:""}`;
  if($("#conditionStat"))$("#conditionStat").textContent=survivalInfo.conditions.length?survivalInfo.conditions.join("、"):"穩定";
  if($("#satietyStat"))$("#satietyStat").textContent=`${Math.round(survivalInfo.satiety)} / 100`;
@@ -810,6 +825,8 @@ function notifyWorldReady(){
 }
 function creatorField(id){return document.getElementById(id)}
 const DEGREE_FIELDS=["civilizationLevel","technologyLevel","magicLevel","politicalUnity","religionInfluence","resourceAbundance","worldDanger","survivalIntensity"];
+const GENESIS_ENUM_FIELDS=["worldShape","routeDensity","historicalDepth","worldVolatility","mysteryDensity","crisisIntensity","playerCentrality"];
+const GENESIS_COUNT_FIELDS=["ancientPowerCount","nomadicPowerCount","independentInstitutionCount","lostCivilizationCount"];
 const RULE_TAG_LIBRARY={
  "魔法與超自然":["魔法學院","魔法公會","元素魔法","召喚術","治癒魔法","禁忌魔法","魔法契約","魔導科技","魔法災害","神術","詛咒","煉金術","超能力","靈魂魔法"],
  "文明與制度":["冒險者公會","商人公會","多王國","帝國","城邦聯盟","部落聯盟","貴族制度","騎士團","宗教國家","學術機構","民主議會","傭兵制度","奴隸制度","地下組織"],
@@ -853,7 +870,45 @@ function initRuleTagBuilder(){
  renderRuleTagBuilder()
 }
 function syncDegreeOutputs(){for(const id of DEGREE_FIELDS){const input=creatorField(id),out=creatorField(id+"Value");if(input&&out)out.value=input.value}}
-function syncCustomWorldStyle(){const custom=creatorField("genre")?.value==="自訂世界";creatorField("customWorldStyleWrap")?.classList.toggle("hidden",!custom);const hint=creatorField("styleHint");if(custom&&hint)hint.textContent="自訂世界會以你的風格描述作為 Blueprint 基礎；進階設定仍可獨立指定。"}
+function customTemplateGenreOption(create=false){
+ const genre=creatorField("genre");if(!genre)return null;
+ const existing=Array.from(genre.options).find(option=>option.value===WORLD_STYLE_CUSTOM_CANONICAL_NAME);
+ if(existing||!create)return existing;
+ const option=genre.ownerDocument.createElement("option");option.value=WORLD_STYLE_CUSTOM_CANONICAL_NAME;option.disabled=true;genre.append(option);return option
+}
+function clearCreatorStyleTemplate(){
+ const creator=creatorField("creator"),option=customTemplateGenreOption();
+ if(creator){delete creator.dataset.styleTemplateName;delete creator.dataset.styleTemplateArt;delete creator.dataset.styleTemplateId}
+ option?.remove()
+}
+function syncCustomWorldStyle(){
+ const genre=creatorField("genre"),custom=genre?.value===WORLD_STYLE_CUSTOM_CANONICAL_NAME,wrapper=creatorField("customWorldStyleWrap");
+ if(wrapper){wrapper.hidden=true;wrapper.classList.add("hidden")}
+ if(!custom)clearCreatorStyleTemplate();
+ const hint=creatorField("styleHint"),templateName=creatorField("creator")?.dataset.styleTemplateName;
+ if(custom&&templateName&&hint){
+  const copy={"zh-Hant":`已套用「${templateName}」；進階設定可再調整。`,"zh-Hans":`已应用「${templateName}」；高级设置可再调整。`,en:`“${templateName}” applied. Advanced settings remain adjustable.`,ja:`テンプレート「${templateName}」を適用しました。詳細設定は調整できます。`};
+  hint.textContent=copy[normalizeLocale(activeLocale)]||copy["zh-Hant"]
+ }
+}
+function applyCreatorWorldStyle(selection){
+ const creator=creatorField("creator"),genre=creatorField("genre");if(!creator||!genre||!selection)return;
+ clearCreatorStyleTemplate();
+ if(selection.kind==="custom"){
+  const option=customTemplateGenreOption(true);if(option)option.textContent=getTemplateStyleLabel(selection.name,activeLocale);
+  genre.value=WORLD_STYLE_CUSTOM_CANONICAL_NAME;
+  for(const [id,value] of Object.entries(selection.settings||{})){
+   const input=creatorField(id);if(!input)continue;
+   if(input.type==="checkbox")input.checked=value===true;
+   else input.value=Array.isArray(value)?value.join("\n"):String(value??"")
+  }
+  creator.dataset.styleTemplateName=String(selection.name||"");creator.dataset.styleTemplateArt=String(selection.art||"");creator.dataset.styleTemplateId=String(selection.id||"");
+  for(const target of ["required","allowed","forbidden"])ruleValues[target]=String(creatorField(target+"Elements")?.value||"").split(/[\n,，;；]+/).map(cleanRuleTag).filter(Boolean);
+  renderRuleTagBuilder()
+ }else if(selection.kind==="builtin"&&selection.genre)genre.value=selection.genre;
+ syncDegreeOutputs();syncAdvancedCreatorModes();syncCustomWorldStyle();
+ genre.dispatchEvent(new Event("change",{bubbles:true}));renderCreatorReview()
+}
 
 function creatorRaw(){
  const n=id=>Number(creatorField(id)?.value),v=id=>String(creatorField(id)?.value||""),checked=id=>creatorField(id)?.checked===true,mode=id=>v(id+"Mode")||"style";
@@ -864,6 +919,8 @@ function creatorRaw(){
  };
  for(const id of ["civilizationLevel","technologyLevel","magicLevel","civilizationCount","speciesCount","languageCount","politicalUnity","religionInfluence","resourceAbundance","worldDanger","unknownRatio","survivalIntensity"]){out[id]=n(id);out[id+"Mode"]=mode(id);out[id+"Locked"]=checked(id+"Locked")}
  out.warState=v("warState");out.warStateMode=mode("warState");out.warStateLocked=checked("warStateLocked");
+ for(const id of GENESIS_ENUM_FIELDS)out[id]=v(id);
+ for(const id of GENESIS_COUNT_FIELDS)out[id]=n(id);
  return out
 }
 function setCreatorStep(step){
@@ -871,15 +928,20 @@ function setCreatorStep(step){
  qsa("[data-creator-step]").forEach(x=>x.classList.toggle("active",Number(x.dataset.creatorStep)===n));
  qsa("[data-step-target]").forEach(x=>x.classList.toggle("active",Number(x.dataset.stepTarget)===n));
  if(n===5)renderCreatorReview();
- const creator=$("#creator");if(creator)creator.scrollTop=0
+ const creator=$("#creator");setCreatorConsoleStep(n);
+if(creator)creator.scrollTop=0
 }
 function renderCreatorReview(){
+ syncCustomWorldStyle();
  const raw=creatorRaw(),req=raw.requiredElements.split(/[\n,，;；]+/).filter(Boolean),forbid=raw.forbiddenElements.split(/[\n,，;；]+/).filter(Boolean),story=raw.storyPreferences.split(/[\n,，;；]+/).filter(Boolean),el=$("#creatorReview");if(!el)return;
  const label=id=>creatorField(id)?.selectedOptions?.[0]?.textContent||creatorField(id)?.value||"—",t=creatorReviewText(),localizedLabel=id=>localizedStaticText(label(id),activeLocale);
- el.innerHTML=`<div class="creator-review-card"><small>WORLD</small><strong>${esc(localizedStaticText(raw.worldStyle,activeLocale))} · ${esc(localizedStaticText(raw.worldScale,activeLocale))}</strong><span>${raw.targetPlayHours} ${esc(t.hours)} · ${esc(localizedLabel("difficulty"))}</span></div>
+ const styleName=raw.worldStyle==="自訂世界"&&creatorField("creator").dataset.styleTemplateName?creatorField("creator").dataset.styleTemplateName:localizedLabel("genre");
+ el.innerHTML=`<div class="creator-review-card"><small>WORLD</small><strong>${esc(styleName)} · ${esc(localizedLabel("scale"))}</strong><span>${raw.targetPlayHours} ${esc(t.hours)} · ${esc(localizedLabel("difficulty"))}</span></div>
  <div class="creator-review-card"><small>PLAYER</small><strong>${esc(raw.playerName||t.aiName)}</strong><span>${esc(localizedLabel("originType"))} · ${esc(localizedLabel("playerRole"))}</span></div>
  <div class="creator-review-card"><small>DESTINY TENDENCIES</small><strong>${story.length?story.length+" "+t.items:t.none}</strong><span>${esc(t.tendency)}</span></div>
- <div class="creator-review-card"><small>CONSTITUTION</small><strong>${esc(t.must)} ${req.length} · ${esc(t.forbid)} ${forbid.length}</strong><span>${esc(t.contract)}</span></div>`
+ <div class="creator-review-card"><small>CONSTITUTION</small><strong>${esc(t.must)} ${req.length} · ${esc(t.forbid)} ${forbid.length}</strong><span>${esc(t.contract)}</span></div>
+ <div class="creator-review-card"><small>WORLD GENESIS</small><strong>${esc(localizedLabel("worldShape"))} · ${esc(localizedLabel("historicalDepth"))}</strong><span>${esc(localizedLabel("routeDensity"))} · ${esc(localizedLabel("crisisIntensity"))}</span></div>`;
+ syncCreatorConsolePreview(activeLocale);
 }
 function syncAdvancedCreatorModes(){
  for(const id of ["civilizationLevel","technologyLevel","magicLevel","civilizationCount","speciesCount","languageCount","politicalUnity","religionInfluence","resourceAbundance","worldDanger","unknownRatio","survivalIntensity","warState"]){
@@ -908,11 +970,11 @@ qsa("[data-step-next]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepNe
 qsa("[data-step-prev]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepPrev));
 qsa("[data-step-target]").forEach(b=>b.onclick=()=>setCreatorStep(b.dataset.stepTarget));
 $("#randomWorldBtn")?.addEventListener("click",randomizeUnlockedCreator);
-$("#genre")?.addEventListener("change",()=>{syncCustomWorldStyle();const p=getWorldStylePreset($("#genre").value),hint=$("#styleHint");if($("#genre").value!=="自訂世界"&&hint)hint.textContent=(p?.foundation||"")+" 未指定的進階欄位會以這個風格作基礎。";renderCreatorReview()});
+$("#genre")?.addEventListener("change",()=>{syncCustomWorldStyle();const value=$("#genre").value,p=getWorldStylePreset(value),hint=$("#styleHint");if(value!==WORLD_STYLE_CUSTOM_CANONICAL_NAME&&hint)hint.textContent=(p?.foundation||"")+" 未指定的進階欄位會以這個風格作基礎。";renderCreatorReview()});
 qsa(".advanced-setting select[id$='Mode']").forEach(x=>x.addEventListener("change",syncAdvancedCreatorModes));
 qsa("#creator input,#creator select,#creator textarea").forEach(x=>x.addEventListener("change",()=>{if(x.id!=="genre")renderCreatorReview()}));
 for(const id of DEGREE_FIELDS)creatorField(id)?.addEventListener("input",()=>{syncDegreeOutputs();renderCreatorReview()});
-initRuleTagBuilder();syncDegreeOutputs();syncCustomWorldStyle();syncAdvancedCreatorModes();setCreatorStep(1);
+initRuleTagBuilder();syncDegreeOutputs();syncCustomWorldStyle();syncAdvancedCreatorModes();initCreatorConsole();initWorldStyleLibrary({onApply:applyCreatorWorldStyle});initWorldAmbience();setCreatorStep(1);
 $("#generateBtn").onclick=async()=>{
  requestWorldReadyNotificationPermission();
  const btn=$("#generateBtn"),draft=createWorldCreationDraft(creatorRaw()),seed=compileWorldCreation(draft);btn.disabled=true;$("#worldGenProgress").dataset.loading="true";
@@ -932,7 +994,7 @@ $("#generateBtn").onclick=async()=>{
    if(!creationValidation.valid)throw new Error("WORLD_CREATION_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
    applyWorldCandidate(gameState,candidate);
    worldProgress(90,"正在 Canonize 開局內容","只建立世界骨架、出生區域與最小可玩內容；其他地區延遲生成");
-   canonizeGeneration(gameState,candidate.generation);applyOriginRuntime(gameState,{phase:"POST_CANON"})
+    canonizeGeneration(gameState,candidate.generation);repairPlayerLocation(gameState);applyOriginRuntime(gameState,{phase:"POST_CANON"})
   }catch(e){console.error("AI world generation failed",e);worldProgress(0,"AI 世界生成失敗",e.message);throw e}
   finally{setAIThinking(false)}
   const contract=buildWorldContract(gameState);gameState.world.creation.contract=structuredClone(contract);
@@ -1074,7 +1136,15 @@ function developerAutotestPanelHtml(){
  const c=developerAutotest.config||{mode:"play",worldCount:1,maxTurns:30,stopCondition:"TURN_LIMIT",conditionTarget:10,customCondition:"",exportMode:"both",disableTimeout:false,difficultyMode:"CURRENT"};
  const running=developerAutotest.running,report=developerAutotest.lastReport,summary=report?.summary,exportSnapshot=developerAutotest.exportSnapshot,exportArtifacts=exportSnapshot?buildAutotestExportArtifacts(exportSnapshot):{},saveCapability=autotestSaveCapability(window),difficultyRows=summary?.byDifficulty?Object.entries(summary.byDifficulty).map(([id,row])=>`<div><strong>${esc(DIFFICULTY_PRESETS[id]?.label||id)}</strong> · ${row.worldsCompleted} 完成 / ${row.worldsFailed} 失敗 · ${row.turns} 回合 · ${row.issues} Issues</div>`).join(""):"";
  const retainedRuns=Array.isArray(developerAutotest.retainedRuns)?developerAutotest.retainedRuns:[],retainedOptions=retainedRuns.map(row=>`<option value="${esc(row.slot)}">v${esc(row.appVersion||"?")} · ${esc(row.createdAt||"")} · ${Number(row.worlds)||0} worlds</option>`).join("");
- const nativeUnavailable=!saveCapability.filePicker&&!saveCapability.fileShare,nativeButtons=`${saveCapability.filePicker&&exportArtifacts.debug?'<button id="autotestSaveDebug" class="primary">原生另存 Debug JSON</button>':""}${saveCapability.fileShare&&exportArtifacts.debug?'<button id="autotestShareDebug" class="primary">原生分享 Debug JSON</button>':""}${saveCapability.filePicker&&exportArtifacts.world?'<button id="autotestSaveWorld" class="primary">原生另存世界檔</button>':""}${saveCapability.fileShare&&exportArtifacts.world?'<button id="autotestShareWorld" class="primary">原生分享世界檔</button>':""}${saveCapability.filePicker&&exportArtifacts.recovery?'<button id="autotestSaveRecovery" class="secondary">原生另存 Recovery</button>':""}${saveCapability.fileShare&&exportArtifacts.recovery?'<button id="autotestShareRecovery" class="secondary">原生分享 Recovery</button>':""}${saveCapability.directoryPicker?'<button id="autotestSaveAll" class="secondary">原生另存全部檔案</button>':""}`;
+  const nativeUnavailable=!saveCapability.filePicker&&!saveCapability.fileShare;
+  const nativeSaveButtons=`${saveCapability.filePicker&&exportArtifacts.debug?'<button id="autotestSaveDebug" class="primary">原生另存 Debug JSON</button>':""}${saveCapability.fileShare&&exportArtifacts.debug?'<button id="autotestShareDebug" class="primary">原生分享 Debug JSON</button>':""}${saveCapability.filePicker&&exportArtifacts.world?'<button id="autotestSaveWorld" class="primary">原生另存世界檔</button>':""}${saveCapability.fileShare&&exportArtifacts.world?'<button id="autotestShareWorld" class="primary">原生分享世界檔</button>':""}${saveCapability.filePicker&&exportArtifacts.recovery?'<button id="autotestSaveRecovery" class="secondary">原生另存 Recovery</button>':""}${saveCapability.fileShare&&exportArtifacts.recovery?'<button id="autotestShareRecovery" class="secondary">原生分享 Recovery</button>':""}${saveCapability.directoryPicker?'<button id="autotestSaveAll" class="secondary">原生另存全部檔案</button>':""}`;
+  const copyAssistButtons=`${exportArtifacts.debug?'<button id="autotestCopyDebug" class="ghost">複製 Debug JSON</button>':""}${exportArtifacts.world?'<button id="autotestCopyWorld" class="ghost">複製世界 JSON</button>':""}`;
+  const dragAssistButtons=`${exportArtifacts.debug?'<button id="autotestDragDebug" class="ghost">原生拖出 Debug</button>':""}${exportArtifacts.world?'<button id="autotestDragWorld" class="ghost">原生拖出世界檔</button>':""}${exportArtifacts.recovery?'<button id="autotestDragRecovery" class="ghost">原生拖出 Recovery</button>':""}`;
+  const transferAssistButtons=`${exportArtifacts.debug?'<button id="autotestTransferDebug" class="ghost">頁面取回 Debug</button>':""}${exportArtifacts.world?'<button id="autotestTransferWorld" class="ghost">頁面取回世界檔</button>':""}${exportArtifacts.recovery?'<button id="autotestTransferRecovery" class="ghost">頁面取回 Recovery</button>':""}`;
+  const recoveryFallbackButton=exportArtifacts.recovery?'<button id="autotestFallbackRecovery" class="ghost">開啟標準下載驗證復原包</button>':"";
+  const auxiliaryButtons=copyAssistButtons+dragAssistButtons+transferAssistButtons+recoveryFallbackButton;
+  const auxiliaryPanel=auxiliaryButtons?`<details class="autotest-export-assist"><summary>輔助取回工具</summary><p class="muted">原生檔案保存／分享是主要路徑。複製、拖出及頁面取回只會在你明確點擊個別按鈕時執行；開始拖曳或選取文字都不代表目的地已保存。</p><div class="settings-actions">${auxiliaryButtons}</div></details>`:"";
+  const nativeButtons=nativeSaveButtons+auxiliaryPanel;
  const retainedControl=retainedOptions?`<div class="lore-item"><small>RETAINED RUNS</small><p>部署與載入新版不會改寫已封存的 run。可在此切回舊 snapshot，再用上方正式原生檔案 API 匯出。</p><div class="settings-actions"><select id="autotestRetainedRun">${retainedOptions}</select><button id="autotestLoadRetainedRun" class="secondary">載入保留 Run</button></div></div>`:"";
  const exportPanel=exportSnapshot?`<div class="lore-item"><small>EXPORT READY · ${esc(exportSnapshot.createdAt||"")} · v${esc(exportSnapshot.appVersion||"?")}</small><h3>AutoTest snapshot 已保存，不需重跑</h3><p>${developerAutotest.exportPersistence?.persisted?"結果已保存於瀏覽器 IndexedDB，並以獨立 run slot 封存；新 run 不會覆蓋這份封存副本。":"結果目前保留在本頁記憶體。"}</p><p><strong>正式匯出：</strong>只使用瀏覽器正式檔案 API。File System Access 可用時直接另存；Web Share File 可用時建立原檔名、原 UTF-8 bytes 的 File 交給系統分享目標。兩者都不可用時只顯示 unsupported，不會自動改走 clipboard、DOM 搬運或間接橋接。</p>${nativeUnavailable?'<p class="error"><strong>目前瀏覽器未提供可用的原生檔案保存／分享 API。</strong> snapshot 仍安全保留，可在支援的同源瀏覽器載入後匯出。</p>':""}<div class="settings-actions">${nativeButtons}<button id="autotestReloadExport" class="secondary">重新載入目前保存結果</button></div><details><summary>標準瀏覽器下載（相容性）</summary><p class="muted">此路徑保留給一般瀏覽器；不會被當成原生保存成功，也不會在 unsupported 時自動觸發。</p><div class="settings-actions">${exportArtifacts.debug?'<button id="autotestDownloadDebug" class="ghost">標準下載 Debug</button>':""}${exportArtifacts.world?'<button id="autotestDownloadWorld" class="ghost">標準下載世界檔</button>':""}${exportArtifacts.recovery?'<button id="autotestDownloadRecovery" class="ghost">標準下載 Recovery</button>':""}</div></details></div>${retainedControl}`:`<div class="lore-item"><small>EXPORT RECOVERY</small><p>若之前已完成測試，可直接載入瀏覽器保存的 snapshot；不需要重跑 AutoTest。</p><button id="autotestReloadExport" class="secondary">載入上次匯出資料</button></div>${retainedControl}`;
  return `<div class="eyebrow">DEVELOPER · AI AUTOTEST</div><h2>AI 自動測試</h2><p class="muted">使用目前已設定的 Elyndra AI Provider/API。測試世界不會覆蓋正式存檔；AI 玩家只會收到真實玩家此刻能看見或已知的情報，不會取得 hidden Canon。</p>
@@ -1114,7 +1184,11 @@ function bindDeveloperAutotestPanel(){
  $("#autotestStart")?.addEventListener("click",()=>{if(developerAutotest.running)return;developerAutotest.config=readDeveloperAutotestConfig();void startDeveloperAutotest(developerAutotest.config)});
  $("#autotestStop")?.addEventListener("click",()=>{developerAutotest.stopRequested=true;const reason=new DOMException("Developer autotest stopped","AbortError");developerAutotest.controller?.abort(reason);developerAutotest.batchController?.abort(reason);appendDeveloperAutotestLog("已要求停止；正在 Abort 當前 AI request，之後於安全點結束。");recordDebug("AUTOTEST_STOP_REQUESTED",{worldIndex:developerAutotest.worldIndex,turn:developerAutotest.turn})});
  $("#autotestDownloadDebug")?.addEventListener("click",()=>void openDeveloperAutotestDownload("debug"));$("#autotestDownloadWorld")?.addEventListener("click",()=>void openDeveloperAutotestDownload("world"));$("#autotestDownloadRecovery")?.addEventListener("click",()=>void openDeveloperAutotestDownload("recovery"));
- $("#autotestSaveDebug")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("debug"));$("#autotestSaveWorld")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("world"));$("#autotestSaveRecovery")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("recovery"));$("#autotestSaveAll")?.addEventListener("click",()=>void saveAllDeveloperAutotestArtifacts());
+  $("#autotestSaveDebug")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("debug"));$("#autotestSaveWorld")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("world"));$("#autotestSaveRecovery")?.addEventListener("click",()=>void saveDeveloperAutotestArtifact("recovery"));$("#autotestSaveAll")?.addEventListener("click",()=>void saveAllDeveloperAutotestArtifacts());
+  $("#autotestFallbackRecovery")?.addEventListener("click",()=>downloadDeveloperAutotestArtifact("recovery"));
+  $("#autotestCopyDebug")?.addEventListener("click",()=>void copyDeveloperAutotestArtifact("debug"));$("#autotestCopyWorld")?.addEventListener("click",()=>void copyDeveloperAutotestArtifact("world"));
+  $("#autotestDragDebug")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("debug"));$("#autotestDragWorld")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("world"));$("#autotestDragRecovery")?.addEventListener("click",()=>void openDeveloperAutotestDragExport("recovery"));
+  $("#autotestTransferDebug")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("debug"));$("#autotestTransferWorld")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("world"));$("#autotestTransferRecovery")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer("recovery"));
  $("#autotestShareDebug")?.addEventListener("click",()=>void shareDeveloperAutotestArtifact("debug"));$("#autotestShareWorld")?.addEventListener("click",()=>void shareDeveloperAutotestArtifact("world"));$("#autotestShareRecovery")?.addEventListener("click",()=>void shareDeveloperAutotestArtifact("recovery"));
  $("#autotestLoadRetainedRun")?.addEventListener("click",()=>void loadDeveloperAutotestRetainedRun(String($("#autotestRetainedRun")?.value||"")));
 $("#autotestReloadExport")?.addEventListener("click",()=>void reloadDeveloperAutotestExport())
@@ -1195,7 +1269,7 @@ async function createDeveloperAutotestWorld(raw,index){
  recordDebug("AUTOTEST_WORLD_GENERATION_STARTED",{index,masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale,difficulty:raw.difficulty});
  const candidate=await generateWorldCandidate(seed,state.world.constitution,p=>appendDeveloperAutotestLog(`世界 ${index} · ${p.label||"World Compiler"} ${p.progress||0}%`));
  const creationValidation=validateWorldCreationCandidate(seed,candidate);if(!creationValidation.valid)throw new Error("AUTOTEST_WORLD_CONSTITUTION_FAILED:"+creationValidation.errors.join(","));
- applyWorldCandidate(state,candidate);canonizeGeneration(state,candidate.generation);applyOriginRuntime(state,{phase:"POST_CANON"});
+  applyWorldCandidate(state,candidate);canonizeGeneration(state,candidate.generation);repairPlayerLocation(state);applyOriginRuntime(state,{phase:"POST_CANON"});
  const migrated=migrate(state),validation=validateWorld(migrated.world);if(!validation.valid)throw new Error("AUTOTEST_WORLD_INVALID:"+validation.errors.join(","));
  recordDebug("AUTOTEST_WORLD_GENERATION_COMPLETED",{index,worldId:migrated.world?.id,name:migrated.world?.name,genre:migrated.world?.seedContract?.genre||raw.worldStyle});
  return {state:migrated,raw,seed:{masterSeed:seed.worldCreationSeed||draft.masterSeed,genre:seed.genre||raw.worldStyle,scale:seed.scale||raw.worldScale,difficulty:raw.difficulty},validation,generationDiagnostics:structuredClone(candidate?.generationDiagnostics||migrated.world?.generationDiagnostics||null)}
@@ -1209,7 +1283,7 @@ async function expandDeveloperAutotestWorld(reason="WORLD_EDGE_UNDERDEFINED",opt
   const added=plan.checkpoint?.added||canonizeGeneration(state,ex.generation),committed=commitLazyGeneration(state,plan,ex.generation,added,{sourceProvider:ex.generationSource?.provider,sourceModel:ex.generationSource?.model});if(!committed.ok)throw new Error("AUTOTEST_LAZY_GENERATION_COMMIT_FAILED:"+committed.errors.join(","));
   recordExpansion(state,ex.region||plan.region||"未知邊境",ex.reason||reason);state.world.state.flags.requestExpansion=false;markWorldEvolution(state,{reason});bumpStateRevision(state,"AUTOTEST_RUNTIME_EXPANSION");
   await persist(state,sessionToken);if(!background&&isCurrentStateSession(sessionToken))await refresh();recordDebug("AUTOTEST_RUNTIME_EXPANSION_COMPLETED",{reason,planId:plan.id,elapsedMs:Date.now()-startedAt,locations:added.locations?.length||0,npcs:added.npcs?.length||0,factions:added.factions?.length||0,sideQuests:added.sideQuests?.length||0,background});return true
- }catch(e){const checkpointed=hasLazyGenerationCheckpoint(plan);if(plan.status==="PLANNED"&&!checkpointed)abortLazyGeneration(state,plan,e?.message||"AUTOTEST_RUNTIME_EXPANSION_FAILED");recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:e?.message||String(e),checkpointed,resumeStage:plan.checkpoint?.stage||null,elapsedMs:Date.now()-startedAt,background});return false}
+  }catch(e){const failure=settleLazyGenerationFailure(state,plan,e,"AUTOTEST_RUNTIME_EXPANSION_FAILED"),checkpointed=failure.checkpointed;if(failure.terminalized)recordDebug("AUTOTEST_LAZY_GENERATION_CHECKPOINT_TERMINALIZED",{planId:plan.id,errorCode:failure.errorCode,checkpointed,resumeStage:plan.checkpoint?.stage||null});recordDebug("AUTOTEST_RUNTIME_EXPANSION_FAILED",{reason,planId:plan.id,error:failure.message,checkpointed,resumeStage:plan.checkpoint?.stage||null,elapsedMs:Date.now()-startedAt,background});return false}
 }
 function autotestRecentStallCount(rows=[]){let count=0;for(const row of rows.slice().reverse()){if(row?.progressed!==false)break;count++}return count}
 function scheduleDeveloperAutotestExpansion(reason="FIRST_BUTTON_STALL_RECOVERY",turn=0){
@@ -1240,6 +1314,7 @@ async function exportDeveloperAutotestResults(report,results){
  appendDeveloperAutotestLog(`匯出資料已準備${developerAutotest.exportPersistence?.persisted?"並保存到瀏覽器":"於本頁記憶體"}；請用下方正式原生檔案按鈕匯出，無需重跑測試。`);return snapshot
 }
 function developerAutotestArtifact(kind){const snapshot=developerAutotest.exportSnapshot;if(!snapshot)return null;return buildAutotestExportArtifacts(snapshot)[kind]||null}
+installAutotestCodexBridge(kind=>developerAutotestArtifact(kind),{chunkChars:131072});
 function developerAutotestDragLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界檔":"Recovery JSON"}
 function developerAutotestDragHtml(){
  const p=developerAutotestDrag.payload;if(!p)return `<div class="eyebrow">AUTOTEST · NATIVE DRAG</div><h2>沒有可拖出資料</h2><button id="autotestDragBack" class="secondary">返回 AutoTest</button>`;
@@ -1265,7 +1340,7 @@ function developerAutotestDownloadHtml(){
 }
 function bindDeveloperAutotestDownload(){
  const p=developerAutotestDownload.payload,lease=developerAutotestDownload.lease,anchor=$("#autotestDownloadAnchor"),input=$("#autotestDownloadVerifyFile"),status=$("#autotestDownloadStatus");
- if(anchor&&p&&lease){anchor.href=lease.url;if(lease.method==="service-worker-http"){anchor.removeAttribute?.("download");anchor.target="_blank";anchor.rel="noopener";anchor.dataset.elyndraNativeDownload="service-worker-http-isolated-navigation"}else{anchor.download=p.filename;anchor.removeAttribute?.("target");anchor.rel="noopener"}anchor.addEventListener("click",()=>{developerAutotestDownload.request={status:"requested",requestedAt:Date.now(),filename:p.filename,bytes:p.bytes,sha256:p.sha256};developerAutotestDownload.verification=null;if(status)status.textContent=`DOWNLOAD REQUESTED · NOT VERIFIED · ${p.filename} · ${Number(p.bytes).toLocaleString()} bytes · SHA-256 ${p.sha256}`;recordDebug("AUTOTEST_DOWNLOAD_REQUESTED",{kind:developerAutotestDownload.kind,filename:p.filename,bytes:p.bytes,sha256:p.sha256,userActivation:Boolean(navigator.userActivation?.isActive)})})}
+ if(anchor&&p&&lease){anchor.dataset.elyndraHttpUnavailable=String(lease.method!=="service-worker-http");anchor.href=lease.url;if(lease.method==="service-worker-http"){anchor.removeAttribute?.("download");anchor.target="_blank";anchor.rel="noopener";anchor.dataset.elyndraNativeDownload="service-worker-http-isolated-navigation"}else{anchor.download=p.filename;anchor.removeAttribute?.("target");anchor.rel="noopener"}anchor.addEventListener("click",()=>{developerAutotestDownload.request={status:"requested",requestedAt:Date.now(),filename:p.filename,bytes:p.bytes,sha256:p.sha256};developerAutotestDownload.verification=null;if(status)status.textContent=`DOWNLOAD REQUESTED · NOT VERIFIED · ${p.filename} · ${Number(p.bytes).toLocaleString()} bytes · SHA-256 ${p.sha256}`;recordDebug("AUTOTEST_DOWNLOAD_REQUESTED",{kind:developerAutotestDownload.kind,filename:p.filename,bytes:p.bytes,sha256:p.sha256,userActivation:Boolean(navigator.userActivation?.isActive)})})}
  $("#autotestDownloadCodex")?.addEventListener("click",()=>void openDeveloperAutotestTextTransfer(developerAutotestDownload.kind));
  input?.addEventListener("change",()=>{const file=input.files?.[0]||null;void verifyAutotestDownloadedFile(file,p).then(result=>{developerAutotestDownload.verification=result;recordDebug(result.ok?"AUTOTEST_DOWNLOAD_VERIFIED":"AUTOTEST_DOWNLOAD_VERIFY_FAILED",{kind:developerAutotestDownload.kind,...result});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}).catch(error=>{developerAutotestDownload.verification={ok:false,filename:file?.name||"",bytes:file?.size||0,sha256:"",error:error?.message||String(error)};recordDebug("AUTOTEST_DOWNLOAD_VERIFY_FAILED",{kind:developerAutotestDownload.kind,error:error?.message||String(error)});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()})});
  $("#autotestDownloadBack")?.addEventListener("click",()=>{releaseDeveloperAutotestDownloadLease();openDeveloperAutotestPanel()})
@@ -1273,14 +1348,20 @@ function bindDeveloperAutotestDownload(){
 async function openDeveloperAutotestDownload(kind){
  const artifact=developerAutotestArtifact(kind);if(!artifact){appendDeveloperAutotestLog("找不到可下載的 AutoTest 匯出內容。");openDeveloperAutotestPanel();return}
  releaseDeveloperAutotestDownloadLease();
- try{const payload=await buildAutotestDownloadPayload(artifact),bridge=await ensureAutotestDownloadBridge({scriptUrl:"./autotest-export-sw.js?v=57025",scope:"./",timeoutMs:8000}),lease=createAutotestDownloadLease(payload);developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false,bridgeStatus:bridge.status,bridgeControlled:bridge.controlled,leaseMethod:lease.method});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
+ try{
+  const payload=await buildAutotestDownloadPayload(artifact);
+  // Bind HTTP delivery to the selected retained run, including localStorage
+  // recovery, without replacing the last completed run or other archives.
+  const archive=await archiveAutotestExportSnapshot(developerAutotest.exportSnapshot).catch(error=>({archived:false,reason:error?.message||String(error)}));
+  const bridge=await ensureAutotestDownloadBridge({scriptUrl:"./autotest-export-sw.js?v=61003",scope:"./",timeoutMs:8000});
+  const lease=createAutotestDownloadLease(payload,{snapshotSlot:archive.slot||"",preferHttp:archive.archived===true&&bridge.controlled});developerAutotestDownload.kind=kind;developerAutotestDownload.payload=payload;developerAutotestDownload.lease=lease;developerAutotestDownload.request=null;developerAutotestDownload.verification=null;recordDebug("AUTOTEST_DOWNLOAD_READY",{kind,filename:payload.filename,bytes:payload.bytes,chars:payload.chars,sha256:payload.sha256,immediateRequested:false,bridgeStatus:bridge.status,bridgeControlled:bridge.controlled,leaseMethod:lease.method});openModal(developerAutotestDownloadHtml());bindDeveloperAutotestDownload()}
  catch(error){appendDeveloperAutotestLog(`標準下載資料建立失敗：${error?.message||error}`);recordDebug("AUTOTEST_DOWNLOAD_PREPARE_FAILED",{kind,error:error?.message||String(error)});openDeveloperAutotestPanel()}
 }
 function developerAutotestTransferLabel(kind){return kind==="debug"?"Debug JSON":kind==="world"?"世界檔":"Recovery JSON"}
 function developerAutotestTransferHtml(){
  const t=developerAutotestTransfer.transfer;if(!t)return `<div class="eyebrow">AUTOTEST · IAB TRANSFER</div><h2>沒有可顯示資料</h2><button id="autotestTransferBack" class="secondary">返回 AutoTest</button>`;
  const full=developerAutotestTransfer.full,index=Math.max(0,Math.min(t.chunks.length-1,developerAutotestTransfer.index)),chunk=t.chunks[index]||{text:"",index:0,chars:0,bytes:0,sha256:""},payload=full?reconstructAutotestTextTransfer(t):chunk.text,manifest=JSON.stringify(autotestTransferManifest(t),null,2),label=developerAutotestTransferLabel(developerAutotestTransfer.kind);
- return `<div class="eyebrow" data-autotest-codex-kind="${esc(developerAutotestTransfer.kind)}" data-autotest-codex-filename="${esc(t.filename)}" data-autotest-codex-sha256="${esc(t.sha256)}" data-autotest-codex-bytes="${Number(t.bytes)}" data-autotest-codex-chunks="${Number(t.totalChunks)}">AUTOTEST · IAB TEXT TRANSFER</div><h2>${esc(label)} 頁面取回</h2><div class="lore-item"><p><strong>檔名：</strong><code>${esc(t.filename)}</code></p><p><strong>完整 SHA-256：</strong><code>${esc(t.sha256)}</code></p><p>${Number(t.bytes).toLocaleString()} bytes · ${Number(t.chars).toLocaleString()} 字元 · ${t.totalChunks} 段 · encoding = utf-8-raw-concat</p><p class="muted">此路徑不呼叫 File Picker、navigator.clipboard 或下載管理器。分段模式請依 1 → ${t.totalChunks} 原樣串接，不要加入額外換行或標記；重組後 SHA-256 必須等於上方值。</p></div><div class="settings-actions"><button id="autotestTransferSelect" class="primary">${full?"選取完整 JSON":"選取本段"}</button><button id="autotestTransferPrev" class="secondary" ${full||index<=0?"disabled":""}>上一段</button><button id="autotestTransferNext" class="secondary" ${full||index>=t.chunks.length-1?"disabled":""}>下一段</button><button id="autotestTransferToggleFull" class="secondary">${full?"返回分段模式":"完整 JSON 單頁模式"}</button><button id="autotestTransferBack" class="ghost">返回 AutoTest</button></div><p><strong>${full?"完整檔案":`第 ${chunk.index} / ${t.totalChunks} 段`}</strong>${full?` · SHA-256 ${esc(t.sha256)}`:` · ${Number(chunk.bytes).toLocaleString()} bytes · ${Number(chunk.chars).toLocaleString()} 字元 · SHA-256 ${esc(chunk.sha256)}`}</p><textarea id="autotestTransferText" readonly spellcheck="false" wrap="off" rows="18" style="width:100%;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto">${esc(payload)}</textarea><p class="muted">按「選取」只建立原生文字選取，不宣稱已寫入剪貼簿；之後的 Ctrl+C 由瀏覽器原生選取機制處理。</p><details open><summary>Codex 無下載 Bridge</summary><p class="muted">不使用下載管理器、File Picker 或剪貼簿。Codex 可在本頁執行 <code>await window.__ELYNDRA_AUTOTEST_CODEX__.manifest("${esc(developerAutotestTransfer.kind)}")</code>，再依 1..totalChunks 呼叫 <code>read(kind,index)</code>，原樣串接 text、以 UTF-8 寫檔，最後用本機 SHA-256 對照 manifest.sha256。來源頁只提供 bytes，不會把它誤報成已保存。</p></details><details><summary>完整性 Manifest</summary><textarea readonly spellcheck="false" wrap="off" rows="10" style="width:100%;font-family:ui-monospace,SFMono-Regular,Consolas,monospace">${esc(manifest)}</textarea></details>`
+  return `<div class="eyebrow" data-autotest-codex-kind="${esc(developerAutotestTransfer.kind)}" data-autotest-codex-filename="${esc(t.filename)}" data-autotest-codex-sha256="${esc(t.sha256)}" data-autotest-codex-bytes="${Number(t.bytes)}" data-autotest-codex-chunks="${Number(t.totalChunks)}">AUTOTEST · IAB TEXT TRANSFER</div><h2>${esc(label)} 頁面取回</h2><div class="lore-item"><p><strong>檔名：</strong><code>${esc(t.filename)}</code></p><p><strong>完整 SHA-256：</strong><code>${esc(t.sha256)}</code></p><p>${Number(t.bytes).toLocaleString()} bytes · ${Number(t.chars).toLocaleString()} 字元 · ${t.totalChunks} 段 · encoding = utf-8-raw-concat</p><p class="muted">Browser API fallback：此路徑不呼叫 File Picker、navigator.clipboard 或下載管理器，改以原生文字選取供你自行取回。分段模式請依 1 → ${t.totalChunks} 原樣串接，不要加入額外換行或標記；重組後 SHA-256 必須等於上方值。</p></div><div class="settings-actions"><button id="autotestTransferSelect" class="primary">${full?"選取完整 JSON":"選取本段"}</button><button id="autotestTransferPrev" class="secondary" ${full||index<=0?"disabled":""}>上一段</button><button id="autotestTransferNext" class="secondary" ${full||index>=t.chunks.length-1?"disabled":""}>下一段</button><button id="autotestTransferToggleFull" class="secondary">${full?"返回分段模式":"完整 JSON 單頁模式"}</button><button id="autotestTransferBack" class="ghost">返回 AutoTest</button></div><p><strong>${full?"完整檔案":`第 ${chunk.index} / ${t.totalChunks} 段`}</strong>${full?` · SHA-256 ${esc(t.sha256)}`:` · ${Number(chunk.bytes).toLocaleString()} bytes · ${Number(chunk.chars).toLocaleString()} 字元 · SHA-256 ${esc(chunk.sha256)}`}</p><textarea id="autotestTransferText" readonly spellcheck="false" wrap="off" rows="18" style="width:100%;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto">${esc(payload)}</textarea><p class="muted">按「選取」只建立原生文字選取，不宣稱已寫入剪貼簿；之後的 Ctrl+C 由瀏覽器原生選取機制處理。</p><details open><summary>Codex 無下載 Bridge</summary><p class="muted">不使用下載管理器、File Picker 或剪貼簿。Codex 可在本頁執行 <code>await window.__ELYNDRA_AUTOTEST_CODEX__.manifest("${esc(developerAutotestTransfer.kind)}")</code>，再依 1..totalChunks 呼叫 <code>read(kind,index)</code>，原樣串接 text、以 UTF-8 寫檔，最後用本機 SHA-256 對照 manifest.sha256。來源頁只提供 bytes，不會把它誤報成已保存。</p></details><details><summary>完整性 Manifest</summary><textarea readonly spellcheck="false" wrap="off" rows="10" style="width:100%;font-family:ui-monospace,SFMono-Regular,Consolas,monospace">${esc(manifest)}</textarea></details>`
 }
 function bindDeveloperAutotestTransfer(){
  $("#autotestTransferSelect")?.addEventListener("click",()=>{const area=$("#autotestTransferText");if(!area)return;area.focus();area.select();area.setSelectionRange?.(0,area.value.length);recordDebug("AUTOTEST_TEXT_TRANSFER_SELECTED",{kind:developerAutotestTransfer.kind,index:developerAutotestTransfer.full?0:developerAutotestTransfer.index+1,full:developerAutotestTransfer.full,chars:area.value.length})});

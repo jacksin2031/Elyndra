@@ -1,4 +1,4 @@
-import {json,methodGuard,safeBody,callModel} from "./_ai.js";
+import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {normalizeActionIntent} from "../src/action-intent.js";
 import {ACTION_ASSESS_SYSTEM} from "../src/ai-runtime-contracts.js";
@@ -13,7 +13,7 @@ export default async function handler(req,res){
   assessment.actionIntent=normalizeActionIntent(assessment?.actionIntent||assessment,assessment?.normalizedAction||label,kind,snapshot);
   return json(res,200,{assessment})
  }catch(e){
-  const status=e.code==="AI_NOT_CONFIGURED"?503:e.message?.startsWith("INVALID_MODEL_JSON")?422:502;
+  const status=errorStatus(e);
   return json(res,status,{error:e.code||e.message})
  }
 }

@@ -34,5 +34,8 @@ export function exploreDungeon(state,label,roll){
  const ev={id:uid("EV"),type:"DUNGEON_EXPLORE",visibility:"PLAYER_KNOWN",siteId:site.id,roomId:target.id,summary,day:state.world.state.day,at:Date.now()};state.events.push(ev);return {siteId:site.id,roomId:target.id,history,loot,hazardDamage,status:site.status}
 }
 export function dungeonSnapshot(state,{director=false}={}){
- const site=currentDungeon(state);if(!site)return null;const current=room(site);return {siteId:site.id,name:site.name,status:site.status,currentRoomId:site.currentRoomId,rooms:site.rooms.filter(r=>director||r.visited).map(r=>({id:r.id,name:r.name,depth:r.depth,hazard:r.hazard,visited:r.visited,cleared:r.cleared,lootTaken:r.lootTaken,connections:director||r.visited?r.connections:[],historyId:director?r.historyId:null}))}
+ const site=currentDungeon(state);if(!site)return null;const current=room(site);
+ if(director)return {siteId:site.id,name:site.name,status:site.status,currentRoomId:site.currentRoomId,rooms:site.rooms.map(r=>({id:r.id,name:r.name,depth:r.depth,hazard:r.hazard,visited:r.visited,cleared:r.cleared,lootTaken:r.lootTaken,connections:[...r.connections],historyId:r.historyId}))};
+ const byId=new Map(site.rooms.map(r=>[r.id,r]));
+ return {name:site.name,status:site.status,currentRoom:current?.name||'',rooms:site.rooms.filter(r=>r.visited).map(r=>({name:r.name,depth:r.depth,hazard:r.hazard,visited:true,cleared:r.cleared,lootTaken:r.lootTaken,connections:[...new Set(r.connections.map(id=>{const target=byId.get(id);return target?.visited?target.name:'未探索連通區域'}).filter(Boolean))]}))}
 }

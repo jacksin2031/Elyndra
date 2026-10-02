@@ -38,10 +38,11 @@ test("v0.54.15 gives Runtime Society enough output headroom and escalates retry 
  assert.match(client,/runtimeRows\(value,"npcs",slots\.npcs\)\.map\(normalizeRuntimeNpc\)/);
 });
 
-test("v0.54.15 opening nearby NPC is player-visible in direct and server world creation",async()=>{
+test("v0.61.2 opening cast NPC stays canonical but hidden until an actual encounter",async()=>{
  const [client,server]=await Promise.all([readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../api/world.js",import.meta.url),"utf8")]);
- assert.match(client,/附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true/);
- assert.match(client,/historyRefs:\["0-2個 HIST id"\],known:true,[\s\S]*?behaviorProfile/);
- assert.match(server,/附近 NPC 位於玩家開局現場、可直接看見，因此 known 必須為 true/);
- assert.match(server,/historyRefs:\["0-2 HIST"\],known:true,[\s\S]*?behaviorProfile/);
+ for(const source of [client,server]){
+  assert.match(source,/known 必須為 false/);
+  assert.doesNotMatch(source,/known 必須為 true/);
+  assert.match(source,/historyRefs:\[[^\]]+\],known:false/);assert.match(source,/behaviorProfile/);
+ }
 });

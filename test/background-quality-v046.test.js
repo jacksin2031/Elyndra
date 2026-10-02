@@ -76,9 +76,11 @@ test("world creation no longer awaits AI Critic or repair before returning candi
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  const start=client.indexOf("export async function generateWorldCandidate"),end=client.indexOf("export async function runWorldQualityCritic",start),gen=client.slice(start,end);
  assert.match(gen,/BACKGROUND_AI_CRITIC_PENDING/);
+ assert.match(gen,/attachWorldGenesis\(draft,/);
+ assert.doesNotMatch(gen,/runWorldQualityCritic\s*\(/);
  assert.doesNotMatch(gen,/await reviewAndRepairWorldCandidate/);
  assert.doesNotMatch(gen,/await recoverFallbackWorldCandidate/);
- const tail=gen.slice(gen.indexOf("const draft="));assert.match(tail,/return draft/);
+ const tail=gen.slice(gen.indexOf("const draft="));assert.match(tail,/return evaluated/);
 });
 
 test("server world route also stops after Engine compliance and local quality baseline",async()=>{

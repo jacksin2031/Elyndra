@@ -267,6 +267,9 @@ export function applyDocumentLocale(locale=loadLocale(),root=document){
  const id=normalizeLocale(locale),meta=localeMeta(id);globalThis.ELYNDRA_LOCALE=id;if(typeof document!=="undefined")document.documentElement.lang=meta.htmlLang;
  const base=root.body||root;if(!base?.ownerDocument&&!base?.querySelectorAll)return id;
  const doc=base.ownerDocument||root,title=doc.querySelector?.("title");if(title){const source=canonicalUiKey(title.textContent);const next=UI[source]?.[id];if(next&&next!==title.textContent)title.textContent=next}
+ // An implicit option value follows its label in the DOM. Capture it before
+ // translating so template/save values stay canonical across locale switches.
+ for(const option of base.querySelectorAll?.("option:not([value])")||[])option.setAttribute("value",option.value);
  const filter=doc.defaultView?.NodeFilter?.SHOW_TEXT??4,walker=doc.createTreeWalker(base,filter),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
  for(const node of nodes){const raw=node.nodeValue,trim=raw.trim();if(!trim)continue;const source=NODE_SOURCE.get(node)||canonicalUiKey(trim);if(!UI[source])continue;NODE_SOURCE.set(node,source);const next=UI[source][id];if(next!==trim)node.nodeValue=raw.replace(trim,next)}
  for(const el of base.querySelectorAll?.("[placeholder],[aria-label],[title]")||[]){let sourceMap=ATTR_SOURCE.get(el);if(!sourceMap){sourceMap={};ATTR_SOURCE.set(el,sourceMap)}for(const attr of ["placeholder","aria-label","title"]){const raw=el.getAttribute(attr);if(!raw)continue;const source=sourceMap[attr]||canonicalUiKey(raw);if(!UI[source])continue;sourceMap[attr]=source;const next=UI[source][id];if(next!==raw)el.setAttribute(attr,next)}}

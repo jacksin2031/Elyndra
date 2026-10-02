@@ -33,7 +33,8 @@ test("v0.55.1 Generation Claim materialization rejects negated mentions",()=>{
 
 test("v0.55.1 magic laws expose executable vs narrative-only contracts",()=>{
  assert.deepEqual(parseMagicLaw("成功施法會消耗10 HP").effect,{type:"HP",amount:10});
- assert.equal(parseMagicLaw("成功施法會失去一段童年記憶").status,"NARRATIVE_ONLY")
+ assert.deepEqual(parseMagicLaw("成功施法會失去一段童年記憶").effect,{type:"MEMORY_LOSS",amount:1});
+ assert.equal(parseMagicLaw("成功施法後星星會重新排列為你的名字").status,"NARRATIVE_ONLY")
 });
 function magicState(cost,inventory=[]){return {world:{seedContract:{magic:3},bible:{magicCost:cost},state:{day:1},canon:{facts:[]}},player:{hp:100,magic:{capacity:100,strain:0,knownSpells:[{id:"S1",name:"火花術",cost:10,effect:"火花"}],attunements:[]}},inventory,events:[],knowledge:[]}}
 
@@ -42,7 +43,7 @@ test("v0.55.1 executable HP magic law creates a real matching state delta",()=>{
 });
 
 test("v0.55.1 unsupported magic law is never falsely claimed as executed",()=>{
- const s=magicState("成功施法會失去一段童年記憶"),r=resolveMagicAction(s,"施法 火花術",{success:true});assert.equal(r.success,true);assert.equal(s.player.hp,100);assert.equal(r.lawExecution.status,"NARRATIVE_ONLY");assert.equal(r.lawExecution.effects.length,0);assert.doesNotMatch(r.event.summary,/已支付|已套用可執行/)
+ const s=magicState("成功施法後星星會重新排列為你的名字"),r=resolveMagicAction(s,"施法 火花術",{success:true});assert.equal(r.success,true);assert.equal(s.player.hp,100);assert.equal(r.lawExecution.status,"NARRATIVE_ONLY");assert.equal(r.lawExecution.effects.length,0);assert.doesNotMatch(r.event.summary,/已支付|已套用可執行/)
 });
 
 test("v0.55.1 executable item magic law checks inventory before mutating cast state",()=>{

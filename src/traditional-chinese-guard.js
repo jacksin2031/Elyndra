@@ -6,9 +6,28 @@ const SIMPLIFIED_CHINESE_RE=new RegExp("["+Object.keys(SIMPLIFIED_TO_TRADITIONAL
 const SIMPLIFIED_CHINESE_GLOBAL_RE=new RegExp("["+Object.keys(SIMPLIFIED_TO_TRADITIONAL).join("")+ "]","g");
 export const WORLD_TRADITIONAL_CHINESE_CONTRACT="所有中文文字欄位一律使用繁體中文（正體字）。JSON key、ID、enum、既有專有代碼保持原樣；人物名、地名、世界名、描述、歷史、社會、任務與建議中的中文不得使用簡體字。";
 export function traditionalizeChineseText(value){return String(value??"").replace(SIMPLIFIED_CHINESE_GLOBAL_RE,ch=>SIMPLIFIED_TO_TRADITIONAL[ch]||ch)}
+function legitimateTraditionalAmbiguousUse(text,index,ch){
+ if(ch!=="后")return false;
+ const around=String(text||"").slice(Math.max(0,index-2),Math.min(String(text||"").length,index+3));
+ return /(?:皇后|王后|太后|后土|后羿)/.test(around)
+}
 export function simplifiedChineseLeak(value){
  let found=null;
- const walk=(v,path="$" )=>{if(found||v==null)return;if(typeof v==="string"){const match=v.match(SIMPLIFIED_CHINESE_RE);if(match)found={character:match[0],path,sample:v.slice(Math.max(0,match.index-20),Math.min(v.length,match.index+21))};return}if(Array.isArray(v)){for(let i=0;i<v.length;i++)walk(v[i],`${path}[${i}]`);return}if(typeof v==="object")for(const [k,x] of Object.entries(v))walk(x,`${path}.${k}`)};
+ const walk=(v,path="$" )=>{if(found||v==null)return;if(typeof v==="string"){for(let i=0;i<v.length;i++){const ch=v[i];if(!SIMPLIFIED_TO_TRADITIONAL[ch]||legitimateTraditionalAmbiguousUse(v,i,ch))continue;found={character:ch,path,sample:v.slice(Math.max(0,i-20),Math.min(v.length,i+21))};break}return}if(Array.isArray(v)){for(let i=0;i<v.length;i++)walk(v[i],`${path}[${i}]`);return}if(typeof v==="object")for(const [k,x] of Object.entries(v))walk(x,`${path}.${k}`)};
+ const keyWalk=(v,path="$" )=>{
+  if(found||v==null)return;
+  if(Array.isArray(v)){for(let i=0;i<v.length;i++)keyWalk(v[i],`${path}[${i}]`);return}
+  if(typeof v!=="object")return;
+  for(const [key,child] of Object.entries(v)){
+   for(let i=0;i<key.length;i++){
+    const ch=key[i];if(!SIMPLIFIED_TO_TRADITIONAL[ch]||legitimateTraditionalAmbiguousUse(key,i,ch))continue;
+    found={character:ch,path:`${path}.[key:${key}]`,sample:key.slice(Math.max(0,i-20),Math.min(key.length,i+21))};break
+   }
+   if(found)return;
+   keyWalk(child,`${path}.${key}`)
+  }
+ };
+ keyWalk(value);if(found)return found;
  walk(value);return found
 }
 export function hasSimplifiedChineseLeak(value){return Boolean(simplifiedChineseLeak(value))}

@@ -28,8 +28,8 @@ test("v0.59.0 narrator is structurally above the action panel",async()=>{
  const [html,css,app,settings,client,server]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../styles.css",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),readFile(new URL("../api/_ai.js",import.meta.url),"utf8")
  ]);
- const artEnd=html.indexOf('</div></div>\n<div class="narrative-panel"'),narrative=html.indexOf('id="narrative"'),decision=html.indexOf('<div class="decision-panel">');
- assert.ok(artEnd>0&&narrative>artEnd&&decision>narrative);assert.doesNotMatch(html,/<div class="scene-copy">[\s\S]*id="narrative"[\s\S]*<\/div><\/div>\n<div class="decision-panel">/);
+ const sceneCopy=html.indexOf('<div class="scene-copy">'),narrativePanel=html.indexOf('<div class="narrative-panel"'),narrative=html.indexOf('id="narrative"'),decision=html.indexOf('<div class="decision-panel">');
+ assert.ok(sceneCopy>0&&narrativePanel>sceneCopy&&narrative>narrativePanel&&decision>narrative);assert.equal(html.slice(sceneCopy,narrativePanel).includes('id="narrative"'),false);
  assert.match(css,/#game \.scene\{display:grid!important;grid-template-rows:minmax\(0,1fr\) auto auto!important/);assert.match(css,/#game \.narrative-panel\{grid-row:2!important/);assert.match(css,/#game \.decision-panel\{grid-row:3!important/);
  assert.match(html,/id="languageSelect"/);assert.match(app,/ensureGameplayLocale/);assert.match(app,/uiFormat\("npcWait"/);assert.match(app,/uiText\("能力"/);assert.match(app,/missingVisibleTranslations/);assert.match(app,/translation\.sourceLocale=activeLocale|localization\.sourceLocale=activeLocale/);
  assert.match(settings,/languageContract\(locale\)/);assert.match(settings,/registerLocalizedOutput\(result,locale\)/);assert.match(client,/export async function translateVisibleWorld/);assert.match(server,/languageContract\(normalizeLocale\(locale\)\)/);

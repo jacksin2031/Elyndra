@@ -3,3 +3,16 @@ node_modules/
 dist/
 .env
 .env.*
+
+# Local browser/debug artifacts — never commit or deploy
+debug-captures/
+debug-chrome*/
+output/
+_qa_backup_*/
+.pages-artifact/
+coverage/
+.fulltest-*.log
+.genesis-*.log
+.creator-redesign-baseline.log
+.failure-context.txt
+Elyndra-autotest-debug-*.json

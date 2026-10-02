@@ -55,12 +55,12 @@ function uniq(rows,max=8){
 function currentLocation(state){return clean(playerVisibleLocationName(state),80)||"眼前這個地方"}
 function visibleNpcName(state,npc){return clean(playerVisibleNpcName(state,npc),80)||"眼前的陌生人"}
 function presentNpcs(state){
- const loc=(state.world?.registry?.locations||[]).find(x=>x.name===state.player?.location),locId=loc?.id;
- return (state.world?.registry?.npcs||[]).filter(n=>n?.known===true&&n?.alive!==false&&(n?.companion?.status==="ACTIVE"||n?.locationId===locId)).slice(0,5)
+ const loc=currentLocationRecord(state),locId=loc?.id;
+ return (state.world?.registry?.npcs||[]).filter(n=>n?.known===true&&n?.alive!==false&&(n?.companion?.status==="ACTIVE"||(locId&&n?.locationId===locId))).slice(0,5)
 }
 function currentLocationRecord(state){
- const name=String(state.player?.location||""),rows=state.world?.registry?.locations||[];
- return rows.find(x=>x?.name===name||x?.id===name)||null
+ const name=String(state.player?.location||""),rows=state.world?.registry?.locations||[],playerId=String(state.player?.locationId||""),worldId=String(state.world?.state?.locationId||"");
+ return rows.find(x=>playerId&&x?.id===playerId)||rows.find(x=>worldId&&x?.id===worldId)||rows.find(x=>x?.name===name||x?.id===name)||null
 }
 function inferSuggestionTarget(state,row){
  if(row?.targetId)return row.targetId;
@@ -131,7 +131,7 @@ export function normalizeContextualSuggestion(row={},options={}){
  }
 }
 function progressionSuggestion(state){
- const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],clue=recentNpcClue(state),event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),npcLabel=npc?visibleNpcName(state,npc):"",sameNpcAttempts=npcLabel?(recentText.split(npcLabel).length-1):0;
+ const q=state.quests?.main,objective=clean(q?.aiHint||q?.objectives?.[0],100),npc=presentNpcs(state)[0],clue=recentNpcClue(state),event=recentVisibleEvent(state),loc=currentLocation(state),recentRows=(state.events||[]).filter(e=>["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"].includes(String(e?.type||""))).slice(-4),recentText=recentRows.map(e=>clean(e.customText||e.action||e.originalAction,180)).join("\n"),npcLabel=npc?visibleNpcName(state,npc):"",sameNpcAttempts=npc?recentRows.filter(row=>String(row.targetId||row.npcId||"")===String(npc.id)||[npcLabel,clean(npc.name,100)].filter(Boolean).some(name=>clean(row.customText||row.action||row.originalAction,180).includes(name))).length:0;
  if(clue?.summary)return normalizeContextualSuggestion({label:"沿著剛取得的線索繼續查證",action:`在${loc}沿著「${clean(clue.summary,100)}」指向的可見方向、聲音、痕跡或符號查證下一個具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:"當前世界與當前場景中剛確認的 NPC 線索",requirementsSatisfied:true,source:"ENGINE"});
  if(npc&&objective&&sameNpcAttempts<2)return normalizeContextualSuggestion({label:`問${clean(visibleNpcName(state,npc),50)}目前目標最直接的線索`,action:`向${clean(visibleNpcName(state,npc),50)}詢問目前目標下一個可親眼確認的具體線索，只問對方親身知道或能指出的位置、人物或事件`,kind:"SOCIAL",risk:"LOW",targetId:npc.id,skillHint:"交涉",approach:"SOCIAL",progression:true,causalBasis:"目前可互動 NPC 與未完成目標同時存在",requirementsSatisfied:true,source:"ENGINE"});
  if(event?.summary)return normalizeContextualSuggestion({label:`追查「${clean(event.summary,44)}」留下的下一條線索`,action:`沿著最近事件「${clean(event.summary,100)}」造成的可見影響，找出一項能繼續追查的具體證據`,kind:"OBSERVE",risk:"LOW",skillHint:"感知 / 觀察",approach:"STEADY",progression:true,causalBasis:sameNpcAttempts>=2?"連續詢問同一人物後切換到可觀察證據":"最近玩家已知事件可被繼續調查",requirementsSatisfied:true,source:"ENGINE"});
@@ -257,7 +257,7 @@ function suggestionRefreshCandidates(state){
  return uniq(rows.filter(Boolean),20)
 }
 function contextualSuggestionProvenanceScope(state){const registry=state?.world?.registry||{},locations=Array.isArray(registry.locations)?registry.locations:[],npcs=Array.isArray(registry.npcs)?registry.npcs:[],raw=String(state?.player?.location||state?.world?.state?.location||""),location=locations.find(x=>String(x?.id||"")===raw||String(x?.name||"")===raw)||null,locId=String(location?.id||""),present=npcs.filter(n=>n?.alive!==false&&(n?.companion?.status==="ACTIVE"||(locId&&String(n?.locationId||"")===locId))),worldId=String(state?.world?.id||""),allowed=new Set([raw,locId,String(location?.name||"")].filter(Boolean));return {worldId,currentLocation:String(playerVisibleLocationName(state)||raw||""),locationDescription:String(location?.description||""),presentNpcNames:present.map(n=>String(playerVisibleNpcName(state,n)||"")).filter(Boolean),allNpcNames:npcs.map(n=>String(n?.name||"")).filter(Boolean),knownLocations:locations.filter(x=>x?.known===true||x===location).map(x=>String(x?.name||"")).filter(Boolean),visibleEventTexts:(state?.events||[]).filter(e=>e?.visibility!=="INTERNAL"&&(!e?.worldId||String(e.worldId)===worldId)&&(!e?.locationId&&!e?.location||allowed.has(String(e.locationId||e.location)))).slice(-8).map(e=>String(e?.playerSummary||e?.visibleSummary||e?.summary||e?.text||"")).filter(Boolean)}}
-function suggestionMatchesCurrentScene(state,row){const inferred=inferActionKind(row?.action||row?.label||"");const effective=inferred==="TRAVEL"&&String(row?.kind||"").toUpperCase()!=="TRAVEL"?{...row,kind:"TRAVEL"}:row;return validateSuggestionProvenance(effective,contextualSuggestionProvenanceScope(state)).valid}
+function suggestionMatchesCurrentScene(state,row){const inferred=inferActionKind(row?.action||row?.label||""),groundedDestination=canonicalTravelTarget(state,row);const effective=inferred==="TRAVEL"&&String(row?.kind||"").toUpperCase()!=="TRAVEL"&&groundedDestination?{...row,kind:"TRAVEL",targetId:row?.targetId||groundedDestination?.id||null}:row;return validateSuggestionProvenance(effective,contextualSuggestionProvenanceScope(state)).valid}
 export function buildContextualActionSet(state,input=[],options={}){
  const recent=recentPlayerActions(state),excluded=suggestionExclusionSet(options?.exclude),isFresh=x=>freshSuggestion(recent,x)&&!excluded.has(clean(x?.action,180))&&!excluded.has(clean(x?.label,180));
  const raw=uniq((Array.isArray(input)?input:[]).map(x=>canonicalSuggestion(state,x)).filter(x=>x&&suggestionMatchesCurrentScene(state,x)&&isFresh(x)&&x.requirementsSatisfied===true&&(x.source!=="AI"||Boolean(x.causalBasis))&&(!x.prevalidated||!x.validatedContext||contextSealCurrent(state,x.validatedContext))&&evaluateSuggestionRequirements(state,x).ok),8).sort((a,b)=>rhythmSuggestionBias(state,b)-rhythmSuggestionBias(state,a));

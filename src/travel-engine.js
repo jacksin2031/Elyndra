@@ -1,3 +1,4 @@
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
 import {advanceTime} from "./world-clock.js?v=57025";
 import {currentWeather,retargetWeather,tickWeather} from "./weather-engine.js?v=57025";
 import {tickSurvival} from "./survival-engine.js?v=57025";
@@ -75,6 +76,9 @@ export function travelTo(state,destination,{roll=null,actionKind="",baseMinutes=
  return {ok:true,target,plan,extraMinutes}
 }
 export function travelSnapshot(state,{director=false}={}){
- const t=ensureTravelNetwork(state),here=current(state),known=new Set(locations(state).filter(x=>x.known===true).map(x=>x.id)),routes=t.routes.filter(r=>director||(known.has(r.fromId)&&known.has(r.toId))).map(r=>({id:r.id,fromId:r.fromId,toId:r.toId,distanceKm:r.distanceKm,terrain:r.terrain,hazard:r.hazard,baseMinutes:r.baseMinutes,open:r.open!==false}));
- return {currentLocationId:here?.id||null,routes:routes.slice(-40),locations:locations(state).filter(x=>director||x.known===true).map(x=>({id:x.id,name:x.name,region:x.region,type:x.type,access:locationAccessStatus(state,x)})).slice(-40)}
+ const t=ensureTravelNetwork(state),here=current(state),locs=locations(state),known=new Set(locs.filter(x=>x.known===true).map(x=>x.id));
+ if(director){const routes=t.routes.map(r=>({id:r.id,fromId:r.fromId,toId:r.toId,distanceKm:r.distanceKm,terrain:r.terrain,hazard:r.hazard,baseMinutes:r.baseMinutes,open:r.open!==false}));return {currentLocationId:here?.id||null,routes:routes.slice(-40),locations:locs.map(x=>({id:x.id,name:x.name,region:x.region,type:x.type,access:locationAccessStatus(state,x)})).slice(-40)}}
+ const byId=new Map(locs.map(x=>[x.id,x]));const routes=t.routes.filter(r=>known.has(r.fromId)&&known.has(r.toId)).map(r=>({from:byId.get(r.fromId)?.name||'',to:byId.get(r.toId)?.name||'',distanceKm:r.distanceKm,terrain:r.terrain,hazard:r.hazard,baseMinutes:r.baseMinutes,open:r.open!==false}));
+ const visibleLocations=locs.filter(x=>x.known===true).map(x=>{const access=locationAccessStatus(state,x);return {name:x.name,region:x.region,type:x.type,access:{allowed:access.allowed,missingHints:access.missing.map(row=>String(row?.hint||'尚未滿足進入條件')).filter(Boolean)}}});
+ return {currentLocation:here?playerVisibleLocationName(state):null,routes:routes.slice(-40),locations:visibleLocations.slice(-40)}
 }

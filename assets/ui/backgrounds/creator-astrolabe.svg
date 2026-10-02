@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" fill="none">
+  <defs>
+    <linearGradient id="brass" x1="60" y1="42" x2="260" y2="278" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0dcae" stop-opacity=".88"/>
+      <stop offset="1" stop-color="#9f7c45" stop-opacity=".42"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientTransform="matrix(0 112 -112 0 160 160)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d4b16d" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#d4b16d" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="160" cy="160" r="144" fill="url(#core)"/>
+  <circle cx="160" cy="160" r="128" stroke="url(#brass)" stroke-opacity=".6" stroke-width="1.2"/>
+  <circle cx="160" cy="160" r="108" stroke="url(#brass)" stroke-opacity=".4"/>
+  <circle cx="160" cy="160" r="82" stroke="url(#brass)" stroke-opacity=".62" stroke-dasharray="2 7"/>
+  <ellipse cx="160" cy="160" rx="128" ry="48" transform="rotate(-37 160 160)" stroke="url(#brass)" stroke-opacity=".64"/>
+  <ellipse cx="160" cy="160" rx="128" ry="48" transform="rotate(37 160 160)" stroke="url(#brass)" stroke-opacity=".42"/>
+  <path d="M160 17v48m0 190v48M17 160h48m190 0h48M59 59l34 34m134 134 34 34m0-202-34 34M93 227l-34 34" stroke="url(#brass)" stroke-opacity=".68"/>
+  <path d="m160 99 15 46 46 15-46 15-15 46-15-46-46-15 46-15 15-46Z" stroke="url(#brass)" stroke-width="1.4"/>
+  <circle cx="160" cy="160" r="8" fill="#e6cc96" fill-opacity=".7"/>
+  <path d="m160 127 7 26 26 7-26 7-7 26-7-26-26-7 26-7 7-26Z" fill="#e6cc96" fill-opacity=".35"/>
+  <circle cx="160" cy="32" r="2.5" fill="#ead6a9"/>
+  <circle cx="288" cy="160" r="2.5" fill="#ead6a9"/>
+  <circle cx="160" cy="288" r="2.5" fill="#ead6a9"/>
+  <circle cx="32" cy="160" r="2.5" fill="#ead6a9"/>
+</svg>

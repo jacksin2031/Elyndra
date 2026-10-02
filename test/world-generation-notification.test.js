@@ -23,7 +23,7 @@ test("notification copy tells player to review contract before crossing",async()
  assert.match(app,/你的異世界已完成編譯，請先確認世界契約，再決定是否穿越/);
  assert.match(app,/phase:"CONTRACT_READY"/);
  assert.match(app,/Notification\.permission==="granted"/);
- assert.match(app,/new Notification\("Elyndra · 世界生成完成"/)
+ assert.match(app,/notificationTitle=uiText\("Elyndra · 世界生成完成",activeLocale\)/);assert.match(app,/new Notification\(notificationTitle/);
 });
 
 test("world-ready notification never leaks the hidden generated world name",async()=>{

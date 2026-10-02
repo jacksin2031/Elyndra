@@ -21,7 +21,7 @@ test("browser runtime groups primary risky and free contextual actions",async()=
  assert.match(app,/自由行動/);
  assert.match(app,/id="otherActionBtn"/);
  assert.match(app,/data-suggestion-index/);
- assert.match(app,/runAction\("free",x\.action,\{suggestion:x\}\)/);
+ assert.match(app,/runAction\("free",localizedActionText\(x\.action,x\.kind\),\{suggestion:x\}\)/);
  assert.match(app,/suggestionPresentation\(gameState,x\)/);
  assert.match(css,/\.progression-action/);
  assert.match(css,/\.danger-action/);

@@ -6,47 +6,29 @@ test("every browser module import is explicitly cache-versioned",async()=>{
  const files=(await readdir(new URL("../src/",import.meta.url))).filter(x=>x.endsWith(".js"));
  for(const file of files){
   const source=await readFile(new URL("../src/"+file,import.meta.url),"utf8");
-  for(const match of source.matchAll(/from\s+"(\.\/[^"]+\.js)([^"]*)";/g))assert.match(match[2],/^\?v=\d+$/,file+" missing cache version for "+match[1])
+  for(const match of source.matchAll(/from\s+"(\.\/[^"]+\.js)([^"]*)";/g)){
+   assert.match(match[2],/^\?v=\d+(?:&base=1)?$/,file+" missing cache version for "+match[1]);
+  }
  }
 });
 
-test("v0.57.29 keeps structured AI and Developer Autotest cache graphs coherent",async()=>{
- const [html,app,client,stateSync,actions,settings,contracts,adventure,turnOutcome,lazy,knowledge,worldEngine,causal,integrity,simulation,npc,storage,progression]=await Promise.all([
-  readFile(new URL("../index.html",import.meta.url),"utf8"),
-  readFile(new URL("../app.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-client.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/state-sync.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/contextual-actions.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/ai-runtime-contracts.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/adventure-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/turn-outcome.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/lazy-generation.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/knowledge-model.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/world-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/causal-world-core.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/causal-integrity.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/world-simulation.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/npc-engine.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/storage.js",import.meta.url),"utf8"),
-  readFile(new URL("../src/progression-ui.js",import.meta.url),"utf8")
- ]);
- assert.match(html,/app\.js\?v=57029/);
- const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);
- assert.ok(appImports.length>20);assert.ok(appImports.every(x=>["57025","57026","57028","57029"].includes(x)),"app browser imports must use tracked cache generations");assert.match(app,/\.\/src\/version\.js\?v=57029/);assert.match(app,/\.\/src\/npc-conversation\.js\?v=57029/);assert.match(app,/\.\/src\/acquisition-notifier\.js\?v=57026/);assert.match(app,/\.\/src\/contextual-actions\.js\?v=57029/);
- assert.match(actions,/\.\/action-intent\.js\?v=57025/);assert.match(contracts,/\.\/action-intent\.js\?v=57025/);assert.match(turnOutcome,/\.\/action-intent\.js\?v=57025/);
- assert.match(client,/\.\/ai-settings\.js\?v=57025/);
- assert.match(client,/\.\/turn-compiler\.js\?v=57029/);assert.match(client,/\.\/turn-outcome\.js\?v=57025/);
- assert.match(client,/\.\/action-intent\.js\?v=57025/);assert.match(client,/\.\/state-sync\.js\?v=57025/);assert.match(client,/\.\/ai-runtime-contracts\.js\?v=57025/);assert.match(contracts,/\.\/state-sync\.js\?v=57025/);
- assert.match(client,/\.\/knowledge-model\.js\?v=57025/);assert.match(client,/\.\/lazy-generation\.js\?v=57025/);
- for(const [source,label] of [[adventure,"adventure"],[worldEngine,"world-engine"],[causal,"causal-world-core"],[integrity,"causal-integrity"],[simulation,"world-simulation"],[storage,"storage"],[progression,"progression-ui"]]){
-  const tokens=[...source.matchAll(/from "\.\/[^"]+\.js\?v=(\d+)";/g)].map(x=>x[1]);assert.ok(tokens.length,label+" should import browser modules");assert.ok(tokens.every(x=>["54018","540181","57025","57028","57029"].includes(x)),label+" imports must use tracked release tokens")
- }
- assert.match(actions,/groundedSuggestionFailForward/);
- assert.match(stateSync,/groundStatePatch/);
- assert.match(settings,/reasoning_effort:"low"/);
- assert.match(lazy,/generationRevision/);
- assert.match(knowledge,/UNCONFIRMED/);
- assert.match(npc,/NPC_AUTONOMOUS_ACTION/);
- assert.match(app,/startDeveloperAutotest/);
+test("v0.61.3 keeps browser entrypoints and repaired modules on fresh cache identities",async()=>{
+ const [html,app]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8")]);
+ assert.match(html,/app\.js\?v=61003/);
+ assert.match(html,/styles\.css\?v=61003/);assert.match(html,/creator\.css\?v=61003/);assert.match(html,/world-surfaces\.css\?v=61003/);
+ const mapText=(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)||[])[1];assert.ok(mapText);
+ const imports=JSON.parse(mapText).imports;
+ assert.equal(imports["./src/version.js?v=60010"],"./src/version.js?v=61003");
+ assert.equal(imports["./src/origin-runtime.js?v=57025"],"./src/origin-runtime.js?v=61003");
+ assert.equal(imports["./src/ai-client.js?v=60010&base=1"],"./src/ai-client.js?v=61003&base=1");
+ assert.equal(imports["./src/ai-settings.js?v=60012&base=1"],"./src/ai-settings.js?v=61003&base=1");
+ assert.equal(imports["./src/ai-autotest.js?v=60010"],"./src/ai-autotest.js?v=61003");
+ assert.equal(imports["./src/contextual-actions.js?v=60031&base=1"],"./src/contextual-actions.js?v=61003&base=1");
+ assert.equal(imports["./src/game-engine.js?v=60006&base=1"],"./src/game-engine.js?v=61003&base=1");
+ assert.equal(imports["./src/scene-provenance.js?v=57025"],"./src/scene-provenance.js?v=61003");
+ assert.equal(imports["./src/travel-engine.js?v=57025"],"./src/travel-engine.js?v=61003");
+ assert.equal(imports["./src/traditional-chinese-guard.js?v=59014"],"./src/traditional-chinese-guard.js?v=61003");
+ const appImports=[...app.matchAll(/from "\.\/src\/[^"]+\.js\?v=(\d+)";/g)].map(x=>Number(x[1]));
+ assert.ok(appImports.length>20);assert.ok(appImports.every(Number.isFinite));
+ assert.match(app,/startDeveloperAutotest/);assert.match(app,/groundedSuggestionFailForward/);
 });

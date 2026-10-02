@@ -1,4 +1,4 @@
-import {json,methodGuard,safeBody,callModel} from "./_ai.js";
+import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {sceneTurnSnapshot} from "../src/turn-compiler.js";
 import {normalizeActionIntent} from "../src/action-intent.js";
@@ -14,7 +14,7 @@ export default async function handler(req,res){
   const raw=await callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,system:sceneNarratorSystem(),user:JSON.stringify(input),temperature:.8,timeoutMs:35000,maxOutputTokens:1100});
   return json(res,200,{scene:parseModelJSON(raw),actionIntent,kernel})
  }catch(e){
-  const status=e.code==="AI_NOT_CONFIGURED"?503:e.code==="INVALID_MODEL_JSON"||String(e.message||"").startsWith("INVALID_MODEL_JSON")?422:502;
+  const status=errorStatus(e);
   return json(res,status,{error:e.code||e.message})
  }
 }

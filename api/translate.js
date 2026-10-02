@@ -1,4 +1,4 @@
-import {json,methodGuard,safeBody,callModel} from "./_ai.js";
+import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {normalizeLocale,languageContract} from "../src/locale-runtime.js";
 import {parseModelJSON} from "../src/model-json.js";
 
@@ -12,5 +12,5 @@ export default async function handler(req,res){
   const parsed=parseModelJSON(raw),translated=Array.isArray(parsed?.translations)?parsed.translations:[];
   if(translated.length!==strings.length)throw new Error("TRANSLATION_COUNT_MISMATCH");
   return json(res,200,{translations:strings.map((source,i)=>({source,translated:String(translated[i]??"").trim()||source}))});
- }catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message})}
+ }catch(e){return json(res,errorStatus(e),{error:e.code||e.message})}
 }

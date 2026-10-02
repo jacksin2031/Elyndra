@@ -10,9 +10,9 @@ test("v0.57.18 FIRST_BUTTON retreats when combat HP is at or below safety thresh
 
 test("v0.57.18 FIRST_BUTTON still attacks in combat when HP is healthy",()=>{const s=state();s.combat={active:true,enemy:{name:"敵人",hp:40}};assert.equal(firstButtonAutotestDecision(s,[]).combatAction,"attack")});
 
-test("v0.57.18 stalled recovery materializes route and chooses an exact known destination",()=>{const s=state(),recent=[1,2,3,4,5].map(i=>({action:"詢問 "+i,kind:"SOCIAL",targetId:"N1",progressed:false}));const d=firstButtonAutotestDecision(s,recent);assert.equal(d.kind,"TRAVEL");assert.equal(d.targetId,"L2");assert.equal(d.action,"前往側路");assert.ok(s.world.travel.routes.length>=1)});
+test("v0.57.18 stalled recovery uses an existing visible non-social suggestion instead of free travel",()=>{const s=state(),recent=[1,2,3,4,5].map(i=>({action:"詢問 "+i,kind:"SOCIAL",targetId:"N1",progressed:false}));const d=firstButtonAutotestDecision(s,recent);assert.equal(d.mode,"suggestion");assert.equal(d.kind,"OBSERVE");assert.equal(d.targetId,"L2");assert.equal(d.action,"查看側路");assert.equal(d.suggestionIndex,1);assert.equal(d.firstButtonOverride,true)});
 
-test("v0.57.18 repeated target triggers destination recovery even with incidental state changes",()=>{const s=state(),recent=[1,2,3,4,5].map((i)=>({action:"詢問不同細節 "+i,kind:"SOCIAL",targetId:"N1",progressed:i===3}));const d=firstButtonAutotestDecision(s,recent);assert.equal(d.firstButtonOverride,true);assert.equal(d.kind,"TRAVEL");assert.equal(d.targetId,"L2")});
+test("v0.57.18 repeated target recovery selects a different visible action even with incidental state changes",()=>{const s=state(),recent=[1,2,3,4,5].map((i)=>({action:"詢問不同細節 "+i,kind:"SOCIAL",targetId:"N1",progressed:i===3}));const d=firstButtonAutotestDecision(s,recent);assert.equal(d.mode,"suggestion");assert.equal(d.firstButtonOverride,true);assert.equal(d.kind,"OBSERVE");assert.equal(d.targetId,"L2");assert.equal(d.suggestionIndex,1)});
 
 test("v0.57.18 parsed model strings normalize observed Simplified-Chinese leakage",()=>{const row=parseModelJSON('{"text":"确认记录本的保存状态；石阶旁生长；管理体系；仅限；报告中断"}');assert.equal(row.text,"確認記錄本的保存狀態；石階旁生長；管理體系；僅限；報告中斷");assert.equal(sanitizeSuggestion("向灰斑确认记录本的保存状态"),"")});
 

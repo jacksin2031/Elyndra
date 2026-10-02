@@ -17,8 +17,8 @@ test("app retains earlier AI options when a new Scene has no usable suggestions"
   assert.match(app,/PLAYER_ACTION_SUGGESTIONS_REBUILT/);
   assert.match(app,/SCENE_NO_FRESH_SUGGESTIONS/);
   assert.doesNotMatch(app,/if\(source\.length\)\{const contextual=buildContextualActionSet\(state,checked\.accepted\)/);
-  assert.match(index,/app\.js\?v=60031/);
-  assert.match(index,/"\.\/src\/turn-compiler\.js\?v=57029":"\.\/src\/v06028-turn-compiler-hotfix\.js\?v=60028"/);
+  assert.match(index,/app\.js\?v=61003/);
+  assert.match(index,/"\.\/src\/turn-compiler\.js\?v=57029":"\.\/src\/v06028-turn-compiler-hotfix\.js\?v=61003"/);
   assert.match(app,/turn-compiler\.js\?v=57029/);
   assert.match(app,/rawSource\.filter\(row=>String\(row\?\.action\|\|row\?\.label\|\|row\|\|""\)\.trim\(\)!=="\[object Object\]"\)/);
 });

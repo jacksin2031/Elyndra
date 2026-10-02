@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {randomAutotestWorldRaw,playerVisibleAutotestSnapshot,normalizeAutotestDecision,autotestStopReason,autotestStateFingerprint,autotestWorldSummary,autotestWorldCoherence,buildAutotestReport,autotestExportSelection} from "../src/ai-autotest.js";
+import {WORLD_STYLE_NAMES} from "../src/world-style-presets.js";
 
 function state(){
  return {
@@ -14,7 +15,7 @@ function state(){
 
 test("random autotest world raw stays within accepted creation enums",()=>{
  const raw=randomAutotestWorldRaw(()=>0.42,3);
- assert.ok(["王道奇幻","黑暗奇幻","東方幻想","蒸汽魔法","末日異世界"].includes(raw.worldStyle));
+ assert.ok(WORLD_STYLE_NAMES.filter(name=>name!=="自訂世界").includes(raw.worldStyle));
  assert.ok(["小型","中型","大型"].includes(raw.worldScale));
  assert.ok(["easy","normal","hard","realistic"].includes(raw.difficulty));
  assert.equal(raw.magicLevelMode,"random");
@@ -39,6 +40,23 @@ test("decision normalization supports suggestions, free actions and combat",()=>
  const combat={...snap,combat:{active:true,enemy:{name:"Wolf",hp:5}}};
  assert.equal(normalizeAutotestDecision({mode:"free",action:"ignore"},combat).mode,"combat");
  assert.ok(["attack","defend","retreat"].includes(normalizeAutotestDecision({mode:"combat",combatAction:"defend"},combat).combatAction));
+});
+
+test("autotest rebounds a free action that exactly matches an existing suggestion",()=>{
+ const s=state();s.suggestionIntents=[{label:"Follow the road",action:"沿路前進",kind:"TRAVEL",progression:true,risk:"LOW"}];
+ const snap=playerVisibleAutotestSnapshot(s),out=normalizeAutotestDecision({mode:"free",action:"沿路前進"},snap);
+ assert.equal(out.mode,"suggestion");assert.equal(out.suggestionIndex,0);assert.equal(out.action,"沿路前進");assert.equal(out.reboundFromFree,true)
+});
+
+test("autotest rebounds punctuation-only free-action variants to the matching suggestion",()=>{
+ const s=state();s.suggestionIntents=[{label:"檢查門口",action:"檢查門口附近的腳印",kind:"OBSERVE",progression:true,risk:"LOW"}];
+ const snap=playerVisibleAutotestSnapshot(s),out=normalizeAutotestDecision({mode:"free",action:"檢查門口附近的腳印。"},snap);
+ assert.equal(out.mode,"suggestion");assert.equal(out.suggestionIndex,0);assert.equal(out.action,"檢查門口附近的腳印")
+});
+
+test("autotest keeps a genuinely distinct player action as free",()=>{
+ const snap=playerVisibleAutotestSnapshot(state()),out=normalizeAutotestDecision({mode:"free",action:"蹲下檢查道路旁未被按鈕涵蓋的排水溝"},snap);
+ assert.equal(out.mode,"free");assert.equal(out.suggestionIndex,null)
 });
 
 test("stop conditions are deterministic and turn limit is always enforced",()=>{

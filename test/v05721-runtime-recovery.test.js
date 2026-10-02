@@ -63,6 +63,12 @@ test("v0.57.22 Codex bridge reconstructs retained artifact without picker/downlo
  assert.equal(verified.bytes,manifest.bytes);
 });
 
+test("v0.57.22 Codex bridge refreshes cached chunks when retained artifact bytes change without changing length",async()=>{
+ let body=JSON.stringify({x:1});const artifact={filename:"Elyndra-retained.json",mime:"application/json;charset=utf-8",get body(){return body}},bridge=installAutotestCodexBridge(async()=>artifact,{globalImpl:{},cryptoImpl:webcrypto,chunkChars:16384});
+ const first=await bridge.manifest("debug");body=JSON.stringify({y:1});const second=await bridge.manifest("debug");
+ assert.equal(first.bytes,second.bytes);assert.notEqual(first.sha256,second.sha256);const saved=await bridge.readAll("debug");assert.equal(saved.text,body);assert.equal((await bridge.verifyText("debug",saved.text)).ok,true)
+});
+
 test("v0.57.22 telemetry exposes error type task provider and class distribution",()=>{
  const summary=telemetrySummary([
   {at:1,type:"AI_CALL_FAILED",data:{task:"action",provider:"openai",error:"AI_TIMEOUT: Provider timeout"}},

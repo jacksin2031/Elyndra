@@ -97,11 +97,17 @@ test("causal reconciliation auto-materializes History anchors already represente
 
 test("background world evolution uses resumable checkpoint canon pipeline",async()=>{
  const app=await readFile(new URL("../app.js",import.meta.url),"utf8");
- assert.match(app,/planLazyGeneration\(gameState,\{reason\}\)/);
+ assert.match(app,/planLazyGeneration\(gameState,\{reason,domain:/);
  assert.match(app,/generateRegionExpansion\(state,reason,\{signal:ctrl\.signal,plan,onStage:stage=>commitRuntimeStageCheckpoint\(plan,stage,sessionToken,state\)\}\)/);
  assert.match(app,/validateLazyGenerationCandidate\(state,ex\.generation,plan,\{added:plan\.checkpoint\?\.added\}\)/);
- assert.match(app,/plan\.checkpoint\?\.added\|\|canonizeGeneration\(state,ex\.generation\)/);
- assert.match(app,/commitLazyGeneration\(state,plan,ex\.generation,added,\{sourceProvider:ex\.generationSource\?\.provider,sourceModel:ex\.generationSource\?\.model\}\)/);
- assert.match(app,/checkpointed=hasLazyGenerationCheckpoint\(plan\)/);
- assert.match(app,/plan\.status==="PLANNED"&&!checkpointed\)abortLazyGeneration\(state,plan/);
-});
+  assert.match(app,/plan\.checkpoint\?\.added\|\|canonizeGeneration\(state,ex\.generation\)/);
+  assert.match(app,/commitLazyGeneration\(state,plan,ex\.generation,added,\{sourceProvider:ex\.generationSource\?\.provider,sourceModel:ex\.generationSource\?\.model\}\)/);
+  assert.match(app,/reconcileLazyGenerationLifecycle\(s\)/);
+  assert.match(app,/function settleLazyGenerationFailure\(state,plan,error,/);
+  assert.match(app,/storedCheckpoint&&TERMINAL_LAZY_CHECKPOINT_ERROR_CODES\.has\(errorCode\)\)terminalized=failLazyGenerationTerminal\(state,plan,errorCode\)/);
+  assert.match(app,/else if\(!checkpointed\)abortLazyGeneration\(state,plan,message\)/);
+  assert.match(app,/const failure=settleLazyGenerationFailure\(state,plan,e,"BACKGROUND_FAILED"\)/);
+  assert.match(app,/const failure=settleLazyGenerationFailure\(state,plan,e,"AUTOTEST_RUNTIME_EXPANSION_FAILED"\)/);
+  assert.match(app,/canonizeGeneration\(gameState,candidate\.generation\);repairPlayerLocation\(gameState\);applyOriginRuntime/);
+  assert.match(app,/canonizeGeneration\(state,candidate\.generation\);repairPlayerLocation\(state\);applyOriginRuntime/);
+ });

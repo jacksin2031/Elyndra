@@ -15,7 +15,7 @@ export async function verifyAutotestCodexText(transfer,text,{cryptoImpl=globalTh
 export function installAutotestCodexBridge(artifactProvider,{globalImpl=globalThis,cryptoImpl=globalThis.crypto,chunkChars=131072}={}){
  if(typeof artifactProvider!=="function")throw new Error("AUTOTEST_CODEX_PROVIDER_REQUIRED");
  const cache=new Map();
- const load=async kind=>{const artifact=await artifactProvider(String(kind||""));if(!artifact?.filename)throw new Error(`AUTOTEST_CODEX_ARTIFACT_NOT_READY:${kind}`);const key=[kind,artifact.filename,String(artifact.body??"").length].join(":");if(cache.get(kind)?.key===key)return cache.get(kind).transfer;const transfer=await buildAutotestCodexTransfer(artifact,{chunkChars,cryptoImpl});cache.set(kind,{key,transfer});return transfer};
+ const load=async kind=>{const artifact=await artifactProvider(String(kind||""));if(!artifact?.filename)throw new Error(`AUTOTEST_CODEX_ARTIFACT_NOT_READY:${kind}`);const filename=String(artifact.filename),body=String(artifact.body??""),cached=cache.get(kind);if(cached?.filename===filename&&cached?.body===body)return cached.transfer;const transfer=await buildAutotestCodexTransfer({...artifact,filename,body},{chunkChars,cryptoImpl});cache.set(kind,{filename,body,transfer});return transfer};
  const api={
   schema:"elyndra-autotest-codex-bridge-v1",
   instructions:"Call manifest(kind), then read(kind,index) for 1..totalChunks, concatenate text with no separator, write exact UTF-8 bytes, and verify the local SHA-256 against manifest.sha256.",

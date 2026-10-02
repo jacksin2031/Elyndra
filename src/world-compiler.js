@@ -71,7 +71,7 @@ export function buildWorldAnchorContract(core,pacing){
   worldName:text(core?.worldName),worldTheme:text(core?.worldTheme),
   startingRegion:text(b.startingRegion),startingSettlement:text(b.startingSettlement),startingLocation:text(b.startingLocation),
   centralConflict:text(b.centralConflict),currentCrisis:text(b.currentCrisis),magicCost:text(b.magicCost),era:text(b.era),tone:text(b.tone),
-  civilization:obj(b.civilization)?structuredClone(b.civilization):{},communication:obj(b.communication)?structuredClone(b.communication):{},blueprintProfile:obj(b.blueprintProfile)?structuredClone(b.blueprintProfile):null,
+  civilization:obj(b.civilization)?structuredClone(b.civilization):{},communication:obj(b.communication)?structuredClone(b.communication):{},designLogic:obj(b.designLogic)?structuredClone(b.designLogic):null,blueprintProfile:obj(b.blueprintProfile)?structuredClone(b.blueprintProfile):null,
   weatherPhenomena:(Array.isArray(weather.phenomena)?weather.phenomena:[]).map(x=>({id:text(x.id),name:text(x.name),observableName:text(x.observableName)})).filter(x=>x.id),
   publicFacts:uniq(core?.publicFacts).slice(0,4),timelinePacing:structuredClone(pacing||{})
  }
@@ -222,6 +222,12 @@ function fallbackWorldName(genre,seed={}){
   "黑暗奇幻":["灰燼環","烏夜界","斷誓域","暮痕界"],
   "東方幻想":["玄霄","雲荒","瀾洲","曜川"],
   "蒸汽魔法":["銅霧聯域","齒輪穹界","蒸星境","鐵虹環"],
+  "低魔政治奇幻":["灰冠聯境","燼印諸侯領","白塔盟約地","七旗邊境"],
+  "神話洪荒":["太初荒海","萬嶽祖域","蒼古原","神木洪境"],
+  "浮空群島":["天穹列島","風脈群島","雲冠環域","浮辰群峰"],
+  "魔導都市":["曜環都","靈軌城邦","七塔มหานคร","魔網都環"],
+  "巨獸共生":["背岳原","巨骸林海","脈獸荒原","行陸共生域"],
+  "永夜寒境":["暮冰界","極夜霜原","寒星境","長夜雪域"],
   "末日異世界":["餘燼地平","斷日界","灰潮域","殘光環"],
   "自訂世界":["遠序界","歧光域","裂穹環","萬象境"]
  };
@@ -268,7 +274,7 @@ export function mergeCoreWave(identity,expected,rules,anchor){
   seedCompliance:buildSeedComplianceFromIdentity(identity,expected),
   worldBible:{
    era:text(r.era),centralConflict:text(r.centralConflict),magicCost:text(r.magicCost),ancientTruth:text(r.ancientTruth),currentCrisis:text(r.currentCrisis),tone:text(r.tone),
-   civilization:obj(r.civilization)?structuredClone(r.civilization):{},communication:obj(r.communication)?structuredClone(r.communication):{},blueprintProfile:obj(expected?.blueprintProfile)?structuredClone(expected.blueprintProfile):(obj(r.blueprintProfile)?structuredClone(r.blueprintProfile):null),
+   civilization:obj(r.civilization)?structuredClone(r.civilization):{},communication:obj(r.communication)?structuredClone(r.communication):{},designLogic:obj(r.designLogic)?structuredClone(r.designLogic):null,blueprintProfile:obj(expected?.blueprintProfile)?structuredClone(expected.blueprintProfile):(obj(r.blueprintProfile)?structuredClone(r.blueprintProfile):null),
    startingRegion:text(a.startingRegion),startingSettlement:text(a.startingSettlement),startingLocation:text(a.startingLocation),
    weatherSystem:obj(a.weatherSystem)?structuredClone(a.weatherSystem):{}
   },

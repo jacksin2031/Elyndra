@@ -12,7 +12,7 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  assert.match(settings,/hardProviderDeadline/);assert.match(settings,/Promise\.race/);
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
  for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
- for(const timeout of [35000,50000,55000,70000,75000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
+ for(const timeout of [22000,35000,50000,55000,75000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
  assert.doesNotMatch(client,/timeoutMs:95000/);
  assert.match(settings,/max_completion_tokens/);
  assert.match(settings,/maxOutputTokens/);
@@ -54,12 +54,12 @@ test("server world generation uses bounded two-AI waves instead of one 120s mono
  assert.match(core,/timeoutMs=30000/);
  assert.match(core,/AI_TIMEOUT: upstream provider exceeded/);
  assert.doesNotMatch(world,/timeoutMs:120000/);
- for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(world,new RegExp('stageJSON\\(diagnostics,"'+stage+'"'));
+ for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(world,new RegExp('stageJSON\\(req,diagnostics,"'+stage+'"'));
  for(const timeout of [35000,50000,55000,70000,75000])assert.match(world,new RegExp('timeoutMs:'+timeout));
  assert.equal([...world.matchAll(/Promise\.all\(\[/g)].length,3);
- assert.match(world,/Promise\.all\(\[\s*stageJSON\(diagnostics,"CORE_RULES"[\s\S]*?stageJSON\(diagnostics,"CORE_ANCHOR"/);
- assert.match(world,/Promise\.all\(\[\s*stageJSON\(diagnostics,"HISTORY"[\s\S]*?stageJSON\(diagnostics,"GEOGRAPHY"/);
- assert.match(world,/Promise\.all\(\[\s*stageJSON\(diagnostics,"FUTURE"[\s\S]*?stageJSON\(diagnostics,"SOCIETY"/);
+ assert.match(world,/Promise\.all\(\[\s*stageJSON\(req,diagnostics,"CORE_RULES"[\s\S]*?stageJSON\(req,diagnostics,"CORE_ANCHOR"/);
+ assert.match(world,/Promise\.all\(\[\s*stageJSON\(req,diagnostics,"HISTORY"[\s\S]*?stageJSON\(req,diagnostics,"GEOGRAPHY"/);
+ assert.match(world,/Promise\.all\(\[\s*stageJSON\(req,diagnostics,"FUTURE"[\s\S]*?stageJSON\(req,diagnostics,"SOCIETY"/);
  assert.match(turn,/timeoutMs:35000/);
  assert.match(turn,/plan\.mode==="DEEP"\?50000:25000/);
  assert.doesNotMatch(turn,/timeoutMs:60000/);

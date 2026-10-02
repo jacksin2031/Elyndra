@@ -1,4 +1,5 @@
 import {applyOriginRuntime} from "./origin-runtime.js?v=57025";
+import {getWorldStyleBlueprint} from "./world-style-presets.js?v=61002";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const list=v=>Array.isArray(v)?v.map(x=>clean(x,120)).filter(Boolean):clean(v,1200).split(/[\n,，;；]+/).map(x=>clean(x,120)).filter(Boolean);
@@ -16,14 +17,15 @@ export const DIFFICULTY_PRESETS=Object.freeze({
  realistic:Object.freeze({id:"realistic",label:"現實",hunger:true,fatigue:true,statusEffects:true,hpFloor:0,savePolicy:"AUTO_ONLY",languageBarrier:"HIGH",injuryRecovery:"REALISTIC",carryWeight:"REALISTIC",environment:"REALISTIC",persistentConsequences:true,permadeath:false})
 });
 
+const originNarrative=(coreTension,requiredSignals,forbiddenSignals,proseContract)=>({coreTension,requiredSignals,forbiddenSignals,proseContract});
 export const ORIGIN_PRESETS=Object.freeze({
- crossing:{id:"crossing",label:"穿越",legalStatus:"NONE",knowledgePolicy:"EARTH_ONLY",languagePolicy:"UNKNOWN",openingBias:"ARRIVAL_ANOMALY"},
- reincarnation:{id:"reincarnation",label:"轉生",legalStatus:"LOCAL_OR_UNKNOWN",knowledgePolicy:"PARTIAL_LOCAL",languagePolicy:"ORIGIN_DEPENDENT",openingBias:"NEW_LIFE"},
- summoned:{id:"summoned",label:"被召喚",legalStatus:"SPONSOR_DEPENDENT",knowledgePolicy:"BRIEFED_PARTIAL",languagePolicy:"SUMMONER_DEPENDENT",openingBias:"SUMMONING_EVENT"},
- possession:{id:"possession",label:"附身",legalStatus:"HOST_IDENTITY",knowledgePolicy:"HOST_FRAGMENTED",languagePolicy:"HOST_DEPENDENT",openingBias:"IDENTITY_CONFLICT"},
- native:{id:"native",label:"原住民",legalStatus:"LOCAL",knowledgePolicy:"LOCAL_BASELINE",languagePolicy:"NATIVE",openingBias:"LOCAL_LIFE"},
- amnesia:{id:"amnesia",label:"失憶",legalStatus:"HIDDEN",knowledgePolicy:"AMNESIA",languagePolicy:"FRAGMENTED",openingBias:"MEMORY_GAP"},
- custom:{id:"custom",label:"完全自訂",legalStatus:"CUSTOM",knowledgePolicy:"CUSTOM",languagePolicy:"CUSTOM",openingBias:"CUSTOM"}
+ crossing:{id:"crossing",label:"穿越",legalStatus:"NONE",knowledgePolicy:"EARTH_ONLY",languagePolicy:"UNKNOWN",openingBias:"ARRIVAL_ANOMALY",narrativeIdentity:originNarrative("DISPLACEMENT",["OUTSIDER_COGNITIVE_DISCONTINUITY"],["UNEARNED_LOCAL_KNOWLEDGE","INSTANT_BELONGING"],{mustShow:"從已知環境斷裂到陌生環境；第一幕用感官、限制或實際摩擦呈現玩家仍以外來者認知世界",mustAvoid:"直接解說世界真相、讓玩家立即熟悉地方文化或無代價融入當地"})},
+ reincarnation:{id:"reincarnation",label:"轉生",legalStatus:"LOCAL_OR_UNKNOWN",knowledgePolicy:"PARTIAL_LOCAL",languagePolicy:"ORIGIN_DEPENDENT",openingBias:"NEW_LIFE",narrativeIdentity:originNarrative("CONTINUITY_WITH_LIMITS",["PREEXISTING_LOCAL_LIFE"],["TOTAL_LOCAL_OMNISCIENCE","EARTH_ARRIVAL_FRAMING"],{mustShow:"角色已有合理的本地生命背景；第一幕應從正常生活中的具體異常開始，同時保留知識、身份或資源限制",mustAvoid:"把轉生寫成剛從地球掉落，或因轉生身份自動知道整個世界與所有地方資訊"})},
+ summoned:{id:"summoned",label:"被召喚",legalStatus:"SPONSOR_DEPENDENT",knowledgePolicy:"BRIEFED_PARTIAL",languagePolicy:"SUMMONER_DEPENDENT",openingBias:"SUMMONING_EVENT",narrativeIdentity:originNarrative("DEPENDENCY_AND_AGENDA",["SUMMONING_WORLD_TRACE"],["SUMMONER_CLAIM_AS_CANON","UNCAUSED_RANDOM_ARRIVAL"],{mustShow:"召喚是真實世界事件；第一幕至少留下召喚者、召喚目的或召喚事故之一的可感知痕跡，並造成限制、要求、阻礙或後果",mustAvoid:"把召喚方的說法直接當成 Canon，或把被召喚寫成毫無世界側原因的隨機抵達"})},
+ possession:{id:"possession",label:"附身",legalStatus:"HOST_IDENTITY",knowledgePolicy:"HOST_FRAGMENTED",languagePolicy:"HOST_DEPENDENT",openingBias:"IDENTITY_CONFLICT",narrativeIdentity:originNarrative("IDENTITY_ASYMMETRY",["HOST_HAS_PREEXISTING_SOCIAL_TRACE"],["FULL_HOST_MEMORY","OUTSIDER_DEFAULT_FRAMING","RANDOM_NEW_LOCAL_IDENTITY"],{mustShow:"宿主在玩家接管前已存在於世界中；以身體、物件、社會關係、他人反應或生活痕跡呈現玩家自我與宿主身份的不對稱",mustAvoid:"立即取得完整宿主記憶、把附身者當一般外來者，或憑空替宿主生成全新且無前史的本地身份"})},
+ native:{id:"native",label:"原住民",legalStatus:"LOCAL",knowledgePolicy:"LOCAL_BASELINE",languagePolicy:"NATIVE",openingBias:"LOCAL_LIFE",narrativeIdentity:originNarrative("NORMALCY_DISRUPTED",["LOCAL_NORMALCY_BEFORE_DISRUPTION"],["OUTSIDER_DEFAULT_FRAMING","ZERO_LOCAL_KNOWLEDGE"],{mustShow:"先建立一個玩家本來熟悉的本地日常，再由具體事件或異常打破正常；異常來自事件，不是因為整個世界對玩家而言本身很陌生",mustAvoid:"使用異世界初見式外來者敘事，或把原住民寫成對故鄉完全零知識"})},
+ amnesia:{id:"amnesia",label:"失憶",legalStatus:"HIDDEN",knowledgePolicy:"AMNESIA",languagePolicy:"FRAGMENTED",openingBias:"MEMORY_GAP",narrativeIdentity:originNarrative("SELF_UNCERTAINTY",["IDENTITY_OR_PAST_UNCERTAINTY"],["TOTAL_COGNITIVE_RESET","CONVENIENT_MEMORY_RESTORE","AMNESIA_AS_CANON_PATCH"],{mustShow:"以身體、隨身物、他人反應、環境痕跡或記憶缺口造成身份／過去的不確定；玩家仍保留基本感官、一般認知與可行動能力",mustAvoid:"把失憶寫成全面認知重置、為推進劇情方便恢復記憶，或用失憶替 Canon 矛盾補洞"})},
+ custom:{id:"custom",label:"完全自訂",legalStatus:"CUSTOM",knowledgePolicy:"CUSTOM",languagePolicy:"CUSTOM",openingBias:"CUSTOM",narrativeIdentity:originNarrative("CUSTOM_DEFINED",["CUSTOM_ORIGIN_TRACE"],[],{mustShow:"第一幕必須實際體現玩家自訂起源至少一項可感知後果",mustAvoid:"忽略自訂起源而退回泛用異世界醒來模板"})}
 });
 
 export const ROLE_PRESETS=Object.freeze({
@@ -38,18 +40,13 @@ export const ROLE_PRESETS=Object.freeze({
  custom:{id:"custom",label:"完全自訂",bias:{}}
 });
 
-const STYLE_BASE={
- "王道奇幻":{civilization:6,technology:4,magic:8,politicalUnity:4,religion:6,resources:6,danger:6,survival:4,unknownRatio:55},
- "黑暗奇幻":{civilization:6,technology:4,magic:6,politicalUnity:4,religion:8,resources:4,danger:10,survival:8,unknownRatio:65},
- "東方幻想":{civilization:6,technology:4,magic:8,politicalUnity:6,religion:8,resources:6,danger:6,survival:4,unknownRatio:60},
- "蒸汽魔法":{civilization:8,technology:8,magic:6,politicalUnity:6,religion:4,resources:8,danger:6,survival:4,unknownRatio:45},
- "末日異世界":{civilization:4,technology:6,magic:4,politicalUnity:2,religion:6,resources:2,danger:10,survival:10,unknownRatio:75},
- "自訂世界":{civilization:5,technology:5,magic:5,politicalUnity:5,religion:5,resources:5,danger:5,survival:5,unknownRatio:60}
-};
-
 function field(value,mode="style",locked=false){return {mode:["fixed","random","style"].includes(mode)?mode:"style",value,locked:locked===true}}
 function numberField(raw,key,fallback,min=1,max=5){const n=Number(raw?.[key]);return field(Number.isFinite(n)?clamp(n,min,max):fallback,raw?.[key+"Mode"],raw?.[key+"Locked"])}
 function stringField(raw,key,fallback){return field(clean(raw?.[key],80)||fallback,raw?.[key+"Mode"],raw?.[key+"Locked"])}
+const GENESIS_ENUMS=Object.freeze({worldShape:["AUTO","CONTINENTAL","INNER_SEA","ARCHIPELAGO","FRACTURED","LAYERED","WILD_FRONTIER"],routeDensity:["SPARSE","NORMAL","DENSE"],historicalDepth:["YOUNG","ESTABLISHED","ANCIENT","DEEP_TIME"],worldVolatility:["STABLE","DYNAMIC","UNSTABLE","CHAOTIC"],mysteryDensity:["LOW","STANDARD","HIGH","EXTREME"],crisisIntensity:["OFF","LOW","STANDARD","HIGH","CATACLYSMIC"],playerCentrality:["NONE","LOW","NARRATIVE"]});
+const GENESIS_DEFAULTS=Object.freeze({worldShape:"AUTO",routeDensity:"NORMAL",historicalDepth:"ESTABLISHED",worldVolatility:"DYNAMIC",ancientPowerCount:1,nomadicPowerCount:0,independentInstitutionCount:2,lostCivilizationCount:1,mysteryDensity:"STANDARD",crisisIntensity:"STANDARD",playerCentrality:"LOW"});
+function genesisEnum(raw,key){const values=GENESIS_ENUMS[key],value=clean(raw?.[key],80);return values.includes(value)?value:GENESIS_DEFAULTS[key]}
+function genesisCount(raw,key,min,max){const n=Number(raw?.[key]);return Number.isInteger(n)?clamp(n,min,max):GENESIS_DEFAULTS[key]}
 
 export function createWorldCreationDraft(raw={}){
  const style=clean(raw.worldStyle||raw.genre,80)||"王道奇幻";
@@ -80,6 +77,11 @@ export function createWorldCreationDraft(raw={}){
    warState:stringField(raw,"warState","TENSION"),
    unknownRatio:numberField(raw,"unknownRatio",60,10,95),
    survivalIntensity:numberField(raw,"survivalIntensity",5,1,10)
+  },
+  genesis:{
+   worldShape:genesisEnum(raw,"worldShape"),routeDensity:genesisEnum(raw,"routeDensity"),historicalDepth:genesisEnum(raw,"historicalDepth"),worldVolatility:genesisEnum(raw,"worldVolatility"),
+   ancientPowerCount:genesisCount(raw,"ancientPowerCount",0,4),nomadicPowerCount:genesisCount(raw,"nomadicPowerCount",0,5),independentInstitutionCount:genesisCount(raw,"independentInstitutionCount",0,12),lostCivilizationCount:genesisCount(raw,"lostCivilizationCount",0,5),
+   mysteryDensity:genesisEnum(raw,"mysteryDensity"),crisisIntensity:genesisEnum(raw,"crisisIntensity"),playerCentrality:genesisEnum(raw,"playerCentrality")
   },
   player:{
    name:clean(raw.playerName,40),
@@ -121,7 +123,7 @@ function explicitMagicLevel(draft){
 }
 
 export function resolveWorldBlueprint(draft){
- const d=draft?.schemaVersion===2?draft:createWorldCreationDraft(draft),r=rng(d.masterSeed),style=d.basic.worldStyle.value,base=STYLE_BASE[style]||STYLE_BASE["王道奇幻"];
+ const d=draft?.schemaVersion===2?draft:createWorldCreationDraft(draft),r=rng(d.masterSeed),style=d.basic.worldStyle.value,base=getWorldStyleBlueprint(style);
  const scale=resolveField(d.basic.worldScale,"scale",base,r,{values:["小型","中型","大型"]});
  const a=d.advanced,promptMagic=explicitMagicLevel(d);let magicLevel=resolveField(a.magicLevel,"magic",base,r,{min:1,max:10});
  if(promptMagic!=null&&a.magicLevel?.mode==="style"&&a.magicLevel?.locked!==true)magicLevel={...magicLevel,value:promptMagic,source:BLUEPRINT_SOURCES.USER};
@@ -149,6 +151,7 @@ export function resolveWorldBlueprint(draft){
   difficulty:d.basic.difficulty,
   customStyleDescription:d.basic.customStyleDescription||"",
   advanced:resolved,
+  genesis:{worldShape:d.genesis.worldShape,routeDensity:d.genesis.routeDensity,historicalDepth:d.genesis.historicalDepth,volatility:d.genesis.worldVolatility,ancientPowers:d.genesis.ancientPowerCount,nomadicPowers:d.genesis.nomadicPowerCount,independentInstitutions:d.genesis.independentInstitutionCount,lostCivilizations:d.genesis.lostCivilizationCount,mysteryDensity:d.genesis.mysteryDensity,crisisIntensity:d.genesis.crisisIntensity,playerCentrality:d.genesis.playerCentrality},
   player:structuredClone(d.player),
   customWorldDescription:d.customWorldDescription,
   storyPreferences:[...d.storyPreferences],
@@ -181,7 +184,7 @@ function originProfile(origin){
   defaultValues:[],
   initialAssumptions:[`合法身份：${p.legalStatus}`,`語言起點：${p.languagePolicy}`,`知識邊界：${p.knowledgePolicy}`],
   worldKnowledgeBoundary:`World Creation 2.0 origin policy=${p.knowledgePolicy}; 不得把 hidden/director truth 當成玩家已知資訊。`,
-  legalStatus:p.legalStatus,languagePolicy:p.languagePolicy,knowledgePolicy:p.knowledgePolicy,openingBias:p.openingBias
+  legalStatus:p.legalStatus,languagePolicy:p.languagePolicy,knowledgePolicy:p.knowledgePolicy,openingBias:p.openingBias,narrativeIdentity:structuredClone(p.narrativeIdentity)
  }
 }
 
@@ -190,7 +193,7 @@ export function worldBlueprintProfile(blueprint){
  const row=x=>({value:x?.value,source:x?.source||BLUEPRINT_SOURCES.AI_INFERRED,locked:x?.locked===true});
  return {
   version:1,
-  origin:{type:origin.id,source:BLUEPRINT_SOURCES.USER,knowledgePolicy:origin.knowledgePolicy,languagePolicy:origin.languagePolicy},
+  origin:{type:origin.id,source:BLUEPRINT_SOURCES.USER,knowledgePolicy:origin.knowledgePolicy,languagePolicy:origin.languagePolicy,narrativeIdentity:structuredClone(origin.narrativeIdentity)},
   playerRole:{type:role.id,source:BLUEPRINT_SOURCES.USER},
   difficulty:{value:b.difficulty,source:BLUEPRINT_SOURCES.USER},
   civilizationLevel:row(a.civilizationLevel),
@@ -206,6 +209,7 @@ export function worldBlueprintProfile(blueprint){
   warState:row(a.warState),
   unknownRatio:row(a.unknownRatio),
   survivalIntensity:row(a.survivalIntensity),
+  genesis:structuredClone(b.genesis||{}),
   languageDifficulty:{value:d.languageBarrier,source:BLUEPRINT_SOURCES.USER},
   survivalRules:{hunger:d.hunger,fatigue:d.fatigue,statusEffects:d.statusEffects,hpFloor:d.hpFloor,injuryRecovery:d.injuryRecovery,carryWeight:d.carryWeight,environment:d.environment,permadeath:d.permadeath},
   mustExist:[...b.rules.required],mayExist:[...b.rules.allowed],forbidden:[...b.rules.forbidden],storyTendencies:[...b.storyPreferences],
@@ -222,6 +226,7 @@ export function compileWorldCreation(draft){
   `起源：${ORIGIN_PRESETS[blueprint.player.origin.type]?.label||"自訂"}；定位：${role.label}`,
   blueprint.style.value==="自訂世界"&&blueprint.customStyleDescription&&`自訂世界風格：${clean(blueprint.customStyleDescription,260)}`,
   `文明${advanced.civilizationLevel.value}/10、科技${advanced.technologyLevel.value}/10、魔法${advanced.magicLevel.value}/10、文明數${advanced.civilizationCount.value}、種族${advanced.speciesCount.value}、語言${advanced.languageCount.value}、政治統一${advanced.politicalUnity.value}/10、宗教${advanced.religionInfluence.value}/10、資源${advanced.resourceAbundance.value}/10、危險${advanced.worldDanger.value}/10、生存${advanced.survivalIntensity.value}/10、戰爭=${advanced.warState.value}、未知區域${advanced.unknownRatio.value}%`,
+  `世界骨架=${blueprint.genesis.worldShape}、路網=${blueprint.genesis.routeDensity}、歷史深度=${blueprint.genesis.historicalDepth}、波動=${blueprint.genesis.volatility}、古代強權=${blueprint.genesis.ancientPowers}、遊牧勢力=${blueprint.genesis.nomadicPowers}、獨立機構=${blueprint.genesis.independentInstitutions}、失落文明=${blueprint.genesis.lostCivilizations}、謎團=${blueprint.genesis.mysteryDensity}、危機=${blueprint.genesis.crisisIntensity}、玩家中心性=${blueprint.genesis.playerCentrality}`,
   blueprint.rules.allowed.length&&`可以存在：${blueprint.rules.allowed.join("、")}`,
   blueprint.storyPreferences.length&&`故事傾向：${clean(blueprint.storyPreferences.join("；"),220)}`,
   blueprint.customWorldDescription&&`世界願望：${clean(blueprint.customWorldDescription,320)}`
@@ -380,7 +385,7 @@ export function worldContractHtml(contract){
   ja:{title:"世界契約",intro:"これはプレイヤーの選択と Engine 制約の公開概要です。Hidden World State は含まれません。",world:"世界",difficulty:"難易度",origin:"起源",role:"立場",structure:"世界構造",rules:"難易度ルール",story:"物語の傾向（傾向のみで、発生は保証されません）",required:"必須要素",allowed:"存在可能",forbidden:"禁止要素",unknown:"まだ不明",edit:"編集に戻る",accept:"この世界へ渡る",civilization:"文明度",technology:"技術",magic:"魔法",civilizations:"主要文明／部族 約",species:"知的種族 約",languages:"言語 約",politics:"政治統一度",religion:"宗教影響",resources:"資源",danger:"世界危険度",survival:"生存強度",unknownArea:"未探索地域 約",hungerOn:"空腹システム有効",hungerOff:"満腹度を消費しない",fatigueOn:"疲労システム有効",fatigueOff:"疲労消費なし",statusOn:"負の状態異常が有効",statusOff:"通常の負の状態異常なし",autoSave:"オートセーブのみ",freeSave:"自由にセーブ可能",langHigh:"高い言語／識字障壁",langLow:"低い言語障壁",langStd:"標準的な言語障壁",deathOn:"永久死亡あり",deathOff:"永久死亡は標準で無効",unknownRows:["世界の真の歴史","主要勢力の真の目的","未探索の地域と文明","隠された世界の真実","物語の傾向が発生するか、いつ、どのように発生するか"]}
  }[locale];
  const enums={
-  "王道奇幻":{"zh-Hant":"王道奇幻","zh-Hans":"王道奇幻",en:"High Fantasy",ja:"王道ファンタジー"},"黑暗奇幻":{"zh-Hant":"黑暗奇幻","zh-Hans":"黑暗奇幻",en:"Dark Fantasy",ja:"ダークファンタジー"},"東方幻想":{"zh-Hant":"東方幻想","zh-Hans":"东方幻想",en:"Eastern Fantasy",ja:"東方幻想"},"蒸汽魔法":{"zh-Hant":"蒸汽魔法","zh-Hans":"蒸汽魔法",en:"Steam Magic",ja:"スチームマジック"},"末日異世界":{"zh-Hant":"末日異世界","zh-Hans":"末日异世界",en:"Apocalyptic Otherworld",ja:"終末異世界"},"小型":{"zh-Hant":"小型","zh-Hans":"小型",en:"Small",ja:"小規模"},"中型":{"zh-Hant":"中型","zh-Hans":"中型",en:"Medium",ja:"中規模"},"大型":{"zh-Hant":"大型","zh-Hans":"大型",en:"Large",ja:"大規模"},"簡單":{"zh-Hant":"簡單","zh-Hans":"简单",en:"Easy",ja:"簡単"},"普通":{"zh-Hant":"普通","zh-Hans":"普通",en:"Normal",ja:"普通"},"困難":{"zh-Hant":"困難","zh-Hans":"困难",en:"Hard",ja:"困難"},"現實":{"zh-Hant":"現實","zh-Hans":"现实",en:"Realistic",ja:"リアル"},"穿越":{"zh-Hant":"穿越","zh-Hans":"穿越",en:"World Crossing",ja:"異世界転移"},"轉生":{"zh-Hant":"轉生","zh-Hans":"转生",en:"Reincarnation",ja:"転生"},"被召喚":{"zh-Hant":"被召喚","zh-Hans":"被召唤",en:"Summoned",ja:"召喚"},"附身":{"zh-Hant":"附身","zh-Hans":"附身",en:"Possession",ja:"憑依"},"原住民":{"zh-Hant":"原住民","zh-Hans":"原住民",en:"Native",ja:"現地人"},"失憶":{"zh-Hant":"失憶","zh-Hans":"失忆",en:"Amnesia",ja:"記憶喪失"},"完全自訂":{"zh-Hant":"完全自訂","zh-Hans":"完全自定义",en:"Custom",ja:"完全カスタム"},"普通人":{"zh-Hant":"普通人","zh-Hans":"普通人",en:"Ordinary Person",ja:"一般人"},"冒險者":{"zh-Hant":"冒險者","zh-Hans":"冒险者",en:"Adventurer",ja:"冒険者"},"英雄候選人":{"zh-Hant":"英雄候選人","zh-Hans":"英雄候选人",en:"Hero Candidate",ja:"英雄候補"},"商人":{"zh-Hant":"商人","zh-Hans":"商人",en:"Merchant",ja:"商人"},"貴族":{"zh-Hant":"貴族","zh-Hans":"贵族",en:"Noble",ja:"貴族"},"研究者":{"zh-Hant":"研究者","zh-Hans":"研究者",en:"Researcher",ja:"研究者"},"反派陣營":{"zh-Hant":"反派陣營","zh-Hans":"反派阵营",en:"Antagonist Faction",ja:"敵対陣営"}
+  "王道奇幻":{"zh-Hant":"王道奇幻","zh-Hans":"王道奇幻",en:"High Fantasy",ja:"王道ファンタジー"},"黑暗奇幻":{"zh-Hant":"黑暗奇幻","zh-Hans":"黑暗奇幻",en:"Dark Fantasy",ja:"ダークファンタジー"},"東方幻想":{"zh-Hant":"東方幻想","zh-Hans":"东方幻想",en:"Eastern Fantasy",ja:"東方幻想"},"蒸汽魔法":{"zh-Hant":"蒸汽魔法","zh-Hans":"蒸汽魔法",en:"Steam Magic",ja:"スチームマジック"},"低魔政治奇幻":{"zh-Hant":"低魔政治奇幻","zh-Hans":"低魔政治奇幻",en:"Low-Magic Political Fantasy",ja:"ローマジック政治ファンタジー"},"神話洪荒":{"zh-Hant":"神話洪荒","zh-Hans":"神话洪荒",en:"Mythic Primordial World",ja:"神話的原初世界"},"浮空群島":{"zh-Hant":"浮空群島","zh-Hans":"浮空群岛",en:"Sky Archipelago",ja:"浮遊群島"},"魔導都市":{"zh-Hant":"魔導都市","zh-Hans":"魔导都市",en:"Magitech Metropolis",ja:"魔導都市"},"巨獸共生":{"zh-Hant":"巨獸共生","zh-Hans":"巨兽共生",en:"Beast Symbiosis",ja:"巨獣共生"},"永夜寒境":{"zh-Hant":"永夜寒境","zh-Hans":"永夜寒境",en:"Endless Night",ja:"永夜の寒境"},"末日異世界":{"zh-Hant":"末日異世界","zh-Hans":"末日异世界",en:"Apocalyptic Otherworld",ja:"終末異世界"},"小型":{"zh-Hant":"小型","zh-Hans":"小型",en:"Small",ja:"小規模"},"中型":{"zh-Hant":"中型","zh-Hans":"中型",en:"Medium",ja:"中規模"},"大型":{"zh-Hant":"大型","zh-Hans":"大型",en:"Large",ja:"大規模"},"簡單":{"zh-Hant":"簡單","zh-Hans":"简单",en:"Easy",ja:"簡単"},"普通":{"zh-Hant":"普通","zh-Hans":"普通",en:"Normal",ja:"普通"},"困難":{"zh-Hant":"困難","zh-Hans":"困难",en:"Hard",ja:"困難"},"現實":{"zh-Hant":"現實","zh-Hans":"现实",en:"Realistic",ja:"リアル"},"穿越":{"zh-Hant":"穿越","zh-Hans":"穿越",en:"World Crossing",ja:"異世界転移"},"轉生":{"zh-Hant":"轉生","zh-Hans":"转生",en:"Reincarnation",ja:"転生"},"被召喚":{"zh-Hant":"被召喚","zh-Hans":"被召唤",en:"Summoned",ja:"召喚"},"附身":{"zh-Hant":"附身","zh-Hans":"附身",en:"Possession",ja:"憑依"},"原住民":{"zh-Hant":"原住民","zh-Hans":"原住民",en:"Native",ja:"現地人"},"失憶":{"zh-Hant":"失憶","zh-Hans":"失忆",en:"Amnesia",ja:"記憶喪失"},"完全自訂":{"zh-Hant":"完全自訂","zh-Hans":"完全自定义",en:"Custom",ja:"完全カスタム"},"普通人":{"zh-Hant":"普通人","zh-Hans":"普通人",en:"Ordinary Person",ja:"一般人"},"冒險者":{"zh-Hant":"冒險者","zh-Hans":"冒险者",en:"Adventurer",ja:"冒険者"},"英雄候選人":{"zh-Hant":"英雄候選人","zh-Hans":"英雄候选人",en:"Hero Candidate",ja:"英雄候補"},"商人":{"zh-Hant":"商人","zh-Hans":"商人",en:"Merchant",ja:"商人"},"貴族":{"zh-Hant":"貴族","zh-Hans":"贵族",en:"Noble",ja:"貴族"},"研究者":{"zh-Hant":"研究者","zh-Hans":"研究者",en:"Researcher",ja:"研究者"},"反派陣營":{"zh-Hant":"反派陣營","zh-Hans":"反派阵营",en:"Antagonist Faction",ja:"敵対陣営"}
  };
  const war={PEACE:{"zh-Hant":"和平","zh-Hans":"和平",en:"Peace",ja:"平和"},TENSION:{"zh-Hant":"緊張","zh-Hans":"紧张",en:"Tension",ja:"緊張"},WAR:{"zh-Hant":"戰爭","zh-Hans":"战争",en:"War",ja:"戦争"}};const local=v=>war[String(v)]?.[locale]??enums[String(v)]?.[locale]??String(v??"");
  const lines=(title,rows)=>rows?.length?`<div class="contract-group"><small>${esc(title)}</small><p>${rows.map(esc).join("<br>")}</p></div>`:"";

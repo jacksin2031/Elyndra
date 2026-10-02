@@ -40,7 +40,7 @@ test("v0.54.13 model JSON repair handles a missing comma between properties",()=
 });
 
 test("v0.54.13 Agnes Future gets enough structured output headroom to avoid 2200-token truncation",async()=>{
- assert.equal(providerTokenBudget("agnes","standard","future",2200),3000);
+ assert.equal(providerTokenBudget("agnes","standard","future",2200),4096);
  const settings=await readFile(new URL("../src/ai-settings.js",import.meta.url),"utf8");
  assert.match(settings,/AI_TASK_TIMEOUT_FLOORS=\{future:70000\}/)
 });

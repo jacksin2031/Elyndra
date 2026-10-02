@@ -16,11 +16,11 @@ test("v0.59.8 targetless hard recovery never claims TRAVEL",()=>{
  assert.match(decision.action,/出口|通道|位置/);
 });
 
-test("v0.59.8 autotest fingerprint counts time and event progress",()=>{
+test("v0.61.2 autotest fingerprint ignores clock-only passage but counts meaningful event progress",()=>{
  const base={world:{id:"W",state:{clock:{totalMinutes:10}},registry:{npcs:[],locations:[],sideQuests:[]}},player:{location:"L",hp:10,status:"OK",level:1,xp:0,knowledgeScore:0},quests:{main:{stage:0,status:"ACTIVE",objectives:[]}},inventory:[],knowledge:[],events:[],discoveries:0,combat:{active:false}};
  const timeMoved=structuredClone(base);timeMoved.world.state.clock.totalMinutes=20;
  const eventMoved=structuredClone(base);eventMoved.events.push({type:"TICK"});
- assert.notEqual(autotestStateFingerprint(base),autotestStateFingerprint(timeMoved));
+ assert.equal(autotestStateFingerprint(base),autotestStateFingerprint(timeMoved));
  assert.notEqual(autotestStateFingerprint(base),autotestStateFingerprint(eventMoved));
 });
 

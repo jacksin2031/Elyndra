@@ -103,7 +103,7 @@ export function originNpcContext(state,npc=null){
 }
 export function originOpeningContract(state){
  const rt=ensureOriginRuntime(state),rules=policy(state);
- return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true||rules.worldName===true,calendarKnown:state.player?.calendarKnown===true||rules.calendar===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy}
+ return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true||rules.worldName===true,calendarKnown:state.player?.calendarKnown===true||rules.calendar===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy,narrativeIdentity:profile(state)?.narrativeIdentity?structuredClone(profile(state).narrativeIdentity):null}
 }
 export function originRuntimeSnapshot(state,{director=false}={}){
  const rt=ensureOriginRuntime(state),base={originId:rt.originId,label:rt.label,knowledgePolicy:rt.knowledgePolicy,languageBarrier:rt.languageBarrier,legalStatus:rt.legalStatus,identitySignal:rt.identitySignal,spokenLanguages:[...rt.spokenLanguages],readLanguages:[...rt.readLanguages],openingMode:rt.openingMode};

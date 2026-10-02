@@ -12,6 +12,21 @@ function state(overrides={}){
  }
 }
 
+test("canonical location IDs keep local NPC suggestions available without exposing undiscovered names",()=>{
+ const s=state();
+ Object.assign(s.world.registry.locations[0],{name:"保密城堡",known:false,observableAlias:"霧中的石階"});
+ Object.assign(s.world.registry.npcs[0],{name:"保密守衛",nameKnown:false,observableAlias:"穿斗篷的人"});
+ Object.assign(s.player,{location:"霧中的石階",locationId:"L1"});
+ Object.assign(s.world.state,{location:"保密城堡",locationId:"L1"});
+ let set=buildContextualActionSet(s,[]);
+ assert.equal(set.primary[0].kind,"SOCIAL");assert.equal(set.primary[0].targetId,"N1");
+ assert.ok(set.all.every(row=>!`${row.label} ${row.action}`.includes("保密守衛")&&!`${row.label} ${row.action}`.includes("保密城堡")));
+ s.events.push({type:"PLAYER_ACTION",targetId:"N1",customText:"詢問眼前的人"},{type:"PLAYER_ACTION",npcId:"N1",customText:"再詢問眼前的人"});
+ set=buildContextualActionSet(s,[]);assert.notEqual(set.primary[0].kind,"SOCIAL");
+ const elsewhere=state();elsewhere.player.location="尚未辨識";elsewhere.world.registry.npcs.push({id:"N-UNBOUND",name:"不在場者",known:true,alive:true});
+ assert.ok(buildContextualActionSet(elsewhere,[]).all.every(row=>row.targetId!=="N-UNBOUND"));
+});
+
 test("contextual action set always has three primary suggestions and one progression route",()=>{
  const s=state();
  const set=buildContextualActionSet(s,[

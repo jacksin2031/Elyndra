@@ -43,15 +43,28 @@ test("v0.57.22 preserved v0.57.17 snapshot regenerates the original artifact ide
  assert.equal(artifacts.debug.filename,"Elyndra-autotest-debug-v0.57.17-2026-09-25T16-31-51-390Z.json")
 });
 
-test("v0.57.22 archives retained runs separately and the UI exposes only supported native handoff controls",async()=>{
+// Compatibility integration choice: preserve native handoff as primary and keep helpers secondary; this does not claim the pre-incident UI hierarchy is reproduced.
+test("v0.57.22 archives retained runs, keeps native handoff primary, and offers explicit secondary copy helpers",async()=>{
  const source=await readFile(new URL("../src/autotest-export.js",import.meta.url),"utf8"),app=await readFile(new URL("../app.js",import.meta.url),"utf8");
  assert.match(source,/archiveSlotFor/);
  assert.match(source,/idbPut\(db,\{slot:archiveSlot,\.\.\.normalized\}\).*idbPut\(db,\{slot:SLOT,\.\.\.normalized\}\)/s);
  assert.match(app,/archiveAutotestExportSnapshot\(snapshot\)/);
  assert.match(app,/id="autotestShareDebug"/);
  assert.match(app,/id="autotestRetainedRun"/);
- assert.match(app,/AUTOTEST_EXPORT_SHARE_COMPLETED/);
- assert.doesNotMatch(app,/installAutotestCodexBridge/);
- assert.doesNotMatch(app,/id="autotestTransferDebug"/);
- assert.doesNotMatch(app,/id="autotestCopyDebug"/)
-});
+  assert.match(app,/AUTOTEST_EXPORT_SHARE_COMPLETED/);
+  assert.match(app,/installAutotestCodexBridge\(kind=>developerAutotestArtifact\(kind\),\{chunkChars:131072\}\)/);
+   const nativeShareIndex=app.indexOf('id="autotestShareDebug"'),secondaryCopyIndex=app.indexOf('id="autotestCopyDebug"'),transferIndex=app.indexOf('id="autotestTransferDebug"'),dragIndex=app.indexOf('id="autotestDragDebug"');
+  assert.ok(nativeShareIndex>=0&&secondaryCopyIndex>nativeShareIndex&&transferIndex>nativeShareIndex&&dragIndex>nativeShareIndex,"native share controls stay ahead of secondary copy, transfer, and drag helpers");
+  assert.match(app,/id="autotestCopyWorld"/);
+  assert.match(app,/class="autotest-export-assist"/);
+  assert.match(app,/#autotestCopyDebug"\)\?\.addEventListener\("click",\(\)=>void copyDeveloperAutotestArtifact\("debug"\)\)/);
+  assert.match(app,/#autotestCopyWorld"\)\?\.addEventListener\("click",\(\)=>void copyDeveloperAutotestArtifact\("world"\)\)/);
+  assert.match(app,/id="autotestDragWorld"/);
+  assert.match(app,/id="autotestDragRecovery"/);
+  assert.match(app,/id="autotestTransferWorld"/);
+  assert.match(app,/id="autotestTransferRecovery"/);
+  assert.match(app,/id="autotestFallbackRecovery"/);
+  assert.match(app,/#autotestDragDebug"\)\?\.addEventListener\("click",\(\)=>void openDeveloperAutotestDragExport\("debug"\)\)/);
+  assert.match(app,/#autotestTransferDebug"\)\?\.addEventListener\("click",\(\)=>void openDeveloperAutotestTextTransfer\("debug"\)\)/);
+  assert.match(app,/#autotestFallbackRecovery"\)\?\.addEventListener\("click",\(\)=>downloadDeveloperAutotestArtifact\("recovery"\)\)/)
+ });

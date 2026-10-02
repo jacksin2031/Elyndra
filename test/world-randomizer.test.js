@@ -18,10 +18,14 @@ test("random world settings rejects missing option sets",()=>{
  assert.throws(()=>randomWorldSettings({genres:[],scales:["中型"]}),/RANDOM_WORLD_OPTIONS_REQUIRED/)
 });
 
-test("World Creation UI provides Custom World and 1-10 degree sliders",async()=>{
- const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
- assert.match(html,/<option value="自訂世界">自訂世界<\/option>/);
- assert.match(html,/id="customWorldStyle"/);
+test("World Creation UI hides legacy Custom World and keeps the reusable style gallery plus 1-10 degree sliders",async()=>{
+ const [html,app,library]=await Promise.all([readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/world-style-library.js",import.meta.url),"utf8")]);
+ const genre=html.match(/<select id="genre">([\s\S]*?)<\/select>/)?.[1]||"";
+ assert.doesNotMatch(genre,/<option\b[^>]*(?:value="自訂世界")[^>]*>|<option\b[^>]*>\s*(?:自訂世界|Custom World)\s*<\/option>/iu);
+ assert.match(html,/<input\b(?=[^>]*\bid="customWorldStyle")(?=[^>]*\btype="hidden")[^>]*>/);
+ assert.match(app,/initWorldStyleLibrary\(\{onApply:applyCreatorWorldStyle\}\)/);
+ assert.match(library,/button\(localeText\("open"\),\s*"open",\s*"wsl-trigger",\s*doc\)/);
+ assert.match(library,/row\.append\(genre,\s*openButton\)/);
  for(const id of ["civilizationLevel","technologyLevel","magicLevel","politicalUnity","religionInfluence","resourceAbundance","worldDanger","survivalIntensity"]){
   assert.match(html,new RegExp('id="'+id+'" type="range" min="1" max="10"'))
   assert.match(html,new RegExp('id="'+id+'Value"'))

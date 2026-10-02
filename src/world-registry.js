@@ -6,6 +6,8 @@ import {ensureTravelNetwork,travelTo} from "./travel-engine.js?v=57025";
 import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibility-lock.js?v=57025";
 import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=57025";
 import {forbiddenTermMatch} from "./generation-claims.js?v=57025";
+import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
+import {isLocationTypeInstruction} from "./ai-output-repair.js?v=61003";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
@@ -23,21 +25,25 @@ export function ensureWorldRegistry(state){
 export function repairPlayerLocation(state){
  const r=ensureWorldRegistry(state);if(!r.locations.length)return null;
  const player=String(state.player?.location||"").trim(),worldLoc=String(state.world?.state?.location||"").trim(),unknown=!player||player==="未知地點";
- const playerEntity=r.locations.find(x=>x.name===player)||null,worldEntity=r.locations.find(x=>x.name===worldLoc)||null;
+ const playerEntity=r.locations.find(x=>x.id===state.player?.locationId)||r.locations.find(x=>x.name===player)||null,worldEntity=r.locations.find(x=>x.id===state.world?.state?.locationId)||r.locations.find(x=>x.name===worldLoc)||null;
  let entity=unknown?(worldEntity||[...r.locations].reverse().find(x=>x.known===true)||r.locations[0]||null):(playerEntity||worldEntity||[...r.locations].reverse().find(x=>x.known===true)||null);
  if(entity){
-  state.player.location=entity.name;
+   state.player.locationId=String(entity.id||"")||null;
   state.world.state.location=entity.name;
+  state.world.state.locationId=String(entity.id||"")||null;
+  state.player.location=entity.known===true?entity.name:playerVisibleLocationName(state);
   if(entity.region)state.world.state.region=entity.region;markEntityObserved(state,"location",entity.id,{reason:"PLAYER_LOCATION_REPAIRED"})
  }else{
   state.player.location="未知地點";
+  state.player.locationId=null;
   state.world.state.location="未知地點"
+  state.world.state.locationId=null
  }
  return entity||null
 }
 export function currentLocationRecord(state){
  const r=ensureWorldRegistry(state),player=String(state.player?.location||"").trim(),worldLoc=String(state.world?.state?.location||"").trim();
- return r.locations.find(x=>x.name===player)||r.locations.find(x=>x.name===worldLoc)||null
+ return r.locations.find(x=>x.id===state.player?.locationId)||r.locations.find(x=>x.id===state.world?.state?.locationId)||r.locations.find(x=>x.name===player)||r.locations.find(x=>x.name===worldLoc)||null
 }
 export function isNpcPresent(state,npc){
  if(!npc||npc.alive===false)return false;
@@ -102,6 +108,7 @@ export function validateGeneration(g){
  if(typeof g!=="object"||Array.isArray(g))return {valid:false,errors:["GENERATION_INVALID"]};
  for(const k of ["locations","npcs","factions","sideQuests","definitions"])if(g[k]!=null&&!Array.isArray(g[k]))e.push(k.toUpperCase()+"_INVALID");
  const definitionReport=validateWorldDefinitions(g.definitions||[]);if(!definitionReport.valid)e.push(...definitionReport.errors);
+ for(const location of g.locations||[])if(isLocationTypeInstruction(location?.type))e.push("LOCATION_TYPE_INSTRUCTION");
  for(const x of g.locations||[])if(!clean(x?.name,80)||!clean(x?.description,400))e.push("LOCATION_SHAPE_INVALID");else{if(x.historyRefs!=null&&!Array.isArray(x.historyRefs))e.push("LOCATION_HISTORY_REFS_INVALID");if(x.lore!=null&&!normalizeLore(x.lore))e.push("LOCATION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("LOCATION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("LOCATION_TRADE_INVALID");if(x.weatherProfile!=null&&typeof x.weatherProfile!=="object")e.push("LOCATION_WEATHER_INVALID");if(x.accessRequirements!=null&&(!Array.isArray(x.accessRequirements)||normalizeAccessRequirements(x.accessRequirements).length!==x.accessRequirements.length))e.push("LOCATION_ACCESS_REQUIREMENTS_INVALID")}
  for(const x of g.npcs||[])if(!clean(x?.name,80)||!clean(x?.role,100))e.push("NPC_SHAPE_INVALID");else{if(x.historyRefs!=null&&!Array.isArray(x.historyRefs))e.push("NPC_HISTORY_REFS_INVALID");if(x.lore!=null&&!normalizeLore(x.lore))e.push("NPC_LORE_INVALID");if(x.companionProfile!=null&&typeof x.companionProfile!=="object")e.push("NPC_COMPANION_PROFILE_INVALID")}
  for(const x of g.factions||[])if(!clean(x?.name,80)||!clean(x?.goal,200))e.push("FACTION_SHAPE_INVALID");else{if(x.historyRefs!=null&&!Array.isArray(x.historyRefs))e.push("FACTION_HISTORY_REFS_INVALID");if(x.lore!=null&&!normalizeLore(x.lore))e.push("FACTION_LORE_INVALID");if(x.culture!=null&&typeof x.culture!=="object")e.push("FACTION_CULTURE_INVALID");if(x.trade!=null&&typeof x.trade!=="object")e.push("FACTION_TRADE_INVALID")}

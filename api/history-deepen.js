@@ -1,4 +1,4 @@
-import {json,methodGuard,safeBody,callModel} from "./_ai.js";
+import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {parseModelJSON} from "../src/model-json.js";
 
 export default async function handler(req,res){
@@ -10,5 +10,5 @@ export default async function handler(req,res){
   const raw=await callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,system,user:JSON.stringify({plan,world,constitution,futureRefs}),temperature:.5,timeoutMs:50000});
   let candidate;try{candidate=parseModelJSON(raw)}catch{return json(res,422,{error:"INVALID_MODEL_JSON"})}
   return json(res,200,{candidate})
- }catch(e){return json(res,e.code==="AI_NOT_CONFIGURED"?503:502,{error:e.code||e.message||"HISTORY_DEEPENING_FAILED"})}
+ }catch(e){return json(res,errorStatus(e),{error:e.code||e.message||"HISTORY_DEEPENING_FAILED"})}
 }

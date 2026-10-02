@@ -14,7 +14,7 @@ test("v0.53.1 lets core world compiler retry once after parallel provider timeou
 test("v0.53.1 local fallback never invents a confirmed discovery from dice success alone",async()=>{
  const game=await readFile(new URL("../src/game-engine.js",import.meta.url),"utf8");
  assert.doesNotMatch(game,/並取得可以直接確認的進展/);
- assert.match(game,/是否出現新的可確認資訊，仍以實際觀察與世界狀態為準/)
+ assert.match(game,/眼前是否真的出現新線索，還要看你實際觀察到甚麼/)
 });
 
 test("v0.53.1 contextual fallback remembers recently executed actions",async()=>{

@@ -1,5 +1,5 @@
-import * as base from "./contextual-actions.js?v=60010&base=1";
-export * from "./contextual-actions.js?v=60010&base=1";
+import * as base from "./contextual-actions.js?v=60031&base=1";
+export * from "./contextual-actions.js?v=60031&base=1";
 
 export function suggestionPresentation(state,row){
  const presentation=base.suggestionPresentation(state,row),action=String(row?.action||"").trim();

@@ -1,12 +1,13 @@
 import {ensureVisibilityLocks,backgroundMutableFields,canBackgroundMutateEntity} from "./visibility-lock.js?v=57025";
+import {worldArchitectQualityFindings} from "./world-architect-skill.js?v=61002";
 const obj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
 const uniq=v=>[...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,140)).filter(Boolean))];
 
 export const WORLD_QUALITY_DIMENSIONS=[
- "internalConsistency","originality","worldDepth","historyIntegration","geography","societyCulture",
- "magicSystem","factions","characters","futureEvents","playability","knowledgeBoundary"
+ "internalConsistency","originality","worldDepth","causalDepth","historyIntegration","geography","societyCulture",
+ "magicSystem","factions","characters","futureEvents","narrativeEngines","playability","knowledgeBoundary","antiCliche"
 ];
 
 export function createGenerationDiagnostics(){
@@ -95,6 +96,9 @@ function unresolvedFallbackStageFindings(d){
 }
 export function fallbackWorldEvaluation(candidate,diagnostics,reason="AI_CRITIC_UNAVAILABLE"){
  const d=finalizeGenerationDiagnostics(diagnostics),stageFindings=unresolvedFallbackStageFindings(d),fallbacks=stageFindings.length,findings=[...stageFindings];let score=92-Math.min(48,fallbacks*8);
+ const architectFindings=worldArchitectQualityFindings(candidate);findings.push(...architectFindings);
+ if(architectFindings.some(x=>x.targetType==="CAUSAL_DEPTH"))score-=12;
+ if(architectFindings.some(x=>x.targetType==="ANTI_CLICHE"))score-=6;
  const magic=clean(candidate?.worldBible?.magicCost,500);
  if(!magic||genericText(magic)){score-=12;findings.push({severity:"HIGH",targetType:"MAGIC_SYSTEM",problem:"魔法代價仍然過於抽象或模板化。",recommendation:"建立可執行的具體代價、觸發條件與可觀察後果。",requiresRegeneration:true})}
  const timeline=Array.isArray(candidate?.worldTimeline)?candidate.worldTimeline:[],effects=timeline.map(x=>clean(x?.observableEffect,500)).filter(Boolean);
@@ -113,6 +117,8 @@ export function fallbackWorldEvaluation(candidate,diagnostics,reason="AI_CRITIC_
  if(findings.some(x=>x.targetType==="MAGIC_SYSTEM"))dimensions.magicSystem=Math.max(20,score-18);
  if(findings.some(x=>x.targetType==="FUTURE_EVENTS"))dimensions.futureEvents=Math.max(20,score-22);
  if(findings.some(x=>x.targetType==="PROVENANCE"))dimensions.historyIntegration=Math.max(25,score-15);
+ if(findings.some(x=>x.targetType==="CAUSAL_DEPTH")){dimensions.causalDepth=Math.max(15,score-28);dimensions.narrativeEngines=Math.max(20,score-22)}
+ if(findings.some(x=>x.targetType==="ANTI_CLICHE")){dimensions.antiCliche=Math.max(20,score-20);dimensions.originality=Math.max(25,score-12)}
  if(findings.some(x=>x.targetType==="KNOWLEDGE_BOUNDARY"))dimensions.knowledgeBoundary=Math.max(10,score-30);
  const evaluation=normalizeWorldEvaluation({overall:score,dimensions,findings},{source:"FALLBACK",reason});
  if(String(reason||"")==="BACKGROUND_AI_CRITIC_PENDING")return {...evaluation,overall:null,status:"PENDING",official:false,pending:true,provisionalOverall:evaluation.overall};
@@ -124,7 +130,7 @@ export function applyFallbackRecoveryPatch(candidate,input,diagnostics){
  const out=structuredClone(candidate||{}),patch=obj(input?.patch)?input.patch:(obj(input)?input:{});
  if(fallbackStages.has("CORE_RULES")&&obj(patch.worldBible)){
   out.worldBible??={};
-  for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone","civilization","communication"])if(patch.worldBible[key]!=null)out.worldBible[key]=structuredClone(patch.worldBible[key])
+  for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone","civilization","communication","designLogic"])if(patch.worldBible[key]!=null)out.worldBible[key]=structuredClone(patch.worldBible[key])
  }
  if(fallbackStages.has("CORE_ANCHOR")){
   if(clean(patch.summary,1200))out.summary=clean(patch.summary,1200);
@@ -197,7 +203,7 @@ export function applyWorldRepairPatch(candidate,input){
  for(const key of ["publicFacts","hiddenFacts","suggestions"])if(Array.isArray(patch[key])&&patch[key].length)out[key]=structuredClone(patch[key]);
  if(obj(patch.worldBible)){
   out.worldBible??={};
-  for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone","civilization","communication","weatherSystem"])if(patch.worldBible[key]!=null)out.worldBible[key]=structuredClone(patch.worldBible[key])
+  for(const key of ["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone","civilization","communication","designLogic","weatherSystem"])if(patch.worldBible[key]!=null)out.worldBible[key]=structuredClone(patch.worldBible[key])
  }
  if(Array.isArray(patch.worldTimeline)&&Array.isArray(out.worldTimeline)){
   out.worldTimeline=out.worldTimeline.map((base,i)=>mergeDescriptive(base,patch.worldTimeline[i],["id","earliestDay","latestDay","triggerDay","baseTriggerDay","links","status","triggeredDay","impactScope","affectedRegions","intensity","duration","domains","playerCanPrevent","playerCanAccelerate","playerCanMitigate","playerCanRedirect"]))

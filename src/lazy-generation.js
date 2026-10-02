@@ -1,5 +1,6 @@
 import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=57025";
 import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=57025";
+import {ensureTravelNetwork} from "./travel-engine.js?v=57025";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
@@ -10,6 +11,21 @@ export const LAZY_PROMPT_VERSION="RUNTIME_EXPANSION_V3";
 export const LAZY_VALIDATION_VERSION="LAZY_VALIDATION_V4";
 function fingerprint(value){return hash(JSON.stringify(value??{})).toString(36)}
 function providerAbortPlan(plan){return plan?.status==="ABORTED"&&PROVIDER_ABORT.test(String(plan?.abortReason||""))}
+function activityTime(row){return Math.max(Number(row?.createdAt)||0,Number(row?.lastAttemptAt)||0,Number(row?.updatedAt)||0,Number(row?.abortedAt)||0,Number(row?.committedAt)||0)}
+function lifecycleRank(row){return ({PLANNED:1,ABORTED:2,COMMITTED:3})[String(row?.status||"").toUpperCase()]||0}
+function reconcileCommittedPlans(root){
+ const byId=new Map(root.commits.map(row=>[String(row?.planId||""),row]).filter(([id])=>id));
+ for(const commit of root.commits)root.generationRevision=Math.max(root.generationRevision,Number(commit?.replay?.generationRevision)||0);
+ const reconciled=[];
+ for(const plan of root.plans){
+  const commit=byId.get(String(plan?.id||""));if(!commit)continue;
+  if(plan.status!=="COMMITTED")reconciled.push(plan.id);
+  plan.status="COMMITTED";plan.committedAt=Math.max(Number(plan.committedAt)||0,Number(commit.committedAt)||0)||undefined;
+  plan.entityRefs=[...new Set([...(Array.isArray(plan.entityRefs)?plan.entityRefs:[]),...(Array.isArray(commit.entityRefs)?commit.entityRefs:[])].map(String).filter(Boolean))];
+  delete plan.terminalFailure;delete plan.failureKind;delete plan.checkpoint
+ }
+ return reconciled
+}
 
 export function ensureLazyGeneration(state){
  state.world??={};state.world.lazyGeneration??={version:2,generationRevision:0,plans:[],commits:[]};const root=state.world.lazyGeneration;
@@ -18,10 +34,14 @@ export function ensureLazyGeneration(state){
  for(const row of rows){
   const key=String(row?.id||"");if(!key)continue;
   const prior=deduped.get(key);if(!prior){deduped.set(key,row);continue}
-  const newer=Number(row?.createdAt||row?.abortedAt||row?.committedAt||0)>=Number(prior?.createdAt||prior?.abortedAt||prior?.committedAt||0)?row:prior;
+  const rowTime=activityTime(row),priorTime=activityTime(prior),newer=rowTime>priorTime?row:rowTime<priorTime?prior:lifecycleRank(row)>lifecycleRank(prior)?row:prior;
   newer.attempts=Math.max(1,Number(row?.attempts)||1,Number(prior?.attempts)||1);deduped.set(key,newer)
  }
- root.plans=[...deduped.values()].slice(-80);root.commits=Array.isArray(root.commits)?root.commits.slice(-80):[];return root
+ root.plans=[...deduped.values()].slice(-80);root.commits=Array.isArray(root.commits)?root.commits.slice(-80):[];reconcileCommittedPlans(root);return root
+}
+export function reconcileLazyGenerationLifecycle(state){
+ const root=ensureLazyGeneration(state),commitIds=new Set(root.commits.map(row=>String(row?.planId||"")).filter(Boolean));
+ return {generationRevision:root.generationRevision,reconciledPlanIds:root.plans.filter(row=>commitIds.has(String(row?.id||""))).map(row=>row.id),activePlanIds:root.plans.filter(row=>row.status==="PLANNED").map(row=>row.id)}
 }
 function normalizeReason(reason){
  const q=String(reason||"BACKGROUND_GAMEPLAY").toUpperCase();
@@ -50,13 +70,13 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY",domain=""
  const root=ensureLazyGeneration(state);syncGenerationClaimsFromCausalStructure(state);
  const normalizedReason=normalizeReason(reason),enrichmentDomain=normalizedReason==="PROACTIVE_ENRICHMENT"&&["GEOGRAPHY","CAST","FACTION","QUEST"].includes(String(domain||"").toUpperCase())?String(domain).toUpperCase():"",region=clean(state.world?.state?.region,120)||"UNKNOWN",day=Math.max(1,Number(state.world?.state?.day)||1),evolution=Math.max(0,Number(state.world?.evolution?.count)||0);
  const active=root.plans.find(x=>x.status==="PLANNED"&&x.reason===normalizedReason&&String(x.domain||"")===enrichmentDomain&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution);if(active)return active;
- const generationRevision=root.generationRevision+1,attemptEpoch=root.plans.filter(x=>providerAbortPlan(x)&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution).length,claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12}),key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,generationRevision,"attempt="+attemptEpoch,"domain="+enrichmentDomain,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|"),seed=hash(key),planId="LGP-"+seed.toString(36);
- const existing=root.plans.find(x=>x.id===planId);
- if(existing){
-  if(existing.status==="PLANNED")return existing;
-  existing.status="PLANNED";existing.attempts=Math.max(1,Number(existing.attempts)||1)+1;existing.requestedReason=clean(reason,220);existing.worldVersion=Number(state.world?.version)||1;existing.generationRevision=generationRevision;existing.attemptEpoch=attemptEpoch;existing.generatedAtWorldTime={day,totalMinutes:Math.max(0,Number(state.world?.state?.clock?.totalMinutes)||0)};existing.lastAttemptAt=Date.now();delete existing.abortReason;delete existing.abortedAt;
-  for(const c of existing.claimIds||[])reserveGenerationClaim(state,c,{planId,reason:normalizedReason});for(const e of existing.legacyEchoIds||[])reserveHistoryLegacyEcho(state,e,{planId,reason:normalizedReason});
-  return existing
+ const generationRevision=root.generationRevision+1,matchingAborts=root.plans.filter(x=>x.status==="ABORTED"&&x.reason===normalizedReason&&x.region===region&&Number(x.day)===day&&Number(x.evolution)===evolution&&String(x.domain||"")===(enrichmentDomain||"")),rotatingAborts=matchingAborts.filter(row=>row.terminalFailure===true||providerAbortPlan(row)),claims=pendingClaims(state),legacyEchoes=pendingHistoryLegacyEchoes(state,{limit:12});
+ let attemptEpoch=rotatingAborts.reduce((next,row)=>Math.max(next,(Number(row.attemptEpoch)||0)+1),0),key="",seed=0,planId="",reusableAbort=null;
+ while(true){
+  key=[state.world?.id||"WORLD",normalizedReason,region,day,evolution,generationRevision,"attempt="+attemptEpoch,"domain="+enrichmentDomain,claims.map(x=>x.id).join(","),legacyEchoes.map(x=>x.id).join(",")].join("|");seed=hash(key);planId="LGP-"+seed.toString(36);
+  const collision=root.plans.find(x=>x.id===planId);if(!collision)break;if(collision.status==="PLANNED")return collision;
+  if(collision.status==="ABORTED"&&collision.key===key&&collision.terminalFailure!==true&&!providerAbortPlan(collision)){reusableAbort=collision;break}
+  attemptEpoch++
  }
  const history=(state.world?.history||[]).filter(x=>x?.id).sort((a,b)=>String(a.id).localeCompare(String(b.id))),historyRefs=rotate(history,seed,Math.min(2,history.length)).map(x=>x.id);
  const selectedClaims=enrichmentDomain?[]:rotate(claims,seed>>>5,Math.min(2,claims.length)),selectedEchoes=enrichmentDomain?[]:rotate(legacyEchoes,seed>>>9,Math.min(2,legacyEchoes.length)),definitionClaimCount=selectedClaims.filter(x=>x.type==="BLUEPRINT_DEFINITION").length,slots=slotsFor(state,normalizedReason,(selectedClaims.length-definitionClaimCount)>0||selectedEchoes.length>0,enrichmentDomain);slots.definitions=Math.min(3,definitionClaimCount);
@@ -64,7 +84,7 @@ export function planLazyGeneration(state,{reason="BACKGROUND_GAMEPLAY",domain=""
  const worldVersion=Number(state.world?.version)||1,totalMinutes=Math.max(0,Number(state.world?.state?.clock?.totalMinutes)||0),worldSeedFingerprint=fingerprint(state.world?.seedContract||state.world?.seed||{}),entitySeed=hash(key+"|ENTITY|"+generationRevision).toString(36),generationSlot={region,day,evolution,reason:normalizedReason};
  const plan={id:planId,key,seed,status:"PLANNED",reason:normalizedReason,domain:enrichmentDomain||null,requestedReason:clean(reason,220),region,day,evolution,worldVersion,generationRevision,attemptEpoch,worldSeedFingerprint,entitySeed,generationSlot,promptVersion:LAZY_PROMPT_VERSION,validationVersion:LAZY_VALIDATION_VERSION,generatedAtWorldTime:{day,totalMinutes},slots,forbiddenTerms:constitutionForbidTerms(state),historyRefs:[...new Set([...historyRefs,...selectedEchoes.map(x=>x.historyId)])],claimIds:selectedClaims.map(x=>x.id),claims:selectedClaims.map(x=>({id:x.id,type:x.type,label:x.label,requiredBy:x.requiredBy,definitionKind:x.definitionKind||null,slotIndex:x.slotIndex||0,sourceRef:x.sourceRef||null,historyRefs:[...(x.historyRefs||[])]})),legacyEchoIds:selectedEchoes.map(x=>x.id),legacyEchoes:selectedEchoes.map(x=>({id:x.id,kind:x.kind,label:x.label,historyId:x.historyId})),createdAt:Date.now(),lastAttemptAt:Date.now(),attempts:1};
  for(const c of selectedClaims)reserveGenerationClaim(state,c.id,{planId,reason:normalizedReason});for(const e of selectedEchoes)reserveHistoryLegacyEcho(state,e.id,{planId,reason:normalizedReason});
- root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
+ if(reusableAbort){const index=root.plans.indexOf(reusableAbort);if(index>=0)root.plans[index]=plan;else root.plans.push(plan)}else root.plans.push(plan);root.plans=root.plans.slice(-80);return plan
 }
 function groupRows(g,key){return Array.isArray(g?.[key])?g[key]:[]}
 function rowIdentity(key,row){
@@ -132,12 +152,20 @@ function addedIdFor(raw,added,key){
 }
 function recoveryAffordance(state,plan,added={}){
  if(!/FIRST_BUTTON_STALL_RECOVERY/i.test(String(plan?.requestedReason||"")))return null;
- const locations=state.world?.registry?.locations||[],newIds=new Set((added.locations||[]).map(x=>String(x?.id||"")).filter(Boolean)),currentName=String(state.player?.location||state.world?.state?.location||""),current=locations.find(x=>x?.id===currentName||x?.name===currentName);
+ const locations=state.world?.registry?.locations||[],newIds=new Set((added.locations||[]).map(x=>String(x?.id||"")).filter(Boolean)),currentName=String(state.player?.location||state.world?.state?.location||""),currentId=String(state.player?.locationId||state.world?.state?.locationId||"");
+ const current=locations.find(x=>x?.id===currentId)||locations.find(x=>x?.id===currentName||x?.name===currentName);if(!current)return null;
  const candidates=locations.filter(x=>newIds.has(String(x?.id||""))&&x!==current&&!(Array.isArray(x?.accessRequirements)&&x.accessRequirements.length));if(!candidates.length)return null;
- const routes=state.world?.travel?.routes||[];let route=null,target=null;
- if(current)for(const r of routes){if(!r||r.open===false)continue;const other=String(r.fromId||"")===String(current.id||"")?String(r.toId||""):String(r.toId||"")===String(current.id||"")?String(r.fromId||""):"";const hit=candidates.find(x=>String(x.id||"")===other);if(hit){route=r;target=hit;break}}
- target??=candidates[0];target.known=true;target.visibilityLock="KNOWN";target.revealedDay=target.revealedDay??Math.max(1,Number(state.world?.state?.day)||1);
- return {kind:"location",id:String(target.id||""),name:String(target.name||""),routeId:route?.id||null,reason:"FIRST_BUTTON_STALL_RECOVERY"}
+ ensureTravelNetwork(state);const routes=Array.isArray(state.world?.travel?.routes)?state.world.travel.routes:[],byId=new Map(locations.map(row=>[String(row?.id||""),row]));
+ const routePath=(target)=>{
+  const queue=[String(current.id)],previous=new Map(),seen=new Set([String(current.id)]);
+  while(queue.length){const from=queue.shift();if(from===String(target.id))break;
+   for(const route of routes){if(!route||route.open===false)continue;const a=String(route.fromId||""),b=String(route.toId||""),to=a===from?b:b===from?a:"";if(!to||seen.has(to))continue;const destination=byId.get(to);if(!destination)continue;if(to!==String(target.id)&&destination.known!==true)continue;seen.add(to);previous.set(to,{from,route});queue.push(to)}
+  }
+  const end=String(target.id);if(!seen.has(end))return null;const path=[];let cursor=end;while(cursor!==String(current.id)){const step=previous.get(cursor);if(!step)return null;path.unshift(step.route);cursor=step.from}return path
+ };
+ const reachable=candidates.map(target=>({target,path:routePath(target)})).filter(row=>row.path?.length).sort((a,b)=>String(a.target.id).localeCompare(String(b.target.id)))[0];if(!reachable)return null;
+ const {target,path}=reachable;target.known=true;target.visibilityLock="KNOWN";target.revealedDay=target.revealedDay??Math.max(1,Number(state.world?.state?.day)||1);
+ return {kind:"location",id:String(target.id||""),name:String(target.name||""),routeId:path[0]?.id||null,routeIds:path.map(x=>String(x.id||"")).filter(Boolean),reason:"FIRST_BUTTON_STALL_RECOVERY"}
 }
 export function commitLazyGeneration(state,plan,generation,added,meta={}){
  const root=ensureLazyGeneration(state),v=validateLazyGenerationCandidate(state,generation,plan,{added});if(!v.valid)return {ok:false,errors:v.errors};
@@ -158,11 +186,16 @@ export function commitLazyGeneration(state,plan,generation,added,meta={}){
  const affordance=recoveryAffordance(state,plan,added);if(affordance)plan.recoveryAffordance=structuredClone(affordance);
  plan.status="COMMITTED";plan.committedAt=Date.now();plan.entityRefs=uniq(Object.values(added||{}).flat().map(x=>x?.id),24);root.generationRevision=Math.max(root.generationRevision,Number(plan.generationRevision)||0);
  const replay={generationRevision:plan.generationRevision,worldVersion:plan.worldVersion,worldSeedFingerprint:plan.worldSeedFingerprint,entitySeed:plan.entitySeed,generationSlot:structuredClone(plan.generationSlot),promptVersion:plan.promptVersion,validationVersion:plan.validationVersion,generatedAtWorldTime:structuredClone(plan.generatedAtWorldTime),sourceProvider:clean(meta.sourceProvider,80)||"UNKNOWN",sourceModel:clean(meta.sourceModel,120)||"UNKNOWN"};
- root.commits.push({planId:plan.id,day:plan.day,reason:plan.reason,requestedReason:plan.requestedReason,entityRefs:[...plan.entityRefs],claimIds:[...plan.claimIds],legacyEchoIds:[...(plan.legacyEchoIds||[])],worldVersion:Number(state.world?.version)||1,recoveryAffordance:affordance?structuredClone(affordance):null,replay});root.commits=root.commits.slice(-80);
+ root.commits.push({planId:plan.id,day:plan.day,reason:plan.reason,requestedReason:plan.requestedReason,entityRefs:[...plan.entityRefs],claimIds:[...plan.claimIds],legacyEchoIds:[...(plan.legacyEchoIds||[])],worldVersion:Number(state.world?.version)||1,committedAt:plan.committedAt,recoveryAffordance:affordance?structuredClone(affordance):null,replay});root.commits=root.commits.slice(-80);
  return {ok:true,planId:plan.id,entityRefs:plan.entityRefs,claimIds:plan.claimIds,legacyEchoIds:plan.legacyEchoIds||[],recoveryAffordance:affordance||null,replay}
 }
 export function abortLazyGeneration(state,plan,reason=""){
- if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.attempts=Math.max(1,Number(plan.attempts)||1);plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();return true
+ if(!plan)return false;for(const id of plan.claimIds||[])releaseGenerationClaim(state,id,reason||"LAZY_ABORTED");for(const id of plan.legacyEchoIds||[])releaseHistoryLegacyEcho(state,id,reason||"LAZY_ABORTED");plan.status="ABORTED";plan.attempts=Math.max(1,Number(plan.attempts)||1);plan.abortReason=clean(reason,240);plan.abortedAt=Date.now();plan.lastAttemptAt=plan.abortedAt;return true
+}
+export function failLazyGenerationTerminal(state,plan,reason="LAZY_CHECKPOINT_TERMINAL_FAILURE"){
+ if(!abortLazyGeneration(state,plan,reason))return {ok:false,error:"LAZY_PLAN_MISSING"};
+ delete plan.checkpoint;plan.terminalFailure=true;plan.failureKind="TERMINAL_CHECKPOINT";plan.failureRecordedAt=plan.abortedAt;
+ return {ok:true,planId:plan.id,attemptEpoch:Number(plan.attemptEpoch)||0,status:plan.status,reason:plan.abortReason}
 }
 export function lazyGenerationSnapshot(state,{director=false}={}){
  const root=ensureLazyGeneration(state),active=root.plans.filter(x=>x.status==="PLANNED").slice(-4);

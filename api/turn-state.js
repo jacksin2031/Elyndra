@@ -1,4 +1,4 @@
-import {json,methodGuard,safeBody,callModel} from "./_ai.js";
+import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {fastTurnStateSnapshot} from "../src/turn-compiler.js";
 import {normalizeActionIntent} from "../src/action-intent.js";
@@ -34,7 +34,7 @@ export default async function handler(req,res){
   const patch=normalizeGeneratedStatePatch(parseModelJSON(raw)),v=validateStatePatch(patch,plan);if(!v.valid)return json(res,422,{error:"STATE_PATCH_INVALID",details:v.errors});
   return json(res,200,{patch,plan,actionIntent,kernel})
  }catch(e){
-  const status=e.code==="AI_NOT_CONFIGURED"?503:e.code==="INVALID_MODEL_JSON"||String(e.message||"").startsWith("INVALID_MODEL_JSON")?422:502;
+  const status=errorStatus(e);
   return json(res,status,{error:e.code||e.message})
  }
 }

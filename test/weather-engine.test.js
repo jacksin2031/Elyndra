@@ -96,7 +96,7 @@ test("weather UI and AI generation contracts are wired into the current release"
   readFile(new URL("../src/ai-client.js",import.meta.url),"utf8")
  ]);
  assert.match(html,/id="weather" class="weather-chip"/);
- assert.match(app,/\["天氣",m\.weather\]/);
+ assert.match(app,/\[uiText\("天氣",activeLocale\),m\.weather\]/);
  assert.match(client,/weatherSystem/);assert.match(client,/weatherProfile/);
  assert.match(client,/resilientWorldStage\("CORE_RULES"/);assert.match(client,/communication:\{name:"世界內聯絡方式"[\s\S]{0,500}constraints:"限制與代價"/);
  assert.match(client,/resilientWorldStage\("CORE_ANCHOR"/);assert.match(client,/weatherSystem:\{identity:"20-50字天氣法則"[\s\S]{0,900}WTH-2/);

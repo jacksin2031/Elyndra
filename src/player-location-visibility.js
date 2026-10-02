@@ -1,7 +1,7 @@
 const clean=(v,max=180)=>typeof v==="string"?v.trim().slice(0,max):"";
 function record(state){
- const rows=Array.isArray(state?.world?.registry?.locations)?state.world.registry.locations:[],token=clean(state?.player?.location||state?.world?.state?.location,160);
- return rows.find(x=>String(x?.id||"")===token||String(x?.name||"")===token)||null
+ const rows=Array.isArray(state?.world?.registry?.locations)?state.world.registry.locations:[],playerId=String(state?.player?.locationId||""),worldId=String(state?.world?.state?.locationId||""),token=clean(state?.player?.location||state?.world?.state?.location,160);
+ return rows.find(x=>playerId&&String(x?.id||"")===playerId)||rows.find(x=>worldId&&String(x?.id||"")===worldId)||rows.find(x=>String(x?.id||"")===token||String(x?.name||"")===token)||null
 }
 function stripCanonical(value,name){const n=clean(name,100);return n?String(value||"").split(n).join(""):String(value||"")}
 function observableAlias(loc){

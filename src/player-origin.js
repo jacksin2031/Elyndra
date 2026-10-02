@@ -33,9 +33,9 @@ export function modernEarthOriginProfile(){
 export function ensurePlayerOrigin(player){
  player.origin??=modernEarthOriginProfile();
  const d=modernEarthOriginProfile();
- player.origin={...d,...player.origin,commonKnowledge:Array.isArray(player.origin.commonKnowledge)?player.origin.commonKnowledge:d.commonKnowledge,defaultValues:Array.isArray(player.origin.defaultValues)?player.origin.defaultValues:d.defaultValues,initialAssumptions:Array.isArray(player.origin.initialAssumptions)?player.origin.initialAssumptions:d.initialAssumptions};
+ player.origin={...d,...player.origin,commonKnowledge:Array.isArray(player.origin.commonKnowledge)?player.origin.commonKnowledge:d.commonKnowledge,defaultValues:Array.isArray(player.origin.defaultValues)?player.origin.defaultValues:d.defaultValues,initialAssumptions:Array.isArray(player.origin.initialAssumptions)?player.origin.initialAssumptions:d.initialAssumptions,narrativeIdentity:player.origin.narrativeIdentity&&typeof player.origin.narrativeIdentity==="object"&&!Array.isArray(player.origin.narrativeIdentity)?structuredClone(player.origin.narrativeIdentity):(d.narrativeIdentity||null)};
  return player.origin
 }
 export function playerOriginSnapshot(player){
- const o=ensurePlayerOrigin(player);return {id:o.id,label:o.label,background:o.background,commonKnowledge:o.commonKnowledge.slice(0,8),defaultValues:o.defaultValues.slice(0,8),initialAssumptions:o.initialAssumptions.slice(0,8),worldKnowledgeBoundary:o.worldKnowledgeBoundary,legalStatus:o.legalStatus||null,languagePolicy:o.languagePolicy||null,knowledgePolicy:o.knowledgePolicy||null,openingBias:o.openingBias||null}
+ const o=ensurePlayerOrigin(player);return {id:o.id,label:o.label,background:o.background,commonKnowledge:o.commonKnowledge.slice(0,8),defaultValues:o.defaultValues.slice(0,8),initialAssumptions:o.initialAssumptions.slice(0,8),worldKnowledgeBoundary:o.worldKnowledgeBoundary,legalStatus:o.legalStatus||null,languagePolicy:o.languagePolicy||null,knowledgePolicy:o.knowledgePolicy||null,openingBias:o.openingBias||null,narrativeIdentity:o.narrativeIdentity?structuredClone(o.narrativeIdentity):null}
 }
