@@ -48,7 +48,7 @@ jobs:
         run: python3 scripts/scan-i18n-coverage.py
 
       - name: Full regression suite
-        run: node --test test/v06031-ai-scene-delivery.test.js test/v06029-background-quality-routing.test.js test/v06029-world-quality-retry.test.js test/v06028-ai-first-suggestions-regression.test.js test/v06027-suggestion-freshness-regression.test.js test/v06027-debug-visibility-boundary.test.js test/v06025-observation-narrative-regression.test.js test/v06024-stale-weather-ja-ui-regressions.test.js test/v06023-ja-weather-helper-background-regressions.test.js test/v06022-world-creation-required-semantics.test.js test/v06021-ja-manual-regressions.test.js test/v06020-ja-manual-regressions.test.js test/v06019-ja-manual-regressions.test.js test/v06015-action-ui-coherence.test.js test/v06015-ja-live-regressions.test.js test/v06014-manual-regressions.test.js test/v06013-ja-fallback-watchdog-regression.test.js test/v06011-foreground-timeout-contract.test.js test/v06011-ja-runtime-coherence.test.js test/v06010-ja-world-creation-regression.test.js test/v0609-ja-turn-export-regression.test.js test/v0608-runtime-self-repair.test.js test/v0607-i18n-turn-recovery.test.js test/trpg-depth-e2e-v060.test.js test/story-rhythm-v0606.test.js test/drive-engine-v0605.test.js test/talent-rules-v0604.test.js test/npc-agency-v0603.test.js test/social-conflict-v0602.test.js test/combat-v0601.test.js test/trpg-depth-v060.test.js test/v05915-ja-suggestion-locale-regression.test.js test/v05915-ja-suggestion-render-invariant.test.js test/v05914-opening-scene-npc-dock-debug-regressions.test.js test/v05914-proactive-world-enrichment.test.js test/v05913-runtime-integrity-observability.test.js test/v05912-ai-output-repair.test.js test/v05911-origin-hud-regressions.test.js test/v05908-runtime-recovery.test.js test/background-world-evolution.test.js test/history-lazy-deepen-v047.test.js test/contextual-actions.test.js test/nonblocking-turn-sync.test.js test/progressive-world-builder-v05410.test.js test/debug-telemetry.test.js test/version-policy.test.js test/first-button-stall-recovery-v05419.test.js test/ai-autotest-first-button-hotfix.test.js test/v05904-creator-locale-regressions.test.js test/viewport-stability.test.js test/dice-feedback.test.js test/v05903-locale-completeness.test.js test/v05902-world-compile-i18n-notes.test.js test/v05901-i18n-coverage.test.js test/v05900-multilingual-runtime.test.js test/v05730-npc-player-facing-identity-privacy.test.js test/v05730-scene-dialogue-contract.test.js test/version-0551-release.test.js test/version-ui.test.js
+        run: npm test
 
       - name: Set up secondary Node compatibility runtime
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -58,8 +58,7 @@ jobs:
       - name: Secondary Node release compatibility gate
         run: |
           npm run version:check
-          node --check app.js
-          node --test test/v06031-ai-scene-delivery.test.js test/v06029-world-quality-retry.test.js test/version-policy.test.js test/version-ui.test.js
+          npm test
 
   deploy:
     permissions:
@@ -75,29 +74,31 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Build runtime-only Pages artifact
+        run: node scripts/build-pages-artifact.mjs
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: .
+          path: .pages-artifact
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-      - name: Verify deployed v0.60.31 source and rendered badge
+      - name: Verify deployed v0.61.3 source and rendered badge
         shell: bash
         run: |
           set -euo pipefail
           site="${{ steps.deployment.outputs.page_url }}"
-          version_url="${site}src/version.js?v=60031"
-          settings_url="${site}src/v06028-ai-settings-hotfix.js?v=60031"
-          quality_url="${site}src/v06029-world-quality-hotfix.js?v=60029"
-          compiler_url="${site}src/v06028-turn-compiler-hotfix.js?v=60028"
+          version_url="${site}src/version.js?v=61003"
+          settings_url="${site}src/v06028-ai-settings-hotfix.js?v=61003"
+          quality_url="${site}src/v06029-world-quality-hotfix.js?v=61003"
+          compiler_url="${site}src/v06028-turn-compiler-hotfix.js?v=61003"
           source_ok=0
           for attempt in $(seq 1 12); do
             version_body="$(curl -fsSL --retry 2 --retry-delay 1 "$version_url" || true)"
             settings_body="$(curl -fsSL --retry 2 --retry-delay 1 "$settings_url" || true)"
             quality_body="$(curl -fsSL --retry 2 --retry-delay 1 "$quality_url" || true)"
             compiler_body="$(curl -fsSL --retry 2 --retry-delay 1 "$compiler_url" || true)"
-            if grep -q 'APP_VERSION="0.60.31"' <<<"$version_body" && grep -q 'V06029_AGNES_BACKGROUND_TASK_ALIAS' <<<"$settings_body" && grep -q 'RETRY_AFTER_FAILURE' <<<"$quality_body" && grep -q 'recoverPriorAiSuggestions' <<<"$compiler_body"; then
+            if grep -q 'APP_VERSION="0.61.3"' <<<"$version_body" && grep -q 'V06029_AGNES_BACKGROUND_TASK_ALIAS' <<<"$settings_body" && grep -q 'RETRY_AFTER_FAILURE' <<<"$quality_body" && grep -q 'recoverPriorAiSuggestions' <<<"$compiler_body"; then
               source_ok=1
               break
             fi
@@ -107,4 +108,4 @@ jobs:
           chrome="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           test -n "$chrome"
           "$chrome" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=10000 --dump-dom "${site}?live-smoke=${GITHUB_SHA}" > live-dom.html
-          grep -E 'id="versionBadge"[^>]*>v0\.60\.31</div>' live-dom.html
+          grep -E 'id="versionBadge"[^>]*>v0\.61\.3</div>' live-dom.html
