@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 test("Pages CI tests supported Node versions, least privilege, and pinned external actions",async()=>{
  const yml=await readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8");
  assert.match(yml,/node-version:[^\n]*'20'[^\n]*'24'/);assert.match(yml,/node-version:[^\n]*'24'[^\n]*'20'/);
- assert.match(yml,/Verify deployed v0\.61\.7 source and rendered badge/);assert.match(yml,/APP_VERSION=\"0\.61\.7\"/);assert.match(yml,/version\.js\?v=61007/);
+ assert.match(yml,/Verify deployed v0\.61\.8 source and rendered badge/);assert.match(yml,/APP_VERSION=\"0\.61\.8\"/);assert.match(yml,/version\.js\?v=61008/);
  const permissionsStart=yml.indexOf("permissions:"),concurrencyStart=yml.indexOf("concurrency:",permissionsStart),workflowPermissions=yml.slice(permissionsStart,concurrencyStart);
  assert.match(workflowPermissions,/contents:\s*read/);
  assert.doesNotMatch(workflowPermissions,/pages:\s*write/);

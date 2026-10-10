@@ -255,6 +255,9 @@ const FORMAT={
  validationFailed:row("存檔世界完整性驗證失敗：{error}","存档世界完整性验证失败：{error}","Saved world integrity validation failed: {error}","セーブ世界の整合性検証に失敗しました：{error}"),
  worldCompileFailed:row("世界編譯失敗：{error}","世界编译失败：{error}","World compilation failed: {error}","世界のコンパイルに失敗しました：{error}"),
  providerFixedModel:row("{provider} · Elyndra 固定模型：{model}","{provider} · Elyndra 固定模型：{model}","{provider} · Elyndra fixed model: {model}","{provider} · Elyndra固定モデル：{model}"),
+ browserDecisionReadyHint:row("本地 Decision 已啟用；可用裝置：{device}。按下測試才會下載／載入模型。","本地 Decision 已启用；可用设备：{device}。按下测试才会下载／加载模型。","Local Decision is enabled; available device: {device}. The model downloads/loads only when you run the test.","ローカルDecisionは有効です。利用可能なデバイス：{device}。テスト実行時にのみモデルをダウンロード／読み込みます。"),
+ browserDecisionLoading:row("正在載入本地模型… {progress}%","正在加载本地模型… {progress}%","Loading local model… {progress}%","ローカルモデルを読み込み中… {progress}%"),
+ browserDecisionBenchmarkResult:row("{device} · Benchmark {accuracy}% · 高信心準確率 {confidentAccuracy}% · {cases} cases","{device} · Benchmark {accuracy}% · 高置信准确率 {confidentAccuracy}% · {cases} cases","{device} · Benchmark {accuracy}% · confident accuracy {confidentAccuracy}% · {cases} cases","{device} · Benchmark {accuracy}% · 高信頼精度 {confidentAccuracy}% · {cases} cases"),
  tagCount:row("{count} 個標籤","{count} 个标签","{count} tags","{count}個のタグ")
 };
 export function uiFormat(key,vars={},locale=loadLocale()){const id=normalizeLocale(locale);let out=FORMAT[key]?.[id]??String(key??"");for(const [name,value] of Object.entries(vars||{}))out=out.replaceAll(`{${name}}`,String(value??""));return out}

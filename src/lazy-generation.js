@@ -1,7 +1,7 @@
 import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=57025";
 import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=57025";
 import {ensureTravelNetwork} from "./travel-engine.js?v=57025";
-import {pendingQuestContinuity,questContinuityIssues,questConditionReferenceIssues} from "./quest-contracts.js?v=61007";
+import {pendingQuestContinuity,questContinuityIssues,questConditionReferenceIssues} from "./quest-contracts.js?v=61008";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);

@@ -9,7 +9,7 @@ import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57025";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=57025";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57025";
-import {WORLD_ARCHITECT_SKILL_DIRECTIVE,buildWorldArchitectBrief,worldArchitectRequiredSchema,worldDesignLogicIssues,fallbackWorldDesignLogic,repairWorldDesignLogic} from "./world-architect-skill.js?v=61007";
+import {WORLD_ARCHITECT_SKILL_DIRECTIVE,buildWorldArchitectBrief,worldArchitectRequiredSchema,worldDesignLogicIssues,fallbackWorldDesignLogic,repairWorldDesignLogic} from "./world-architect-skill.js?v=61008";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=57025";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=57028";
 import {normalizeActionIntent} from "./action-intent.js?v=57025";
@@ -17,7 +17,7 @@ import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from 
 import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=59000";
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=57025";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57025";
-import {questContinuitySnapshot} from "./quest-engine.js?v=61007";
+import {questContinuitySnapshot} from "./quest-engine.js?v=61008";
 import {originComplianceSchema,fallbackOriginCompliance,evaluateOriginOpeningCompliance} from "./origin-opening-compliance.js?v=61002";
 import {historyDepthSnapshot} from "./history-depth.js?v=57025";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57025";
@@ -28,8 +28,8 @@ import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./tradit
 import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=60010";
 import {repairAiOutput,isLocationTypeInstruction} from "./ai-output-repair.js?v=59014";
 import {recordDebug} from "./debug-telemetry.js?v=59012";
-import {attachWorldGenesis} from "./world-genesis-evaluator.js?v=61007";
-import {assertWorldStoryArchitecture,factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61007";
+import {attachWorldGenesis} from "./world-genesis-evaluator.js?v=61008";
+import {assertWorldStoryArchitecture,factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61008";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify({...body,locale:normalizeLocale(body?.locale||loadLocale())})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);const data=await r.json();registerLocalizedOutput(data,normalizeLocale(body?.locale||loadLocale()));return data}

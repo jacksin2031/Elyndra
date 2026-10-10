@@ -1,6 +1,6 @@
-import {recordDebug} from "./debug-telemetry.js?v=61007";
-import {BROWSER_DECISION,BROWSER_DECISION_ENGINE,BROWSER_DECISION_MODE,createBrowserDecisionRequest,normalizeBrowserDecisionResult,browserDecisionPolicy} from "./browser-decision-contract.js?v=61007";
-export const BROWSER_DECISION_DEFAULTS=Object.freeze({mode:BROWSER_DECISION_MODE.SHADOW_ONLY,timeoutMs:1500,acceptThreshold:.9,uncertainThreshold:.65});
+import {recordDebug} from "./debug-telemetry.js?v=61008";
+import {BROWSER_DECISION,BROWSER_DECISION_ENGINE,BROWSER_DECISION_MODE,createBrowserDecisionRequest,normalizeBrowserDecisionResult,browserDecisionPolicy} from "./browser-decision-contract.js?v=61008";
+export const BROWSER_DECISION_DEFAULTS=Object.freeze({mode:BROWSER_DECISION_MODE.SHADOW_ONLY,initTimeoutMs:10000,timeoutMs:1500,acceptThreshold:.9,uncertainThreshold:.65});
 const randomId=()=>globalThis.crypto?.randomUUID?.()||"rpc-"+Math.random().toString(36).slice(2)+Date.now().toString(36);
 export function detectBrowserDecisionCapabilities(env=globalThis){
  const navigator=env?.navigator||{},secureContext=env?.isSecureContext!==false;
@@ -15,13 +15,13 @@ export function detectBrowserDecisionCapabilities(env=globalThis){
 }
 function defaultWorkerFactory(env){
  if(typeof env?.Worker!=="function")return null;
- return ()=>new env.Worker(new URL("./browser-decision-worker.js?v=61007",import.meta.url),{type:"module",name:"elyndra-browser-decision"});
+ return ()=>new env.Worker(new URL("./browser-decision-worker.js?v=61008",import.meta.url),{type:"module",name:"elyndra-browser-decision"});
 }
-function workerRpc(worker,type,payload,timeoutMs){
+function workerRpc(worker,type,payload,timeoutMs,onProgress=null){
  return new Promise((resolve,reject)=>{
   const id=randomId();
   const timer=setTimeout(()=>{cleanup();reject(new Error("BROWSER_DECISION_TIMEOUT"))},Math.max(100,Number(timeoutMs)||1500));
-  const onMessage=event=>{const msg=event?.data||{};if(msg.id!==id)return;cleanup();msg.ok?resolve(msg.data):reject(new Error(msg.error||"BROWSER_DECISION_WORKER_ERROR"))};
+  const onMessage=event=>{const msg=event?.data||{};if(msg.id!==id)return;if(msg.type==="PROGRESS"){try{onProgress?.(msg.progress||{})}catch{}return}cleanup();msg.ok?resolve(msg.data):reject(new Error(msg.error||"BROWSER_DECISION_WORKER_ERROR"))};
   const onError=event=>{cleanup();reject(new Error(event?.message||"BROWSER_DECISION_WORKER_ERROR"))};
   function cleanup(){clearTimeout(timer);worker.removeEventListener?.("message",onMessage);worker.removeEventListener?.("error",onError)}
   worker.addEventListener?.("message",onMessage);worker.addEventListener?.("error",onError);
@@ -31,24 +31,39 @@ function workerRpc(worker,type,payload,timeoutMs){
 export class BrowserDecisionEngine{
  constructor({env=globalThis,workerFactory=null,wasmEvaluator=null,serverEvaluator=null,telemetry=recordDebug,config={}}={}){
   this.env=env;this.workerFactory=workerFactory||defaultWorkerFactory(env);this.wasmEvaluator=wasmEvaluator;this.serverEvaluator=serverEvaluator;this.telemetry=typeof telemetry==="function"?telemetry:()=>{};
-  this.config={...BROWSER_DECISION_DEFAULTS,...config};this.worker=null;this.workerReady=false;this.workerProbe=null;this.initialized=false;this.capabilities=null;this.initError="";
+  this.config={...BROWSER_DECISION_DEFAULTS,...config};this.worker=null;this.workerReady=false;this.workerProbe=null;this.modelProfile=null;this.initialized=false;this.capabilities=null;this.initError="";
  }
  async init(){
   if(this.initialized)return this.status();
   this.capabilities=detectBrowserDecisionCapabilities(this.env);
-  if(this.capabilities.webgpu&&this.capabilities.worker&&this.workerFactory){
+  if(this.capabilities.worker&&this.workerFactory){
    try{
     this.worker=this.workerFactory();
-    const probe=await workerRpc(this.worker,"INIT",{},this.config.timeoutMs);
+    const probe=await workerRpc(this.worker,"INIT",{},Math.max(1000,Number(this.config.initTimeoutMs)||10000));
     this.workerProbe=probe&&typeof probe==="object"?probe:null;
-    this.workerReady=Boolean(probe?.ready&&probe?.webgpu&&probe?.computeReady);
+    this.workerReady=Boolean(probe?.ready);this.modelProfile=probe?.modelProfile||null;
    }catch(error){this.initError=String(error?.message||error);try{this.worker?.terminate?.()}catch{}this.worker=null;this.workerReady=false}
   }
   this.initialized=true;
   this.telemetry("BROWSER_DECISION_CAPABILITY",{...this.capabilities,workerReady:this.workerReady,workerProbe:this.workerProbe,mode:this.config.mode,initError:this.initError});
   return this.status();
  }
- status(){return {initialized:this.initialized,workerReady:this.workerReady,workerProbe:this.workerProbe,capabilities:this.capabilities||detectBrowserDecisionCapabilities(this.env),mode:this.config.mode,initError:this.initError}}
+ status(){return {initialized:this.initialized,workerReady:this.workerReady,workerProbe:this.workerProbe,modelReady:Boolean(this.modelProfile),modelProfile:this.modelProfile,capabilities:this.capabilities||detectBrowserDecisionCapabilities(this.env),mode:this.config.mode,initError:this.initError}}
+ async loadModel({model=null,device="auto",onProgress=null,timeoutMs=120000}={}){
+  if(!this.initialized)await this.init();
+  if(!this.workerReady||!this.worker)throw new Error("BROWSER_DECISION_WORKER_UNAVAILABLE");
+  const profile=await workerRpc(this.worker,"LOAD_MODEL",{model,device},Math.max(5000,Number(timeoutMs)||120000),onProgress);
+  this.modelProfile=profile?.ready?profile:null;
+  this.telemetry("BROWSER_DECISION_MODEL_READY",{...profile,webgpuComputeReady:Boolean(this.workerProbe?.computeReady)});
+  return profile
+ }
+ async benchmark(cases=[]){
+  if(!this.initialized)await this.init();
+  if(!this.workerReady||!this.worker)throw new Error("BROWSER_DECISION_WORKER_UNAVAILABLE");
+  const result=await workerRpc(this.worker,"BENCHMARK",{cases},Math.max(5000,Number(this.config.benchmarkTimeoutMs)||60000));
+  this.telemetry("BROWSER_DECISION_BENCHMARK",{cases:result?.cases||0,correct:result?.correct||0,accuracy:result?.accuracy||0,confident:result?.confident||0,confidentAccuracy:result?.confidentAccuracy||0,latencyMs:result?.latencyMs||0});
+  return result
+ }
  async _runEvaluator(engine,evaluator,request){
   const started=Date.now(),raw=await evaluator(request),result=normalizeBrowserDecisionResult(raw,{engine,fallback:engine!==BROWSER_DECISION_ENGINE.WEBGPU});
   if(!result.latencyMs)result.latencyMs=Math.max(0,Date.now()-started);
@@ -59,7 +74,7 @@ export class BrowserDecisionEngine{
   const request=input?.schema?input:createBrowserDecisionRequest(input),attempts=[];
   let result=null;
   if(this.workerReady&&this.worker){
-   try{result=normalizeBrowserDecisionResult(await workerRpc(this.worker,"EVALUATE",request,this.config.timeoutMs),{engine:BROWSER_DECISION_ENGINE.WEBGPU});attempts.push({engine:"WEBGPU",status:"SUCCESS"})}
+   try{const raw=await workerRpc(this.worker,"EVALUATE",request,this.config.timeoutMs);result=normalizeBrowserDecisionResult(raw,{engine:raw?.engine||BROWSER_DECISION_ENGINE.WEBGPU,fallback:String(raw?.engine||"").toUpperCase()!==BROWSER_DECISION_ENGINE.WEBGPU});attempts.push({engine:result.engine,status:"SUCCESS"})}
    catch(error){attempts.push({engine:"WEBGPU",status:"ERROR",error:String(error?.message||error)});this.workerReady=false}
   }
   let policy=result?browserDecisionPolicy(result,{task:request.task,...this.config}):{escalate:true};
@@ -78,7 +93,7 @@ export class BrowserDecisionEngine{
  }
  async dispose(){
   if(this.worker){try{await workerRpc(this.worker,"DISPOSE",{},500)}catch{}try{this.worker.terminate?.()}catch{}}
-  this.worker=null;this.workerReady=false;this.workerProbe=null;this.initialized=false;
+  this.worker=null;this.workerReady=false;this.workerProbe=null;this.modelProfile=null;this.initialized=false;
  }
 }
 export function createBrowserDecisionEngine(options={}){return new BrowserDecisionEngine(options)}

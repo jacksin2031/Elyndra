@@ -258,6 +258,14 @@ export const EXTRA_UI=Object.freeze({
  "正在測試 Jev…":r("正在測試 Jev…","正在测试 Jev…","Testing Jev…","Jevをテスト中…"),
  "Jev 連線失敗：":r("Jev 連線失敗：","Jev 连接失败：","Jev connection failed: ","Jev接続失敗："),
  "Jev 本地設定已清除。":r("Jev 本地設定已清除。","Jev 本地设置已清除。","Local Jev settings cleared.","Jevのローカル設定を消去しました。"),
+ "啟用後模型會直接在本瀏覽器運行；第一次需要下載並快取模型。現階段只做 Shadow Mode，不會直接改變遊戲結果。":r("啟用後模型會直接在本瀏覽器運行；第一次需要下載並快取模型。現階段只做 Shadow Mode，不會直接改變遊戲結果。","启用后模型会直接在本浏览器运行；首次需要下载并缓存模型。现阶段仅使用 Shadow Mode，不会直接改变游戏结果。","When enabled, the model runs directly in this browser. The first run downloads and caches the model. It currently runs in Shadow Mode only and cannot directly change game outcomes.","有効化するとモデルはこのブラウザ内で直接動作します。初回のみモデルをダウンロードしてキャッシュします。現在はShadow Modeのみで、ゲーム結果を直接変更しません。"),
+ "啟用本地 Decision":r("啟用本地 Decision","启用本地 Decision","Enable Local Decision","ローカルDecisionを有効化"),
+ "運行模式":r("運行模式","运行模式","Runtime Mode","実行モード"),
+ "本地模型":r("本地模型","本地模型","Local Model","ローカルモデル"),
+ "儲存、載入並測試本地模型":r("儲存、載入並測試本地模型","保存、加载并测试本地模型","Save, Load & Test Local Model","ローカルモデルを保存・読み込み・テスト"),
+ "本地 Decision 現時停用。":r("本地 Decision 現時停用。","本地 Decision 当前已停用。","Local Decision is currently disabled.","ローカルDecisionは現在無効です。"),
+ "正在載入本地模型…":r("正在載入本地模型…","正在加载本地模型…","Loading local model…","ローカルモデルを読み込み中…"),
+ "本地 Decision 載入／測試失敗：":r("本地 Decision 載入／測試失敗：","本地 Decision 加载／测试失败：","Local Decision load/test failed: ","ローカルDecisionの読み込み／テストに失敗："),
  "確定要刪除目前的本地世界嗎？":r("確定要刪除目前的本地世界嗎？","确定要删除当前的本地世界吗？","Delete the current local world?","現在のローカル世界を削除しますか？"),
 
  // Common runtime UI/fallback labels

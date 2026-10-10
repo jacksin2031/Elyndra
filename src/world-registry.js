@@ -7,8 +7,8 @@ import {ensureVisibilityLocks,markEntityObserved,markEntityKnown} from "./visibi
 import {ensureWorldCatalog,validateWorldDefinitions,canonizeWorldDefinitions} from "./world-catalog.js?v=57025";
 import {forbiddenTermMatch} from "./generation-claims.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
-import {isLocationTypeInstruction} from "./ai-output-repair.js?v=61007";
-import {normalizeQuestConditions,normalizeQuestContinuity,questContinuityIssues,questConditionReferenceIssues,repairQuestConditionEntityBindings} from "./quest-contracts.js?v=61007";
+import {isLocationTypeInstruction} from "./ai-output-repair.js?v=61008";
+import {normalizeQuestConditions,normalizeQuestContinuity,questContinuityIssues,questConditionReferenceIssues,repairQuestConditionEntityBindings} from "./quest-contracts.js?v=61008";
 const uid=(p)=>p+"-"+(crypto.randomUUID?.()||Math.random().toString(36).slice(2));
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const keywords=v=>Array.isArray(v)?[...new Set(v.map(x=>clean(x,60)).filter(x=>x.length>=2))].slice(0,6):[];
 const strings=(v,max=4)=>Array.isArray(v)?[...new Set(v.map(x=>clean(String(x),180)).filter(Boolean))].slice(0,max):[];

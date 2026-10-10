@@ -1,6 +1,6 @@
 import {ACTION_INTENT_SCHEMA} from "./action-intent.js?v=57025";
 import {statePatchSchema} from "./state-sync.js?v=57025";
-import {NARRATIVE_DIRECTOR_DIRECTIVE} from "./narrative-director.js?v=61007";
+import {NARRATIVE_DIRECTOR_DIRECTIVE} from "./narrative-director.js?v=61008";
 
 export const STRUCTURED_SUGGESTION_SCHEMA='{"label":"具體自然行為，避免探索/對話/繼續等抽象字眼","action":"完整可執行行動","kind":"OBSERVE|SOCIAL|TRAVEL|RISKY|GENERAL","risk":"LOW|MEDIUM|HIGH|EXTREME|UNKNOWN","targetId":null,"skillHint":"可能使用的能力，不是成功率","consequenceHint":"只提示可能代價，不劇透結果","approach":"STEADY|SOCIAL|BOLD|CREATIVE","progression":false,"causalBasis":"為甚麼當前場景確實可以嘗試這個行動","requirementsSatisfied":true,"requiredItemIds":[],"requiredCapabilities":[]}';
 export const TURN_SCENE_SCHEMA=`{"outcome":"SUCCESS|FAILURE，必須與 payload.kernel.result.success 完全一致","sceneTitle":"4-18字、使用目前 runtime 選擇語言的目前目標","narrative":"1-3句、40-180字或等量篇幅，使用目前 runtime 選擇語言，只描述玩家當下可感知結果與實際後果","suggestions":[${STRUCTURED_SUGGESTION_SCHEMA},${STRUCTURED_SUGGESTION_SCHEMA},${STRUCTURED_SUGGESTION_SCHEMA},${STRUCTURED_SUGGESTION_SCHEMA}]}`;
