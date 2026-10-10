@@ -56,11 +56,11 @@ test("unpersistable recovery uses exact Blob bytes even under an active Service 
 
 test("bridge waits for the updated worker rather than accepting an older controller",async()=>{
  let change;const sw={controller:{scriptURL:"https://elyndra.test/autotest-export-sw.js?v=57025"},ready:Promise.resolve(),
-  async register(){setTimeout(()=>{sw.controller={scriptURL:"https://elyndra.test/autotest-export-sw.js?v=61003"};change?.();},5);return {scope:"https://elyndra.test/"};},
+  async register(){setTimeout(()=>{sw.controller={scriptURL:"https://elyndra.test/autotest-export-sw.js?v=61006"};change?.();},5);return {scope:"https://elyndra.test/"};},
   addEventListener(type,fn){change=fn;},removeEventListener(){}
  };
- const result=await ensureAutotestDownloadBridge({navigatorImpl:{serviceWorker:sw},scriptUrl:"https://elyndra.test/autotest-export-sw.js?v=61003",timeoutMs:200});
- assert.equal(result.controlled,true);assert.equal(result.status,"ready");assert.match(sw.controller.scriptURL,/61003$/);
+ const result=await ensureAutotestDownloadBridge({navigatorImpl:{serviceWorker:sw},scriptUrl:"https://elyndra.test/autotest-export-sw.js?v=61006",timeoutMs:200});
+ assert.equal(result.controlled,true);assert.equal(result.status,"ready");assert.match(sw.controller.scriptURL,/61006$/);
 });
 
 test("actual app download entry binds the selected snapshot slot and falls back if archival fails",async()=>{

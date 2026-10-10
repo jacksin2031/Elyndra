@@ -1,5 +1,6 @@
 import {ensureVisibilityLocks,backgroundMutableFields,canBackgroundMutateEntity} from "./visibility-lock.js?v=57025";
 import {worldArchitectQualityFindings} from "./world-architect-skill.js?v=61002";
+import {factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61007";
 const obj=v=>v&&typeof v==="object"&&!Array.isArray(v);
 const clean=(v,max=600)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,Number.isFinite(Number(n))?Number(n):a));
@@ -24,48 +25,51 @@ export function recordGenerationStage(diagnostics,stage,data={}){
   reason:clean(data.reason,240)||previous.reason||"",
   latencyMs:Math.max(0,Math.round(Number(data.latencyMs??previous.latencyMs)||0)),
   attempts:Math.max(1,Math.round(Number(data.attempts??previous.attempts)||1)),
-  fallbackUsed:data.fallbackUsed===true||source==="FALLBACK"
+  fallbackUsed:data.fallbackUsed===true||source==="FALLBACK",
+  repairUsed:data.repairUsed===true||previous.repairUsed===true,
+  repairReason:clean(data.repairReason,240)||previous.repairReason||""
  };
  return diagnostics
 }
 
 export function finalizeGenerationDiagnostics(diagnostics){
  const d=obj(diagnostics)?structuredClone(diagnostics):createGenerationDiagnostics(),entries=Object.entries(d.stages||{}),rows=entries.map(([,row])=>row);
- const aiSucceeded=rows.filter(x=>x.source==="AI").length,fallbackCount=rows.filter(x=>x.source==="FALLBACK").length,failedCount=rows.filter(x=>x.source==="FAILED").length;
+ const aiSucceeded=rows.filter(x=>x.source==="AI").length,fallbackCount=rows.filter(x=>x.source==="FALLBACK").length,failedCount=rows.filter(x=>x.source==="FAILED").length,repairCount=rows.filter(x=>x.repairUsed===true).length;
  const recovered=new Set(d.recovery?.succeeded===true&&Array.isArray(d.recovery?.recoveredStages)?d.recovery.recoveredStages:[]);
  const recoveredFallbackCount=entries.filter(([stage,row])=>row?.source==="FALLBACK"&&recovered.has(stage)).length;
  const unrecoveredFallbackCount=Math.max(0,fallbackCount-recoveredFallbackCount);
  d.finishedAt=Date.now();
  d.totalLatencyMs=Math.max(0,d.finishedAt-(Number(d.startedAt)||d.finishedAt));
- d.summary={stageCount:rows.length,aiSucceeded,fallbackCount,recoveredFallbackCount,unrecoveredFallbackCount,failedCount};
- d.quality=failedCount?"FAILED":unrecoveredFallbackCount>=4?"SEVERELY_DEGRADED":unrecoveredFallbackCount?"DEGRADED":fallbackCount?"RECOVERED":"HEALTHY";
+ d.summary={stageCount:rows.length,aiSucceeded,fallbackCount,recoveredFallbackCount,unrecoveredFallbackCount,failedCount,repairCount};
+ d.quality=failedCount?"FAILED":unrecoveredFallbackCount>=4?"SEVERELY_DEGRADED":unrecoveredFallbackCount?"DEGRADED":fallbackCount||repairCount?"RECOVERED":"HEALTHY";
  return d
 }
 
 const statusFor=score=>score>=80?"PASS":score>=70?"MINOR_REPAIR":score>=50?"REPAIR_REQUIRED":"MAJOR_REPAIR";
 
 export function normalizeWorldEvaluation(input,meta={}){
- const raw=obj(input)?input:{},dimensions={},provided=[];
- const hasOverall=raw.overall!==undefined&&raw.overall!==null&&raw.overall!==""&&Number.isFinite(Number(raw.overall));
- const suppliedOverall=hasOverall?Math.round(clamp(Number(raw.overall),0,100)):null;
+ const raw=obj(input)?input:{},dimensions={},provided=[],dimensionSource=obj(raw.dimensions)?raw.dimensions:(obj(raw.dimensionScores)?raw.dimensionScores:{}),overallCandidate=raw.overall??raw.overallScore;
+ const hasOverall=overallCandidate!==undefined&&overallCandidate!==null&&overallCandidate!==""&&Number.isFinite(Number(overallCandidate));
+ const suppliedOverall=hasOverall?Math.round(clamp(Number(overallCandidate),0,100)):null;
  for(const key of WORLD_QUALITY_DIMENSIONS){
-  const value=raw.dimensions?.[key],valid=value!==undefined&&value!==null&&value!==""&&Number.isFinite(Number(value));
+  const value=dimensionSource[key],valid=value!==undefined&&value!==null&&value!==""&&Number.isFinite(Number(value));
   if(valid)provided.push(Math.round(clamp(Number(value),0,100)))
  }
- const dimensionFallback=suppliedOverall??(provided.length?Math.round(provided.reduce((n,v)=>n+v,0)/provided.length):0);
+ const rawFindings=Array.isArray(raw.findings)?raw.findings:[],severityPenalty=rawFindings.reduce((sum,x)=>sum+({LOW:2,MEDIUM:4,HIGH:8,CRITICAL:15}[String(x?.severity||'MEDIUM').toUpperCase()]||4),0),inferredFallback=Math.round(clamp(75-severityPenalty,20,75)),metaOverall=meta.fallbackOverall!==undefined&&meta.fallbackOverall!==null&&meta.fallbackOverall!==''&&Number.isFinite(Number(meta.fallbackOverall))?Math.round(clamp(Number(meta.fallbackOverall),0,100)):null;
+ const dimensionFallback=suppliedOverall??(provided.length?Math.round(provided.reduce((n,v)=>n+v,0)/provided.length):(metaOverall??inferredFallback));
  for(const key of WORLD_QUALITY_DIMENSIONS){
-  const value=raw.dimensions?.[key],valid=value!==undefined&&value!==null&&value!==""&&Number.isFinite(Number(value));
-  dimensions[key]=valid?Math.round(clamp(Number(value),0,100)):dimensionFallback
+  const value=dimensionSource[key],valid=value!==undefined&&value!==null&&value!==''&&Number.isFinite(Number(value)),fallbackValue=meta.fallbackDimensions?.[key],validFallback=fallbackValue!==undefined&&fallbackValue!==null&&fallbackValue!==''&&Number.isFinite(Number(fallbackValue));
+  dimensions[key]=valid?Math.round(clamp(Number(value),0,100)):validFallback?Math.round(clamp(Number(fallbackValue),0,100)):dimensionFallback
  }
- const overall=suppliedOverall??Math.round(WORLD_QUALITY_DIMENSIONS.reduce((n,k)=>n+dimensions[k],0)/WORLD_QUALITY_DIMENSIONS.length);
+ const overall=suppliedOverall??(provided.length?Math.round(WORLD_QUALITY_DIMENSIONS.reduce((n,k)=>n+dimensions[k],0)/WORLD_QUALITY_DIMENSIONS.length):(metaOverall??dimensionFallback));
  const findings=(Array.isArray(raw.findings)?raw.findings:[]).slice(0,10).map((x,i)=>({
   id:clean(x?.id,80)||"FIND-"+(i+1),
   severity:["LOW","MEDIUM","HIGH","CRITICAL"].includes(String(x?.severity||"").toUpperCase())?String(x.severity).toUpperCase():"MEDIUM",
-  targetType:clean(x?.targetType,80)||"WORLD",
-  targetIds:uniq(x?.targetIds).slice(0,6),
-  problem:clean(x?.problem,500),
+  targetType:clean(x?.targetType||x?.category||x?.dimension,80)||"WORLD",
+  targetIds:uniq([...(Array.isArray(x?.targetIds)?x.targetIds:[]),x?.targetId]).slice(0,6),
+  problem:clean(x?.problem||x?.finding,500),
   evidence:(Array.isArray(x?.evidence)?x.evidence:[]).map(v=>clean(v,300)).filter(Boolean).slice(0,4),
-  recommendation:clean(x?.recommendation,500),
+  recommendation:clean(x?.recommendation||x?.recommendedRepair,500),
   requiresRegeneration:x?.requiresRegeneration!==false
  })).filter(x=>x.problem||x.recommendation);
  return {
@@ -270,8 +274,8 @@ function unseenRepairTargets(state){
  ensureVisibilityLocks(state);const r=state?.world?.registry||{};
  return {
   locations:(r.locations||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,region:x.region,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,culture:x.culture||null,trade:x.trade||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
-  npcs:(r.npcs||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,role:x.role,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,personality:x.personality,goal:x.goal,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
-  factions:(r.factions||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,goal:x.goal,culture:x.culture||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)}))
+  npcs:(r.npcs||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,role:x.role,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,personality:x.personality,goal:x.goal,agency:x.agency||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)})),
+  factions:(r.factions||[]).filter(canBackgroundMutateEntity).map(x=>({id:x.id,name:x.name,visibilityLock:x.visibilityLock,protectedHintFields:x.visibilityHint?.fields||[],description:x.description,goal:x.goal,agency:x.agency||null,culture:x.culture||null,lore:x.lore||null,historyRefs:uniq(x.historyRefs)}))
  }
 }
 export function backgroundQualitySnapshot(state){
@@ -305,14 +309,14 @@ export function applyUnseenWorldRepair(state,input={}){
  },r=state?.world?.registry||{},modified=[];
  const groups=[
   ["locations",r.locations||[],["description","culture","trade","lore"]],
-  ["npcs",r.npcs||[],["description","personality","goal","lore"]],
-  ["factions",r.factions||[],["description","culture","lore"]]
+  ["npcs",r.npcs||[],["description","personality","goal","agency","lore"]],
+  ["factions",r.factions||[],["description","agency","culture","lore"]]
  ];
  for(const [group,rows,fields] of groups){
   for(const proposed of Array.isArray(patch?.registry?.[group])?patch.registry[group]:[]){
    const id=clean(proposed?.id,160);if(!id||!allowed[group].has(id))continue;
-   const entity=rows.find(x=>x.id===id);if(!entity)continue;const mutable=backgroundMutableFields(entity,fields);if(!mutable.length)continue;
-   if(mergeSafe(entity,proposed,mutable))modified.push({group,id})
+   const entity=rows.find(x=>x.id===id);if(!entity)continue;const mutable=backgroundMutableFields(entity,fields);if(!mutable.length)continue;const proposal=structuredClone(proposed);if(proposal.agency!==undefined){const agencyErrors=group==="factions"?factionAgencyIssues({...entity,agency:proposal.agency}):group==="npcs"?npcAgencyIssues({...entity,agency:proposal.agency}):[];if(agencyErrors.length)delete proposal.agency}
+   if(mergeSafe(entity,proposal,mutable))modified.push({group,id})
   }
  }
  if(modified.length){state.world.version=Math.max(1,Number(state.world.version)||1)+1;state.events??=[];state.events.push({id:"EV-QUALITY-"+Date.now(),type:"BACKGROUND_QUALITY_REPAIR_APPLIED",visibility:"INTERNAL",modified:modified.map(x=>x.id),day:Number(state.world?.state?.day)||1,at:Date.now()})}
@@ -336,6 +340,6 @@ export function recordBackgroundQualityReview(state,{evaluation=null,repair=null
  };
  quality.reviewedAt=now;quality.pending=false;quality.backgroundPending=false;
  if(evaluation){quality.status=String(evaluation.status||"PASS").toUpperCase();quality.source=clean(evaluation.source,30)||quality.source||"AI";quality.official=evaluation.official!==false;quality.overall=evaluation.overall??quality.overall??null;quality.provisionalOverall=evaluation.overall??quality.provisionalOverall??null;quality.error=""}
- else if(failure){quality.status="UNAVAILABLE";quality.source=quality.source||"FALLBACK";quality.official=false;quality.error=failure}
+ else if(failure){const lastGood=prior.evaluation&&typeof prior.evaluation==="object";if(lastGood){quality.status=String(prior.evaluation.status||quality.status||"PASS").toUpperCase();quality.source=clean(prior.evaluation.source,30)||quality.source||"AI";quality.official=prior.evaluation.official!==false;quality.overall=prior.evaluation.overall??quality.overall??null;quality.provisionalOverall=prior.evaluation.overall??quality.provisionalOverall??null;quality.error=""}else{quality.status="UNAVAILABLE";quality.source=quality.source||"FALLBACK";quality.official=false;quality.error=failure}}
  return quality.background
 }

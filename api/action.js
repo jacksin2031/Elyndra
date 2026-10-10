@@ -4,7 +4,7 @@ import {normalizeActionIntent} from "../src/action-intent.js";
 import {ACTION_ASSESS_SYSTEM} from "../src/ai-runtime-contracts.js";
 
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {action,snapshot}=safeBody(req);if(!action||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
   const label=String(action).slice(0,180);

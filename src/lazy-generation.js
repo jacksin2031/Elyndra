@@ -1,14 +1,15 @@
 import {generationClaimsSnapshot,reserveGenerationClaim,releaseGenerationClaim,materializeGenerationClaim,syncGenerationClaimsFromCausalStructure,constitutionForbidTerms,materialSatisfiesClaim} from "./generation-claims.js?v=57025";
 import {pendingHistoryLegacyEchoes,reserveHistoryLegacyEcho,releaseHistoryLegacyEcho,materializeHistoryLegacyEcho} from "./history-legacy.js?v=57025";
 import {ensureTravelNetwork} from "./travel-engine.js?v=57025";
+import {pendingQuestContinuity,questContinuityIssues,questConditionReferenceIssues} from "./quest-contracts.js?v=61007";
 
 const clean=(v,max=240)=>typeof v==="string"?v.trim().slice(0,max):"";
 const uniq=(v,max=12)=>[...new Set((Array.isArray(v)?v:[v]).map(x=>clean(x,160)).filter(Boolean))].slice(0,max);
 const hash=value=>{let h=2166136261;for(const ch of String(value)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
-const REASONS=["PLAYER_REQUEST","WORLD_EDGE_UNDERDEFINED","WORLD_QUALITY_DROP","PERIODIC_CANON_REVIEW","CLAIM_MATERIALIZATION","BACKGROUND_GAMEPLAY","PROACTIVE_ENRICHMENT"];
+const REASONS=["PLAYER_REQUEST","WORLD_EDGE_UNDERDEFINED","WORLD_QUALITY_DROP","PERIODIC_CANON_REVIEW","CLAIM_MATERIALIZATION","BACKGROUND_GAMEPLAY","PROACTIVE_ENRICHMENT","STALL_RECOVERY"];
 const PROVIDER_ABORT=/AI_TIMEOUT|AI_HTTP_(?:429|5\d\d)|Failed to fetch|fetch failed|NetworkError|ERR_NETWORK|Load failed|network request failed|ECONNRESET|ECONNREFUSED|ENOTFOUND|connection (?:reset|closed|refused)|PROVIDER/i;
-export const LAZY_PROMPT_VERSION="RUNTIME_EXPANSION_V3";
-export const LAZY_VALIDATION_VERSION="LAZY_VALIDATION_V4";
+export const LAZY_PROMPT_VERSION="RUNTIME_EXPANSION_V5";
+export const LAZY_VALIDATION_VERSION="LAZY_VALIDATION_V6";
 function fingerprint(value){return hash(JSON.stringify(value??{})).toString(36)}
 function providerAbortPlan(plan){return plan?.status==="ABORTED"&&PROVIDER_ABORT.test(String(plan?.abortReason||""))}
 function activityTime(row){return Math.max(Number(row?.createdAt)||0,Number(row?.lastAttemptAt)||0,Number(row?.updatedAt)||0,Number(row?.abortedAt)||0,Number(row?.committedAt)||0)}
@@ -56,6 +57,7 @@ function slotsFor(state,reason,hasClaims,domain=""){
   const d=String(domain||"").toUpperCase();return {locations:d==="GEOGRAPHY"?1:0,npcs:d==="CAST"?1:0,factions:d==="FACTION"?1:0,sideQuests:d==="QUEST"?1:0,definitions:0}
  }
  const politics=Number(state.world?.seedContract?.politics??state.world?.seed?.politics)||0,existing=state.world?.registry||{};
+ if(reason==="STALL_RECOVERY"){const locationCount=(existing.locations||[]).length,npcCount=(existing.npcs||[]).length;return {locations:locationCount<4?1:0,npcs:npcCount<4?1:0,factions:0,sideQuests:0,definitions:0}}
  const slots={locations:1,npcs:1,factions:0,sideQuests:1,definitions:0};
  if(reason==="WORLD_EDGE_UNDERDEFINED"||reason==="PLAYER_REQUEST")slots.locations=2;
  if(reason==="WORLD_QUALITY_DROP"){slots.locations=1;slots.npcs=2}
@@ -115,9 +117,12 @@ export function validateLazyGenerationCandidate(state,generation,plan,options={}
    const refs=uniq(row?.historyRefs,8);if(key!=="definitions"&&(state.world?.history||[]).length&&refs.length===0)errors.push("LAZY_HISTORY_REF_REQUIRED:"+key);
    for(const id of refs)if(allowedHistory.size&&!allowedHistory.has(id))errors.push("LAZY_HISTORY_REF_OUTSIDE_PLAN:"+id);
    const claimRefs=uniq(row?.claimRefs,6);for(const id of claimRefs){if(!plan.claimIds.includes(id)){errors.push("LAZY_CLAIM_NOT_RESERVED:"+id);continue}const claim=(plan.claims||[]).find(x=>x.id===id);if(claim&&!materialSatisfiesClaim(claim,row))errors.push("LAZY_CLAIM_SEMANTIC_MISMATCH:"+id)};
-   const echoRefs=uniq(row?.echoRefs,6);for(const id of echoRefs)if(!(plan.legacyEchoIds||[]).includes(id))errors.push("LAZY_ECHO_NOT_RESERVED:"+id)
+   const echoRefs=uniq(row?.echoRefs,6);for(const id of echoRefs)if(!(plan.legacyEchoIds||[]).includes(id))errors.push("LAZY_ECHO_NOT_RESERVED:"+id);
+   if(key==="sideQuests"){for(const issue of questContinuityIssues(row,state.world?.registry?.sideQuests||[]))errors.push("LAZY_"+issue);for(const issue of questConditionReferenceIssues(row,{...(state.world?.registry||{}),items:state.inventory||[],facts:(state.knowledge||[]).filter(x=>x.factId).map(x=>({id:x.factId})),events:state.events||[]}))errors.push("LAZY_"+issue)}
   }
  }
+ const pendingQuest=pendingQuestContinuity(state.world?.registry?.sideQuests||[],1)[0]||null,questRows=groupRows(generation,"sideQuests");
+ if(plan.reason==="PROACTIVE_ENRICHMENT"&&String(plan.domain||"").toUpperCase()==="QUEST"&&pendingQuest&&questRows.length&&!questRows.some(row=>(Array.isArray(row?.predecessorQuestIds)?row.predecessorQuestIds:[]).map(String).includes(String(pendingQuest.id))))errors.push("LAZY_QUEST_CONTINUITY_UNRESOLVED:"+pendingQuest.id);
  for(const claimId of plan.claimIds){
   const bound=["locations","npcs","factions","sideQuests","definitions"].some(key=>groupRows(generation,key).some(row=>uniq(row?.claimRefs,6).includes(claimId)));
   if(!bound)errors.push("LAZY_RESERVED_CLAIM_UNBOUND:"+claimId)

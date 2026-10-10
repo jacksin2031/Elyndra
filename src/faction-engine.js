@@ -10,7 +10,7 @@ export function ensureFactionRuntime(state){const r=ensureWorldRegistry(state),n
 export function changeReputation(state,factionId,delta){const f=ensureFactionRuntime(state).find(x=>x.id===factionId);if(!f)return null;f.playerReputation=clamp(f.playerReputation+clamp(Math.round(delta),-5,5),-100,100);return f.playerReputation}
 function relationStatus(v){return v>=45?"ALLIED":v<=-45?"HOSTILE":v>=15?"FRIENDLY":v<=-15?"RIVAL":"NEUTRAL"}
 function chooseStrategy(state,f,crisis){
- const stability=Number(f.worldState?.stability??50),goal=(f.goal||"").toLowerCase();
+ const stability=Number(f.worldState?.stability??50),goal=(f.agency?.goal||f.goal||"").toLowerCase();
  if(f.resources<30||stability<30)return "RECOVER";
  if(["CRISIS","ENDGAME"].includes(crisis.stage))return /征服|支配|戰|war|conquer/.test(goal)?"MOBILIZE":"DEFEND";
  if(/交易|商|繁榮|trade|merchant|prosper/.test(goal))return "TRADE";
@@ -28,6 +28,7 @@ export function tickFactions(state){
   else if(["EXPAND","MOBILIZE"].includes(strategy)&&other){f.resources=clamp(f.resources-3,0,100);f.influence=clamp(f.influence+2,0,100);f.relations[other.id]=clamp((f.relations[other.id]||0)-3,-100,100);other.relations[f.id]=clamp((other.relations[f.id]||0)-2,-100,100);summary=f.name+" 為了「"+f.goal+"」向 "+other.name+" 的利益範圍施加壓力。"}
   else{f.resources=clamp(f.resources+1,0,100);summary=f.name+" 維持現有勢力範圍，等待更合適的時機。"}
   if(other){const status=relationStatus(f.relations[other.id]);f.diplomacy[other.id]=status;other.diplomacy[f.id]=relationStatus(other.relations[f.id]||0)}
+  f.agency??={};f.agency.currentPlan=summary;f.agency.lastAdvancedMinute=clock.totalMinutes;f.agency.lastStrategy=strategy;
   const ev={id:id(),type:"FACTION_ACTION",visibility:"INTERNAL",factionId:f.id,strategy,summary,day:clock.day,time:String(clock.hour).padStart(2,"0")+":"+String(clock.minute).padStart(2,"0"),at:Date.now()};state.events.push(ev);recordCausalEvent(state,ev,{entityIds:[f.id,other?.id].filter(Boolean)});out.push(ev)
  }
  return out

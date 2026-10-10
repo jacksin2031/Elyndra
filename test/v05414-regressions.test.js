@@ -38,5 +38,5 @@ test("v0.54.14 Runtime Quest prompt makes target numeric and normalizes before v
  assert.match(client,/target 是完成任務所需的進度／證據門檻，只能是 1-5 的整數/);
  assert.match(client,/runtimeRows\(value,"sideQuests",slots\.sideQuests\)\.map\(normalizeRuntimeSideQuest\)/);
  assert.match(client,/runtime-generation-normalizer\.js\?v=57025/);
- assert.match(client,/resilientWorldStage\("HISTORY",\{\s*timeoutMs:75000/);
+ assert.match(client,/resilientWorldStage\("HISTORY",\{\s*timeoutMs:50000,retryOnTimeout:true/);
 });

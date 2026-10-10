@@ -106,7 +106,8 @@ test("AI BLOCK proposal cannot veto a harmless action without an Engine reason",
  const r=performAction(s,"free","觀察天空",{verdict:"BLOCK",kind:"OBSERVE",reason:"AI 建議阻止",requirements:[],confidence:99,actionIntent:{intent:"OBSERVE"}});
  assert.equal(Boolean(r.feasibilityBlocked),false);
  assert.ok(r.roll);
- assert.ok(s.world.state.clock.totalMinutes>before)
+ assert.ok(s.world.state.clock.totalMinutes>before);
+ assert.ok(s.events.some(e=>e.type==="ACTION_ASSESSMENT_ENGINE_OVERRIDE"&&e.aiVerdict==="BLOCK"&&e.engineVerdict==="ALLOW"))
 });
 
 test("inventory status rest equipment and safe known travel complete without AI turn",()=>{

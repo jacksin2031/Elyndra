@@ -1,6 +1,6 @@
 import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {action,roll,world,weather=null,visibleFacts=[]}=safeBody(req),label=String(action||"").trim();
   if(!label||label.length>240||!roll||!world)return json(res,400,{error:"INVALID_REQUEST"});

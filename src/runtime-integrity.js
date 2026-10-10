@@ -1,3 +1,4 @@
+import {validateSaveState} from "./state-validator.js?v=61007";
 const list=value=>Array.isArray(value)?value:[];
 const SUCCESS_ONLY_OPS=new Set(["MOVE_PLAYER","ACQUIRE_ITEM","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","LEARN_RECIPE","LEARN_MAGIC"]);
 function stable(value){if(value==null||typeof value!=="object")return JSON.stringify(value);if(Array.isArray(value))return "["+value.map(stable).join(",")+"]";return "{"+Object.keys(value).sort().map(k=>JSON.stringify(k)+":"+stable(value[k])).join(",")+"}"}
@@ -16,6 +17,16 @@ export function auditStateTransition(before,after,{patch={},plan={},context={}}=
   if(!opExistsAfter(after,op))add("DANGLING_REFERENCE_AFTER_APPLY",{index,op:type});
   if(context?.roll?.success===false&&SUCCESS_ONLY_OPS.has(type))add("FAILED_OUTCOME_SUCCESS_SIDE_EFFECT",{index,op:type});
  }
+ const previousErrors=new Set(validateSaveState(before).errors);
+ for(const code of validateSaveState(after).errors)if(!previousErrors.has(code))add("SAVE_STATE_INVARIANT",{validationCode:code});
+ const previousDay=Number(before?.world?.state?.day),currentDay=Number(after?.world?.state?.day);
+ if(Number.isFinite(previousDay)&&Number.isFinite(currentDay)&&currentDay<previousDay)add("WORLD_DAY_REGRESSED",{previousDay,currentDay});
+ const previousMinutes=Number(before?.world?.state?.clock?.totalMinutes),currentMinutes=Number(after?.world?.state?.clock?.totalMinutes);
+ if(before?.world?.state?.clock&&after?.world?.state?.clock&&Number.isFinite(previousMinutes)&&Number.isFinite(currentMinutes)&&currentMinutes<previousMinutes)add("WORLD_TIME_REGRESSED",{previousMinutes,currentMinutes});
+ for(const kind of ["locations","npcs","factions","sideQuests"]){const ids=rows(after,kind).map(x=>String(x?.id||"")).filter(Boolean);if(new Set(ids).size!==ids.length)add("DUPLICATE_ENTITY_IDS",{kind})}
+ const loc=String(after?.player?.locationId||"");if(loc&&rows(after,"locations").length&&!hasEntity(after,"locations",loc))add("PLAYER_LOCATION_DANGLING",{locationId:loc});
+ if(after?.player?.status==="DEAD"&&after?.combat?.active)add("DEAD_PLAYER_COMBAT_ACTIVE");
+ for(const npc of rows(after,"npcs"))if(npc?.alive===false&&npc?.companion?.status==="ACTIVE")add("DEAD_NPC_ACTIVE_COMPANION",{npcId:npc.id});
  return {ok:issues.length===0,issues,beforeRevision,afterRevision,canonBefore,canonAfter,operationCount:operations.length};
 }
 export function restoreStateSnapshot(target,snapshot){for(const key of Object.keys(target||{}))delete target[key];Object.assign(target,structuredClone(snapshot));return target}

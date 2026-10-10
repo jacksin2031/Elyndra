@@ -5,7 +5,7 @@ import {canonizeGeneration} from "../src/world-registry.js";
 import {
  createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,
  normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,
- validateExpansionProvenance,worldEvolutionNeed,markWorldEvolution
+ validateExpansionProvenance,worldEvolutionNeed,markWorldEvolution,backgroundQualitySnapshot,applyUnseenWorldRepair
 } from "../src/world-quality.js";
 
 test("generation diagnostics separates structural success from fallback degradation",()=>{
@@ -176,4 +176,27 @@ test("quality normalization fills omitted dimensions from the supplied overall s
  assert.equal(q.dimensions.internalConsistency,82);
  assert.equal(q.dimensions.knowledgeBoundary,82);
  assert.equal(q.status,"PASS");
+});
+
+
+test("critic normalization does not convert omitted score fields into false zeroes",()=>{
+ const q=normalizeWorldEvaluation({findings:[{severity:"HIGH",targetType:"FACTION",problem:"勢力模板化",requiresRegeneration:true}]},{source:"AI_BACKGROUND",fallbackOverall:68,fallbackDimensions:{factions:62,internalConsistency:70}});
+ assert.equal(q.overall,68);
+ assert.equal(q.dimensions.factions,62);
+ assert.equal(q.dimensions.internalConsistency,70);
+ assert.ok(q.dimensions.magicSystem>0);
+ assert.notEqual(q.status,"MAJOR_REPAIR");
+});
+
+
+test("background repair may safely repair unseen V2 faction agency but rejects incomplete agency",()=>{
+ const faction={id:"FAC-1",name:"霧守會",goal:"維持路標",known:false,visibilityLock:"UNSEEN",description:"守護霧區",historyRefs:[],agency:{goal:"維持路標",fear:"路標失效",resources:[],dependencies:[],internalConflicts:[],currentPlan:"巡查路標",nextActionIfPlayerDoesNothing:"繼續巡查"}};
+ const state={world:{version:1,state:{day:1},history:[],registry:{locations:[],npcs:[],factions:[faction]},quality:{}},events:[]};
+ assert.equal(backgroundQualitySnapshot(state).unseenRepairTargets.factions[0].agency.resources.length,0);
+ const invalid=applyUnseenWorldRepair(state,{patch:{registry:{factions:[{id:"FAC-1",agency:{goal:"守路",fear:"迷霧",resources:[],dependencies:[],internalConflicts:[],currentPlan:"巡查",nextActionIfPlayerDoesNothing:"巡查"}}]}}});
+ assert.equal(invalid.applied,false);
+ const validAgency={goal:"維持霧區安全路標",fear:"失去路標令居民長期迷失",resources:["導航結節與巡夜人手"],dependencies:["依賴居民維護低頻標記"],internalConflicts:["封閉派與開放通行派互相衝突"],currentPlan:"逐段校正外圍導航結節",nextActionIfPlayerDoesNothing:"封閉失準路段並增派守夜人"};
+ const fixed=applyUnseenWorldRepair(state,{patch:{registry:{factions:[{id:"FAC-1",agency:validAgency}]}}});
+ assert.equal(fixed.applied,true);
+ assert.deepEqual(state.world.registry.factions[0].agency,validAgency);
 });

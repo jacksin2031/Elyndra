@@ -6,7 +6,7 @@ import {buildTurnOutcomeKernel} from "../src/turn-outcome.js";
 import {sceneNarratorSystem} from "../src/ai-runtime-contracts.js";
 
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {action,intent,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
   const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot});

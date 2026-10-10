@@ -5,7 +5,7 @@ export function normalizeOriginNarrativeIdentity(value={}){
  const v=value&&typeof value==="object"&&!Array.isArray(value)?value:{};
  return {coreTension:clean(v.coreTension,120)||"CUSTOM_DEFINED",requiredSignals:list(v.requiredSignals),forbiddenSignals:list(v.forbiddenSignals),proseContract:v.proseContract&&typeof v.proseContract==="object"&&!Array.isArray(v.proseContract)?structuredClone(v.proseContract):{}}
 }
-function semanticBody(reported={}){return reported?.narrativeIdentity&&typeof reported.narrativeIdentity==="object"?reported.narrativeIdentity:reported||{}}
+function semanticBody(reported={}){let nested=reported&&typeof reported==="object"&&!Array.isArray(reported)?reported:{};for(const key of ["contract","openingHookCheck","narrativeIdentity"]){const next=nested?.[key];if(next&&typeof next==="object"&&!Array.isArray(next))nested=next}return nested||{}}
 function signalRows(value){
  if(Array.isArray(value))return value;
  if(value&&typeof value==="object"&&Array.isArray(value.rows))return value.rows;

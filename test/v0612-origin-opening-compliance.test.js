@@ -94,3 +94,12 @@ test("v0.61.2 direct and server world generation both enforce four-layer Origin 
  assert.match(server,/known 必須為 false/);assert.doesNotMatch(server,/known 必須為 true/);
  assert.match(engine,/PLAYER_ORIGIN_NARRATIVE_INVALID/);assert.match(engine,/C-013/)
 });
+
+
+test("v0.61.6 old saves recover Origin Narrative Identity from Blueprint authority",()=>{
+ const ni=ORIGIN_PRESETS.possession.narrativeIdentity,state={player:{origin:{id:"WC2_POSSESSION",label:"附身",knowledgePolicy:"HOST_FRAGMENTED",languagePolicy:"HOST_DEPENDENT",legalStatus:"HOST_IDENTITY",openingBias:"IDENTITY_CONFLICT"}},world:{creation:{blueprintProfile:{origin:{narrativeIdentity:structuredClone(ni)}},originProfile:{id:"WC2_POSSESSION"}},state:{day:1}}};
+ const contract=originOpeningContract(state);
+ assert.equal(contract.narrativeIdentity.coreTension,"IDENTITY_ASYMMETRY");
+ assert.deepEqual(state.player.origin.narrativeIdentity.requiredSignals,["HOST_HAS_PREEXISTING_SOCIAL_TRACE"]);
+ assert.equal(state.world.creation.originProfile.narrativeIdentity.coreTension,"IDENTITY_ASYMMETRY");
+});

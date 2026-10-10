@@ -25,14 +25,14 @@ test("v0.60.19 adjusted actions keep the requested Japanese identity",()=>withJa
  assert.equal(repaired.normalizedAction,requested);assert.equal(repaired.playerVisibleAction,requested);assert.equal(repaired.engineNormalizedAction,"沿台地邊緣探索薄雾侧的可行路線");assert.equal(repaired.actionIntent.raw,requested);assert.deepEqual(repaired.actionIntent.subActions,[requested]);
 }));
 
-test("v0.60.19 runtime wiring remains intact through the v0.61.3 release",async()=>{
+test("v0.60.19 runtime wiring remains intact through the v0.61.7 release",async()=>{
  const [html,app,contextual,engine,runtime,version,pkgText,game25,ai25]=await Promise.all([
   readFile(new URL("../index.html",import.meta.url),"utf8"),readFile(new URL("../app.js",import.meta.url),"utf8"),
   readFile(new URL("../src/v06019-contextual-actions-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06019-game-engine-hotfix.js",import.meta.url),"utf8"),
   readFile(new URL("../src/v06019-runtime-ui-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8"),readFile(new URL("../src/v06025-game-engine-hotfix.js",import.meta.url),"utf8"),readFile(new URL("../src/v06025-ai-client-hotfix.js",import.meta.url),"utf8")
  ]);
- assert.equal(JSON.parse(pkgText).version,"0.61.3");assert.match(version,/APP_VERSION="0\.61\.3"/);
- assert.match(html,/v06025-ai-client-hotfix\.js\?v=61003/);assert.match(html,/v06021-contextual-actions-hotfix\.js\?v=61003/);assert.match(html,/v06025-game-engine-hotfix\.js\?v=61003/);assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=61003/);assert.match(game25,/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(ai25,/v06024-ai-client-hotfix\.js\?v=60026/);
+ assert.equal(JSON.parse(pkgText).version,"0.61.7");assert.match(version,/APP_VERSION="0\.61\.7"/);
+ assert.match(html,/v06025-ai-client-hotfix\.js\?v=61007/);assert.match(html,/v06021-contextual-actions-hotfix\.js\?v=61007/);assert.match(html,/v06025-game-engine-hotfix\.js\?v=61007/);assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=61007/);assert.match(game25,/v06019-game-engine-hotfix\.js\?v=60019/);assert.match(ai25,/v06024-ai-client-hotfix\.js\?v=60026/);
  assert.match(contextual,/engineAction/);assert.match(contextual,/action:visible,label:visible/);assert.match(engine,/engineNormalizedAction:"休息"/);
  assert.match(app,/const effective=assessment\?\.playerVisibleAction\|\|requested/);assert.match(app,/GAME_PLAYER_STATE_CHANGED/);assert.match(app,/debugEventDetail/);
  assert.match(runtime,/FACTION_ACTION/);assert.match(runtime,/WORLD_EVENT/);assert.match(runtime,/hasLocaleLeak\(text,"ja"\)/)

@@ -2,7 +2,7 @@ import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {parseModelJSON} from "../src/model-json.js";
 
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {plan,world,constitution,futureRefs}=safeBody(req);
   if(!plan?.historyId||!plan?.skeleton||!plan?.targetDepth)return json(res,400,{error:"HISTORY_DEEPENING_PLAN_REQUIRED"});

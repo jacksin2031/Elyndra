@@ -41,6 +41,7 @@ test("shared Action Intent feasibility contract separates semantics from dice",a
  assert.match(contracts,/ALLOW\|ADJUST\|BLOCK/);
  assert.match(contracts,/verdict 只是 proposal/);
  assert.match(contracts,/Engine .*最終 ALLOW\/BLOCK 權/);
+ assert.match(contracts,/沿目前位置邊緣探索／尋找出口、通道、階梯或可攀爬地形/);
  assert.match(contracts,/actionIntent/);
  assert.match(block,/\/api\/action/);
  assert.match(block,/actionFeasibilitySnapshot/);

@@ -1,6 +1,7 @@
 import {normalizeLore} from "./lore-engine.js?v=57025";
 import {normalizeWeatherProfile} from "./weather-engine.js?v=57025";
 import {materialSatisfiesClaim} from "./generation-claims.js?v=57025";
+import {normalizeQuestConditions,normalizeQuestContinuity} from "./quest-contracts.js?v=61007";
 
 const clean=(v,max=400)=>typeof v==="string"?v.trim().slice(0,max):"";
 const ACCESS_TYPES=new Set(["ITEM_OWNED","ITEM_USED","ITEM_SHOWN","ITEM_GIVEN","FACT_KNOWN","EVENT_OCCURRED"]);
@@ -56,11 +57,9 @@ export function normalizeRuntimeNpc(row={}){
 }
 
 export function normalizeRuntimeSideQuest(row={}){
- const evidenceKeywords=uniq(row?.evidenceKeywords,8),rawConditions=row?.conditions;
- const conditionRows=rawConditions==null?[]:(Array.isArray(rawConditions)?rawConditions:[rawConditions]);
- const conditions=conditionRows.map(x=>{if(typeof x==="string")return clean(x,220);if(x&&typeof x==="object"&&!Array.isArray(x))return structuredClone(x);return null}).filter(Boolean).slice(0,5);
- const requested=Number(row?.target),derived=conditions.length?Math.min(3,conditions.length):evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3,target=Math.max(1,Math.min(5,Number.isInteger(requested)?requested:derived));
- return {...row,evidenceKeywords,conditions,target}
+ const rawConditions=row?.conditions==null?[]:(Array.isArray(row.conditions)?row.conditions:[row.conditions]),conditions=normalizeQuestConditions(rawConditions,5),legacyConditionHints=rawConditions.filter(x=>typeof x==="string").map(x=>clean(x,160)).filter(Boolean),evidenceKeywords=uniq([...uniq(row?.evidenceKeywords,8),...legacyConditionHints],8),continuity=normalizeQuestContinuity(row);
+ const requested=Number(row?.target),legacyCount=legacyConditionHints.length,derived=conditions.length?Math.min(3,conditions.length):legacyCount?Math.min(3,legacyCount):evidenceKeywords.length?Math.min(3,evidenceKeywords.length):3,target=Math.max(1,Math.min(5,Number.isInteger(requested)?requested:derived));
+ return {...row,...continuity,evidenceKeywords,conditions,target}
 }
 function runtimeClaimAllowedForKey(claim,key){
  if(claim?.type==="BLUEPRINT_DEFINITION")return key==="definitions";

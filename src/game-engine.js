@@ -130,6 +130,7 @@ function deterministicKnownTravel(state,label){
 export function performAction(state,action="free",customText="",assessment=null){
  ensure(state);
  const originalLabel=clean(customText||action)||"觀察目前環境",proposedLabel=clean(assessment?.normalizedAction,180)||originalLabel,engineFeasibility=resolveEngineFeasibility(state,proposedLabel,assessment);
+ if(String(assessment?.verdict||"").toUpperCase()==="BLOCK"&&engineFeasibility.verdict!=="BLOCK"){state.events??=[];state.events.push({id:id(),type:"ACTION_ASSESSMENT_ENGINE_OVERRIDE",visibility:"INTERNAL",action:originalLabel,aiVerdict:"BLOCK",engineVerdict:engineFeasibility.verdict,aiReason:clean(assessment?.reason,320),engineReason:clean(engineFeasibility.reason,320),day:state.world.state.day,at:Date.now()})}
  if(engineFeasibility.verdict==="BLOCK"){
   const reason=engineFeasibility.reason,requirements=engineFeasibility.requirements||[],text=requirements.length?`${reason}\n需要先滿足：${requirements.join("、")}`:reason;
   state.narrative=text;state.events.push({id:id(),type:"PLAYER_ACTION_REJECTED",visibility:"PLAYER_KNOWN",action:"free",customText:originalLabel,reason,requirements,authority:"ENGINE",aiProposal:assessment?.verdict||null,day:state.world.state.day,at:Date.now()});

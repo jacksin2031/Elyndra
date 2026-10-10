@@ -2,7 +2,7 @@ import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 import {seedDirective} from "../src/seed-contract.js";
 import {normalizeWorldCoreCandidate,normalizeWorldIdentity,normalizeCoreAnchorStage,mergeCoreWave,coreWaveIssues,buildWorldAnchorContract,mergeOpeningRegion,normalizeFutureLinksToAnchor,worldGenerationLinkIssues,openingCastTimelineSnapshot} from "../src/world-compiler.js";
 import {fallbackWorldEvaluation} from "../src/world-quality.js";
-import {WORLD_ARCHITECT_SKILL_DIRECTIVE,buildWorldArchitectBrief,worldArchitectRequiredSchema,worldDesignLogicIssues} from "../src/world-architect-skill.js";
+import {WORLD_ARCHITECT_SKILL_DIRECTIVE,buildWorldArchitectBrief,fallbackWorldDesignLogic,worldArchitectRequiredSchema,worldDesignLogicIssues} from "../src/world-architect-skill.js";
 import {parseModelJSON} from "../src/model-json.js";
 import {validateWorldCreationCandidate} from "../src/world-creation.js";
 import {validateWorldHistory} from "../src/world-history.js";
@@ -10,6 +10,7 @@ import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline}
 import {originOpeningContract} from "../src/origin-runtime.js";
 import {originComplianceSchema,fallbackOriginCompliance,evaluateOriginOpeningCompliance} from "../src/origin-opening-compliance.js";
 import {attachWorldGenesis} from "../src/world-genesis-evaluator.js";
+import {assertWorldStoryArchitecture,factionAgencyIssues,npcAgencyIssues} from "../src/world-story-architecture.js";
 
 const CORE_RULE_FIELDS=["era","centralConflict","magicCost","ancientTruth","currentCrisis","tone"];
 const text=v=>String(v??"").trim();
@@ -49,7 +50,7 @@ function anchorProblem(value){
  return ""
 }
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {seed,constitution}=safeBody(req);if(!seed)return json(res,400,{error:"INVALID_REQUEST"});
   const directive=seedDirective(seed),auto=directive.contract.worldviewMode==="ai",expected=directive.contract,chosen=v=>v==="AI_DECIDES"||v==null?"AI 必須自行決定並回傳具體值":v;
@@ -77,6 +78,7 @@ export default async function handler(req,res){
   const normalizedAnchor=normalizeCoreAnchorStage(anchorRaw);
   let core=mergeCoreWave(identity,expected,rulesRaw,normalizedAnchor),coreIssues=coreWaveIssues(identity,rulesRaw,normalizedAnchor,core);
   if(coreIssues.length)throw stageError("CORE_LINK",coreIssues.join(","));
+  core.worldBible.designLogic??=fallbackWorldDesignLogic(identity,directive.blueprintProfile);if(!core.worldBible.designLogic.campaignArchitecture)core.worldBible.designLogic.campaignArchitecture=fallbackWorldDesignLogic(identity,directive.blueprintProfile).campaignArchitecture;
   core.worldBible.blueprintProfile=structuredClone(directive.blueprintProfile);
   const anchor=buildWorldAnchorContract(core,directive.timelinePacing),originOpening=originOpeningContract({player:{origin:seed.creationV2?.originProfile||{}},world:{creation:seed.creationV2||{},state:{day:1}}});
 
@@ -109,9 +111,9 @@ export default async function handler(req,res){
   }),
    stageJSON(req,diagnostics,"SOCIETY",{
    timeoutMs:55000,maxOutputTokens:1500,temperature:.4,
-   validate:value=>!value||typeof value!=="object"||Array.isArray(value)||value.locationRef!==anchor.startingLocation||!Array.isArray(value.historyRefs)||!value.historyRefs.length?"STRUCTURE_INVALID":"",
+   validate:value=>{const agencyIssues=factionAgencyIssues(value?.faction||{});return !value||typeof value!=="object"||Array.isArray(value)||value.locationRef!==anchor.startingLocation||!Array.isArray(value.historyRefs)||!value.historyRefs.length?"STRUCTURE_INVALID":agencyIssues.length?"FACTION_AGENCY_INVALID:"+agencyIssues.join(","):""},
    system:"你是 Elyndra Society Compiler。History 與 Geography 已鎖定；你與 Future Compiler 同一 wave 並行工作。只建立開局地點的 culture、trade 與最多1個地方 faction；制度、禁忌、信仰與經濟必須來自既有歷史、地理條件，並具體落地 anchor.designLogic.consequenceChains / dailyLifeImpacts，禁止退回泛用中世紀模板。不可重命名或新增地點。只輸出 JSON。",
-   user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"命名規則",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與危機／歷史有關",description:"40-80字",known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化"},trade:{mode:"barter",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
+   user:JSON.stringify({anchor,history,geography,required:{locationRef:anchor.startingLocation,historyRefs:["至少1個 HIST id"],locationCulture:{identity:"文化核心",etiquette:["1項"],taboos:["1項"],food:["1項"],beliefs:["1項"],architecture:["1項"],clothing:["1項"],hospitality:["1項"],namingStyle:"命名規則",languageNotes:[]},locationTrade:{mode:"currency|barter|mixed|ration|token",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},faction:{name:"地方勢力",goal:"與危機／歷史有關",description:"40-80字",agency:{goal:"勢力真正想達成甚麼",fear:"最害怕失去甚麼",resources:["至少1項控制資源"],dependencies:["至少1項依賴"],internalConflicts:["至少1項內部分裂"],currentPlan:"現在正在執行的計畫",nextActionIfPlayerDoesNothing:"玩家完全不介入時下一步會做甚麼"},known:false,locationName:anchor.startingLocation,historyRefs:["至少1個 HIST id"],culture:{identity:"核心文化"},trade:{mode:"barter",currencies:[],commonBarter:[],foreignAcceptance:[],priceCulture:"簡短",questReward:0,combatReward:0},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}}})
   })
   ]);
   const authoredTimeline=bindTimelineAuthoringSlots(futureRaw.worldTimeline,directive.timelinePacing),timelineReport=validateWorldTimeline(authoredTimeline,directive.timelinePacing);
@@ -122,9 +124,9 @@ export default async function handler(req,res){
 
   const cast=await stageJSON(req,diagnostics,"CAST",{
    timeoutMs:55000,maxOutputTokens:1900,temperature:.45,
-   validate:value=>!Array.isArray(value?.npcs)||!Array.isArray(value?.sideQuests)||!Array.isArray(value?.suggestions)||value.suggestions.length<2?"STRUCTURE_INVALID":"",
-   system:"你是 Elyndra Opening Cast Compiler。前面所有世界觀都已鎖定。只生成1個附近 NPC、最多1個支線與3-4個 suggestions；這名 NPC 是開局區域的 canonical 候選人物，不代表第一幕已碰面。known 必須為 false，只有玩家真的觀察、接觸或事件明確揭露後 Engine 才可設為 known / encountered。不得因 CAST 階段本身把 NPC 當成眼前人物。NPC、任務只能引用既有 Location/Faction/History，不得新增地點、勢力、世界規則或歷史。若引用百年以上歷史又聲稱 NPC 是初代／始祖／創建本人，chronology 必須提供 LONG_LIVED／STASIS／TIME_DISPLACED；長壽、延命、休眠、時間停滯等非常規存活都必須由這個角色自己的 chronology 綁定，且 mechanismRef 必須指向 PUBLIC_FACT:n、HIST-id 或 WORLD_MAGIC_COST 的具體 Canon 機制；全世界其他地方的長壽字眼不能代替人物證據。Future Timeline payload 含完整 earliestDay/latestDay/triggerDay/status；earliestDay>1 且未 TRIGGERED 的事件不可寫成 Day 1 已發生。只輸出 JSON。",
-   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:openingCastTimelineSnapshot(future)},required:{npcs:[{name:"附近人物",role:"身份",description:"40-80字",personality:"人格",goal:"地方目標",locationName:anchor.startingLocation,factionName:"既有或空",knowledgeScope:[],historyRefs:["0-2 HIST"],known:false,chronology:{relation:"CONTEMPORARY|DESCENDANT|LONG_LIVED|STASIS|TIME_DISPLACED",birthEra:"CURRENT 或世界內時代",mechanismRef:"一般角色留空；非常規存活只可 PUBLIC_FACT:n / HIST-id / WORLD_MAGIC_COST",mechanism:"一般角色留空；非常規存活填入對應 Canon 機制"},behaviorProfile:{mannerisms:["1項"],speechPatterns:["1項"],habits:["1項"],values:["1項"],fears:["1項"],contradictions:["1項"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"可執行目標",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有或空",historyRefs:["0-2 HIST"],evidenceKeywords:["2個線索"],conditions:[],target:2}],suggestions:["3-4個直接回應 openingHook 的行動"]}})
+   validate:value=>{const agencyIssues=Array.isArray(value?.npcs)&&value.npcs[0]?npcAgencyIssues(value.npcs[0]):["NPC_REQUIRED"];return !Array.isArray(value?.npcs)||!Array.isArray(value?.sideQuests)||!Array.isArray(value?.suggestions)||value.suggestions.length<2?"STRUCTURE_INVALID":agencyIssues.length?"NPC_AGENCY_INVALID:"+agencyIssues.join(","):""},
+   system:"你是 Elyndra Opening Cast Compiler。前面所有世界觀都已鎖定。只生成1個附近 NPC、最多1個支線與3-4個 suggestions；這名 NPC 是開局區域的 canonical 候選人物，不代表第一幕已碰面。known 必須為 false，只有玩家真的觀察、接觸或事件明確揭露後 Engine 才可設為 known / encountered。不得因 CAST 階段本身把 NPC 當成眼前人物。NPC、任務只能引用既有 Location/Faction/History，不得新增地點、勢力、世界規則或歷史。開局支線必須由 openingHook、NPC agency、地方 trade/faction/history 的當前壓力自然產生，不能是無因果的跑腿清單；continuityMode 必須為 NEW_THREAD、predecessorQuestIds 必須為 []，motivation、stakes、completionConsequences、failureConsequences 只能描述玩家當下可合理面對或之後可觀察的後果方向，不得洩漏 hiddenFacts、ancientTruth 或 Director-only 因果。若引用百年以上歷史又聲稱 NPC 是初代／始祖／創建本人，chronology 必須提供 LONG_LIVED／STASIS／TIME_DISPLACED；長壽、延命、休眠、時間停滯等非常規存活都必須由這個角色自己的 chronology 綁定，且 mechanismRef 必須指向 PUBLIC_FACT:n、HIST-id 或 WORLD_MAGIC_COST 的具體 Canon 機制；全世界其他地方的長壽字眼不能代替人物證據。Future Timeline payload 含完整 earliestDay/latestDay/triggerDay/status；earliestDay>1 且未 TRIGGERED 的事件不可寫成 Day 1 已發生。只輸出 JSON。",
+   user:JSON.stringify({anchor,history,geography,society,future:{worldTimeline:openingCastTimelineSnapshot(future)},required:{npcs:[{name:"附近人物",role:"身份",description:"40-80字",personality:"人格",goal:"地方目標",agency:{want:"角色自己真正想得到甚麼",fear:"最害怕甚麼",secret:"知道但不會無條件告訴玩家的個人秘密或未證實情報",boundary:"不會因玩家要求而跨越的界線",currentPlan:"現在正在執行的計畫",lifeWithoutPlayer:"玩家不存在時仍會怎樣生活與行動"},locationName:anchor.startingLocation,factionName:"既有或空",knowledgeScope:[],historyRefs:["0-2 HIST"],known:false,chronology:{relation:"CONTEMPORARY|DESCENDANT|LONG_LIVED|STASIS|TIME_DISPLACED",birthEra:"CURRENT 或世界內時代",mechanismRef:"一般角色留空；非常規存活只可 PUBLIC_FACT:n / HIST-id / WORLD_MAGIC_COST",mechanism:"一般角色留空；非常規存活填入對應 Canon 機制"},behaviorProfile:{mannerisms:["1項"],speechPatterns:["1項"],habits:["1項"],values:["1項"],fears:["1項"],contradictions:["1項"],promises:[],grudges:[]},companionProfile:{joinThreshold:35,leaveThreshold:10,motives:["1項"],boundaries:["1項"]},lore:{story:"40-80字",unlockKeywords:["1-2線索"],minMatches:1}}],sideQuests:[{title:"支線",objective:"可執行目標",known:false,locationName:anchor.startingLocation,npcName:"上方 NPC 或空",factionName:"既有或空",historyRefs:["0-2 HIST"],continuityMode:"NEW_THREAD",predecessorQuestIds:[],motivation:"為甚麼這個任務在 Day 1 自然出現",stakes:"若不處理會失去甚麼；不可劇透 hidden truth",completionConsequences:["完成後可能形成的可觀察後果"],failureConsequences:["失敗／忽略後可能形成的可觀察後果"],evidenceKeywords:["2個線索"],conditions:[],target:2}],suggestions:["3-4個直接回應 openingHook 的行動"]}})
   });
   linkIssues=worldGenerationLinkIssues({anchor,history,geography,society,future,cast});if(linkIssues.length)throw stageError("CAST_LINK",linkIssues.join(","));
 
@@ -133,6 +135,6 @@ export default async function handler(req,res){
   const blueprintValidation=validateWorldCreationCandidate(seed,candidate);if(!blueprintValidation.valid)return json(res,422,{error:"BLUEPRINT_COMPLIANCE_FAILED",details:blueprintValidation.errors});
   diagnostics.finishedAt=Date.now();diagnostics.summary=stageSummary(diagnostics);diagnostics.quality=(diagnostics.summary.failedCount||diagnostics.summary.fallbackCount)?"DEGRADED":"HEALTHY";
   candidate.blueprintCompliance=blueprintValidation.compliance;candidate.generationDiagnostics=diagnostics;candidate.worldQuality={...fallbackWorldEvaluation(candidate,diagnostics,"BACKGROUND_AI_CRITIC_PENDING"),backgroundPending:true,repairHistory:[]};
-  return json(res,200,{candidate:attachWorldGenesis(candidate,{blueprint:seed.creationV2?.blueprint||directive.blueprintProfile||{},originProfile:seed.creationV2?.originProfile||null})})
- }catch(e){return json(res,errorStatus(e),{error:e.code||e.message})}
+  const evaluated=attachWorldGenesis(candidate,{blueprint:seed.creationV2?.blueprint||directive.blueprintProfile||{},originProfile:seed.creationV2?.originProfile||null});evaluated.worldStoryArchitecture=assertWorldStoryArchitecture(evaluated);return json(res,200,{candidate:evaluated})
+ }catch(e){return json(res,errorStatus(e),{error:e.code||e.message,details:e?.evaluation?.hardErrors||undefined,evaluation:e?.evaluation||undefined})}
 }

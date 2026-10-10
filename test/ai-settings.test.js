@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,hardProviderDeadline,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,optimizationTier,providerOptimization,providerTokenBudget} from "../src/ai-settings.js";
+import {PROVIDERS,loadAISettings,saveAISettings,clearAISettings,directChat,hardProviderDeadline,setDirectAIRuntimeControl,clearDirectAIRuntimeControl,optimizationTier,providerOptimization,providerTokenBudget,providerRateLimitPolicy,rateLimitBackoffMs} from "../src/ai-settings.js";
 
 function memoryStorage(){
  const data=new Map();
@@ -18,6 +18,20 @@ test("Agnes mode has a first-class 3.0 Flash preset",()=>{
  assert.equal(PROVIDERS.agnes.mode,"Agnes 3.0 Flash");
  assert.equal(PROVIDERS.agnes.endpoint,"https://apihub.agnes-ai.com/v1/chat/completions");
  assert.equal(PROVIDERS.agnes.model,"agnes-3.0-flash")
+});
+
+
+test("Agnes free-tier pacing targets 15 RPM and hard-caps the rolling minute at 18",()=>{
+ const policy=providerRateLimitPolicy("agnes");
+ assert.equal(policy.targetRpm,15);assert.equal(policy.hardRpm,18);assert.equal(policy.windowMs,60000);assert.equal(policy.spacingMs,4000)
+});
+
+test("Agnes 429 backoff is exponential, honors Retry-After, and caps jittered waits",()=>{
+ assert.equal(rateLimitBackoffMs("agnes",1,0,0),5000);
+ assert.equal(rateLimitBackoffMs("agnes",2,0,0),10000);
+ assert.equal(rateLimitBackoffMs("agnes",3,15000,0),20000);
+ assert.equal(rateLimitBackoffMs("agnes",1,30000,1500),31500);
+ assert.equal(rateLimitBackoffMs("agnes",9,120000,1500),120000)
 });
 
 test("legacy blank Agnes profile is hydrated from the new preset",()=>{
@@ -149,7 +163,7 @@ test("adaptive reasoning-capable providers reserve visible completion budget",()
  assert.equal(providerTokenBudget("agnes","standard","geography",800),900);
  assert.equal(providerTokenBudget("agnes","adaptive","scene",760),1100);
  assert.equal(providerTokenBudget("agnes","adaptive","turn_state_fast",650),800);
- assert.equal(providerTokenBudget("agnes","adaptive","core_rules",900),1100);
+ assert.equal(providerTokenBudget("agnes","adaptive","core_rules",900),6000);
  assert.equal(providerTokenBudget("agnes","adaptive","core_anchor",1000),1200);
  assert.equal(providerTokenBudget("agnes","adaptive","future",1200),4096);
  assert.equal(providerTokenBudget("agnes","adaptive","cast",950),1800);
@@ -222,7 +236,7 @@ test("Agnes structured JSON requests keep completion budget instead of reasoning
  try{
   clearAISettings();saveAISettings({provider:"agnes",apiKey:"a",endpoint:PROVIDERS.agnes.endpoint,optimization:"adaptive"});
   globalThis.fetch=async(url,init)=>{body=JSON.parse(init.body);return {ok:true,json:async()=>({choices:[{finish_reason:"stop",message:{content:'{"ok":true}'}}]})}};
-  for(const [task,requested,expected] of [["identity",500,900],["scene",760,1100],["turn_state_fast",650,800],["core_rules",900,1100],["core_anchor",1000,1200],["future",1200,4096],["cast",950,1800],["runtime_expansion",900,1600]]){
+  for(const [task,requested,expected] of [["identity",500,900],["scene",760,1100],["turn_state_fast",650,800],["core_rules",900,6000],["core_anchor",1000,1200],["future",1200,4096],["cast",950,1800],["runtime_expansion",900,1600]]){
    assert.equal(await directChat({system:"s",user:"u",aiTask:task,maxOutputTokens:requested,timeoutMs:5000,retryOnTimeout:false}),'{"ok":true}');
    assert.equal("reasoning_effort" in body,false,task);
    assert.equal(body.max_tokens,expected,task)

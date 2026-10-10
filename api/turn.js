@@ -7,7 +7,7 @@ import {sceneNarratorSystem,statePatchDirectorSystem} from "../src/ai-runtime-co
 import {planStateSync,validateStatePatch} from "../src/state-sync.js";
 
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {action,intent,roll,snapshot}=safeBody(req);if(!action||!roll||!snapshot)return json(res,400,{error:"INVALID_REQUEST"});
   const actionIntent=normalizeActionIntent(intent||{},action,roll?.profile?.kind||"",snapshot),kernel=buildTurnOutcomeKernel({action,intent:actionIntent,roll,snapshot});
@@ -15,6 +15,7 @@ export default async function handler(req,res){
   const scenePromise=callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,system:sceneNarratorSystem(),user:JSON.stringify({action,intent:actionIntent,kernel,snapshot:sceneTurnSnapshot(snapshot)}),temperature:.8,timeoutMs:35000,maxOutputTokens:1100}).then(parseModelJSON);
   const patchPromise=(plan.mode==="FAST"||plan.mode==="DEEP")?callModel({signal:req.elyndraSignal,locale:req.elyndraLocale,system:statePatchDirectorSystem(plan),user:JSON.stringify({action,intent:actionIntent,kernel,plan,snapshot:plan.mode==="DEEP"?snapshot:fastTurnStateSnapshot(snapshot,plan)}),temperature:plan.mode==="DEEP"?.3:.15,timeoutMs:plan.mode==="DEEP"?50000:25000,maxOutputTokens:plan.mode==="DEEP"?1300:800}).then(parseModelJSON):Promise.resolve({baseRevision:plan.baseRevision,operations:[]});
   const [sceneResult,patchResult]=await Promise.allSettled([scenePromise,patchPromise]);if(patchResult.status!=="fulfilled")throw patchResult.reason;
+  if(sceneResult.status!=="fulfilled")return json(res,502,{error:"SCENE_GENERATION_FAILED",stage:"scene",patchCommitted:false,details:String(sceneResult.reason?.code||sceneResult.reason?.message||"UNKNOWN").slice(0,240)});if(sceneResult.status!=="fulfilled")throw sceneResult.reason;
   const patch=patchResult.value,v=validateStatePatch(patch,plan);if(!v.valid)return json(res,422,{error:"STATE_PATCH_INVALID",details:v.errors});
   return json(res,200,{scene:sceneResult.status==="fulfilled"?sceneResult.value:null,patch,plan,actionIntent,kernel})
  }catch(e){

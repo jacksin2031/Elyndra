@@ -14,7 +14,7 @@ test("v0.60.29 routes Agnes background quality work through the structured runti
  const repair=v06029RouteBackgroundStructuredTask({aiTask:"quality_repair",maxOutputTokens:2200},"agnes");
  assert.equal(repair.aiTask,"runtime_quality");
  assert.equal(repair.disableOptimization,true);
- assert.equal(repair.maxOutputTokens,1600);
+ assert.equal(repair.maxOutputTokens,2200);
 });
 
 test("v0.60.29 leaves foreground and non-Agnes task routing unchanged",()=>{

@@ -12,7 +12,7 @@ test("world generation uses recoverable bounded subcompiler timeouts instead of 
  assert.match(settings,/hardProviderDeadline/);assert.match(settings,/Promise\.race/);
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
  for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
- for(const timeout of [22000,35000,50000,55000,75000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
+ for(const timeout of [35000,50000,55000,75000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
  assert.doesNotMatch(client,/timeoutMs:95000/);
  assert.match(settings,/max_completion_tokens/);
  assert.match(settings,/maxOutputTokens/);

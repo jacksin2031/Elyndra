@@ -164,8 +164,8 @@ export function validateStatePatch(patch,plan={}){
  return {valid:errors.length===0,errors:[...new Set(errors)]}
 }
 function currentLocationRecord(state){
- const rows=state?.world?.registry?.locations||[],name=clean(state?.player?.location||state?.world?.state?.location,120);
- return rows.find(x=>x?.id===name||x?.name===name)||null
+ const rows=state?.world?.registry?.locations||[],playerId=clean(state?.player?.locationId,120),worldId=clean(state?.world?.state?.locationId,120),playerName=clean(state?.player?.location,120),worldName=clean(state?.world?.state?.location,120);
+ return rows.find(x=>playerId&&x?.id===playerId)||rows.find(x=>worldId&&x?.id===worldId)||rows.find(x=>playerName&&(x?.id===playerName||x?.name===playerName))||rows.find(x=>worldName&&(x?.id===worldName||x?.name===worldName))||null
 }
 function registryEntity(state,kind,value){
  const key=kind==="npc"?"npcs":kind==="location"?"locations":kind==="faction"?"factions":kind==="sideQuest"?"sideQuests":"",rows=key?state?.world?.registry?.[key]||[]:[];
@@ -177,7 +177,7 @@ function registryEntity(state,kind,value){
 function canonicalizeDiscoverySource(state,raw){
  const sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120);if(!sourceId)return raw;
  if(sourceKind==="NPC"){const npc=registryEntity(state,"npc",sourceId);if(npc?.id)return {...raw,sourceId:npc.id}}
- if(sourceKind==="LOCATION"){const loc=registryEntity(state,"location",sourceId);if(loc?.id)return {...raw,sourceId:loc.id}}
+ if(sourceKind==="LOCATION"){const current=currentLocationRecord(state),alias=clean(state?.player?.location,120),loc=registryEntity(state,"location",sourceId)||(current&&sourceId===alias?current:null);if(loc?.id)return {...raw,sourceId:loc.id}}
  return raw
 }
 function sourceEvidenceText(state,raw,context={}){
@@ -215,8 +215,15 @@ function discoverySourceGrounded(state,raw){
  if(sourceKind==="DOCUMENT")return (state?.world?.documents?.documents||[]).some(d=>d?.id===sourceId&&d?.read===true);
  return false
 }
+function actionDirectlyGroundsDiscovery(state,raw,context={}){
+ if(String(context?.evidencePhase||"")!=="STATE_PENDING"||context?.roll?.success!==true)return false;
+ const action=clean(context?.action,220),sourceKind=String(raw?.sourceKind||"").toUpperCase(),sourceId=clean(raw?.sourceId,120),evidenceType=String(raw?.evidenceType||"OBSERVED").toUpperCase();if(!action)return false;
+ if(sourceKind==="LOCATION"){const current=currentLocationRecord(state),observational=["OBSERVED","EXAMINED"].includes(evidenceType),inspecting=/觀察|查看|檢查|尋找|搜尋|細看|確認|聽|嗅|觸摸|摸索|inspect|observe|examine|search|listen|smell|touch/i.test(action);return Boolean(current&&(current.id===sourceId||current.name===sourceId)&&observational&&inspecting)}
+ if(sourceKind==="NPC"){const current=currentLocationRecord(state),npc=(state?.world?.registry?.npcs||[]).find(x=>x?.id===sourceId||x?.name===sourceId),present=Boolean(npc&&current&&(npc.locationId===current.id||npc.locationName===current.name||npc.location===current.name)),speaking=/詢問|追問|請教|交談|問|聽|ask|question|talk|speak|listen/i.test(action);return Boolean(npc&&present&&evidenceType==="HEARD"&&speaking&&evidenceMentions(action,npc.name))}
+ return false
+}
 function discoveryNameGrounded(state,raw,context={}){
- const title=clean(raw?.title,100),body=clean(raw?.text,500);return Boolean(title&&body&&evidenceSupportsClaim(sourceEvidenceText(state,raw,context),title,body))
+ const title=clean(raw?.title,100),body=clean(raw?.text,500),observable=clean(context?.observableText,2400),sceneProjected=String(context?.evidencePhase||"")==="SCENE"&&Boolean(observable&&body&&observable.includes(body));return Boolean(title&&body&&(sceneProjected||evidenceSupportsClaim(sourceEvidenceText(state,raw,context),title,body)||actionDirectlyGroundsDiscovery(state,raw,context)))
 }
 function acquiredItemGrounded(state,raw,context={}){
  const name=clean(raw?.item?.name,100);return Boolean(name&&evidenceMentions(playerVisibleEvidenceText(state,context?.observableText),name))
@@ -232,9 +239,8 @@ export function groundStatePatch(state,patch={},context={}){
    raw=canonicalizeDiscoverySource(state,raw);
    if(!discoverySourceGrounded(state,raw)){rejected.push({index,op:type,sourceKind:String(raw?.sourceKind||"").toUpperCase(),sourceId:clean(original?.sourceId,120),reason:"DISCOVERY_SOURCE_NOT_OBSERVABLE"});continue}
    if(!discoveryNameGrounded(state,raw,context)){
-    const stateDirectorGrounded=context?.evidencePhase==="STATE_PENDING"&&context?.roll?.success===true;
-    if(stateDirectorGrounded){accepted.push(raw);continue}
-    deferredEvidence.push(structuredClone(raw));if(context?.evidencePhase!=="STATE_PENDING")rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue
+    deferredEvidence.push(structuredClone(raw));
+    const pendingEvidence=["STATE_PENDING","SCENE_PENDING"].includes(String(context?.evidencePhase||""));if(!pendingEvidence)rejected.push({index,op:type,title:clean(raw?.title,100),reason:"KNOWLEDGE_EVIDENCE_NOT_OBSERVED"});continue
    }
   }
   if(type==="REVEAL_ENTITY"){

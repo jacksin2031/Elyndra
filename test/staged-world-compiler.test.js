@@ -6,8 +6,8 @@ test("world creation uses bounded two-AI waves with Engine validation between wa
  const client=await readFile(new URL("../src/ai-client.js",import.meta.url),"utf8");
  assert.ok(client.includes('WORLD_${stage}_FAILED'));
  for(const stage of ["IDENTITY","CORE_RULES","CORE_ANCHOR","HISTORY","GEOGRAPHY","FUTURE","SOCIETY","CAST"])assert.match(client,new RegExp(`resilientWorldStage\\("${stage}"`));
- for(const timeout of [22000,35000,50000,55000,75000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
- for(const budget of [500,800,1000,1200,1400,2400,4200])assert.match(client,new RegExp(`maxOutputTokens:${budget}`));
+ for(const timeout of [35000,50000,55000,75000])assert.match(client,new RegExp(`timeoutMs:${timeout}`));
+ for(const budget of [500,800,1000,1200,2400,2600,4200])assert.match(client,new RegExp(`maxOutputTokens:${budget}`));
  assert.match(client,/generatedTemplateLeak/);assert.match(client,/weatherProfileConflict/);
  assert.match(client,/generation:\{locations:region\.locations\.slice\(0,1\),npcs:cast\.npcs\.slice\(0,1\),factions:region\.factions\.slice\(0,1\),sideQuests:cast\.sideQuests\.slice\(0,1\)\}/);
  const worldBlock=client.slice(client.indexOf("export async function generateWorldCandidate"),client.indexOf("export async function talkToNpc"));

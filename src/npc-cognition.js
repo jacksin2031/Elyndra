@@ -57,7 +57,7 @@ export function ensureNpcCognition(state,npc){
  c.relationships.player=relationRow({...c.relationships.player,trust:Number.isFinite(Number(npc.trust))?Number(npc.trust):c.relationships.player?.trust,updatedDay:c.relationships.player?.updatedDay??day(state)});npc.trust=c.relationships.player.trust;
  for(const [k,v] of Object.entries(c.relationships.npcs))c.relationships.npcs[k]=relationRow(v);for(const [k,v] of Object.entries(c.relationships.factions))c.relationships.factions[k]=relationRow(v);
  c.commitments=arr(c.commitments).map(x=>{const n=normalizeCommitment(state,x);return n?(x&&typeof x==="object"?Object.assign(x,n):n):null}).filter(Boolean).slice(-24);importLegacyCommitments(state,npc,c);
- c.planner=c.planner&&typeof c.planner==="object"?c.planner:{};c.planner.goal=clean(c.planner.goal||npc.goal||"維持自己的生活與安全",260);c.planner.currentPlan=clean(c.planner.currentPlan,260);c.planner.nextStep=clean(c.planner.nextStep,80).toUpperCase();c.planner.priority=clean(c.planner.priority||"GOAL",40).toUpperCase();c.planner.updatedMinute=Math.max(0,Number(c.planner.updatedMinute)||0);if(!npc.goal)npc.goal=c.planner.goal;
+ c.planner=c.planner&&typeof c.planner==="object"?c.planner:{};c.planner.goal=clean(c.planner.goal||npc.agency?.want||npc.goal||"維持自己的生活與安全",260);c.planner.currentPlan=clean(c.planner.currentPlan||npc.agency?.currentPlan,260);c.planner.nextStep=clean(c.planner.nextStep,80).toUpperCase();c.planner.priority=clean(c.planner.priority||"GOAL",40).toUpperCase();c.planner.updatedMinute=Math.max(0,Number(c.planner.updatedMinute)||0);if(!npc.goal)npc.goal=c.planner.goal;
  syncLegacyMemories(npc,c);return c
 }
 export function recordNpcMemory(state,npc,input={}){
@@ -106,8 +106,8 @@ export function planNpcNextStep(state,npc,crisis={}){
  else if(top.kind==="SURVIVAL"){if((Number(life.energy)||0)<=30){plan="先休息恢復體力";step="REST"}else if((Number(life.hunger)||0)>=65){plan="先處理飢餓並尋找食物";step="SEEK_FOOD"}else{plan="處理目前最嚴重的身體狀態";step="SEEK_TREATMENT"}}
  else if(top.kind==="COMMITMENT"){const row=c.commitments.find(x=>x.id===top.commitmentId);plan=row?"履行承諾：「"+row.text+"」":"履行尚未完成的承諾";step="FULFILL_COMMITMENT"}
  else if(top.kind==="WORK"){plan="維持工作與日常生活";step="WORK"}
- else{const g=clean(npc.goal||c.planner.goal,220);plan=g?"推進目標：「"+g+"」":"維持自己的生活與安全";step=/尋找|追查|調查|find|seek|investigat/i.test(g)?"INVESTIGATE_GOAL":/旅|前往|travel|reach/i.test(g)?"TRAVEL_FOR_GOAL":"ADVANCE_GOAL"}
- c.planner.goal=clean(npc.goal||c.planner.goal,260);c.planner.currentPlan=plan;c.planner.nextStep=step;c.planner.priority=top.kind;c.planner.updatedMinute=minute(state);return {goal:c.planner.goal,currentPlan:plan,nextStep:step,priority:top.kind,needs}
+ else{const g=clean(npc.agency?.want||npc.goal||c.planner.goal,220);plan=g?"推進目標：「"+g+"」":"維持自己的生活與安全";step=/尋找|追查|調查|find|seek|investigat/i.test(g)?"INVESTIGATE_GOAL":/旅|前往|travel|reach/i.test(g)?"TRAVEL_FOR_GOAL":"ADVANCE_GOAL"}
+ c.planner.goal=clean(npc.agency?.want||npc.goal||c.planner.goal,260);c.planner.currentPlan=plan;c.planner.nextStep=step;c.planner.priority=top.kind;c.planner.updatedMinute=minute(state);npc.agency??={};npc.agency.currentPlan=plan;npc.agency.lastAdvancedMinute=c.planner.updatedMinute;npc.agency.lastPriority=top.kind;return {goal:c.planner.goal,currentPlan:plan,nextStep:step,priority:top.kind,needs}
 }
 export function npcPlannerSnapshot(state,npc){const c=ensureNpcCognition(state,npc);return c?{...c.planner,needs:evaluateNpcNeeds(state,npc)}:null}
 export function npcCognitionSnapshot(state,npc){const c=ensureNpcCognition(state,npc);if(!c)return null;return {memory:npcMemorySnapshot(state,npc),beliefs:npcBeliefSnapshot(state,npc),relationships:npcRelationshipSnapshot(state,npc),commitments:npcCommitmentSnapshot(state,npc),planner:npcPlannerSnapshot(state,npc),effects:npcEffectSnapshot(state,npc)}}

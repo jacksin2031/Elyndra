@@ -57,7 +57,7 @@ function applyOriginVisibilityBoundary(state,rules){
  for(const quest of Array.isArray(r.sideQuests)?r.sideQuests:[]){const allowed=quest?.originKnown===true;quest.known=allowed;if(!allowed)quest.visibilityLock="UNSEEN"}
 }
 export function ensureOriginRuntime(state){
- state.player??={};const p=profile(state),rules=policy(state),existing=state.player.originRuntime&&typeof state.player.originRuntime==="object"?state.player.originRuntime:{};
+ state.player??={};const blueprintNarrative=state.world?.creation?.originProfile?.narrativeIdentity||state.world?.creation?.blueprintProfile?.origin?.narrativeIdentity||state.world?.seed?.creationV2?.originProfile?.narrativeIdentity||state.world?.seed?.creationV2?.blueprintProfile?.origin?.narrativeIdentity||null;if(blueprintNarrative&&typeof blueprintNarrative==="object"&&!Array.isArray(blueprintNarrative)){state.player.origin??={};if(!state.player.origin.narrativeIdentity)state.player.origin.narrativeIdentity=structuredClone(blueprintNarrative);if(state.world?.creation?.originProfile&&!state.world.creation.originProfile.narrativeIdentity)state.world.creation.originProfile.narrativeIdentity=structuredClone(blueprintNarrative)}const p=profile(state),rules=policy(state),existing=state.player.originRuntime&&typeof state.player.originRuntime==="object"?state.player.originRuntime:{};
  state.player.originRuntime={
   version:1,originId:clean(p.id,120)||"UNKNOWN",label:clean(p.label,120)||"未知起源",
   knowledgePolicy:rules.knowledgePolicy,languagePolicy:rules.languagePolicy,languageBarrier:rules.languageBarrier,legalStatus:rules.legalStatus,openingBias:rules.openingBias,
@@ -103,7 +103,7 @@ export function originNpcContext(state,npc=null){
 }
 export function originOpeningContract(state){
  const rt=ensureOriginRuntime(state),rules=policy(state);
- return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true||rules.worldName===true,calendarKnown:state.player?.calendarKnown===true||rules.calendar===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy,narrativeIdentity:profile(state)?.narrativeIdentity?structuredClone(profile(state).narrativeIdentity):null}
+ const narrative=profile(state)?.narrativeIdentity||state.world?.creation?.originProfile?.narrativeIdentity||state.world?.creation?.blueprintProfile?.origin?.narrativeIdentity||state.world?.seed?.creationV2?.originProfile?.narrativeIdentity||state.world?.seed?.creationV2?.blueprintProfile?.origin?.narrativeIdentity||null;return {openingMode:rt.openingMode,worldNameKnown:state.player?.worldNameKnown===true||rules.worldName===true,calendarKnown:state.player?.calendarKnown===true||rules.calendar===true,identitySignal:rt.identitySignal,spawnPolicy:rt.spawnPolicy,equipmentPolicy:rt.equipmentPolicy,knowledgePolicy:rt.knowledgePolicy,narrativeIdentity:narrative?structuredClone(narrative):null}
 }
 export function originRuntimeSnapshot(state,{director=false}={}){
  const rt=ensureOriginRuntime(state),base={originId:rt.originId,label:rt.label,knowledgePolicy:rt.knowledgePolicy,languageBarrier:rt.languageBarrier,legalStatus:rt.legalStatus,identitySignal:rt.identitySignal,spokenLanguages:[...rt.spokenLanguages],readLanguages:[...rt.readLanguages],openingMode:rt.openingMode};

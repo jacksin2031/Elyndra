@@ -3,7 +3,7 @@ import {normalizeLocale,languageContract} from "../src/locale-runtime.js";
 import {parseModelJSON} from "../src/model-json.js";
 
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const body=safeBody(req),sourceLocale=normalizeLocale(body.sourceLocale),targetLocale=normalizeLocale(body.targetLocale),strings=Array.isArray(body.strings)?body.strings.map(x=>String(x??"").trim()).filter(Boolean).slice(0,220):[];
   if(!strings.length)return json(res,200,{translations:[]});

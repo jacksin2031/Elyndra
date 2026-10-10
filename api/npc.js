@@ -1,6 +1,6 @@
 import {json,methodGuard,safeBody,callModel,errorStatus} from "./_ai.js";
 export default async function handler(req,res){
- if(!methodGuard(req,res))return;
+ if(!(await methodGuard(req,res)))return;
  try{
   const {message,npc,knownFacts=[],memories=[],recognition={knownDeeds:[],titles:[]},contact={mode:"LOCAL",communication:null},authority=null,scene}=safeBody(req);
   if(!message||!npc?.name)return json(res,400,{error:"INVALID_REQUEST"});
