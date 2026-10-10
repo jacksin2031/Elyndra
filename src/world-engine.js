@@ -12,7 +12,7 @@ import {evaluateOriginOpeningCompliance} from "./origin-opening-compliance.js?v=
 import {compileWorldGenesis,evaluateWorldGenesis} from "./world-genesis-evaluator.js?v=61002";
 import {applyOpeningExperience} from "./player-experience.js?v=57028";
 import {ensureCausalWorldCore,registerCanonizedWorld} from "./causal-world-core.js?v=59014";
-import {assertWorldStoryArchitecture,evaluateWorldStoryArchitecture} from "./world-story-architecture.js?v=61008";
+import {assertWorldStoryArchitecture,evaluateWorldStoryArchitecture} from "./world-story-architecture.js?v=61009";
 const uuid=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clean=(v,max=120)=>typeof v==="string"?v.trim().slice(0,max):"";
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));

@@ -59,7 +59,7 @@ test("v0.59.11 current objective card stays inside the sidebar HUD",async()=>{
 
 test("v0.59.11 origin/HUD asset routing remains intact after the current app release",async()=>{
  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
- assert.match(html,/world-surfaces\.css\?v=61008/);
- assert.match(html,/app\.js\?v=61008/);
- assert.ok(html.includes('"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=61008"'))
+ assert.match(html,/world-surfaces\.css\?v=61009/);
+ assert.match(html,/app\.js\?v=61009/);
+ assert.ok(html.includes('"./src/origin-runtime.js?v=57025":"./src/origin-runtime.js?v=61009"'))
 });

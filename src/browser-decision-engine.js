@@ -1,5 +1,5 @@
-import {recordDebug} from "./debug-telemetry.js?v=61008";
-import {BROWSER_DECISION,BROWSER_DECISION_ENGINE,BROWSER_DECISION_MODE,createBrowserDecisionRequest,normalizeBrowserDecisionResult,browserDecisionPolicy} from "./browser-decision-contract.js?v=61008";
+import {recordDebug} from "./debug-telemetry.js?v=61009";
+import {BROWSER_DECISION,BROWSER_DECISION_ENGINE,BROWSER_DECISION_MODE,createBrowserDecisionRequest,normalizeBrowserDecisionResult,browserDecisionPolicy} from "./browser-decision-contract.js?v=61009";
 export const BROWSER_DECISION_DEFAULTS=Object.freeze({mode:BROWSER_DECISION_MODE.SHADOW_ONLY,initTimeoutMs:10000,timeoutMs:1500,acceptThreshold:.9,uncertainThreshold:.65});
 const randomId=()=>globalThis.crypto?.randomUUID?.()||"rpc-"+Math.random().toString(36).slice(2)+Date.now().toString(36);
 export function detectBrowserDecisionCapabilities(env=globalThis){
@@ -15,7 +15,7 @@ export function detectBrowserDecisionCapabilities(env=globalThis){
 }
 function defaultWorkerFactory(env){
  if(typeof env?.Worker!=="function")return null;
- return ()=>new env.Worker(new URL("./browser-decision-worker.js?v=61008",import.meta.url),{type:"module",name:"elyndra-browser-decision"});
+ return ()=>new env.Worker(new URL("./browser-decision-worker.js?v=61009",import.meta.url),{type:"module",name:"elyndra-browser-decision"});
 }
 function workerRpc(worker,type,payload,timeoutMs,onProgress=null){
  return new Promise((resolve,reject)=>{
@@ -57,11 +57,12 @@ export class BrowserDecisionEngine{
   this.telemetry("BROWSER_DECISION_MODEL_READY",{...profile,webgpuComputeReady:Boolean(this.workerProbe?.computeReady)});
   return profile
  }
- async benchmark(cases=[]){
+ async benchmark(casesOrPayload=[]){
   if(!this.initialized)await this.init();
   if(!this.workerReady||!this.worker)throw new Error("BROWSER_DECISION_WORKER_UNAVAILABLE");
-  const result=await workerRpc(this.worker,"BENCHMARK",{cases},Math.max(5000,Number(this.config.benchmarkTimeoutMs)||60000));
-  this.telemetry("BROWSER_DECISION_BENCHMARK",{cases:result?.cases||0,correct:result?.correct||0,accuracy:result?.accuracy||0,confident:result?.confident||0,confidentAccuracy:result?.confidentAccuracy||0,latencyMs:result?.latencyMs||0});
+  const payload=Array.isArray(casesOrPayload)?{cases:casesOrPayload}:(casesOrPayload&&typeof casesOrPayload==="object"?casesOrPayload:{cases:[]});
+  const result=await workerRpc(this.worker,"BENCHMARK",payload,Math.max(5000,Number(this.config.benchmarkTimeoutMs)||60000));
+  this.telemetry("BROWSER_DECISION_BENCHMARK",{suite:result?.suite||payload?.suite||"UNKNOWN",cases:result?.cases||0,correct:result?.correct||0,accuracy:result?.accuracy||0,confident:result?.confident||0,confidentAccuracy:result?.confidentAccuracy||0,latencyMs:result?.latencyMs||0});
   return result
  }
  async _runEvaluator(engine,evaluator,request){

@@ -1,4 +1,4 @@
-import {pendingQuestContinuity,QUEST_TERMINAL_STATUSES} from "./quest-contracts.js?v=61008";
+import {pendingQuestContinuity,QUEST_TERMINAL_STATUSES} from "./quest-contracts.js?v=61009";
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,Number(n)||0));
 const list=v=>Array.isArray(v)?v:[];
 const ACTION_TYPES=new Set(["PLAYER_ACTION","PLAYER_ITEM_ACTION","PLAYER_ECONOMY_ACTION"]);

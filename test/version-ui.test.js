@@ -1,4 +1,4 @@
-// v0.61.8 release contract
+// v0.61.9 release contract
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
@@ -9,9 +9,9 @@ test("main UI exposes APP_VERSION and package version consistently",async()=>{
   readFile(new URL("../app.js",import.meta.url),"utf8"),readFile(new URL("../src/version.js",import.meta.url),"utf8"),readFile(new URL("../package.json",import.meta.url),"utf8")
  ]);
  const pkg=JSON.parse(pkgText),m=versionSource.match(/APP_VERSION\s*=\s*"([^"]+)"/);
- assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.61.8");
+ assert.ok(m);assert.equal(m[1],pkg.version);assert.equal(pkg.version,"0.61.9");
  assert.match(html,/id="versionBadge" class="version-badge"/);assert.match(css,/\.version-badge\{position:fixed;right:/);
- assert.match(html,/app\.js\?v=61008/);assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=61008/);assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=61008"/);assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06025-game-engine-hotfix\.js\?v=61008"/);assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06025-ai-client-hotfix\.js\?v=61008"/);assert.match(html,/"\.\/src\/ai-settings\.js\?v=60010":"\.\/src\/v06028-ai-settings-hotfix\.js\?v=61008"/);assert.match(html,/"\.\/src\/turn-compiler\.js\?v=57029":"\.\/src\/v06028-turn-compiler-hotfix\.js\?v=61008"/);assert.match(html,/"\.\/src\/world-quality\.js\?v=57025":"\.\/src\/v06029-world-quality-hotfix\.js\?v=61008"/);assert.match(html,/"\.\/src\/talent-engine\.js\?v=60004":"\.\/src\/v06024-talent-engine-hotfix\.js\?v=61008"/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60010"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
+ assert.match(html,/app\.js\?v=61009/);assert.match(html,/v06027-runtime-ui-hotfix\.js\?v=61009/);assert.match(html,/"\.\/src\/version\.js\?v=60010":"\.\/src\/version\.js\?v=61009"/);assert.match(html,/"\.\/src\/game-engine\.js\?v=60006":"\.\/src\/v06025-game-engine-hotfix\.js\?v=61009"/);assert.match(html,/"\.\/src\/ai-client\.js\?v=60010":"\.\/src\/v06025-ai-client-hotfix\.js\?v=61009"/);assert.match(html,/"\.\/src\/ai-settings\.js\?v=60010":"\.\/src\/v06028-ai-settings-hotfix\.js\?v=61009"/);assert.match(html,/"\.\/src\/turn-compiler\.js\?v=57029":"\.\/src\/v06028-turn-compiler-hotfix\.js\?v=61009"/);assert.match(html,/"\.\/src\/world-quality\.js\?v=57025":"\.\/src\/v06029-world-quality-hotfix\.js\?v=61009"/);assert.match(html,/"\.\/src\/talent-engine\.js\?v=60004":"\.\/src\/v06024-talent-engine-hotfix\.js\?v=61009"/);assert.match(app,/import \{APP_VERSION\} from "\.\/src\/version\.js\?v=60010"/);assert.match(app,/versionBadge\.textContent=`v\$\{APP_VERSION\}`/)
 });
 
 test("History/Future/character systems remain available after v0.53",async()=>{

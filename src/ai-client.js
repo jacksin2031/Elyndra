@@ -9,7 +9,7 @@ import {directorHistorySnapshot,validateWorldHistory} from "./world-history.js?v
 import {timelineAuthoringSlots,bindTimelineAuthoringSlots,validateWorldTimeline} from "./world-timeline.js?v=57025";
 import {playerWeatherSnapshot} from "./weather-engine.js?v=57025";
 import {createGenerationDiagnostics,recordGenerationStage,finalizeGenerationDiagnostics,normalizeWorldEvaluation,fallbackWorldEvaluation,applyWorldRepairPatch,applyFallbackRecoveryPatch,validateExpansionProvenance,backgroundQualitySnapshot} from "./world-quality.js?v=57025";
-import {WORLD_ARCHITECT_SKILL_DIRECTIVE,buildWorldArchitectBrief,worldArchitectRequiredSchema,worldDesignLogicIssues,fallbackWorldDesignLogic,repairWorldDesignLogic} from "./world-architect-skill.js?v=61008";
+import {WORLD_ARCHITECT_SKILL_DIRECTIVE,buildWorldArchitectBrief,worldArchitectRequiredSchema,worldDesignLogicIssues,fallbackWorldDesignLogic,repairWorldDesignLogic} from "./world-architect-skill.js?v=61009";
 import {parseModelJSON as parseJSON} from "./model-json.js?v=57025";
 import {npcBehaviorSnapshot} from "./player-experience.js?v=57028";
 import {normalizeActionIntent} from "./action-intent.js?v=57025";
@@ -17,7 +17,7 @@ import {buildTurnOutcomeKernel,turnDirectorMode as sharedTurnDirectorMode} from 
 import {ACTION_ASSESS_SYSTEM as SHARED_ACTION_ASSESS_SYSTEM,DEFERRED_TURN_SCHEMA as SHARED_DEFERRED_TURN_SCHEMA,sceneNarratorSystem,stateDirectorSystem,statePatchDirectorSystem} from "./ai-runtime-contracts.js?v=59000";
 import {planStateSync,validateStatePatch} from "./state-sync.js?v=57025";
 import {originNpcContext,originOpeningContract} from "./origin-runtime.js?v=57025";
-import {questContinuitySnapshot} from "./quest-engine.js?v=61008";
+import {questContinuitySnapshot} from "./quest-engine.js?v=61009";
 import {originComplianceSchema,fallbackOriginCompliance,evaluateOriginOpeningCompliance} from "./origin-opening-compliance.js?v=61002";
 import {historyDepthSnapshot} from "./history-depth.js?v=57025";
 import {knowledgeCanRevealCanon} from "./knowledge-model.js?v=57025";
@@ -28,8 +28,9 @@ import {WORLD_TRADITIONAL_CHINESE_CONTRACT,simplifiedChineseLeak} from "./tradit
 import {loadLocale,normalizeLocale,languageContract,registerLocalizedOutput} from "./locale-runtime.js?v=60010";
 import {repairAiOutput,isLocationTypeInstruction} from "./ai-output-repair.js?v=59014";
 import {recordDebug} from "./debug-telemetry.js?v=59012";
-import {attachWorldGenesis} from "./world-genesis-evaluator.js?v=61008";
-import {assertWorldStoryArchitecture,factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61008";
+import {evaluateOriginComplianceShadow,recordBrowserDecisionOriginComparison,evaluateAiOutputAcceptanceShadow,recordBrowserDecisionAiOutputComparison} from "./browser-decision-runtime.js?v=61009";
+import {attachWorldGenesis} from "./world-genesis-evaluator.js?v=61009";
+import {assertWorldStoryArchitecture,factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61009";
 const API_BASE=(globalThis.ELYNDRA_API_BASE||"").replace(/\/$/,"");
 const apiPath=path=>API_BASE?API_BASE+path:path;
 async function post(path,body,options={}){const serverToken=String(globalThis.ELYNDRA_API_TOKEN||"").trim(),r=await fetch(apiPath(path),{method:"POST",signal:options?.signal,headers:{"Content-Type":"application/json",...(serverToken?{Authorization:`Bearer ${serverToken}`}:{})},body:JSON.stringify({...body,locale:normalizeLocale(body?.locale||loadLocale())})});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||`AI_HTTP_${r.status}`);const data=await r.json();registerLocalizedOutput(data,normalizeLocale(body?.locale||loadLocale()));return data}
@@ -369,7 +370,7 @@ export async function generateWorldCandidate(seed,constitution,onProgress){
   const originSemantic=await resilientWorldStage("ORIGIN_OPENING_COMPLIANCE",originEvaluatorArgs(geography.openingHook),()=>fallbackOriginCompliance(originOpening,"ORIGIN_SEMANTIC_EVALUATOR_UNAVAILABLE"));
   let originCompliance=evaluateOriginOpeningCompliance({openingHook:geography.openingHook,originOpening,playerOrigin:seed.creationV2?.originProfile||{},anchor,reported:originSemantic,semanticSource:originSemantic?.semanticSource||"AI",semanticError:originSemantic?.semanticError||""});
   if(!originCompliance.valid){markWorldFallback("GEOGRAPHY","ORIGIN_OPENING_COMPLIANCE:"+originCompliance.errors.join("|"));geography=geographyFallback(anchor,originOpening);const fallbackSemantic=await resilientWorldStage("ORIGIN_OPENING_COMPLIANCE",originEvaluatorArgs(geography.openingHook),()=>fallbackOriginCompliance(originOpening,"ORIGIN_FALLBACK_SEMANTIC_EVALUATOR_UNAVAILABLE"));originCompliance=evaluateOriginOpeningCompliance({openingHook:geography.openingHook,originOpening,playerOrigin:seed.creationV2?.originProfile||{},anchor,reported:fallbackSemantic,semanticSource:fallbackSemantic?.semanticSource||"AI",semanticError:fallbackSemantic?.semanticError||""})}
-  geography.originComplianceReport=originCompliance;
+  geography.originComplianceReport=originCompliance;void evaluateOriginComplianceShadow({openingHook:geography.openingHook,originOpening,anchor}).then(result=>recordBrowserDecisionOriginComparison(result,originCompliance));
   report(64,"雙 AI 編譯 Wave 2","歷史與地理已鎖定；最多兩個 AI 同時生成未來 Timeline 與地方社會，兩者必須引用 Wave 1");
 
   const slots=timelineAuthoringSlots(directive.timelinePacing);
@@ -544,11 +545,18 @@ export async function assessPlayerAction(state,action){
  }
 }
 
+function verifiedSceneOutput(raw,context={}){
+ const repaired=repairAiOutput("SCENE",raw,context),accepted=Boolean(repaired.value);
+ void evaluateAiOutputAcceptanceShadow("SCENE",raw,{expectedOutcome:context.expectedOutcome}).then(result=>recordBrowserDecisionAiOutputComparison("SCENE",result,{accepted,reasons:repaired.reasons||[],hardRejects:repaired.hardRejects||0}));
+ if(!accepted)throw new Error("AI_SCENE_REJECTED:"+(repaired.reasons||[]).join(","));
+ return repaired.value
+}
 export function verifiedStatePatch(raw,context={}){
  const normalized=normalizeGeneratedStatePatch(raw),repaired=repairAiOutput("STATE_PATCH",normalized,context);
  const originalCount=Array.isArray(normalized?.operations)?normalized.operations.length:0;
- const acceptedCount=Array.isArray(repaired.value?.operations)?repaired.value.operations.length:0;
- if(!repaired.value||(originalCount>0&&acceptedCount===0&&repaired.hardRejects>0)){
+ const acceptedCount=Array.isArray(repaired.value?.operations)?repaired.value.operations.length:0,accepted=Boolean(repaired.value)&&!(originalCount>0&&acceptedCount===0&&repaired.hardRejects>0);
+ void evaluateAiOutputAcceptanceShadow("STATE_PATCH",normalized,{plan:context.plan,baseRevision:context?.plan?.baseRevision}).then(result=>recordBrowserDecisionAiOutputComparison("STATE_PATCH",result,{accepted,reasons:repaired.reasons||[],hardRejects:repaired.hardRejects||0}));
+ if(!accepted){
   recordDebug("STATE_PATCH_REPAIR_FULL_REJECTION",{status:"ERROR",turnId:context.turnId||null,originalCount,acceptedCount,reasons:repaired.reasons||[],dropped:repaired.dropped||[]});
   throw new Error("STATE_PATCH_ALL_OPERATIONS_REJECTED");
  }
@@ -567,7 +575,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
    aiTask:"scene",signal:options?.signal,timeoutMs:35000,retryOnTimeout:false,maxOutputTokens:1100,temperature:.8,
    system:sceneNarratorSystem(),
    user:JSON.stringify(sceneInput)
-  }).then(raw=>{const fixed=repairAiOutput("SCENE",parseJSON(raw),{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE",locale:repairLocale,turnId:repairTurnId});if(!fixed.value)throw new Error("AI_SCENE_REJECTED:"+(fixed.reasons||[]).join(","));return fixed.value});
+  }).then(raw=>verifiedSceneOutput(parseJSON(raw),{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE",locale:repairLocale,turnId:repairTurnId}));
   const stateSync=immediateStateAI?directChat({
    aiTask:plan.mode==="DEEP"?"turn_state_deep":"turn_state_fast",signal:options?.signal,
    timeoutMs:plan.mode==="DEEP"?45000:22000,retryOnTimeout:false,
@@ -579,7 +587,7 @@ export function startTurnAIJobs(action,roll,snapshot,options={}){
   return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"direct"}
  }
  const payload={action,intent:actionIntent,roll,snapshot,plan};
- const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>(()=>{const fixed=repairAiOutput("SCENE",x.scene,{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE",locale:repairLocale,turnId:repairTurnId});if(!fixed.value)throw new Error("AI_SCENE_REJECTED:"+(fixed.reasons||[]).join(","));return fixed.value})());
+ const playerAction=post("/api/turn-scene",payload,{signal:options?.signal}).then(x=>verifiedSceneOutput(x.scene,{expectedOutcome:kernel.result?.success===true?"SUCCESS":"FAILURE",locale:repairLocale,turnId:repairTurnId}));
  const stateSync=immediateStateAI?post("/api/turn-state",payload,{signal:options?.signal}).then(x=>verifiedStatePatch(x.patch,{plan,snapshot,turnId:repairTurnId})):Promise.resolve(null);
  return {playerAction,stateSync,directorMode,stateMode,actionIntent,kernel,plan,transport:"server"}
 }

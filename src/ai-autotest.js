@@ -1,5 +1,5 @@
 import {worldStyleNames} from "./world-style-presets.js?v=61002";
-import {APP_VERSION} from "./version.js?v=61008";
+import {APP_VERSION} from "./version.js?v=61009";
 import {directChat} from "./ai-settings.js?v=60010";
 import {recordDebug} from "./debug-telemetry.js?v=57025";
 import {summarizeRuntimeObservability} from "./runtime-observability.js?v=59013";
@@ -7,7 +7,7 @@ import {helperSnapshot} from "./helper-context.js?v=57029";
 import {ensureTravelNetwork} from "./travel-engine.js?v=57025";
 import {playerVisibleLocationName} from "./player-location-visibility.js?v=57025";
 import {playerVisibleNpcName} from "./player-entity-visibility.js?v=57029";
-import {factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61008";
+import {factionAgencyIssues,npcAgencyIssues} from "./world-story-architecture.js?v=61009";
 
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(value))?Number(value):min));
 const pick=(items,random=Math.random)=>items[Math.min(items.length-1,Math.floor(clamp(random(),0,.999999999999)*items.length))];

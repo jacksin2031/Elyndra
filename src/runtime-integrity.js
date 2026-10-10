@@ -1,4 +1,4 @@
-import {validateSaveState} from "./state-validator.js?v=61008";
+import {validateSaveState} from "./state-validator.js?v=61009";
 const list=value=>Array.isArray(value)?value:[];
 const SUCCESS_ONLY_OPS=new Set(["MOVE_PLAYER","ACQUIRE_ITEM","SET_WORLD_NAME_KNOWN","SET_CALENDAR_KNOWN","LEARN_RECIPE","LEARN_MAGIC"]);
 function stable(value){if(value==null||typeof value!=="object")return JSON.stringify(value);if(Array.isArray(value))return "["+value.map(stable).join(",")+"]";return "{"+Object.keys(value).sort().map(k=>JSON.stringify(k)+":"+stable(value[k])).join(",")+"}"}

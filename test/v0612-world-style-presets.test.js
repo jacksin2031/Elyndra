@@ -40,9 +40,9 @@ test("v0.61.2 creator, translations, contract and importmap expose every new wor
  const genre=html.match(/<select id="genre">([\s\S]*?)<\/select>/)?.[1]||"";
  const imports=JSON.parse(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)?.[1]||"{}").imports;
  for(const name of NEW_STYLES){assert.ok(genre.includes(`<option value="${name}">${name}</option>`),`${name} keeps its explicit canonical value and visible label`);assert.ok(translations.includes(`"${name}":r(`),name)}
- assert.equal(imports["./src/world-style-presets.js?v=57025"],"./src/world-style-presets.js?v=61008");
- assert.equal(imports["./src/world-style-presets.js?v=60032"],"./src/world-style-presets.js?v=61008");
- assert.equal(imports["./src/world-creation.js?v=60010&base=1"],"./src/world-creation.js?v=61008&base=1");
+ assert.equal(imports["./src/world-style-presets.js?v=57025"],"./src/world-style-presets.js?v=61009");
+ assert.equal(imports["./src/world-style-presets.js?v=60032"],"./src/world-style-presets.js?v=61009");
+ assert.equal(imports["./src/world-creation.js?v=60010&base=1"],"./src/world-creation.js?v=61009&base=1");
  globalThis.ELYNDRA_LOCALE="en";const en=worldContractHtml({worldStyle:"魔導都市",worldScale:"中型",difficulty:"普通",origin:"穿越",role:"普通人",metrics:null,structure:[],difficultyRules:[],storyPreferences:[],required:[],allowed:[],forbidden:[],unknown:[]});assert.match(en,/Magitech Metropolis/);
  globalThis.ELYNDRA_LOCALE="ja";const ja=worldContractHtml({worldStyle:"神話洪荒",worldScale:"大型",difficulty:"普通",origin:"穿越",role:"普通人",metrics:null,structure:[],difficultyRules:[],storyPreferences:[],required:[],allowed:[],forbidden:[],unknown:[]});assert.match(ja,/神話的原初世界/)
 });

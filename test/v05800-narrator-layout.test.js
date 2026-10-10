@@ -12,7 +12,7 @@ test("v0.58.0 desktop narration stays in one scene-copy flow",async()=>{
  assert.match(css,/v0\.58\.0 narrator layout stabilization/);
  assert.match(css,/#game \.scene-copy\{[\s\S]*?display:flex!important;[\s\S]*?flex-direction:column!important;/);
  assert.match(css,/#game \.scene-copy #narrative\{[\s\S]*?position:static!important;[\s\S]*?margin:0!important;/);
- assert.match(html,/styles\.css\?v=61008/);
+ assert.match(html,/styles\.css\?v=61009/);
  assert.match(app,/\.\/src\/ai-client\.js\?v=60010/);
  assert.match(client,/\.\/ai-runtime-contracts\.js\?v=59000/);
 });

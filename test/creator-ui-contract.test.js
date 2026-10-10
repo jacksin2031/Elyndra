@@ -88,8 +88,8 @@ test("creator styles, gallery, ambience, and cache-busted game art are wired wit
   const libraryJs = readFileSync(new URL("../src/world-style-library.js", import.meta.url), "utf8");
   const consoleJs = readFileSync(new URL("../src/creator-console.js", import.meta.url), "utf8");
   const gameCss = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
-  assert.match(html, /world-style-library\.css\?v=61008/);
-  assert.match(html, /world-ambience\.css\?v=61008/);
+  assert.match(html, /world-style-library\.css\?v=61009/);
+  assert.match(html, /world-ambience\.css\?v=61009/);
   assert.match(creatorCss, /\.creator-console\{[\s\S]*?display:grid;grid-template-columns:190px minmax\(0,1fr\) 282px;/);
   assert.match(app, /initCreatorConsole\(\);initWorldStyleLibrary\(\{onApply:applyCreatorWorldStyle\}\);initWorldAmbience\(\)/);
   assert.match(app, /function clearCreatorStyleTemplate\(\)/);
@@ -104,14 +104,14 @@ test("creator styles, gallery, ambience, and cache-busted game art are wired wit
     assert.equal(art.includes("?"), false, "localStorage v1 retains its existing canonical art path");
     const shown = worldStyleArtUrl(art);
     const url = new URL(shown, "https://elyndra.invalid/");
-    assert.equal(url.searchParams.get("v"), "61008");
+    assert.equal(url.searchParams.get("v"), "61009");
     const localAsset = new URL(`../${decodeURIComponent(url.pathname.slice(1))}`, import.meta.url);
     assert.equal(existsSync(localAsset), true, `${art} exists`);
     const digest = createHash("sha256").update(readFileSync(localAsset)).digest("hex");
     assert.ok(digest.length === 64);
     const genre = ["低魔政治奇幻", "神話洪荒", "浮空群島", "魔導都市", "巨獸共生", "永夜寒境"][index];
     assert.equal(WORLD_STYLE_ART_CATALOG[genre], art);
-    assert.ok(gameCss.includes(`${art}?v=61008`), `${genre} maps to its game background`);
+    assert.ok(gameCss.includes(`${art}?v=61009`), `${genre} maps to its game background`);
   }
   const digests = WORLD_STYLE_LIBRARY_TEMPLATE_ARTS.map((art) => {
     const url = new URL(worldStyleArtUrl(art), "https://elyndra.invalid/");

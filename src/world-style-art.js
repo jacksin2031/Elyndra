@@ -36,7 +36,7 @@ export const WORLD_STYLE_ART_CATALOG = Object.freeze({
   "末日異世界": WORLD_STYLE_LIBRARY_LEGACY_ARTS[4]
 });
 
-export const WORLD_STYLE_ART_CACHE_VERSION = "61008";
+export const WORLD_STYLE_ART_CACHE_VERSION = "61009";
 
 export function worldStyleArtUrl(asset) {
   const value = String(asset ?? "").trim();

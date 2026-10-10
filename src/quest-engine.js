@@ -3,7 +3,7 @@ import {recordCausalEvent} from "./knowledge-graph.js?v=57025";
 import {localCurrencyReward} from "./world-locality.js?v=57025";
 import {adjustNpcRelationship,recordNpcMemory,resolveNpcCommitment} from "./npc-cognition.js?v=57025";
 import {abandonPlayerDrive,createPlayerDrive,driveSnapshot,ensurePlayerDrives,fulfillPlayerDrive,setFocusedDrive,syncPlayerDrivesFromEvents} from "./drive-engine.js?v=60005";
-import {normalizeQuestConditions,normalizeQuestContinuity,pendingQuestContinuity,QUEST_TERMINAL_STATUSES} from "./quest-contracts.js?v=61008";
+import {normalizeQuestConditions,normalizeQuestContinuity,pendingQuestContinuity,QUEST_TERMINAL_STATUSES} from "./quest-contracts.js?v=61009";
 const id=()=>crypto.randomUUID?.()||Math.random().toString(36).slice(2);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const TRUSTED_EVIDENCE=new Set(["CANON_EVIDENCE","ITEM","NPC_TESTIMONY","ENGINE_EVENT","WORLD_STATE"]);

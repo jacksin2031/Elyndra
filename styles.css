@@ -886,12 +886,12 @@ body[data-world-genre="末日異世界"]{
 }
 
 /* Restored v0.61.2 template artwork is shared by the gallery and in-game backdrop. */
-body[data-world-genre="低魔政治奇幻"]{--ely-scene-raster:url("./assets/ui/backgrounds/low-magic-politics-v1.webp?v=61008");--ely-scene-fallback:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg");--ely-scene-position:54% center}
-body[data-world-genre="神話洪荒"]{--ely-scene-raster:url("./assets/ui/backgrounds/mythic-primordial-v1.webp?v=61008");--ely-scene-fallback:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg");--ely-scene-position:56% center}
-body[data-world-genre="浮空群島"]{--ely-scene-raster:url("./assets/ui/backgrounds/floating-islands-v1.webp?v=61008");--ely-scene-fallback:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg");--ely-scene-position:56% center}
-body[data-world-genre="魔導都市"]{--ely-scene-raster:url("./assets/ui/backgrounds/arcane-metropolis-v1.webp?v=61008");--ely-scene-fallback:url("./assets/ui/backgrounds/steam-magic-2560x1440.svg");--ely-scene-position:54% center}
-body[data-world-genre="巨獸共生"]{--ely-scene-raster:url("./assets/ui/backgrounds/beast-symbiosis-v1.webp?v=61008");--ely-scene-fallback:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg");--ely-scene-position:56% center}
-body[data-world-genre="永夜寒境"]{--ely-scene-raster:url("./assets/ui/backgrounds/endless-winter-v1.webp?v=61008");--ely-scene-fallback:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg");--ely-scene-position:52% center}
+body[data-world-genre="低魔政治奇幻"]{--ely-scene-raster:url("./assets/ui/backgrounds/low-magic-politics-v1.webp?v=61009");--ely-scene-fallback:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg");--ely-scene-position:54% center}
+body[data-world-genre="神話洪荒"]{--ely-scene-raster:url("./assets/ui/backgrounds/mythic-primordial-v1.webp?v=61009");--ely-scene-fallback:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg");--ely-scene-position:56% center}
+body[data-world-genre="浮空群島"]{--ely-scene-raster:url("./assets/ui/backgrounds/floating-islands-v1.webp?v=61009");--ely-scene-fallback:url("./assets/ui/backgrounds/royal-fantasy-2560x1440.svg");--ely-scene-position:56% center}
+body[data-world-genre="魔導都市"]{--ely-scene-raster:url("./assets/ui/backgrounds/arcane-metropolis-v1.webp?v=61009");--ely-scene-fallback:url("./assets/ui/backgrounds/steam-magic-2560x1440.svg");--ely-scene-position:54% center}
+body[data-world-genre="巨獸共生"]{--ely-scene-raster:url("./assets/ui/backgrounds/beast-symbiosis-v1.webp?v=61009");--ely-scene-fallback:url("./assets/ui/backgrounds/eastern-fantasy-2560x1440.svg");--ely-scene-position:56% center}
+body[data-world-genre="永夜寒境"]{--ely-scene-raster:url("./assets/ui/backgrounds/endless-winter-v1.webp?v=61009");--ely-scene-fallback:url("./assets/ui/backgrounds/dark-fantasy-2560x1440.svg");--ely-scene-position:52% center}
 /* Real 2560×1440 AVIF artwork sits above the SVG fallback.
    Artwork keeps its aspect ratio and crops with cover instead of stretching. */
 #game .scene-art{
